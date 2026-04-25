@@ -13,6 +13,7 @@
     "vite": "^7.2.4"
   },
   "dependencies": {
+    "@simplewebauthn/browser": "^11.0.0",
     "@supabase/supabase-js": "^2.90.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
