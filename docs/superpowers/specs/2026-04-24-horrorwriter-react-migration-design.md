@@ -173,7 +173,7 @@ create index passkeys_credential_id_idx on passkeys (credential_id);
 
 ### `webauthn_challenges` table
 
-Short-lived challenges used during WebAuthn ceremonies. Rows older than 5 minutes are pruned by a scheduled function (or simply ignored on lookup).
+Short-lived challenges used during WebAuthn ceremonies. Edge Functions enforce a 5-minute TTL on lookup (`created_at > now() - interval '5 minutes'`); expired rows are simply ignored. A periodic cleanup job to delete old rows is a nice-to-have for table size but not required for correctness.
 
 ```sql
 create table webauthn_challenges (
