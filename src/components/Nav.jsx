@@ -1,6 +1,9 @@
 import { NavLink, Link } from 'react-router-dom'
+import { useAuth } from './AuthContext'
+import { supabase } from '../supabaseClient'
 
 export default function Nav({ onSignInClick }) {
+  const { session } = useAuth()
   const linkClass = ({ isActive }) => isActive ? 'active' : undefined
 
   return (
@@ -17,11 +20,17 @@ export default function Nav({ onSignInClick }) {
         <NavLink to="/forum"   className={linkClass}>The Crypt</NavLink>
         <NavLink to="/library" className={linkClass}>Library</NavLink>
         <NavLink to="/rituals" className={linkClass}>Rituals</NavLink>
-        <NavLink to="/profile" className={linkClass}>Coven</NavLink>
+        {session && <NavLink to="/profile" className={linkClass}>Coven</NavLink>}
       </nav>
-      <button className="nav-cta" onClick={onSignInClick} aria-label="Sign in">
-        Sign In
-      </button>
+      {session ? (
+        <button className="nav-cta ghost" onClick={() => supabase.auth.signOut()} aria-label="Sign out">
+          Sign Out
+        </button>
+      ) : (
+        <button className="nav-cta" onClick={onSignInClick} aria-label="Sign in">
+          Sign In
+        </button>
+      )}
     </header>
   )
 }

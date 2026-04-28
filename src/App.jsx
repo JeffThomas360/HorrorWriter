@@ -8,10 +8,12 @@ import Profile from './pages/Profile'
 import UserProfile from './pages/UserProfile'
 import AuthCallback from './pages/AuthCallback'
 import RequireAuth from './components/RequireAuth'
+import { AuthProvider } from './components/AuthContext'
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
@@ -24,5 +26,6 @@ export default function App() {
         </Route>
       </Routes>
     </BrowserRouter>
+    </AuthProvider>
   )
 }

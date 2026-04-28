@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import VcrClock from './VcrClock'
 
 // Sparse upside-down ash — slow, dim, barely there
 const PARTICLES = Array.from({ length: 6 }, (_, i) => ({
@@ -10,21 +10,6 @@ const PARTICLES = Array.from({ length: 6 }, (_, i) => ({
 }))
 
 export default function Atmospherics() {
-  const [clock, setClock] = useState('00:00:00')
-  const [tapeCounter, setTapeCounter] = useState(4218)
-
-  // Live clock + tape counter
-  useEffect(() => {
-    const tick = () => {
-      const d = new Date()
-      const pad = (n) => String(n).padStart(2, '0')
-      setClock(`${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`)
-      setTapeCounter((n) => (n + 1) % 9999)
-    }
-    tick()
-    const id = setInterval(tick, 1000)
-    return () => clearInterval(id)
-  }, [])
 
   return (
     <>
@@ -57,8 +42,7 @@ export default function Atmospherics() {
       {/* VCR HUD */}
       <div className="hud" aria-hidden="true">
         <span><span className="rec" />REC · CH 03 · SP</span>
-        <span>{clock}</span>
-        <span className="tape-ctr">{String(tapeCounter).padStart(4,'0')} · HORROR-WRITER · OCT 1986</span>
+        <VcrClock />
       </div>
     </>
   )

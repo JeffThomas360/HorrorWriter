@@ -708,6 +708,74 @@ footer li a:hover{color:var(--blood)}
 .shell{position:relative;z-index:10}
 
 /* ============================================================
+   SIGN IN MODAL
+   ============================================================ */
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 999;
+  background: rgba(4, 2, 8, 0.85); backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px; animation: modalFadeIn 0.2s ease-out;
+}
+.modal-content {
+  position: relative; width: 100%; max-width: 420px;
+  background: #090614;
+  border: 1px solid rgba(255, 31, 58, 0.4);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.8), 0 0 30px rgba(255,31,58,0.15), inset 0 0 20px rgba(0,0,0,0.5);
+  border-radius: var(--r); padding: 40px;
+  animation: modalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.modal-close {
+  position: absolute; top: 16px; right: 20px;
+  background: transparent; border: none; color: var(--bone-dim);
+  font-size: 28px; line-height: 1; cursor: pointer; transition: color 0.2s;
+}
+.modal-close:hover { color: var(--blood); }
+.modal-header h2 { font-family: var(--bebas); font-size: 42px; color: var(--bone); margin: 0 0 8px; letter-spacing: .02em; }
+.modal-header h2 em { color: var(--blood); font-style: normal; text-shadow: 0 0 12px rgba(255,31,58,0.6); }
+.modal-header p { color: var(--bone-dim); font-size: 15px; margin: 0 0 32px; }
+
+.modal-form .input-group { margin-bottom: 24px; }
+.modal-form label { display: block; font-family: var(--mono); color: var(--cyan); font-size: 13px; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 8px; }
+.modal-form input {
+  width: 100%; background: rgba(0,0,0,0.4);
+  border: 1px solid rgba(243,236,217,0.15); border-radius: var(--r);
+  color: #fff; font-family: var(--mono); font-size: 16px; padding: 14px 16px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.modal-form input:focus { outline: none; border-color: var(--blood); box-shadow: 0 0 12px rgba(255,31,58,0.2); }
+.full-width { width: 100%; display: block; text-align: center; }
+
+.modal-divider {
+  display: flex; align-items: center; text-align: center; margin: 24px 0;
+  color: var(--bone-dim); font-family: var(--mono); font-size: 12px; letter-spacing: .1em;
+}
+.modal-divider::before, .modal-divider::after { content: ''; flex: 1; border-bottom: 1px dashed rgba(243,236,217,0.1); }
+.modal-divider span { padding: 0 12px; }
+
+.passkey-btn { font-family: var(--mono); letter-spacing: 0; }
+.passkey-btn .icon { color: var(--cyan); margin-right: 8px; font-size: 18px; vertical-align: middle; }
+.modal-footer { margin: 32px 0 0; text-align: center; color: var(--bone-dim); font-size: 13px; font-style: italic; }
+.modal-footer a { color: var(--cyan); text-decoration: none; }
+.modal-footer a:hover { text-decoration: underline; }
+
+@keyframes modalFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes modalSlideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ============================================================
+   MOBILE RESPONSIVENESS
+   ============================================================ */
+@media (max-width: 768px) {
+  .hud { flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; font-size: 12px; }
+  .hud .tape-ctr { display: none; }
+  .grid-floor { height: 35vh; background-size: 50px 50px; transform: perspective(400px) rotateX(60deg); }
+  .hero h1 { font-size: 64px; }
+  .hero .sub { font-size: 18px; }
+  .forum-grid { grid-template-columns: 1fr; }
+  .profile-cols { grid-template-columns: 1fr; }
+  .modal-content { padding: 24px; }
+}
+
+/* ============================================================
    BEST PRACTICE: Respect user motion preferences
    Disable all non-essential animations for users who prefer
    reduced motion (accessibility + performance).
