@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 
 const LIVE = [
@@ -45,6 +45,7 @@ const WHY = [
 export default function Home() {
   const h1Ref = useRef(null)
   const ctx = useOutletContext()
+  const [liveWriters, setLiveWriters] = useState(47)
 
   useEffect(() => {
     const el = h1Ref.current
@@ -54,6 +55,30 @@ export default function Home() {
       setTimeout(() => el.classList.remove('glitch'), 800)
     }, 600)
     return () => clearTimeout(t)
+  }, [])
+
+  // Glitch on a loop
+  useEffect(() => {
+    const id = setInterval(() => {
+      const el = h1Ref.current
+      if (!el) return
+      el.classList.add('glitch')
+      setTimeout(() => el.classList.remove('glitch'), 800)
+    }, 7000)
+    return () => clearInterval(id)
+  }, [])
+
+  // Live writers count drifts like a broadcast
+  useEffect(() => {
+    const id = setInterval(() => {
+      setLiveWriters((n) => {
+        let next = n + Math.round((Math.random() - 0.45) * 4)
+        if (next < 32) next = 32
+        if (next > 71) next = 71
+        return next
+      })
+    }, 3200)
+    return () => clearInterval(id)
   }, [])
 
   return (
@@ -79,6 +104,7 @@ export default function Home() {
               <b>{w.handle}</b>&nbsp;&middot;&nbsp;{w.genre}
             </span>
           ))}
+          <span><span className="dot" /><b>{liveWriters}</b>&nbsp;writing now</span>
         </div>
       </div>
 
