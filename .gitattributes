@@ -1,0 +1,8 @@
+# Force LF line endings in the repo regardless of OS / editor.
+# Stops the CRLF/LF flip-flop noise in diffs.
+* text=auto eol=lf
+
+# Lockfiles and minified assets are binary-ish — never touch them.
+package-lock.json -text
+*.min.js          -text
+*.min.css         -text
