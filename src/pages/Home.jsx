@@ -121,16 +121,15 @@ export default function Home() {
         ))}
       </div>
 
-      <div id="why" style={{marginTop:'100px'}}>
+      <div id="why" className="why-section">
         <p className="eyebrow">Why Join</p>
-        <h2 style={{fontFamily:'var(--serif)',fontWeight:900,fontSize:'clamp(40px,6vw,76px)',color:'var(--bone)',letterSpacing:'.05em',lineHeight:1,marginBottom:'14px'}}>
-          Built for writers who&nbsp;
-          <span style={{color:'var(--blood)',textShadow:'0 0 20px rgba(255,31,58,.5)'}}>mean it.</span>
+        <h2 className="why-heading">
+          Built for writers who&nbsp;<em>mean it.</em>
         </h2>
-        <div id="why-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'24px',marginTop:'48px'}}>
+        <div id="why-grid">
           {WHY.map((w) => (
             <div key={w.label} className="tile" style={{textAlign:'center'}}>
-              <div style={{fontFamily:'var(--mono)',fontSize:'22px',color:'var(--blood)',textShadow:'0 0 18px rgba(255,31,58,.6)',marginBottom:'14px',letterSpacing:'.3em'}}>{w.icon}</div>
+              <div className="why-icon">{w.icon}</div>
               <h3 style={{fontSize:'20px',marginBottom:'10px'}}>{w.label}</h3>
               <p>{w.body}</p>
             </div>
@@ -138,15 +137,14 @@ export default function Home() {
         </div>
       </div>
 
-      <div style={{marginTop:'100px',textAlign:'center',padding:'72px 32px',border:'1px solid rgba(255,31,58,.25)',background:'radial-gradient(800px 400px at 50% 50%, rgba(255,31,58,.06), transparent 70%)',position:'relative',overflow:'hidden'}}>
-        <div style={{position:'absolute',inset:0,pointerEvents:'none',background:'repeating-linear-gradient(45deg, rgba(255,31,58,.04) 0 2px, transparent 2px 16px)'}} />
-        <p className="eyebrow" style={{marginBottom:'16px'}}>Invite Only</p>
-        <h2 style={{fontFamily:'var(--serif)',fontWeight:900,fontSize:'clamp(32px,5vw,60px)',color:'var(--bone)',letterSpacing:'.04em',marginBottom:'18px'}}>Join the Coven</h2>
-        <p style={{fontFamily:'var(--body)',fontStyle:'italic',color:'var(--bone-dim)',fontSize:'20px',maxWidth:'540px',margin:'0 auto 36px'}}>
+      <div className="join-cta">
+        <p className="eyebrow">Invite Only</p>
+        <h2 className="join-heading">Join the Coven</h2>
+        <p className="join-lede">
           We are currently invite-only. Leave your email and we will summon you when a seat opens.
         </p>
-        <form style={{display:'flex',gap:'12px',justifyContent:'center',flexWrap:'wrap'}} onSubmit={(e)=>{e.preventDefault();const i=e.target.querySelector('input');i.value='';i.placeholder='Your soul has been registered.'}}>
-          <input type="email" required placeholder="your@email.com" style={{background:'rgba(0,0,0,.5)',border:'1px solid rgba(243,236,217,.25)',color:'var(--bone)',fontFamily:'var(--mono)',fontSize:'18px',padding:'14px 20px',outline:'none',minWidth:'280px',letterSpacing:'.05em'}} />
+        <form className="join-form" onSubmit={(e)=>{e.preventDefault();const i=e.target.querySelector('input');i.value='';i.placeholder='Your soul has been registered.'}}>
+          <input type="email" required placeholder="your@email.com" />
           <button type="submit" className="btn primary">Summon Me</button>
         </form>
       </div>

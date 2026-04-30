@@ -1,18 +1,50 @@
-import { Navigate, useOutletContext } from 'react-router-dom'
+import { useEffect } from 'react'
+import { useOutletContext } from 'react-router-dom'
 import { useAuth } from './AuthContext'
 
+/**
+ * Wraps a route that requires the visitor to be signed in. If the auth
+ * state is still loading, render a placeholder; if the visitor is not
+ * signed in, pop the sign-in modal (via the Layout-supplied
+ * `openSignin` outlet context) and show a friendly prompt rather than
+ * yanking them away from the URL they meant to visit.
+ */
 export default function RequireAuth({ children }) {
-  const { session, isLoading } = useAuth()
+  const { user, isLoading } = useAuth()
   const ctx = useOutletContext()
 
+  useEffect(() => {
+    if (!isLoading && !user) ctx?.openSignin?.()
+  }, [isLoading, user, ctx])
+
   if (isLoading) {
-    return <section className="surface active" style={{textAlign:'center', paddingTop:120}}>Loading...</section>
+    return (
+      <section className="surface active">
+        <div style={{ padding: '60px 0', textAlign: 'center' }}>
+          <p className="eyebrow">▸ Loading…</p>
+        </div>
+      </section>
+    )
   }
 
-  if (!session) {
-    // Ideally we'd open the modal here, but Navigate handles the redirect
-    // We can just rely on the user clicking "Sign In"
-    return <Navigate to="/" replace />
+  if (!user) {
+    return (
+      <section className="surface active">
+        <div style={{ padding: '60px 0', textAlign: 'center' }}>
+          <p className="eyebrow">▸ Sign in required</p>
+          <p style={{ color: 'var(--bone-dim)', fontStyle: 'italic', marginTop: 18 }}>
+            You need to be signed in to view this page.
+          </p>
+          <button
+            className="btn primary"
+            style={{ marginTop: 28 }}
+            onClick={() => ctx?.openSignin?.()}
+          >
+            Sign In
+          </button>
+        </div>
+      </section>
+    )
   }
 
   return children

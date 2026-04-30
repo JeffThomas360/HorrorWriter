@@ -23,7 +23,7 @@ export default function Nav({ onSignInClick }) {
         {session && <NavLink to="/profile" className={linkClass}>Coven</NavLink>}
       </nav>
       {session ? (
-        <button className="nav-cta ghost" onClick={() => supabase.auth.signOut()} aria-label="Sign out">
+        <button className="nav-cta ghost" onClick={() => supabase?.auth.signOut()} aria-label="Sign out">
           Sign Out
         </button>
       ) : (

@@ -1,70 +1,114 @@
-import { useParams } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useParams, Link } from 'react-router-dom'
+import { getProfileByHandle } from '../lib/profile'
 
-const DEMO_PROFILES = {
-  'lin-carver': {
-    initial:'L', name:'Lin Carver', handle:'@lin-carver',
-    bio:'Writing horror that climbs under the skin and stays there. Finalist, Shirley Jackson Award 2024.',
-    location:'Portland, OR', joined:'October 2023',
-    badges:[{label:'Critique Circle',cls:''},{label:'Ritual Winner',cls:'cyan'},{label:'First Blood',cls:'red'}],
-    works:[
-      {title:'Static Mother',genre:'Psychological Horror',when:'2 days ago'},
-      {title:'The Last Sunday',genre:'Folk Horror',when:'1 month ago'},
-    ],
-  },
-  'marigold-rotten': {
-    initial:'M', name:'Marigold Rotten', handle:'@marigold-rotten',
-    bio:'Folk horror and rot. Writing in the margins of grief. She/her.',
-    location:'Edinburgh, UK', joined:'September 2023',
-    badges:[{label:'Leaderboard Top 3',cls:'cyan'},{label:'Critique Circle',cls:''}],
-    works:[
-      {title:'The Skin Below',genre:'Body Horror',when:'3 days ago'},
-      {title:'The Drowning Lessons',genre:'Folk Horror',when:'2 weeks ago'},
-    ],
-  },
-}
-
-const DEFAULT_PROFILE = {
-  initial:'?', name:'Unknown Scribe', handle:'@unknown',
-  bio:'This writer has not yet stepped from the shadows.',
-  location:'Unknown', joined:'Unknown',
-  badges:[], works:[],
-}
-
+// status: 'loading' | 'found' | 'notfound' | 'error'
 export default function UserProfile() {
   const { handle } = useParams()
-  const profile = DEMO_PROFILES[handle] || { ...DEFAULT_PROFILE, handle: `@${handle}` }
+  const [profile, setProfile] = useState(null)
+  const [status, setStatus] = useState('loading')
+
+  useEffect(() => {
+    let cancelled = false
+    setStatus('loading')
+    getProfileByHandle(handle)
+      .then((p) => {
+        if (cancelled) return
+        if (!p) { setStatus('notfound'); return }
+        setProfile(p)
+        setStatus('found')
+      })
+      .catch(() => { if (!cancelled) setStatus('error') })
+    return () => { cancelled = true }
+  }, [handle])
+
+  if (status === 'loading') {
+    return (
+      <section className="surface active">
+        <div style={{ padding: '60px 0', textAlign: 'center' }}>
+          <p className="eyebrow">▸ Loading…</p>
+        </div>
+      </section>
+    )
+  }
+
+  if (status === 'notfound') {
+    return (
+      <section className="surface active">
+        <div style={{ padding: '60px 0', textAlign: 'center' }}>
+          <p className="eyebrow" style={{ color: 'var(--blood)' }}>▸ No such writer</p>
+          <p style={{ color: 'var(--bone-dim)', fontStyle: 'italic', marginTop: 18 }}>
+            @{handle} is not in the coven.
+          </p>
+          <Link to="/" className="btn ghost" style={{ marginTop: 24, display: 'inline-flex' }}>
+            Back home
+          </Link>
+        </div>
+      </section>
+    )
+  }
+
+  if (status === 'error') {
+    return (
+      <section className="surface active">
+        <div style={{ padding: '60px 0', textAlign: 'center' }}>
+          <p className="eyebrow" style={{ color: 'var(--blood)' }}>▸ Something went wrong.</p>
+          <p style={{ color: 'var(--bone-dim)', fontStyle: 'italic', marginTop: 18 }}>
+            Couldn't load this profile. Try again in a moment.
+          </p>
+        </div>
+      </section>
+    )
+  }
+
+  const initial = (profile.display_name?.[0] || profile.handle?.[0] || '?').toUpperCase()
+  const joinedFmt = profile.created_at
+    ? new Date(profile.created_at).toLocaleDateString(undefined, {
+        year: 'numeric', month: 'short', day: 'numeric',
+      })
+    : null
 
   return (
     <section className="surface active">
+      <p className="eyebrow">▸ Member</p>
+      <h2 className="title">The <em>Coven</em></h2>
+
       <div className="profile-head">
-        <div className="profile-avatar">{profile.initial}</div>
+        {profile.avatar_url ? (
+          <img src={profile.avatar_url} alt="" className="profile-avatar-img" />
+        ) : (
+          <div className="profile-avatar">{initial}</div>
+        )}
         <div className="profile-info">
-          <h3>{profile.name}</h3>
-          <div className="handle">{profile.handle}</div>
-          <p className="bio">{profile.bio}</p>
-          <div className="joined">{profile.location} · Member since {profile.joined}</div>
-          <div className="badges">
-            {profile.badges.map((b, i) => (
-              <span key={i} className={`badge-chip${b.cls ? ' '+b.cls : ''}`}>{b.label}</span>
-            ))}
-          </div>
+          <h3>{profile.display_name || profile.handle}</h3>
+          <div className="handle">@{profile.handle}</div>
+          {profile.pronouns && (
+            <div className="handle" style={{ fontSize: 14, color: 'var(--muted)' }}>
+              {profile.pronouns}
+            </div>
+          )}
+          {profile.bio && <p className="bio">{profile.bio}</p>}
+          {(joinedFmt || profile.location) && (
+            <p className="joined">
+              {joinedFmt && <>Joined {joinedFmt}</>}
+              {joinedFmt && profile.location && <> · </>}
+              {profile.location}
+            </p>
+          )}
+          {profile.website_url && (
+            <p style={{ marginTop: 8 }}>
+              <a
+                href={profile.website_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: 'var(--cyan)', fontFamily: 'var(--mono)' }}
+              >
+                {profile.website_url}
+              </a>
+            </p>
+          )}
         </div>
       </div>
-
-      {profile.works.length > 0 && (
-        <div>
-          <div className="col-title" style={{ marginBottom:18 }}>Shared Work</div>
-          {profile.works.map((w, i) => (
-            <div key={i} className="work">
-              <div>
-                <h5>{w.title}</h5>
-                <p>{w.genre}</p>
-              </div>
-              <div className="when">{w.when}</div>
-            </div>
-          ))}
-        </div>
-      )}
     </section>
   )
 }

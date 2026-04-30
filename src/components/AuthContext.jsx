@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
 
 const AuthContext = createContext({
@@ -6,6 +6,7 @@ const AuthContext = createContext({
   user: null,
   profile: null,
   isLoading: true,
+  refreshProfile: async () => {},
 })
 
 export function AuthProvider({ children }) {
@@ -14,14 +15,38 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
 
+  const fetchProfile = useCallback(async (userId) => {
+    if (!supabase) return null
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single()
+      if (error) throw error
+      setProfile(data)
+      return data
+    } catch (err) {
+      console.error('Error fetching profile:', err)
+      return null
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  // Public: re-fetch the current user's profile (used after edits).
+  const refreshProfile = useCallback(async () => {
+    if (!user) return null
+    return fetchProfile(user.id)
+  }, [user, fetchProfile])
+
   useEffect(() => {
-    // Return early if supabase is not configured yet
     if (!supabase) {
       setIsLoading(false)
       return
     }
 
-    // Get initial session
+    // Initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       setUser(session?.user ?? null)
@@ -29,7 +54,7 @@ export function AuthProvider({ children }) {
       else setIsLoading(false)
     })
 
-    // Listen for auth changes
+    // Subscribe to auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       setUser(session?.user ?? null)
@@ -42,32 +67,13 @@ export function AuthProvider({ children }) {
     })
 
     return () => subscription.unsubscribe()
-  }, [])
-
-  const fetchProfile = async (userId) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single()
-      
-      if (error) throw error
-      setProfile(data)
-    } catch (err) {
-      console.error('Error fetching profile:', err)
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  }, [fetchProfile])
 
   return (
-    <AuthContext.Provider value={{ session, user, profile, isLoading }}>
+    <AuthContext.Provider value={{ session, user, profile, isLoading, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   )
 }
 
-export const useAuth = () => {
-  return useContext(AuthContext)
-}
+export const useAuth = () => useContext(AuthContext)

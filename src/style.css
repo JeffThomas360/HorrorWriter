@@ -91,10 +91,10 @@ img{max-width:100%;display:block}
 
 /* VCR HUD */
 .hud{
-  position:fixed;top:16px;left:18px;right:18px;
+  position:fixed;top:16px;left:340px;right:18px;
   font-family:var(--mono);font-size:20px;color:#9aff9a;
   text-shadow:0 0 8px rgba(154,255,154,.6),0 0 24px rgba(154,255,154,.2);
-  display:flex;justify-content:space-between;letter-spacing:.08em;z-index:92;pointer-events:none;
+  display:flex;justify-content:space-between;letter-spacing:.08em;z-index:55;pointer-events:none;
   text-transform:uppercase;
 }
 .hud .rec::before{
@@ -548,71 +548,100 @@ section.surface.active{display:block}
 .work p{color:var(--bone-dim);font-style:italic;font-size:15px;margin-top:4px}
 .work .when{font-family:var(--mono);color:var(--muted);font-size:14px;letter-spacing:.1em;flex-shrink:0}
 
+/* Real avatar image (when profile.avatar_url is set) — slot it into the same
+   160x160 circle the placeholder uses. */
+.profile-avatar-img{
+  width:160px;height:160px;border-radius:50%;object-fit:cover;
+  border:2px solid var(--blood);
+  box-shadow:0 0 30px rgba(255,31,58,.4);
+}
+
+/* Profile editor form */
+.profile-form{display:grid;gap:18px;max-width:640px;margin-top:36px}
+.profile-field{display:block}
+.profile-field-label{
+  font-family:var(--mono);color:var(--cyan);font-size:13px;
+  letter-spacing:.2em;text-transform:uppercase;margin-bottom:6px;
+}
+.profile-field-input{
+  border:1px solid rgba(243,236,217,.2);border-radius:var(--r);
+  background:rgba(0,0,0,.3);padding:10px 14px;
+  transition:border-color .15s, box-shadow .15s;
+}
+.profile-field-input:focus-within{
+  border-color:var(--blood);
+  box-shadow:0 0 0 1px rgba(255,31,58,.4);
+}
+.profile-field-input input,
+.profile-field-input textarea{
+  width:100%;background:none;border:none;outline:none;
+  color:var(--bone);font-family:var(--mono);font-size:16px;
+  letter-spacing:.04em;resize:vertical;
+}
+.profile-field-input textarea{font-family:var(--body);font-style:italic;font-size:17px;line-height:1.5}
+.profile-field-hint{
+  display:block;margin-top:6px;color:var(--muted);
+  font-family:var(--mono);font-size:13px;letter-spacing:.04em;
+}
+.profile-form-actions{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-top:8px}
+.form-ok{color:var(--cyan);font-family:var(--mono);font-size:14px;letter-spacing:.2em;text-transform:uppercase}
+.form-err{color:var(--blood);font-family:var(--mono);font-size:14px;letter-spacing:.04em}
+
+/* Onboarding banner — cyan strip under nav for users with empty profile */
+.onboarding-banner{
+  border-bottom:1px solid rgba(76,213,255,.3);
+  background:rgba(76,213,255,.06);
+  padding:12px 28px;
+  display:flex;align-items:center;justify-content:center;gap:18px;flex-wrap:wrap;
+  font-family:var(--mono);font-size:14px;color:var(--cyan);
+  letter-spacing:.18em;text-transform:uppercase;
+}
+.onboarding-banner-cta{padding:6px 14px;font-size:12px}
+
+/* (Old prototype modal styles removed — current modal uses .modal-backdrop/.modal-content below) */
+
 /* ============================================================
-   Sign-in modal
+   Why section (home page)
    ============================================================ */
-.modal-back{
-  position:fixed;inset:0;background:rgba(2,2,4,.75);backdrop-filter:blur(6px);
-  display:none;align-items:center;justify-content:center;z-index:200;padding:20px;
+.why-section{margin-top:100px}
+.why-heading{
+  font-family:var(--serif);font-weight:900;font-size:clamp(40px,6vw,76px);
+  color:var(--bone);letter-spacing:.05em;line-height:1;margin-bottom:14px;
 }
-.modal-back.open{display:flex}
-.modal{
-  width:min(500px,100%);background:var(--ink-2);
-  border:1px solid var(--blood);border-radius:var(--r);
-  box-shadow:0 0 60px rgba(255,31,58,.35), inset 0 0 0 1px rgba(255,255,255,.04);
-  padding:36px 32px;position:relative;overflow:hidden;
+.why-heading em{font-style:normal;color:var(--blood);text-shadow:0 0 20px rgba(255,31,58,.5)}
+#why-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:48px}
+.why-icon{
+  font-family:var(--mono);font-size:22px;color:var(--blood);
+  text-shadow:0 0 18px rgba(255,31,58,.6);margin-bottom:14px;letter-spacing:.3em;
 }
-.modal::before{
-  content:"";position:absolute;inset:0;
-  background:repeating-linear-gradient(to bottom, rgba(255,255,255,.02) 0 2px, transparent 2px 4px);
-  pointer-events:none;
+
+/* ============================================================
+   Join CTA (home page)
+   ============================================================ */
+.join-cta{
+  margin-top:100px;text-align:center;padding:72px 32px;
+  border:1px solid rgba(255,31,58,.25);position:relative;overflow:hidden;
+  background:radial-gradient(800px 400px at 50% 50%, rgba(255,31,58,.06), transparent 70%);
 }
-.modal .close{
-  position:absolute;top:12px;right:14px;font-family:var(--mono);color:var(--bone-dim);font-size:22px;
+.join-cta::before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(45deg, rgba(255,31,58,.04) 0 2px, transparent 2px 16px);
 }
-.modal .close:hover{color:var(--blood)}
-.modal .demo{
-  display:inline-block;font-family:var(--mono);color:var(--gold);font-size:13px;letter-spacing:.3em;text-transform:uppercase;
-  border:1px dashed var(--gold);padding:3px 8px;margin-bottom:18px;
+.join-cta .eyebrow{margin-bottom:16px}
+.join-heading{
+  font-family:var(--serif);font-weight:900;font-size:clamp(32px,5vw,60px);
+  color:var(--bone);letter-spacing:.04em;margin-bottom:18px;
 }
-.modal h3{font-family:var(--serif);color:var(--blood);font-size:32px;letter-spacing:.04em;margin-bottom:6px;text-shadow:0 0 14px rgba(255,31,58,.4)}
-.modal p.lede{color:var(--bone-dim);font-style:italic;margin-bottom:24px}
-.modal .field{
-  display:flex;align-items:center;gap:10px;border:1px solid rgba(243,236,217,.2);
-  padding:12px 14px;border-radius:var(--r);background:rgba(0,0,0,.3);margin-bottom:14px;
+.join-lede{
+  font-family:var(--body);font-style:italic;color:var(--bone-dim);
+  font-size:20px;max-width:540px;margin:0 auto 36px;
 }
-.modal .field input{
-  background:none;border:none;outline:none;color:var(--bone);font-family:var(--mono);font-size:18px;flex:1;
+.join-form{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.join-form input{
+  background:rgba(0,0,0,.5);border:1px solid rgba(243,236,217,.25);color:var(--bone);
+  font-family:var(--mono);font-size:18px;padding:14px 20px;outline:none;
+  min-width:280px;letter-spacing:.05em;
 }
-.modal .field::before{content:"@";color:var(--cyan);font-family:var(--mono);font-size:18px}
-.modal .or{
-  text-align:center;color:var(--muted);font-family:var(--mono);letter-spacing:.4em;text-transform:uppercase;
-  font-size:14px;margin:18px 0;position:relative;
-}
-.modal .or::before, .modal .or::after{
-  content:"";position:absolute;top:50%;width:35%;height:1px;background:rgba(243,236,217,.15);
-}
-.modal .or::before{left:0}
-.modal .or::after{right:0}
-.modal .btn{width:100%;justify-content:center}
-.modal .small{
-  margin-top:18px;font-family:var(--mono);color:var(--muted);font-size:13px;letter-spacing:.1em;text-align:center;
-}
-.passkey-anim{
-  display:none;flex-direction:column;align-items:center;gap:18px;padding:30px 0;
-}
-.passkey-anim.active{display:flex}
-.passkey-anim .key{
-  width:88px;height:88px;border:2px solid var(--cyan);border-radius:50%;
-  display:grid;place-items:center;font-family:var(--serif);font-weight:900;font-size:38px;color:var(--cyan);
-  box-shadow:0 0 30px rgba(76,213,255,.4), inset 0 0 14px rgba(76,213,255,.2);
-  animation:pulseKey 1.4s infinite;
-}
-@keyframes pulseKey{
-  0%,100%{transform:scale(1);box-shadow:0 0 30px rgba(76,213,255,.4)}
-  50%{transform:scale(1.06);box-shadow:0 0 50px rgba(76,213,255,.7)}
-}
-.passkey-anim .label{font-family:var(--mono);color:var(--cyan);letter-spacing:.3em;text-transform:uppercase}
 
 /* ============================================================
    Footer
@@ -730,7 +759,7 @@ footer li a:hover{color:var(--blood)}
   font-size: 28px; line-height: 1; cursor: pointer; transition: color 0.2s;
 }
 .modal-close:hover { color: var(--blood); }
-.modal-header h2 { font-family: var(--bebas); font-size: 42px; color: var(--bone); margin: 0 0 8px; letter-spacing: .02em; }
+.modal-header h2 { font-family: var(--display); font-size: 42px; color: var(--bone); margin: 0 0 8px; letter-spacing: .02em; }
 .modal-header h2 em { color: var(--blood); font-style: normal; text-shadow: 0 0 12px rgba(255,31,58,0.6); }
 .modal-header p { color: var(--bone-dim); font-size: 15px; margin: 0 0 32px; }
 
@@ -748,6 +777,50 @@ footer li a:hover{color:var(--blood)}
 .modal-divider {
   display: flex; align-items: center; text-align: center; margin: 24px 0;
   color: var(--bone-dim); font-family: var(--mono); font-size: 12px; letter-spacing: .1em;
+}
+.modal-divider::before, .modal-divider::after { content: ''; flex: 1; border-bottom: 1px dashed rgba(243,236,217,0.1); }
+.modal-divider span { padding: 0 12px; }
+
+.passkey-btn { font-family: var(--mono); letter-spacing: 0; }
+.passkey-btn .icon { color: var(--cyan); margin-right: 8px; font-size: 18px; vertical-align: middle; }
+.modal-footer { margin: 32px 0 0; text-align: center; color: var(--bone-dim); font-size: 13px; font-style: italic; }
+.modal-footer a { color: var(--cyan); text-decoration: none; }
+.modal-footer a:hover { text-decoration: underline; }
+
+@keyframes modalFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes modalSlideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ============================================================
+   MOBILE RESPONSIVENESS
+   ============================================================ */
+@media (max-width: 768px) {
+  .hud { flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; font-size: 12px; }
+  .hud .tape-ctr { display: none; }
+  .grid-floor { height: 35vh; background-size: 50px 50px; transform: perspective(400px) rotateX(60deg); }
+  .hero h1 { font-size: 64px; }
+  .hero .sub { font-size: 18px; }
+  .forum-grid { grid-template-columns: 1fr; }
+  .profile-cols { grid-template-columns: 1fr; }
+  .modal-content { padding: 24px; }
+}
+
+/* ============================================================
+   BEST PRACTICE: Respect user motion preferences
+   Disable all non-essential animations for users who prefer
+   reduced motion (accessibility + performance).
+   ============================================================ */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.01ms !important;
+  }
+  .scanlines,.tracking,.noise{display:none}
+  .particle{display:none}
+  .tracking-lost{display:none}
+  .grid-floor,.grid-wall{display:none}
+}
+mono); font-size: 12px; letter-spacing: .1em;
 }
 .modal-divider::before, .modal-divider::after { content: ''; flex: 1; border-bottom: 1px dashed rgba(243,236,217,0.1); }
 .modal-divider span { padding: 0 12px; }

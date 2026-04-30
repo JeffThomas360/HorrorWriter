@@ -7,6 +7,11 @@ export default function AuthCallback() {
   const [error, setError] = useState(null)
 
   useEffect(() => {
+    if (!supabase) {
+      setError("Authentication is not configured.")
+      return
+    }
+
     // Supabase automatically parses the URL hash into a session.
     // We just need to wait for it to emit the SIGNED_IN event.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
