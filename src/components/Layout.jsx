@@ -11,7 +11,6 @@ export default function Layout() {
 
   return (
     <>
-      <Atmospherics />
       <Nav onSignInClick={() => setSigninOpen(true)} />
       <OnboardingBanner />
       <main className="shell">
@@ -19,6 +18,7 @@ export default function Layout() {
       </main>
       <Footer />
       <SignInModal isOpen={signinOpen} onClose={() => setSigninOpen(false)} />
+      <Atmospherics />
     </>
   )
 }
