@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { supabase } from '../supabaseClient'
 
 const AuthContext = createContext({
@@ -15,23 +15,33 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
 
+  const inFlightRef = useRef(null)
   const fetchProfile = useCallback(async (userId) => {
     if (!supabase) return null
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single()
-      if (error) throw error
-      setProfile(data)
-      return data
-    } catch (err) {
-      console.error('Error fetching profile:', err)
-      return null
-    } finally {
-      setIsLoading(false)
+    // Coalesce concurrent calls for the same user.
+    if (inFlightRef.current?.userId === userId) {
+      return inFlightRef.current.promise
     }
+    const promise = (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single()
+        if (error) throw error
+        setProfile(data)
+        return data
+      } catch (err) {
+        console.error(`[AuthContext] fetchProfile failed for user ${userId}:`, err)
+        return null
+      } finally {
+        setIsLoading(false)
+        inFlightRef.current = null
+      }
+    })()
+    inFlightRef.current = { userId, promise }
+    return promise
   }, [])
 
   // Public: re-fetch the current user's profile (used after edits).
