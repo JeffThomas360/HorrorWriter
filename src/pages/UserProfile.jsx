@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { getProfileByHandle } from '../lib/profile'
+import ProfileHead from '../components/ProfileHead'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 // status: 'loading' | 'found' | 'notfound' | 'error'
@@ -63,7 +64,7 @@ export default function UserProfile() {
     )
   }
 
-  const initial = (profile.display_name?.[0] || profile.handle?.[0] || '?').toUpperCase()
+
   const joinedFmt = profile.created_at
     ? new Date(profile.created_at).toLocaleDateString(undefined, {
         year: 'numeric', month: 'short', day: 'numeric',
@@ -75,42 +76,26 @@ export default function UserProfile() {
       <p className="eyebrow">▸ Member</p>
       <h2 className="title">The <em>Coven</em></h2>
 
-      <div className="profile-head">
-        {profile.avatar_url ? (
-          <img src={profile.avatar_url} alt="" className="profile-avatar-img" />
-        ) : (
-          <div className="profile-avatar">{initial}</div>
+      <ProfileHead profile={profile}>
+        {profile.pronouns && (
+          <div className="profile-pronouns">{profile.pronouns}</div>
         )}
-        <div className="profile-info">
-          <h3>{profile.display_name || profile.handle}</h3>
-          <div className="handle">@{profile.handle}</div>
-          {profile.pronouns && (
-            <div className="handle" style={{ fontSize: 14, color: 'var(--muted)' }}>
-              {profile.pronouns}
-            </div>
-          )}
-          {profile.bio && <p className="bio">{profile.bio}</p>}
-          {(joinedFmt || profile.location) && (
-            <p className="joined">
-              {joinedFmt && <>Joined {joinedFmt}</>}
-              {joinedFmt && profile.location && <> · </>}
-              {profile.location}
-            </p>
-          )}
-          {profile.website_url && (
-            <p style={{ marginTop: 8 }}>
-              <a
-                href={profile.website_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: 'var(--cyan)', fontFamily: 'var(--mono)' }}
-              >
-                {profile.website_url}
-              </a>
-            </p>
-          )}
-        </div>
-      </div>
+        {profile.bio && <p className="bio">{profile.bio}</p>}
+        {(joinedFmt || profile.location) && (
+          <p className="joined">
+            {joinedFmt && <>Joined {joinedFmt}</>}
+            {joinedFmt && profile.location && <> · </>}
+            {profile.location}
+          </p>
+        )}
+        {profile.website_url && (
+          <p className="profile-website">
+            <a href={profile.website_url} target="_blank" rel="noopener noreferrer">
+              {profile.website_url}
+            </a>
+          </p>
+        )}
+      </ProfileHead>
     </section>
   )
 }

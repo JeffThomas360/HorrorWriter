@@ -575,6 +575,18 @@ section.surface.active{display:block}
 .work p{color:var(--bone-dim);font-style:italic;font-size:15px;margin-top:4px}
 .work .when{font-family:var(--mono);color:var(--muted);font-size:14px;letter-spacing:.1em;flex-shrink:0}
 
+.profile-avatar-change{
+  margin-top:14px;cursor:pointer;display:inline-flex;
+}
+.profile-pronouns{
+  font-family:var(--mono);color:var(--muted);
+  font-size:14px;letter-spacing:.18em;
+}
+.profile-website{margin-top:8px}
+.profile-website a{
+  color:var(--cyan);font-family:var(--mono);
+}
+
 /* Real avatar image (when profile.avatar_url is set) — slot it into the same
    160x160 circle the placeholder uses. */
 .profile-avatar-img{

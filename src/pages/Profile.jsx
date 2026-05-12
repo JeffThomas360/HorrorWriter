@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../components/AuthContext'
 import { updateProfile, uploadAvatar } from '../lib/profile'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
+import ProfileHead from '../components/ProfileHead'
 
 const HANDLE_RE = /^[a-z0-9-]{3,30}$/
 
@@ -86,7 +87,7 @@ export default function Profile() {
     }
   }
 
-  const initial = (profile.display_name?.[0] || profile.handle?.[0] || '?').toUpperCase()
+
   const joinedFmt = profile.created_at
     ? new Date(profile.created_at).toLocaleDateString(undefined, {
         year: 'numeric', month: 'short', day: 'numeric',
@@ -98,28 +99,19 @@ export default function Profile() {
       <p className="eyebrow">▸ Your account</p>
       <h2 className="title">Edit <em>profile</em></h2>
 
-      <div className="profile-head">
-        {profile.avatar_url ? (
-          <img src={profile.avatar_url} alt="" className="profile-avatar-img" />
-        ) : (
-          <div className="profile-avatar">{initial}</div>
-        )}
-        <div className="profile-info">
-          <h3>{profile.display_name || profile.handle}</h3>
-          <div className="handle">@{profile.handle}</div>
-          {joinedFmt && <p className="joined">Joined {joinedFmt}</p>}
-          <label className="btn ghost" style={{ marginTop: 14, cursor: 'pointer', display: 'inline-flex' }}>
-            {uploading ? 'Uploading…' : '▸ Change avatar'}
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif"
-              onChange={onAvatarPick}
-              style={{ display: 'none' }}
-              disabled={uploading}
-            />
-          </label>
-        </div>
-      </div>
+      <ProfileHead profile={profile}>
+        {joinedFmt && <p className="joined">Joined {joinedFmt}</p>}
+        <label className="btn ghost profile-avatar-change">
+          {uploading ? 'Uploading…' : '▸ Change avatar'}
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            onChange={onAvatarPick}
+            style={{ display: 'none' }}
+            disabled={uploading}
+          />
+        </label>
+      </ProfileHead>
 
       <form onSubmit={onSave} className="profile-form">
         <Field label="Handle" hint="Lowercase, numbers and hyphens only. Used in your profile URL.">
