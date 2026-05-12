@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { getProfileByHandle } from '../lib/profile'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 // status: 'loading' | 'found' | 'notfound' | 'error'
 export default function UserProfile() {
   const { handle } = useParams()
+  useDocumentTitle(handle ? `@${handle}` : 'Member')
   const [profile, setProfile] = useState(null)
   const [status, setStatus] = useState('loading')
 

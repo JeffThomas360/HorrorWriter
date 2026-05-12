@@ -1,4 +1,5 @@
 import { BOOKS } from '../data/books'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 const BADGE_CLASS = { NEW:'', CRITIQUE:'cyan', COMPLETE:'gold' }
 const COVER_SVG = (
@@ -11,6 +12,7 @@ const COVER_SVG = (
 )
 
 export default function Library() {
+  useDocumentTitle('Library')
   return (
     <section className="surface active">
       <p className="eyebrow">▸ The Library</p>

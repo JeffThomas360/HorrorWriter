@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../components/AuthContext'
 import { updateProfile, uploadAvatar } from '../lib/profile'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 const HANDLE_RE = /^[a-z0-9-]{3,30}$/
 
 export default function Profile() {
   const { user, profile, refreshProfile } = useAuth()
+  useDocumentTitle('Your Profile')
   const [form, setForm] = useState({
     handle: '',
     display_name: '',

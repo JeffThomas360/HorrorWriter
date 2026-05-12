@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { PROMPTS, LEADERBOARD, CONTEST_DEADLINE } from '../data/prompts'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 function useCountdown(target) {
   const [diff, setDiff] = useState(target - Date.now())
@@ -16,6 +17,7 @@ function useCountdown(target) {
 }
 
 export default function Rituals() {
+  useDocumentTitle('Rituals')
   const { d, h, m, s } = useCountdown(CONTEST_DEADLINE.getTime())
   const [current, ...past] = PROMPTS
 

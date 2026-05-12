@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { THREADS, CATEGORIES, CAT_LABELS } from '../data/threads'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 const AV_COLORS = ['','av-1','av-2','av-3','av-4','av-5','av-6']
 
@@ -8,6 +9,7 @@ function initials(handle) {
 }
 
 export default function Forum() {
+  useDocumentTitle('The Crypt')
   const [activeCat, setActiveCat] = useState('all')
   const [query, setQuery]         = useState('')
 

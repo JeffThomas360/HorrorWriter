@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 export default function AuthCallback() {
+  useDocumentTitle('Summoning…')
   const navigate = useNavigate()
   const [error, setError] = useState(null)
 

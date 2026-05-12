@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useOutletContext } from 'react-router-dom'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 const TILES = [
   {
@@ -35,6 +36,7 @@ const WHY = [
 ]
 
 export default function Home() {
+  useDocumentTitle(null)
   const h1Ref = useRef(null)
   const ctx = useOutletContext()
 
