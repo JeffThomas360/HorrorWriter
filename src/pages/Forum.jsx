@@ -61,13 +61,7 @@ export default function Forum() {
                 aria-label="Search forum threads"
               />
             </div>
-            <button className="btn ghost" disabled title="Sign in to post">+ New Thread</button>
-          </div>
-
-          <div className="cat-pill-row">
-            <span className="cat-pill active">Latest</span>
-            <span className="cat-pill">Unanswered</span>
-            <span className="cat-pill">Pinned</span>
+            <span className="soon-chip">New Thread · Soon</span>
           </div>
 
           {visible.length === 0 && (
