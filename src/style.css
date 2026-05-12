@@ -104,7 +104,7 @@ img{max-width:100%;display:block}
   position:fixed;top:16px;left:340px;right:18px;
   font-family:var(--mono);font-size:20px;color:#9aff9a;
   text-shadow:0 0 8px rgba(154,255,154,.6),0 0 24px rgba(154,255,154,.2);
-  display:flex;justify-content:space-between;letter-spacing:.08em;z-index:55;pointer-events:none;
+  display:flex;justify-content:space-between;letter-spacing:.08em;z-index:65;pointer-events:none;
   text-transform:uppercase;
 }
 .hud .rec::before{
