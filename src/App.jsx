@@ -9,12 +9,14 @@ import UserProfile from './pages/UserProfile'
 import AuthCallback from './pages/AuthCallback'
 import RequireAuth from './components/RequireAuth'
 import { AuthProvider } from './components/AuthContext'
+import ErrorBoundary from './components/ErrorBoundary'
 
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-      <Routes>
+        <ErrorBoundary>
+          <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
           <Route path="forum" element={<Forum />} />
@@ -24,8 +26,9 @@ export default function App() {
           <Route path="profile" element={<RequireAuth><Profile /></RequireAuth>} />
           <Route path="auth/callback" element={<AuthCallback />} />
         </Route>
-      </Routes>
-    </BrowserRouter>
+          </Routes>
+        </ErrorBoundary>
+      </BrowserRouter>
     </AuthProvider>
   )
 }
