@@ -28,6 +28,16 @@
 }
 
 *{box-sizing:border-box;margin:0;padding:0}
+
+/* Keyboard focus ring. Always cyan, always visible, always on top of any
+   element-specific shadow. Use :focus-visible so mouse clicks don't show it. */
+:focus{outline:none}
+:focus-visible{
+  outline:2px solid var(--cyan);
+  outline-offset:2px;
+  box-shadow:0 0 14px rgba(76,213,255,.55);
+  border-radius:var(--r);
+}
 html,body{background:var(--ink);color:var(--bone);font-family:var(--body);font-size:18px;line-height:1.55;-webkit-font-smoothing:antialiased}
 body{
   min-height:100vh;
@@ -646,6 +656,10 @@ footer ul{list-style:none}
 footer li{margin-bottom:8px}
 footer li a{color:var(--bone-dim);transition:color .2s}
 footer li a:hover{color:var(--blood)}
+.footer-soon{
+  color:var(--muted);font-style:italic;font-size:14px;
+  letter-spacing:.04em;cursor:default;
+}
 .colophon{font-family:var(--mono);font-size:14px;letter-spacing:.1em;color:var(--muted)}
 
 /* ============================================================

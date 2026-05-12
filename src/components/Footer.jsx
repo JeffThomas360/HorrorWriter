@@ -13,28 +13,25 @@ export default function Footer() {
       <div>
         <h5>The Site</h5>
         <ul>
-          <li><Link to="/forum">Forums</Link></li>
-          <li><Link to="/library">Library</Link></li>
-          <li><Link to="/rituals">Rituals</Link></li>
           <li><Link to="/profile">Coven</Link></li>
         </ul>
       </div>
       <div>
         <h5>House</h5>
         <ul>
-          <li><a href="#">House Rules</a></li>
-          <li><a href="#">Critique Code</a></li>
-          <li><a href="#">Content Warnings</a></li>
-          <li><a href="#">Moderators</a></li>
+          <li><span className="footer-soon">House Rules · soon</span></li>
+          <li><span className="footer-soon">Critique Code · soon</span></li>
+          <li><span className="footer-soon">Content Warnings · soon</span></li>
+          <li><span className="footer-soon">Moderators · soon</span></li>
         </ul>
       </div>
       <div>
         <h5>Quiet</h5>
         <ul>
-          <li><a href="#">Privacy</a></li>
-          <li><a href="#">Passkeys</a></li>
-          <li><a href="#">RSS</a></li>
-          <li><a href="#">Contact the Coven</a></li>
+          <li><span className="footer-soon">Privacy · soon</span></li>
+          <li><span className="footer-soon">Passkeys · soon</span></li>
+          <li><span className="footer-soon">RSS · soon</span></li>
+          <li><span className="footer-soon">Contact the Coven · soon</span></li>
         </ul>
       </div>
     </footer>
