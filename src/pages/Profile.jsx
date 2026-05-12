@@ -54,6 +54,15 @@ export default function Profile() {
       setStatus({ error: 'Handle must be 3-30 chars: a-z, 0-9, hyphens only.' })
       return
     }
+    // Warn before changing an existing handle — old /u/<handle> links break.
+    if (profile.handle && form.handle !== profile.handle) {
+      const ok = window.confirm(
+        `Change your handle from @${profile.handle} to @${form.handle}?\n\n` +
+        `Anyone who has bookmarked or linked to your old profile URL ` +
+        `will get a "no such writer" page.`
+      )
+      if (!ok) return
+    }
     setSaving(true)
     try {
       await updateProfile(user.id, form)
