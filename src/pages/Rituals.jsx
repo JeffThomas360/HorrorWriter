@@ -39,8 +39,8 @@ export default function Rituals() {
           ))}
         </div>
         <div style={{ marginTop:28, display:'flex', gap:12, flexWrap:'wrap' }}>
-          <button className="btn primary" disabled title="Sign in to submit">Submit Entry</button>
-          <button className="btn ghost" disabled title="Sign in to read entries">Read Submissions</button>
+          <span className="soon-chip">Submit Entry · Soon</span>
+          <span className="soon-chip">Read Submissions · Soon</span>
         </div>
       </div>
 
