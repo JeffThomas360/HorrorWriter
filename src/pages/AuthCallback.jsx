@@ -30,7 +30,7 @@ export default function AuthCallback() {
       } else {
         setError("The magic link expired or was invalid. Please try again.")
       }
-    }, 3000)
+    }, 5000)
 
     return () => {
       subscription.unsubscribe()

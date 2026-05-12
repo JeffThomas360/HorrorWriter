@@ -823,7 +823,6 @@ footer li a:hover{color:var(--blood)}
   .hud { flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; font-size: 12px; }
   .hud .tape-ctr { display: none; }
   .grid-floor { height: 35vh; background-size: 50px 50px; transform: perspective(400px) rotateX(60deg); }
-  .hero h1 { font-size: 64px; }
   .hero .sub { font-size: 18px; }
   .forum-grid { grid-template-columns: 1fr; }
   .profile-cols { grid-template-columns: 1fr; }
