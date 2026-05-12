@@ -83,8 +83,8 @@ export default function SignInModal({ isOpen, onClose }) {
           <span>OR</span>
         </div>
 
-        <button className="btn ghost full-width passkey-btn" onClick={() => alert('Passkeys coming soon')}>
-          <span className="icon">⚿</span> Sign in with Passkey
+        <button className="btn ghost full-width passkey-btn" disabled aria-disabled="true">
+          <span className="icon">⚿</span> Sign in with Passkey&nbsp;·&nbsp;<small style={{ opacity: 0.6 }}>soon</small>
         </button>
 
         <p className="modal-footer">

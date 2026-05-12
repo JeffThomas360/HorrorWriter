@@ -250,6 +250,10 @@ header.nav{
   border-color:var(--cyan);color:var(--cyan);
   box-shadow:0 0 18px rgba(76,213,255,.35);
 }
+.btn:disabled,
+.btn[aria-disabled="true"]{
+  opacity:.45;cursor:not-allowed;pointer-events:none;
+}
 .btn.cyan{
   background:transparent;border:1px solid var(--cyan);color:var(--cyan);
 }
