@@ -257,6 +257,19 @@ header.nav{
   background:var(--cyan);color:#03121a;box-shadow:0 0 22px rgba(76,213,255,.55);
 }
 
+/* Inline "not yet built" pill. Used in place of disabled placeholder buttons. */
+.soon-chip{
+  display:inline-flex;align-items:center;gap:6px;
+  font-family:var(--mono);font-size:13px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--muted);border:1px dashed rgba(243,236,217,.18);
+  padding:8px 14px;border-radius:var(--r);
+  background:rgba(0,0,0,.2);
+  cursor:default;
+}
+.soon-chip::before{
+  content:"▸";color:var(--cyan);opacity:.7;
+}
+
 /* "Now writing" live strip */
 .live-strip{
   display:flex;justify-content:center;gap:22px;flex-wrap:wrap;
