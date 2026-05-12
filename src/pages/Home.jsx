@@ -105,18 +105,6 @@ export default function Home() {
           ))}
         </div>
       </div>
-
-      <div className="join-cta">
-        <p className="eyebrow">Invite Only</p>
-        <h2 className="join-heading">Join the Coven</h2>
-        <p className="join-lede">
-          We are currently invite-only. Leave your email and we will summon you when a seat opens.
-        </p>
-        <form className="join-form" onSubmit={(e)=>{e.preventDefault();const i=e.target.querySelector('input');i.value='';i.placeholder='Your soul has been registered.'}}>
-          <input type="email" required placeholder="your@email.com" />
-          <button type="submit" className="btn primary">Summon Me</button>
-        </form>
-      </div>
     </section>
   )
 }
