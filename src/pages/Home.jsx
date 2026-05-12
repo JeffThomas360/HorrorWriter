@@ -1,13 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { useOutletContext } from 'react-router-dom'
-
-const LIVE = [
-  { handle: 'lin-carver',        genre: 'Psychological' },
-  { handle: 'marigold-rotten',   genre: 'Folk Horror'   },
-  { handle: 'r-vespertine',      genre: 'Cosmic'        },
-  { handle: 'theodora-bell',     genre: 'Gothic'        },
-  { handle: 'roses-among-wires', genre: 'Body Horror'   },
-]
 
 const TILES = [
   {
@@ -45,7 +37,6 @@ const WHY = [
 export default function Home() {
   const h1Ref = useRef(null)
   const ctx = useOutletContext()
-  const [liveWriters, setLiveWriters] = useState(47)
 
   useEffect(() => {
     const el = h1Ref.current
@@ -68,19 +59,6 @@ export default function Home() {
     return () => clearInterval(id)
   }, [])
 
-  // Live writers count drifts like a broadcast
-  useEffect(() => {
-    const id = setInterval(() => {
-      setLiveWriters((n) => {
-        let next = n + Math.round((Math.random() - 0.45) * 4)
-        if (next < 32) next = 32
-        if (next > 71) next = 71
-        return next
-      })
-    }, 3200)
-    return () => clearInterval(id)
-  }, [])
-
   return (
     <section className="surface active">
       <div className="hero">
@@ -96,15 +74,6 @@ export default function Home() {
             Enter the Void
           </button>
           <a className="btn ghost" href="#why">What Is This?</a>
-        </div>
-        <div className="live-strip">
-          {LIVE.map((w) => (
-            <span key={w.handle}>
-              <span className="dot" />
-              <b>{w.handle}</b>&nbsp;&middot;&nbsp;{w.genre}
-            </span>
-          ))}
-          <span><span className="dot" /><b>{liveWriters}</b>&nbsp;writing now</span>
         </div>
       </div>
 
