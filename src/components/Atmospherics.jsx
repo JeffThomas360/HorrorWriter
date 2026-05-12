@@ -1,5 +1,3 @@
-import VcrClock from './VcrClock'
-
 // Sparse upside-down ash — slow, dim, barely there
 const PARTICLES = Array.from({ length: 6 }, (_, i) => ({
   id: i,
@@ -39,11 +37,6 @@ export default function Atmospherics() {
       <div className="tracking"     aria-hidden="true" />
       <div className="vignette"     aria-hidden="true" />
 
-      {/* VCR HUD */}
-      <div className="hud" aria-hidden="true">
-        <span><span className="rec" />REC · CH 03 · SP</span>
-        <VcrClock />
-      </div>
     </>
   )
 }

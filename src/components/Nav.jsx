@@ -7,7 +7,7 @@ export default function Nav({ onSignInClick }) {
   const linkClass = ({ isActive }) => isActive ? 'active' : undefined
 
   return (
-    <header className="nav" role="banner">
+    <div className="nav-container">
       <Link to="/" className="brand" aria-label="Horror Writer home">
         <div className="brand-mark" aria-hidden="true" />
         <div className="brand-name">
@@ -28,6 +28,6 @@ export default function Nav({ onSignInClick }) {
           Sign In
         </button>
       )}
-    </header>
+    </div>
   )
 }

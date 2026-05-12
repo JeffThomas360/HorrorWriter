@@ -5,20 +5,31 @@ import Nav from './Nav'
 import Footer from './Footer'
 import SignInModal from './SignInModal'
 import OnboardingBanner from './OnboardingBanner'
+import VcrClock from './VcrClock'
 
 export default function Layout() {
   const [signinOpen, setSigninOpen] = useState(false)
 
   return (
-    <>
-      <Nav onSignInClick={() => setSigninOpen(true)} />
-      <OnboardingBanner />
-      <main className="shell">
-        <Outlet context={{ openSignin: () => setSigninOpen(true) }} />
-      </main>
-      <Footer />
+    <div className="app-layout">
+      <aside className="control-deck">
+        <Nav onSignInClick={() => setSigninOpen(true)} />
+        <div className="hud" aria-hidden="true">
+          <span><span className="rec" />REC · CH 03 · SP</span>
+          <VcrClock />
+        </div>
+      </aside>
+
+      <div className="content-viewport">
+        <OnboardingBanner />
+        <main className="shell">
+          <Outlet context={{ openSignin: () => setSigninOpen(true) }} />
+        </main>
+        <Footer />
+      </div>
+
       <SignInModal isOpen={signinOpen} onClose={() => setSigninOpen(false)} />
       <Atmospherics />
-    </>
+    </div>
   )
 }
