@@ -20,7 +20,7 @@ export default function RequireAuth({ children }) {
   if (isLoading) {
     return (
       <section className="surface active">
-        <div style={{ padding: '60px 0', textAlign: 'center' }}>
+        <div className="status-panel">
           <p className="eyebrow">▸ Loading…</p>
         </div>
       </section>
@@ -30,14 +30,13 @@ export default function RequireAuth({ children }) {
   if (!user) {
     return (
       <section className="surface active">
-        <div style={{ padding: '60px 0', textAlign: 'center' }}>
+        <div className="status-panel">
           <p className="eyebrow">▸ Sign in required</p>
-          <p style={{ color: 'var(--bone-dim)', fontStyle: 'italic', marginTop: 18 }}>
+          <p className="status-panel-body">
             You need to be signed in to view this page.
           </p>
           <button
             className="btn primary"
-            style={{ marginTop: 28 }}
             onClick={() => ctx?.openSignin?.()}
           >
             Sign In

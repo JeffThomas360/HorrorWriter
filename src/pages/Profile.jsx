@@ -38,7 +38,7 @@ export default function Profile() {
   if (!profile) {
     return (
       <section className="surface active">
-        <div style={{ padding: '60px 0', textAlign: 'center' }}>
+        <div className="status-panel">
           <p className="eyebrow">▸ Loading profile…</p>
         </div>
       </section>

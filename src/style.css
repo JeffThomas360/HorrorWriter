@@ -528,6 +528,17 @@ section.surface.active{display:block}
 .leaderboard .name small{display:block;color:var(--muted);font-family:var(--mono);font-size:14px;letter-spacing:.08em;font-style:italic}
 .leaderboard .pts{font-family:var(--mono);color:var(--cyan);font-size:18px;letter-spacing:.15em}
 
+/* Status panel used by loading/notfound/error views on Profile/UserProfile */
+.status-panel{
+  padding:60px 0;text-align:center;
+}
+.status-panel .eyebrow{margin-bottom:0}
+.status-panel .eyebrow.error{color:var(--blood)}
+.status-panel-body{
+  color:var(--bone-dim);font-style:italic;margin-top:18px;
+}
+.status-panel .btn{margin-top:24px;display:inline-flex}
+
 /* ============================================================
    Profile
    ============================================================ */

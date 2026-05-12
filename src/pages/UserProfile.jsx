@@ -28,7 +28,7 @@ export default function UserProfile() {
   if (status === 'loading') {
     return (
       <section className="surface active">
-        <div style={{ padding: '60px 0', textAlign: 'center' }}>
+        <div className="status-panel">
           <p className="eyebrow">▸ Loading…</p>
         </div>
       </section>
@@ -38,12 +38,12 @@ export default function UserProfile() {
   if (status === 'notfound') {
     return (
       <section className="surface active">
-        <div style={{ padding: '60px 0', textAlign: 'center' }}>
-          <p className="eyebrow" style={{ color: 'var(--blood)' }}>▸ No such writer</p>
-          <p style={{ color: 'var(--bone-dim)', fontStyle: 'italic', marginTop: 18 }}>
+        <div className="status-panel">
+          <p className="eyebrow error">▸ No such writer</p>
+          <p className="status-panel-body">
             @{handle} is not in the coven.
           </p>
-          <Link to="/" className="btn ghost" style={{ marginTop: 24, display: 'inline-flex' }}>
+          <Link to="/" className="btn ghost">
             Back home
           </Link>
         </div>
@@ -54,9 +54,9 @@ export default function UserProfile() {
   if (status === 'error') {
     return (
       <section className="surface active">
-        <div style={{ padding: '60px 0', textAlign: 'center' }}>
-          <p className="eyebrow" style={{ color: 'var(--blood)' }}>▸ Something went wrong.</p>
-          <p style={{ color: 'var(--bone-dim)', fontStyle: 'italic', marginTop: 18 }}>
+        <div className="status-panel">
+          <p className="eyebrow error">▸ Something went wrong.</p>
+          <p className="status-panel-body">
             Couldn't load this profile. Try again in a moment.
           </p>
         </div>
