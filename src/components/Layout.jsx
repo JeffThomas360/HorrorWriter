@@ -15,7 +15,7 @@ export default function Layout() {
       <aside className="control-deck">
         <Nav onSignInClick={() => setSigninOpen(true)} />
         <div className="hud" aria-hidden="true">
-          <span><span className="rec" />REC · CH 03 · SP</span>
+          <span><span className="rec" />REC · SP</span>
           <VcrClock />
         </div>
       </aside>

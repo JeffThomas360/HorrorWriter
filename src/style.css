@@ -245,7 +245,7 @@ img{max-width:100%;display:block}
   top: auto; left: auto; right: auto; bottom: auto;
   margin-top: auto;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   width: 100%;
   font-size: 18px;
@@ -291,6 +291,7 @@ img{max-width:100%;display:block}
     margin-top: 0;
     flex-direction: row;
     justify-content: space-between;
+    align-items: flex-end;
     font-size: 14px;
     z-index: 100;
   }
