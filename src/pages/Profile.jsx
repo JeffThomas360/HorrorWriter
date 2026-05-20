@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useAuth } from '../components/AuthContext'
 import { updateProfile, uploadAvatar } from '../lib/profile'
+import { registerPasskey } from '../lib/passkey'
+import { supabase } from '../supabaseClient'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 import ProfileHead from '../components/ProfileHead'
 
@@ -19,8 +21,32 @@ export default function Profile() {
   })
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
-  // status: null | 'saved' | { error: string }
+  // status: null | 'saved' | 'passkey_enrolled' | { error: string }
   const [status, setStatus] = useState(null)
+
+  // Passkeys management state
+  const [passkeys, setPasskeys] = useState([])
+  const [loadingPasskeys, setLoadingPasskeys] = useState(false)
+  const [enrollingPasskey, setEnrollingPasskey] = useState(false)
+
+  const loadPasskeys = useCallback(async () => {
+    if (!supabase || !user) return
+    setLoadingPasskeys(true)
+    try {
+      const { data } = await supabase
+        .from('passkeys')
+        .select('id, device_type, backed_up, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true })
+      setPasskeys(data ?? [])
+    } catch (_) {
+      // silently ignore — table may not exist yet
+    } finally {
+      setLoadingPasskeys(false)
+    }
+  }, [user])
+
+  useEffect(() => { loadPasskeys() }, [loadPasskeys])
 
   useEffect(() => {
     if (profile) {
@@ -96,6 +122,19 @@ export default function Profile() {
     }
   }
 
+  const onAddPasskey = async () => {
+    setEnrollingPasskey(true)
+    setStatus(null)
+    try {
+      await registerPasskey()
+      await loadPasskeys()
+      setStatus('passkey_enrolled')
+    } catch (err) {
+      setStatus({ error: err.message })
+    } finally {
+      setEnrollingPasskey(false)
+    }
+  }
 
   const joinedFmt = profile.created_at
     ? new Date(profile.created_at).toLocaleDateString(undefined, {
@@ -147,9 +186,57 @@ export default function Profile() {
             {saving ? 'Saving…' : '▸ Save changes'}
           </button>
           {status === 'saved' && <span className="form-ok">✓ Saved</span>}
+          {status === 'passkey_enrolled' && <span className="form-ok">✓ Passkey added</span>}
           {status?.error && <span className="form-err">{status.error}</span>}
         </div>
       </form>
+
+      {/* ── Passkeys ── */}
+      <div style={{ marginTop: 48, borderTop: '1px solid rgba(243,236,217,.12)', paddingTop: 32 }}>
+        <p className="eyebrow">▸ Passkeys</p>
+        <h3 style={{ fontFamily: 'var(--display)', fontSize: '1.4rem', marginBottom: 8 }}>
+          Fast <em>sign-in</em>
+        </h3>
+        <p style={{ color: 'var(--bone-dim)', fontSize: 15, marginBottom: 24 }}>
+          Passkeys let you sign in with Face ID, Touch ID, or your device PIN — no email needed.
+        </p>
+
+        {loadingPasskeys ? (
+          <p style={{ color: 'var(--bone-dim)', fontSize: 14 }}>Loading passkeys…</p>
+        ) : passkeys.length > 0 ? (
+          <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 20px' }}>
+            {passkeys.map((pk) => (
+              <li key={pk.id} style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                padding: '10px 0', borderBottom: '1px solid rgba(243,236,217,.08)'
+              }}>
+                <span style={{ fontSize: 20 }}>🔑</span>
+                <span style={{ flex: 1, fontSize: 14, color: 'var(--bone-dim)' }}>
+                  {pk.device_type === 'multiDevice' ? 'Synced passkey' : 'Device-bound passkey'}
+                  {pk.backed_up && ' · backed up'}
+                  <span style={{ marginLeft: 8, opacity: .5 }}>
+                    Added {new Date(pk.created_at).toLocaleDateString()}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p style={{ color: 'var(--bone-dim)', fontStyle: 'italic', fontSize: 14, marginBottom: 20 }}>
+            No passkeys yet.
+          </p>
+        )}
+
+        <button
+          type="button"
+          className="btn ghost"
+          disabled={enrollingPasskey}
+          onClick={onAddPasskey}
+        >
+          {enrollingPasskey ? 'Follow your device prompt…' : '▸ Add a Passkey'}
+        </button>
+      </div>
+
     </section>
   )
 }

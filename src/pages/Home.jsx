@@ -1,8 +1,9 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
+import { supabase } from '../supabaseClient'
 
-const TILES = [
+const FALLBACK_TILES = [
   {
     tag: '// THE CRYPT',
     hot: true,
@@ -39,6 +40,36 @@ export default function Home() {
   useDocumentTitle(null)
   const h1Ref = useRef(null)
   const ctx = useOutletContext()
+  const [tiles, setTiles] = useState(FALLBACK_TILES)
+
+  useEffect(() => {
+    async function fetchRecent() {
+      if (!supabase) return
+      try {
+        const { data, error } = await supabase
+          .from('threads')
+          .select('*, categories(name), profiles(handle)')
+          .order('updated_at', { ascending: false })
+          .limit(3)
+        
+        if (error) throw error
+        if (data && data.length > 0) {
+          setTiles(data.map((t, i) => ({
+            tag: `// ${(t.categories?.name || t.category_id || 'THREAD').split('·')[0].toUpperCase().trim()}`,
+            hot: i === 0,
+            title: t.title,
+            body: `Started by ${t.profiles?.handle || 'someone'}. Join the discussion in the dark.`,
+            meta: `${t.replies_count || 0} replies`,
+            cyan: i === 1,
+            gold: i === 2
+          })))
+        }
+      } catch (err) {
+        console.error('Error fetching recent tiles:', err)
+      }
+    }
+    fetchRecent()
+  }, [])
 
   useEffect(() => {
     const el = h1Ref.current
@@ -80,8 +111,8 @@ export default function Home() {
       </div>
 
       <div className="feature-grid">
-        {TILES.map((t) => (
-          <div key={t.tag} className={t.hot ? 'tile hot' : 'tile'}>
+        {tiles.map((t) => (
+          <div key={t.title + t.tag} className={t.hot ? 'tile hot' : 'tile'}>
             <p className="tag" style={t.cyan ? {color:'var(--cyan)'} : t.gold ? {color:'var(--gold)'} : {}}>
               {t.tag}
             </p>

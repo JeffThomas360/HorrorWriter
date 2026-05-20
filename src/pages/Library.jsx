@@ -1,5 +1,8 @@
-import { BOOKS } from '../data/books'
+import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
+import { supabase } from '../supabaseClient'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
+import { useAuth } from '../components/AuthContext'
 
 const BADGE_CLASS = { NEW:'', CRITIQUE:'cyan', COMPLETE:'gold' }
 const COVER_SVG = (
@@ -13,15 +16,60 @@ const COVER_SVG = (
 
 export default function Library() {
   useDocumentTitle('Library')
+  const { session } = useAuth()
+  const [books, setBooks] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    async function fetchBooks() {
+      if (!supabase) {
+        setLoading(false)
+        return
+      }
+      try {
+        const { data, error } = await supabase
+          .from('books')
+          .select('*, profiles(handle)')
+          .order('created_at', { ascending: false })
+        
+        if (error) throw error
+        setBooks(data || [])
+      } catch (err) {
+        console.error('Error fetching books:', err)
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchBooks()
+  }, [])
+
+  if (loading) return <section className="surface active"><p>Loading the dark archives...</p></section>
+  if (error) return <section className="surface active"><p className="error">Error loading library: {error}</p></section>
+
   return (
     <section className="surface active">
-      <p className="eyebrow">▸ The Library</p>
-      <h2 className="title">Shared <em>Work</em></h2>
-      <p className="lede">Excerpts, shorts, and chapters left in the dark for others to find.</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <p className="eyebrow">▸ The Library</p>
+          <h2 className="title">Shared <em>Work</em></h2>
+          <p className="lede">Excerpts, shorts, and chapters left in the dark for others to find.</p>
+        </div>
+        
+        {session ? (
+          <Link to="/library/publish" className="btn primary" style={{ marginTop: '2rem' }}>
+            ▸ Publish Story
+          </Link>
+        ) : (
+          <span className="soon-chip" style={{ marginTop: '2.5rem' }}>Sign in to publish</span>
+        )}
+      </div>
 
-      <div className="lib-grid">
-        {BOOKS.map((b, i) => (
-          <article key={i} className="book">
+      <div className="lib-grid" style={{ marginTop: '2rem' }}>
+        {books.length === 0 && <p style={{ color:'var(--muted)', fontStyle:'italic' }}>The library is empty.</p>}
+        {books.map((b) => (
+          <Link key={b.id} to={`/library/read/${b.id}`} className="book" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
             {b.badge && (
               <div className={`badge${BADGE_CLASS[b.badge] ? ' '+BADGE_CLASS[b.badge] : ''}`}>
                 {b.badge}
@@ -32,15 +80,15 @@ export default function Library() {
               {COVER_SVG}
             </div>
             <div className="meta">
-              <div className="by">{b.by}</div>
+              <div className="by">@{b.profiles?.handle || 'unknown'}</div>
               <h3>{b.title}</h3>
               <p>{b.lede}</p>
               <div className="row">
-                <span>{b.chapters}</span>
-                <span>{b.comments} comments</span>
+                <span>{b.chapters_info || 'Unknown chapters'}</span>
+                <span>{b.comments_count || 0} comments</span>
               </div>
             </div>
-          </article>
+          </Link>
         ))}
       </div>
     </section>
