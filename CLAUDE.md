@@ -165,9 +165,10 @@ Storage bucket: `avatars` — per-user folder, owner RLS.
 | Passkey sign-in/register | ✅ Real (WebAuthn Edge Functions) |
 | Profile edit + avatar upload | ✅ Real (Supabase) |
 | Public user profiles by handle | ✅ Real |
-| Forum (browse/post) | ⚠️ Mocked — DB schema exists, pages use `src/data/threads.js` |
+| Forum (browse) | ✅ Real (Supabase — `categories` + `threads` with profile join) |
+| CreateThread | ✅ Real (inserts thread + initial post) |
+| ThreadView (read + reply) | ✅ Real (fetches thread + posts, replies write to `posts`) |
 | Library (browse/publish) | ⚠️ Mocked — DB schema exists, pages use `src/data/books.js` |
-| CreateThread / ThreadView | ⚠️ Stub |
 | PublishStory / ReadStory | ⚠️ Stub |
 | Rituals / writing prompts | ⚠️ Static data |
 | Turnstile CAPTCHA | ⚠️ Not configured (key not set) |
@@ -185,10 +186,10 @@ Storage bucket: `avatars` — per-user folder, owner RLS.
 
 ## Next priorities
 
-1. **Wire Forum to Supabase** — replace `src/data/threads.js` mock with real queries on `categories` + `threads` + `posts`
+1. **Push pending forum-count migration** — `20260523000000_fix_replies_count.sql` corrects the off-by-one where `replies_count` was counting the OP as a reply. Run `supabase db push` from PowerShell.
 2. **Wire Library to Supabase** — replace `src/data/books.js` mock with real queries on `books`
-3. **Implement ThreadView** — fetch thread + paginated posts
-4. **Implement PublishStory / ReadStory** — insert/fetch from `books`
+3. **Implement PublishStory / ReadStory** — insert/fetch from `books`
+4. **Pagination on ThreadView** — currently fetches all posts at once; add a page cursor before threads grow.
 5. **Turnstile CAPTCHA** — set up at dash.cloudflare.com → Turnstile, add `VITE_TURNSTILE_SITE_KEY` to Cloudflare Pages env vars
 6. **Delete old Worker** — Cloudflare → Workers & Pages → the Worker `horrorwriter` → Settings → Delete
 7. **Connect GitHub to Pages** — for auto-deploys on push
