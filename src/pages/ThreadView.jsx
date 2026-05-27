@@ -33,6 +33,9 @@ export default function ThreadView() {
   // Reply state
   const [replyContent, setReplyContent] = useState('')
   const [replyError, setReplyError] = useState(null)
+  
+  // Realtime state
+  const [activeReadersCount, setActiveReadersCount] = useState(1)
 
   const { data: thread, isLoading: threadLoading, error: threadError } = useQuery({
     queryKey: ['thread', id],
@@ -83,6 +86,66 @@ export default function ThreadView() {
   const posts = postsData ? postsData.pages.flat() : []
   const loading = threadLoading || postsLoading
   const error = threadError ? 'Thread lost to the void. It may have been deleted.' : postsError ? 'Failed to load posts.' : null
+
+  // Subscribe to realtime database changes and presence tracking
+  useEffect(() => {
+    if (!supabase || !id) return
+
+    const presenceKey = session?.user?.id || 'anonymous-' + Math.random().toString(36).substr(2, 9)
+
+    // 1. Establish the realtime channel
+    const channel = supabase.channel(`thread:${id}`, {
+      config: {
+        presence: {
+          key: presenceKey,
+        },
+      },
+    })
+
+    // 2. Listen to db inserts in public.posts for this thread
+    channel.on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'posts',
+        filter: `thread_id=eq.${id}`,
+      },
+      (payload) => {
+        const newPost = payload.new
+        // Only invalidate if the post is not already local in postsData
+        const cachedData = queryClient.getQueryData(['posts', id])
+        const existingPosts = cachedData ? cachedData.pages.flat() : []
+        const alreadyExists = existingPosts.some(p => p.id === newPost.id)
+        
+        if (!alreadyExists) {
+          queryClient.invalidateQueries({ queryKey: ['posts', id] })
+          queryClient.invalidateQueries({ queryKey: ['threads'] })
+        }
+      }
+    )
+
+    // 3. Track active readers presence count
+    channel.on('presence', { event: 'sync' }, () => {
+      const state = channel.presenceState()
+      const viewerKeys = Object.keys(state)
+      setActiveReadersCount(viewerKeys.length)
+    })
+
+    // 4. Subscribe and register track activity
+    channel.subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        await channel.track({
+          online_at: new Date().toISOString(),
+        })
+      }
+    })
+
+    // 5. Cleanup subscription
+    return () => {
+      channel.unsubscribe()
+    }
+  }, [id, session, queryClient])
 
   const replyMutation = useMutation({
     mutationFn: async (content) => {
@@ -137,6 +200,26 @@ export default function ThreadView() {
         </Link>
         <h2 className="title" style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>{thread?.title}</h2>
         
+        {/* Realtime Active Readers Count */}
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '0.5rem', 
+          color: 'var(--cyan)', 
+          fontFamily: 'var(--font-mono)', 
+          fontSize: '0.9rem', 
+          marginBottom: '2rem' 
+        }}>
+          <span className="loading-pulse" style={{ 
+            display: 'inline-block', 
+            width: '8px', 
+            height: '8px', 
+            borderRadius: '50%', 
+            backgroundColor: 'var(--cyan)' 
+          }}></span>
+          <span>{activeReadersCount} {activeReadersCount === 1 ? 'writer reading' : 'writers reading'} in the dark</span>
+        </div>
+
         <div style={{ marginTop: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {posts.map((p, index) => {
             const handle = p.profiles?.handle || 'unknown'
