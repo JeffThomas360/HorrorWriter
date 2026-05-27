@@ -3,14 +3,13 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 import { useAuth } from '../components/AuthContext'
-
 import { useQuery } from '@tanstack/react-query'
 
-const AV_COLORS = ['','av-1','av-2','av-3','av-4','av-5','av-6']
+const AV_COLORS = ['', 'av-1', 'av-2', 'av-3', 'av-4', 'av-5', 'av-6']
 
 function initials(handle) {
   if (!handle) return '??'
-  return handle.split('-').map(w => w[0].toUpperCase()).slice(0,2).join('')
+  return handle.split('-').map(w => w[0].toUpperCase()).slice(0, 2).join('')
 }
 
 function timeAgo(dateString) {
@@ -19,9 +18,9 @@ function timeAgo(dateString) {
   const now = new Date()
   const diff = (now - d) / 1000
   if (diff < 60) return 'just now'
-  if (diff < 3600) return `${Math.floor(diff/60)}m`
-  if (diff < 86400) return `${Math.floor(diff/3600)}h`
-  return `${Math.floor(diff/86400)}d`
+  if (diff < 3600) return `${Math.floor(diff / 60)}m`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h`
+  return `${Math.floor(diff / 86400)}d`
 }
 
 async function fetchCategories() {
@@ -49,9 +48,9 @@ export default function Forum() {
   useDocumentTitle('The Crypt')
   const { session, profile } = useAuth()
   const [activeCat, setActiveCat] = useState('all')
-  const [query, setQuery]         = useState('')
+  const [query, setQuery] = useState('')
   const [onlineUsers, setOnlineUsers] = useState([])
-  
+
   const { data: categories = [], isLoading: catLoading, error: catError } = useQuery({
     queryKey: ['categories'],
     queryFn: fetchCategories,
@@ -64,20 +63,14 @@ export default function Forum() {
 
   useEffect(() => {
     if (!supabase) return
-
     const presenceKey = session?.user?.id || 'anonymous-' + Math.random().toString(36).substr(2, 9)
     const channel = supabase.channel('global:lobby', {
-      config: {
-        presence: {
-          key: presenceKey,
-        },
-      },
+      config: { presence: { key: presenceKey } },
     })
 
     channel.on('presence', { event: 'sync' }, () => {
       const state = channel.presenceState()
       const users = []
-      
       Object.keys(state).forEach((key) => {
         const presences = state[key]
         if (presences && presences.length > 0) {
@@ -101,9 +94,7 @@ export default function Forum() {
       }
     })
 
-    return () => {
-      channel.unsubscribe()
-    }
+    return () => { channel.unsubscribe() }
   }, [session, profile])
 
   const loading = catLoading || threadLoading
@@ -128,14 +119,31 @@ export default function Forum() {
     })
   }, [activeCat, query, threads, catLabels])
 
-  if (loading) return <section className="surface active"><div style={{ padding: '80px 0', textAlign: 'center' }}><p className="loading-pulse">Loading the crypt...</p></div></section>
-  if (error) return <section className="surface active"><p className="error">Error loading forum: {error}</p></section>
+  if (loading) return (
+    <section className="surface">
+      <div className="status-panel">
+        <p className="loading-pulse">Descending into the Crypt…</p>
+      </div>
+    </section>
+  )
+  if (error) return (
+    <section className="surface">
+      <div className="status-panel">
+        <p className="eyebrow error">Error loading forum</p>
+        <p className="status-panel-body">{error}</p>
+      </div>
+    </section>
+  )
 
   return (
-    <section className="surface active">
-      <p className="eyebrow">▸ The Forums</p>
-      <h2 className="title">The <em>Crypt</em></h2>
-      <p className="lede">Where the conversations live. Pick a category, or search the dark.</p>
+    <section className="surface">
+      <div className="section-head">
+        <div className="left">
+          <p className="eyebrow">The Forums</p>
+          <h2>The <em>Crypt</em></h2>
+          <p>Where the conversations live. Pick a category, or search the dark.</p>
+        </div>
+      </div>
 
       <div className="forum-grid">
         <aside>
@@ -155,55 +163,48 @@ export default function Forum() {
                   className={c.id === activeCat ? 'active' : ''}
                   onClick={() => setActiveCat(c.id)}
                 >
-                  <span className="name">{c.name}</span>
+                  <span className="name">{c.name.split('·')[0].trim()}</span>
                   <span className="count">{count.toLocaleString()}</span>
                 </li>
               )
             })}
           </ul>
-          <div style={{ marginTop:24, padding:'18px', border:'1px dashed rgba(243,236,217,.14)', borderRadius:'var(--r)' }}>
-            <div className="eyebrow" style={{ marginBottom:6, fontSize:14 }}>▸ House Rules</div>
-            <p style={{ color:'var(--bone-dim)', fontSize:15, fontStyle:'italic' }}>
+
+          <div className="aside-card">
+            <h4>House Rules</h4>
+            <p>
               Read before posting. Critique is a gift; cruelty is not.
               Spoilers warned. No promo without a story attached.
             </p>
           </div>
-          <div style={{ marginTop:24, padding:'18px', border:'1px dashed rgba(243,236,217,.14)', borderRadius:'var(--r)' }}>
-            <div className="eyebrow" style={{ marginBottom:12, fontSize:14, display:'flex', alignItems:'center', gap:8 }}>
-              <span className="dot" style={{
-                display: 'inline-block',
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                backgroundColor: 'var(--green)',
-                boxShadow: '0 0 8px var(--green)',
-                animation: u => 'rec 1.4s steps(2) infinite'
-              }}></span>
+
+          <div className="aside-card">
+            <h4>
+              <span className="chip live" style={{ padding: 0, border: 'none', background: 'none' }}></span>
               Writers Online ({onlineUsers.length})
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            </h4>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
               {onlineUsers.map((u) => {
                 const isGuest = u.handle === 'Guest' || u.handle === 'Summoning...'
                 const name = isGuest ? 'Guest' : `@${u.handle}`
                 const avColorIndex = isGuest ? 1 : (u.handle.length % 6) + 1
                 const initialsStr = isGuest ? '??' : initials(u.handle)
-                
                 return (
-                  <div 
-                    key={u.id} 
-                    title={name} 
-                    className={`avatar ${AV_COLORS[avColorIndex]}`} 
-                    style={{ 
-                      width: 32, 
-                      height: 32, 
-                      fontSize: 11, 
-                      border: '1px solid rgba(255,255,255,0.1)'
-                    }}
+                  <div
+                    key={u.id}
+                    title={name}
+                    className={`avatar ${AV_COLORS[avColorIndex]}`}
+                    style={{ width: 30, height: 30, fontSize: 11 }}
                   >
                     {initialsStr}
                   </div>
                 )
               })}
+              {onlineUsers.length === 0 && (
+                <span className="muted" style={{ fontSize: 13, fontStyle: 'italic' }}>
+                  The dark is quiet.
+                </span>
+              )}
             </div>
           </div>
         </aside>
@@ -212,30 +213,24 @@ export default function Forum() {
           <div className="forum-tools">
             <div className="search">
               <input
-                placeholder="search threads, authors, tags…"
+                placeholder="Search threads, authors, tags…"
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 aria-label="Search forum threads"
               />
             </div>
             {session ? (
-              <Link to="/forum/new" className="btn primary" style={{ height: 38, lineHeight: '36px', padding: '0 16px' }}>
-                ▸ New Thread
-              </Link>
+              <Link to="/forum/new" className="btn blood">New Thread</Link>
             ) : (
               <span className="soon-chip">Sign in to post</span>
             )}
           </div>
 
           {visible.length === 0 && (
-            <div style={{ padding: '60px 0', textAlign: 'center', border: '1px dashed rgba(243,236,217,.1)', borderRadius: 'var(--r)' }}>
-              <p style={{ color:'var(--muted)', fontStyle:'italic', fontSize: '18px', marginBottom: '20px' }}>
-                Nothing here. The dark is quiet tonight.
-              </p>
+            <div className="empty">
+              <p>Nothing here. The dark is quiet tonight.</p>
               {session ? (
-                <Link to="/forum/new" className="btn ghost">
-                  Start the first thread
-                </Link>
+                <Link to="/forum/new" className="btn ghost">Start the first thread</Link>
               ) : (
                 <span className="soon-chip">Sign in to post</span>
               )}
@@ -244,27 +239,29 @@ export default function Forum() {
 
           {visible.map((t) => {
             const handle = t.profiles?.handle || 'unknown'
-            // generate a consistent avatar color based on handle string length
             const avColorIndex = (handle.length % 6) + 1
             return (
-              <Link key={t.id} to={`/forum/thread/${t.id}`} className="thread" role="article" style={{ textDecoration: 'none', color: 'inherit', display: 'grid' }}>
-                <div className={`avatar ${AV_COLORS[avColorIndex]}`}>{initials(handle)}</div>
+              <Link
+                key={t.id}
+                to={`/forum/thread/${t.id}`}
+                className="thread"
+                role="article"
+              >
+                <div className={`avatar ${AV_COLORS[avColorIndex]}`}>
+                  {initials(handle)}
+                </div>
                 <div className="body">
                   <h4>
-                    {t.pinned && <span className="pin">📌 </span>}
+                    {t.pinned && <span className="pin">📌</span>}
                     {t.title}
                   </h4>
                   <div className="by">
-                    <b>{handle}</b>&nbsp;·&nbsp;{catLabels[t.category_id] || t.category_id}
+                    <b>@{handle}</b> · {catLabels[t.category_id] || t.category_id} · {timeAgo(t.updated_at)}
                   </div>
                 </div>
                 <div className="replies">
                   <b>{t.replies_count || 0}</b>
                   <span>replies</span>
-                </div>
-                <div className="when">
-                  {timeAgo(t.updated_at)}
-                  <small>by {handle}</small>
                 </div>
               </Link>
             )

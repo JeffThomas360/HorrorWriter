@@ -5,20 +5,17 @@ import { useAuth } from '../components/AuthContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 export default function CreateThread() {
-  const { session, profile, isLoading: authLoading } = useAuth()
+  const { session, isLoading: authLoading } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  
+
   const [title, setTitle] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [content, setContent] = useState('')
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    // Redirect if not logged in
-    if (!authLoading && !session) {
-      navigate('/forum')
-    }
+    if (!authLoading && !session) navigate('/forum')
   }, [session, authLoading, navigate])
 
   const { data: categories = [] } = useQuery({
@@ -39,7 +36,6 @@ export default function CreateThread() {
 
   const mutation = useMutation({
     mutationFn: async ({ title, categoryId, content }) => {
-      // 1. Create the thread
       const { data: threadData, error: threadError } = await supabase
         .from('threads')
         .insert({
@@ -49,10 +45,8 @@ export default function CreateThread() {
         })
         .select()
         .single()
-
       if (threadError) throw threadError
 
-      // 2. Create the initial post
       const { error: postError } = await supabase
         .from('posts')
         .insert({
@@ -60,12 +54,10 @@ export default function CreateThread() {
           author_id: session.user.id,
           content: content.trim()
         })
-
       if (postError) throw postError
       return threadData
     },
     onSuccess: () => {
-      // Invalidate threads query cache to show the new thread immediately
       queryClient.invalidateQueries({ queryKey: ['threads'] })
       navigate('/forum')
     },
@@ -77,86 +69,78 @@ export default function CreateThread() {
   const handleSubmit = (e) => {
     e.preventDefault()
     setError(null)
-
     if (!title.trim() || !content.trim()) {
       setError('Title and content are required.')
       return
     }
-
     mutation.mutate({ title, categoryId, content })
   }
 
   const isSubmitting = mutation.isPending
 
-  if (authLoading || !session) return <div className="layout-content"><p className="dim">Verifying soul...</p></div>
+  if (authLoading || !session) return (
+    <section className="surface">
+      <div className="status-panel">
+        <p className="loading-pulse">Verifying soul…</p>
+      </div>
+    </section>
+  )
 
   return (
-    <div className="layout-content fade-in">
-      <section className="surface active">
-        <p className="eyebrow">▸ The Crypt</p>
-        <h2 className="title">Summon <em>Thread</em></h2>
-        
-        <form onSubmit={handleSubmit} className="profile-form" style={{ marginTop: '2rem' }}>
-          <label className="profile-field">
-            <div className="profile-field-label">Category</div>
-            <div className="profile-field-input">
-              <select 
-                value={categoryId} 
-                onChange={(e) => setCategoryId(e.target.value)}
-                style={{ 
-                  width: '100%', 
-                  background: 'var(--void)', 
-                  color: 'var(--bone)', 
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  padding: '8px 12px',
-                  fontFamily: 'inherit'
-                }}
-              >
-                {categories.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-          </label>
+    <section className="surface" style={{ maxWidth: 820, margin: '0 auto' }}>
+      <p className="eyebrow">The Crypt</p>
+      <h2 className="title">Summon <em>a thread</em></h2>
 
-          <label className="profile-field">
-            <div className="profile-field-label">Title</div>
-            <div className="profile-field-input">
-              <input 
-                value={title} 
-                onChange={(e) => setTitle(e.target.value)} 
-                required 
-                placeholder="A chilling subject..."
-                style={{ width: '100%' }}
-              />
-            </div>
-          </label>
-
-          <label className="profile-field">
-            <div className="profile-field-label">Initial Post</div>
-            <div className="profile-field-input">
-              <textarea 
-                value={content} 
-                onChange={(e) => setContent(e.target.value)} 
-                required 
-                rows={8} 
-                placeholder="Speak into the void..."
-                style={{ width: '100%' }}
-              />
-            </div>
-          </label>
-
-          <div className="profile-form-actions">
-            <button type="submit" className="btn primary" disabled={isSubmitting}>
-              {isSubmitting ? 'Summoning...' : '▸ Post Thread'}
-            </button>
-            <button type="button" className="btn ghost" onClick={() => navigate('/forum')} disabled={isSubmitting}>
-              Cancel
-            </button>
-            {error && <span className="form-err" style={{ marginLeft: '1rem' }}>{error}</span>}
+      <form onSubmit={handleSubmit} className="profile-form" style={{ marginTop: 32 }}>
+        <label className="profile-field">
+          <div className="profile-field-label">Category</div>
+          <div className="profile-field-input">
+            <select
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+            >
+              {categories.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
           </div>
-        </form>
-      </section>
-    </div>
+        </label>
+
+        <label className="profile-field">
+          <div className="profile-field-label">Title</div>
+          <div className="profile-field-input">
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+              placeholder="A chilling subject…"
+            />
+          </div>
+        </label>
+
+        <label className="profile-field">
+          <div className="profile-field-label">Initial Post</div>
+          <div className="profile-field-input">
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              required
+              rows={8}
+              placeholder="Speak into the void…"
+            />
+          </div>
+        </label>
+
+        <div className="profile-form-actions">
+          <button type="submit" className="btn blood" disabled={isSubmitting}>
+            {isSubmitting ? 'Summoning…' : 'Post Thread'}
+          </button>
+          <button type="button" className="btn ghost" onClick={() => navigate('/forum')} disabled={isSubmitting}>
+            Cancel
+          </button>
+          {error && <span className="form-err">{error}</span>}
+        </div>
+      </form>
+    </section>
   )
 }

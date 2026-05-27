@@ -5,20 +5,15 @@ import Nav from './Nav'
 import Footer from './Footer'
 import SignInModal from './SignInModal'
 import OnboardingBanner from './OnboardingBanner'
-import VcrClock from './VcrClock'
 
 export default function Layout() {
   const [signinOpen, setSigninOpen] = useState(false)
 
   return (
     <div className="app-layout">
-      <aside className="control-deck">
+      <header className="control-deck">
         <Nav onSignInClick={() => setSigninOpen(true)} />
-        <div className="hud" aria-hidden="true">
-          <span><span className="rec" />REC · SP</span>
-          <VcrClock />
-        </div>
-      </aside>
+      </header>
 
       <div className="content-viewport">
         <OnboardingBanner />

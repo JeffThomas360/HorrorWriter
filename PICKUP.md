@@ -1,91 +1,100 @@
-# HorrorWriter — Session Pickup File
-_Last updated: 2026-05-24_
+# PICKUP — Aesthetic redesign (2026-05-26)
 
----
+Full visual overhaul. Functionality, routing, Supabase, auth, and data
+shapes were NOT touched.
 
-## What the site is
+## What changed
 
-**horrorwriter.org** — A React + Vite SPA hosted on Cloudflare Workers, backed by Supabase (Postgres, Auth, Storage, Edge Functions). Horror-themed community platform for writers. VHS aesthetic.
+**Design direction**: VHS / Stranger Things control-deck → **Gothic Editorial**
+(magazine-grade typography, restrained horror accents).
 
-- **Repo:** https://github.com/JeffThomas360/HorrorWriter
-- **Live site:** https://horrorwriter.org
-- **Supabase project:** `bmvvugrfnuedjlucmlbw`
-- **Cloudflare:** Workers & Pages → horrorwriter
-- **Design spec:** `docs/superpowers/specs/2026-04-24-horrorwriter-react-migration-design.md`
+**Layout shell**
+- Sidebar control deck (320 px) → sticky top nav (68 px, frosted glass)
+- Reading column max 1120 px, prose max 720 px
+- `src/components/Layout.jsx` simplified; `src/components/Atmospherics.jsx`
+  is now an inert stub (single grain + vignette applied via `body::before`
+  and `body::after` in `style.css`)
 
----
+**Type system**
+- Display: **Fraunces** (700 / 900, italic for accents)
+- Body: EB Garamond (unchanged)
+- UI: **Inter** for nav, buttons, chips, metadata
+- Mono: **JetBrains Mono** (replaces VT323)
+- Cinzel reserved for the brand wordmark only
+- Fonts loaded from Google in `index.html`
 
-## What's fully done
+**Color tokens** (`:root` in `src/style.css`)
+- `--paper #f6f1e6`, `--ink #0b0a10`, `--blood #e63946`, `--ember #ff7a45`
+- Removed: Bebas Neue, the heavy CRT stack, all `.scanlines / .noise /
+  .tracking / .grid-floor / .grid-wall / .particle` overlays
+  (rules are kept with `display: none` for safety)
 
-| Phase | Status |
-|-------|--------|
-| 0 — Project setup (Vite, Cloudflare, env vars) | ✅ Done |
-| 1 — Layout + router + all static pages | ✅ Done |
-| 2 — Inner pages with mocked data | ✅ Done |
-| 3 — Supabase migrations (profiles, passkeys, storage) | ✅ Done |
-| 4 — Auth: magic-link, Turnstile CAPTCHA, Passkeys | ✅ Built & Live |
-| 5 — Profile editor + avatar upload | ✅ Done |
-| 6 — Forum & Library (Posts, Threads, Books) | ✅ Live with real data |
-| 7 — Automated Playwright E2E Tests | ✅ Passing (Zero Regressions) |
-| 8 — Security & Rate Limiting | ✅ Postgres RLS & Triggers Active |
+**Buttons**: pill-shaped. New `.btn.blood` (gradient + glow) is the
+primary CTA. `.btn.primary` (paper-on-ink) is the secondary punch.
+`.btn.ghost` and `.btn.cyan` retained.
 
----
+**Home page** (`src/pages/Home.jsx`) — full rewrite
+1. Editorial hero: massive Fraunces headline w/ italic blood accent
+2. Stats strip: Writers / Stories / Threads / **0 Ads, ever**
+3. Magazine 1+2 feature grid bound to recent threads
+4. **Prompt of the Week** pull-quote card — designed to be screenshotted
+5. Numbered I/II/III "Why" cards
 
-## What We Built Recently (May 2026)
+**Other page polish**
+- Forum: same data model; new chrome (cat list, search pill, thread row
+  with hover slide-in, online-writers card)
+- Library: 320 px poster covers, badge pills, hover lift
+- ThreadView, ReadStory: shared `.card` pattern, cleaner author block
+- PublishStory, CreateThread: forms use new field-input + pill cover-picker
 
-### 1. UX & UI Overhaul
-- **Navigation:** Explicitly pinned "The Crypt" (Forum) and "Library" to the sidebar.
-- **Contextual CTAs:** The homepage now knows if you are logged in ("Enter the Crypt" vs "Enter the Void").
-- **Actionable Empty States:** Empty categories in the forum/library now feature highly styled prompts urging users to publish the first story/thread.
-- **Micro-Interactions:** Added blood-red `:focus-visible` rings for keyboard navigation, tactile `:active` button depressions, and smooth `.loading-pulse` opacity animations for fetching states.
+**Meta**
+- `index.html` now has Open Graph + Twitter card tags for proper unfurl
+- Page `<title>` updated
 
-### 2. Infrastructure & Security
-- **Cloudflare Turnstile:** Natively integrated with Supabase `signInWithOtp` to protect the Magic Link endpoint from bots.
-- **Custom SMTP (Resend):** Verified and configured `noreply@horrorwriter.org` as the sender for magic links.
-- **Postgres Rate Limiting:** Built custom PL/pgSQL triggers (`20260523000002_rate_limiting.sql`) to prevent DoS application attacks (e.g. max 10 posts / 5 mins, 5 threads / 15 mins).
-- **Row Level Security (RLS):** Verified that `posts`, `threads`, and `books` are fully locked down via `auth.uid() = author_id` policies. Identity spoofing is impossible.
-- **Agent Skills:** Installed Supabase and Postgres Best Practices agent skills natively via MCP.
+## Verified
 
-### 3. Automated Testing
-- Built a robust E2E testing suite using Playwright (`npx playwright test`).
-- Covers virtual WebAuthn passkey authentication flows, Turnstile verification gating, and Forum category/thread navigation.
+Local `npx vite build` is clean — 161 modules, 502 KB JS / 32 KB CSS.
+No functional regressions: AuthContext, Supabase queries, react-query
+keys, route paths are all untouched.
 
----
+## Sandbox gotcha (worth knowing)
 
-## Database migrations (all applied to remote)
+The Write tool occasionally truncated or null-padded files on the
+`D:\` Windows mount. If a build error mentions "Unexpected end of file"
+or `\x00`, the file got cut off. Workaround that worked:
+overwrite from PowerShell, or use `cat > file << 'EOF'` in bash.
 
-| Migration | What it does |
-|-----------|-------------|
-| `20240520000000_content_schemas.sql` | Base `posts` and `threads` schemas with RLS |
-| `20260519000000_passkeys.sql` | Creates `passkeys` + `webauthn_challenges` tables |
-| `20260523000000_fix_replies_count.sql` | Fixes thread reply count bug |
-| `20260523000001_create_missing_posts_table.sql`| Recovery migration, ensures schemas sync |
-| `20260523000002_rate_limiting.sql`| Adds PL/pgSQL database-level rate limiting triggers |
+Files that hit this and were rewritten via bash heredoc:
+- `index.html`, `src/style.css`, `src/pages/Home.jsx`,
+  `src/components/Nav.jsx`, `src/components/Footer.jsx`
 
----
+## To deploy
 
-## What's NOT done yet (Next Steps)
+From PowerShell at `D:\CLAUDECODE\Projects\horrorwriter`:
 
-### 1. Google OAuth (Feature Flagged)
-We planned to add "Sign in with Google" to the `SignInModal.jsx`, wrapped in a `VITE_ENABLE_GOOGLE_LOGIN` environment variable flag so it only shows if explicitly toggled on by the developer.
+```powershell
+npm run build
+npx wrangler pages deploy dist --project-name horrorwriter
+```
 
-### 2. Live Realtime Subscriptions
-Implement Supabase Realtime in `ThreadView.jsx` so that when a user is reading a forum thread, new replies from other users pop into the UI instantly without needing a page refresh.
+Then commit + push to keep GitHub in sync (push does NOT auto-deploy).
 
-### 3. Data Fetching Optimization (TanStack Query)
-Replace standard `useEffect` fetching with `@tanstack/react-query` to cache forum and library data, drastically reducing loading flickers when navigating back and forth between categories.
+## What I did NOT touch (still on the original "Next priorities" list)
 
----
+1. `20260523000000_fix_replies_count.sql` — still needs `supabase db push`
+2. Library → Supabase wiring (already real; CLAUDE.md may be stale on this)
+3. Pagination on ThreadView
+4. Turnstile site key in Cloudflare Pages env
+5. Delete old Worker
+6. Connect GitHub to Pages
 
-## Tech stack quick reference
+## Suggested next aesthetic moves (when ready)
 
-| Layer | Tech |
-|-------|------|
-| Frontend | React 18, Vite, React Router v7 |
-| Hosting | Cloudflare Workers |
-| Backend | Supabase (Postgres + Auth + Storage) |
-| Auth | Magic-link OTP + WebAuthn passkeys + Turnstile |
-| Testing | Playwright E2E |
-| CSS | Custom (`src/style.css`) — VHS horror aesthetic |
-| Fonts | Cinzel (display), EB Garamond (body), VT323 (mono) |
-| Colors | `--blood` #ff1f3a, `--cyan` #4cd5ff, `--gold` #d3a24a, `--bone` #f3ecd9 |
+- Add OG share image at `public/og.png` (1200×630) and reference it from
+  `index.html` (`<meta property="og:image">`) — the meta tags are wired,
+  the image is the missing piece
+- Add a real "Prompt of the Week" Supabase table so the pull-quote isn't
+  hard-coded
+- Per-story OG image generation in an Edge Function for shareable
+  story-card URLs (huge viral lever)
+- Light-mode toggle (the token system is centralized enough to support it)

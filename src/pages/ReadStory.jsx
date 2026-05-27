@@ -5,11 +5,11 @@ import { useDocumentTitle } from '../lib/useDocumentTitle'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../components/AuthContext'
 
-const AV_COLORS = ['','av-1','av-2','av-3','av-4','av-5','av-6']
+const AV_COLORS = ['', 'av-1', 'av-2', 'av-3', 'av-4', 'av-5', 'av-6']
 
 function initials(handle) {
   if (!handle) return '??'
-  return handle.split('-').map(w => w[0].toUpperCase()).slice(0,2).join('')
+  return handle.split('-').map(w => w[0].toUpperCase()).slice(0, 2).join('')
 }
 
 function timeAgo(dateString) {
@@ -18,9 +18,9 @@ function timeAgo(dateString) {
   const now = new Date()
   const diff = (now - d) / 1000
   if (diff < 60) return 'just now'
-  if (diff < 3600) return `${Math.floor(diff/60)}m`
-  if (diff < 86400) return `${Math.floor(diff/3600)}h`
-  return `${Math.floor(diff/86400)}d`
+  if (diff < 3600) return `${Math.floor(diff / 60)}m`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h`
+  return `${Math.floor(diff / 86400)}d`
 }
 
 function readingTime(text) {
@@ -31,9 +31,9 @@ function readingTime(text) {
 }
 
 function StoryBody({ content }) {
-  if (!content) return <p className="dim">This story has no text...</p>
+  if (!content) return <p className="dim">This story has no text…</p>
   const paragraphs = content.split(/\n{2,}/).filter(p => p.trim())
-  if (paragraphs.length === 0) return <p className="dim">This story has no text...</p>
+  if (paragraphs.length === 0) return <p className="dim">This story has no text…</p>
   return (
     <div className="story-body">
       {paragraphs.map((para, i) => (
@@ -81,7 +81,7 @@ export default function ReadStory() {
     }
   })
 
-  useDocumentTitle(book ? book.title : 'Reading...')
+  useDocumentTitle(book ? book.title : 'Reading…')
 
   const commentMutation = useMutation({
     mutationFn: async (content) => {
@@ -120,123 +120,109 @@ export default function ReadStory() {
 
   const error = queryError ? 'Story not found in the archives.' : null
 
-  if (loading) return <section className="surface active"><p className="dim">Opening dusty pages...</p></section>
-  if (error) return <section className="surface active"><p className="error">{error}</p><Link to="/library" className="btn ghost">Back to Library</Link></section>
+  if (loading) return (
+    <section className="surface">
+      <div className="status-panel">
+        <p className="loading-pulse">Opening dusty pages…</p>
+      </div>
+    </section>
+  )
+  if (error) return (
+    <section className="surface">
+      <div className="status-panel">
+        <p className="eyebrow error">Not found</p>
+        <p className="status-panel-body">{error}</p>
+        <Link to="/library" className="btn ghost">Back to Library</Link>
+      </div>
+    </section>
+  )
 
   const isSubmitting = commentMutation.isPending
   const rtLabel = readingTime(book?.content)
 
   return (
-    <div className="layout-content fade-in">
-      <section className="surface active" style={{ maxWidth: '800px', margin: '0 auto', paddingTop: '4rem' }}>
-        <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
-          <p className="eyebrow" style={{ color: `var(--${book?.cover || 'cyan'})` }}>
-            &#9658; A story by @{book?.profiles?.handle || 'unknown'}
+    <section className="surface" style={{ maxWidth: 820, margin: '0 auto' }}>
+      <div style={{ textAlign: 'center', marginBottom: 56 }}>
+        <p className="eyebrow">A story by @{book?.profiles?.handle || 'unknown'}</p>
+        <h1 className="title" style={{ marginBottom: 18 }}>
+          {book?.title}
+        </h1>
+        {book?.lede && (
+          <p className="lede" style={{ margin: '0 auto 20px' }}>
+            {book.lede}
           </p>
-          <h1 className="title" style={{ fontSize: '3.5rem', marginBottom: '1.5rem', lineHeight: 1.1 }}>
-            {book?.title}
-          </h1>
-          <p className="lede" style={{ fontStyle: 'italic', fontSize: '1.25rem', color: 'var(--bone-dim)', maxWidth: '600px', margin: '0 auto 1.25rem' }}>
-            {book?.lede}
+        )}
+        {rtLabel && <span className="reading-time-chip">{rtLabel}</span>}
+      </div>
+
+      <StoryBody content={book?.content} />
+
+      <div style={{ borderTop: '1px solid var(--line)', paddingTop: 48, marginTop: 56 }}>
+        <h3 style={{ fontFamily: 'var(--display)', fontWeight: 700, fontSize: 26, color: 'var(--paper)', marginBottom: 24 }}>
+          Critiques &amp; Responses <span style={{ color: 'var(--muted)', fontWeight: 400 }}>({comments.length})</span>
+        </h3>
+
+        {commentsLoading ? (
+          <p className="loading-pulse">Summoning critiques…</p>
+        ) : comments.length === 0 ? (
+          <p className="dim" style={{ marginBottom: 32 }}>
+            The void is quiet. Leave the first critique below.
           </p>
-          {rtLabel && (
-            <span className="reading-time-chip">{rtLabel}</span>
-          )}
-        </div>
-
-        <StoryBody content={book?.content} />
-
-        <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '3rem', marginBottom: '4rem', marginTop: '4rem' }}>
-          <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.75rem', color: 'var(--gold)', marginBottom: '2rem' }}>
-            Critiques &amp; Responses ({comments.length})
-          </h3>
-
-          {commentsLoading ? (
-            <p className="dim">Summoning critiques...</p>
-          ) : comments.length === 0 ? (
-            <p style={{ fontStyle: 'italic', color: 'var(--bone-dim)', marginBottom: '2rem' }}>
-              The void is quiet. Leave the first critique below.
-            </p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginBottom: '3rem' }}>
-              {comments.map((c) => {
-                const handle = c.profiles?.handle || 'unknown'
-                const avColorIndex = (handle.length % 6) + 1
-                return (
-                  <div key={c.id} style={{
-                    background: 'var(--void)',
-                    padding: '1.5rem',
-                    borderRadius: 'var(--r)',
-                    border: '1px solid rgba(255,255,255,0.05)'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                      <div className={`avatar ${AV_COLORS[avColorIndex]}`} style={{ width: 40, height: 40, fontSize: 14 }}>
-                        {initials(handle)}
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: 600, color: 'var(--bone)' }}>@{handle}</div>
-                        <div style={{ fontSize: 13, color: 'var(--bone-dim)' }}>{timeAgo(c.created_at)}</div>
-                      </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18, marginBottom: 40 }}>
+            {comments.map((c) => {
+              const handle = c.profiles?.handle || 'unknown'
+              const avColorIndex = (handle.length % 6) + 1
+              return (
+                <article key={c.id} className="card">
+                  <div className="author">
+                    <div className={`avatar ${AV_COLORS[avColorIndex]}`} style={{ width: 36, height: 36, fontSize: 13 }}>
+                      {initials(handle)}
                     </div>
-                    <div style={{
-                      color: 'var(--bone-dim)',
-                      lineHeight: 1.7,
-                      whiteSpace: 'pre-wrap',
-                      fontFamily: 'var(--font-serif)',
-                      fontSize: '1rem'
-                    }}>
-                      {c.content}
+                    <div className="who">
+                      <span className="name">@{handle}</span>
+                      <span className="when">{timeAgo(c.created_at)}</span>
                     </div>
                   </div>
-                )
-              })}
-            </div>
-          )}
+                  <div className="body">{c.content}</div>
+                </article>
+              )
+            })}
+          </div>
+        )}
 
-          {session ? (
-            <form onSubmit={handleCommentSubmit} style={{ marginTop: '2rem' }}>
-              <h4 style={{ fontSize: '1.25rem', marginBottom: '1rem', color: 'var(--bone)', fontFamily: 'var(--font-serif)' }}>
-                Leave a Critique
-              </h4>
+        {session ? (
+          <form onSubmit={handleCommentSubmit} style={{ marginTop: 32 }}>
+            <h4 style={{ fontSize: 18, marginBottom: 12, color: 'var(--paper)', fontFamily: 'var(--display)', fontWeight: 700 }}>
+              Leave a critique
+            </h4>
+            <div className="profile-field-input" style={{ marginBottom: 14 }}>
               <textarea
                 value={commentContent}
                 onChange={(e) => setCommentContent(e.target.value)}
-                placeholder="Offer constructive dark wisdom..."
+                placeholder="Offer constructive dark wisdom…"
                 rows={5}
                 required
-                style={{
-                  width: '100%',
-                  background: 'var(--void)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: 'var(--bone)',
-                  padding: '1rem',
-                  fontFamily: 'var(--font-serif)',
-                  fontSize: '1rem',
-                  lineHeight: 1.7,
-                  borderRadius: 'var(--r)',
-                  resize: 'vertical',
-                  marginBottom: '1rem'
-                }}
               />
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <button type="submit" className="btn primary" disabled={isSubmitting}>
-                  {isSubmitting ? 'Summoning...' : '▸ Post Critique'}
-                </button>
-                {commentError && <span className="error" style={{ fontSize: 14 }}>{commentError}</span>}
-              </div>
-            </form>
-          ) : (
-            <div style={{ textAlign: 'center', padding: '2rem', background: 'var(--void)', borderRadius: 'var(--r)' }}>
-              <p style={{ color: 'var(--bone-dim)', marginBottom: '1rem' }}>You must enter the void to critique.</p>
-              <span className="soon-chip">Sign in to leave a critique</span>
             </div>
-          )}
-        </div>
+            <div className="row-flex">
+              <button type="submit" className="btn blood" disabled={isSubmitting}>
+                {isSubmitting ? 'Summoning…' : 'Post Critique'}
+              </button>
+              {commentError && <span className="form-err">{commentError}</span>}
+            </div>
+          </form>
+        ) : (
+          <div className="empty">
+            <p>You must enter the void to critique.</p>
+            <span className="soon-chip">Sign in to leave a critique</span>
+          </div>
+        )}
+      </div>
 
-        <div style={{ textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '2rem' }}>
-          <Link to="/library" className="btn ghost">&larr; Return to The Library</Link>
-        </div>
-      </section>
-    </div>
+      <div style={{ textAlign: 'center', borderTop: '1px solid var(--line)', paddingTop: 32, marginTop: 56 }}>
+        <Link to="/library" className="btn ghost">← Return to the Library</Link>
+      </div>
+    </section>
   )
 }

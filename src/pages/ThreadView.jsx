@@ -5,11 +5,12 @@ import { useAuth } from '../components/AuthContext'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
-const AV_COLORS = ['','av-1','av-2','av-3','av-4','av-5','av-6']
+const AV_COLORS = ['', 'av-1', 'av-2', 'av-3', 'av-4', 'av-5', 'av-6']
+const PAGE_SIZE = 15
 
 function initials(handle) {
   if (!handle) return '??'
-  return handle.split('-').map(w => w[0].toUpperCase()).slice(0,2).join('')
+  return handle.split('-').map(w => w[0].toUpperCase()).slice(0, 2).join('')
 }
 
 function timeAgo(dateString) {
@@ -18,23 +19,18 @@ function timeAgo(dateString) {
   const now = new Date()
   const diff = (now - d) / 1000
   if (diff < 60) return 'just now'
-  if (diff < 3600) return `${Math.floor(diff/60)}m`
-  if (diff < 86400) return `${Math.floor(diff/3600)}h`
-  return `${Math.floor(diff/86400)}d`
+  if (diff < 3600) return `${Math.floor(diff / 60)}m`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h`
+  return `${Math.floor(diff / 86400)}d`
 }
-
-const PAGE_SIZE = 15
 
 export default function ThreadView() {
   const { id } = useParams()
   const { session } = useAuth()
   const queryClient = useQueryClient()
-  
-  // Reply state
+
   const [replyContent, setReplyContent] = useState('')
   const [replyError, setReplyError] = useState(null)
-  
-  // Realtime state
   const [activeReadersCount, setActiveReadersCount] = useState(1)
 
   const { data: thread, isLoading: threadLoading, error: threadError } = useQuery({
@@ -46,13 +42,12 @@ export default function ThreadView() {
         .select('*, profiles(handle), categories(name)')
         .eq('id', id)
         .single()
-      
       if (error) throw error
       return data
     }
   })
 
-  useDocumentTitle(thread ? thread.title : 'Loading Thread...')
+  useDocumentTitle(thread ? thread.title : 'Loading…')
 
   const {
     data: postsData,
@@ -73,7 +68,6 @@ export default function ThreadView() {
         .eq('thread_id', id)
         .order('created_at', { ascending: true })
         .range(from, to)
-
       if (error) throw error
       return data || []
     },
@@ -85,39 +79,25 @@ export default function ThreadView() {
 
   const posts = postsData ? postsData.pages.flat() : []
   const loading = threadLoading || postsLoading
-  const error = threadError ? 'Thread lost to the void. It may have been deleted.' : postsError ? 'Failed to load posts.' : null
+  const error = threadError
+    ? 'Thread lost to the void. It may have been deleted.'
+    : postsError ? 'Failed to load posts.' : null
 
-  // Subscribe to realtime database changes and presence tracking
   useEffect(() => {
     if (!supabase || !id) return
-
     const presenceKey = session?.user?.id || 'anonymous-' + Math.random().toString(36).substr(2, 9)
-
-    // 1. Establish the realtime channel
     const channel = supabase.channel(`thread:${id}`, {
-      config: {
-        presence: {
-          key: presenceKey,
-        },
-      },
+      config: { presence: { key: presenceKey } },
     })
 
-    // 2. Listen to db inserts in public.posts for this thread
     channel.on(
       'postgres_changes',
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'posts',
-        filter: `thread_id=eq.${id}`,
-      },
+      { event: 'INSERT', schema: 'public', table: 'posts', filter: `thread_id=eq.${id}` },
       (payload) => {
         const newPost = payload.new
-        // Only invalidate if the post is not already local in postsData
         const cachedData = queryClient.getQueryData(['posts', id])
         const existingPosts = cachedData ? cachedData.pages.flat() : []
         const alreadyExists = existingPosts.some(p => p.id === newPost.id)
-        
         if (!alreadyExists) {
           queryClient.invalidateQueries({ queryKey: ['posts', id] })
           queryClient.invalidateQueries({ queryKey: ['threads'] })
@@ -125,26 +105,18 @@ export default function ThreadView() {
       }
     )
 
-    // 3. Track active readers presence count
     channel.on('presence', { event: 'sync' }, () => {
       const state = channel.presenceState()
-      const viewerKeys = Object.keys(state)
-      setActiveReadersCount(viewerKeys.length)
+      setActiveReadersCount(Object.keys(state).length)
     })
 
-    // 4. Subscribe and register track activity
     channel.subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
-        await channel.track({
-          online_at: new Date().toISOString(),
-        })
+        await channel.track({ online_at: new Date().toISOString() })
       }
     })
 
-    // 5. Cleanup subscription
-    return () => {
-      channel.unsubscribe()
-    }
+    return () => { channel.unsubscribe() }
   }, [id, session, queryClient])
 
   const replyMutation = useMutation({
@@ -158,7 +130,6 @@ export default function ThreadView() {
         })
         .select('*, profiles(handle)')
         .single()
-      
       if (error) throw error
       return data
     },
@@ -175,139 +146,114 @@ export default function ThreadView() {
   const handleReply = (e) => {
     e.preventDefault()
     setReplyError(null)
-
     if (!replyContent.trim()) {
       setReplyError('Cannot speak nothingness.')
       return
     }
-
     replyMutation.mutate(replyContent)
   }
 
   const isSubmitting = replyMutation.isPending
-  const loadMore = fetchNextPage
-  const hasMore = hasNextPage
-  const loadingMore = isFetchingNextPage
 
-  if (loading) return <section className="surface active"><p className="dim">Descending...</p></section>
-  if (error) return <section className="surface active"><p className="error">{error}</p><Link to="/forum" className="btn ghost">Go Back</Link></section>
+  if (loading) return (
+    <section className="surface">
+      <div className="status-panel">
+        <p className="loading-pulse">Descending…</p>
+      </div>
+    </section>
+  )
+  if (error) return (
+    <section className="surface">
+      <div className="status-panel">
+        <p className="eyebrow error">Something went wrong</p>
+        <p className="status-panel-body">{error}</p>
+        <Link to="/forum" className="btn ghost">Back to the Crypt</Link>
+      </div>
+    </section>
+  )
 
   return (
-    <div className="layout-content fade-in">
-      <section className="surface active">
-        <Link to="/forum" className="eyebrow" style={{ display: 'inline-block', marginBottom: '1rem', color: 'var(--cyan)' }}>
-          &larr; Back to {thread?.categories?.name || 'The Crypt'}
-        </Link>
-        <h2 className="title" style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>{thread?.title}</h2>
-        
-        {/* Realtime Active Readers Count */}
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '0.5rem', 
-          color: 'var(--cyan)', 
-          fontFamily: 'var(--font-mono)', 
-          fontSize: '0.9rem', 
-          marginBottom: '2rem' 
-        }}>
-          <span className="loading-pulse" style={{ 
-            display: 'inline-block', 
-            width: '8px', 
-            height: '8px', 
-            borderRadius: '50%', 
-            backgroundColor: 'var(--cyan)' 
-          }}></span>
-          <span>{activeReadersCount} {activeReadersCount === 1 ? 'writer reading' : 'writers reading'} in the dark</span>
-        </div>
+    <section className="surface" style={{ maxWidth: 820, margin: '0 auto' }}>
+      <Link
+        to="/forum"
+        className="eyebrow"
+        style={{ marginBottom: 12 }}
+      >
+        ← Back to {thread?.categories?.name?.split('·')[0].trim() || 'The Crypt'}
+      </Link>
 
-        <div style={{ marginTop: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          {posts.map((p, index) => {
-            const handle = p.profiles?.handle || 'unknown'
-            const avColorIndex = (handle.length % 6) + 1
-            
-            return (
-              <div key={p.id} style={{ 
-                background: 'var(--void)', 
-                padding: '1.5rem', 
-                borderRadius: 'var(--r)',
-                border: '1px solid rgba(255,255,255,0.05)',
-                position: 'relative'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                  <div className={`avatar ${AV_COLORS[avColorIndex]}`} style={{ width: 40, height: 40, fontSize: 14 }}>
-                    {initials(handle)}
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 600, color: 'var(--bone)' }}>@{handle}</div>
-                    <div style={{ fontSize: 13, color: 'var(--bone-dim)' }}>
-                      {index === 0 ? 'Original Post' : `Reply #${index}`} &middot; {timeAgo(p.created_at)}
-                    </div>
-                  </div>
+      <h1 className="title" style={{ fontSize: 'clamp(32px, 4.5vw, 48px)', marginBottom: 14 }}>
+        {thread?.title}
+      </h1>
+
+      <span className="chip live" style={{ marginBottom: 32 }}>
+        {activeReadersCount} {activeReadersCount === 1 ? 'writer reading' : 'writers reading'}
+      </span>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {posts.map((p, index) => {
+          const handle = p.profiles?.handle || 'unknown'
+          const avColorIndex = (handle.length % 6) + 1
+          return (
+            <article key={p.id} className="card">
+              <div className="author">
+                <div className={`avatar ${AV_COLORS[avColorIndex]}`} style={{ width: 36, height: 36, fontSize: 13 }}>
+                  {initials(handle)}
                 </div>
-                
-                <div style={{ 
-                  color: 'var(--bone-dim)', 
-                  lineHeight: 1.6,
-                  whiteSpace: 'pre-wrap',
-                  fontFamily: 'var(--font-mono)'
-                }}>
-                  {p.content}
+                <div className="who">
+                  <span className="name">@{handle}</span>
+                  <span className="when">
+                    {index === 0 ? 'Original Post' : `Reply #${index}`} · {timeAgo(p.created_at)}
+                  </span>
                 </div>
               </div>
-            )
-          })}
-          
-          {hasMore && (
-            <div style={{ textAlign: 'center', marginTop: '2rem' }}>
-              <button 
-                className="btn ghost" 
-                onClick={loadMore} 
-                disabled={loadingMore}
-              >
-                {loadingMore ? 'Summoning...' : '▸ Load More'}
-              </button>
-            </div>
-          )}
-        </div>
+              <div className="body">{p.content}</div>
+            </article>
+          )
+        })}
 
-        {session ? (
-          <div style={{ marginTop: '3rem', paddingTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-            <h3 style={{ marginBottom: '1rem', fontSize: '1.25rem' }}>Leave a Reply</h3>
-            <form onSubmit={handleReply}>
-              <textarea 
-                value={replyContent}
-                onChange={(e) => setReplyContent(e.target.value)}
-                placeholder="Speak into the void..."
-                rows={5}
-                required
-                style={{ 
-                  width: '100%', 
-                  background: 'var(--void)', 
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: 'var(--bone)',
-                  padding: '1rem',
-                  fontFamily: 'var(--font-mono)',
-                  borderRadius: 'var(--r)',
-                  resize: 'vertical',
-                  marginBottom: '1rem'
-                }}
-              />
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <button type="submit" className="btn primary" disabled={isSubmitting}>
-                  {isSubmitting ? 'Summoning...' : '▸ Post Reply'}
-                </button>
-                {replyError && <span className="error" style={{ fontSize: 14 }}>{replyError}</span>}
-              </div>
-            </form>
-          </div>
-        ) : (
-          <div style={{ marginTop: '3rem', textAlign: 'center', padding: '2rem', background: 'var(--void)', borderRadius: 'var(--r)' }}>
-            <p style={{ color: 'var(--bone-dim)', marginBottom: '1rem' }}>You must enter the void to reply.</p>
-            <span className="soon-chip">Sign in to reply</span>
+        {hasNextPage && (
+          <div className="text-center" style={{ marginTop: 16 }}>
+            <button
+              className="btn ghost"
+              onClick={fetchNextPage}
+              disabled={isFetchingNextPage}
+            >
+              {isFetchingNextPage ? 'Summoning…' : 'Load more'}
+            </button>
           </div>
         )}
+      </div>
 
-      </section>
-    </div>
+      {session ? (
+        <div style={{ marginTop: 56, paddingTop: 32, borderTop: '1px solid var(--line)' }}>
+          <h3 style={{ fontFamily: 'var(--display)', fontSize: 22, marginBottom: 14, color: 'var(--paper)' }}>
+            Leave a reply
+          </h3>
+          <form onSubmit={handleReply}>
+            <div className="profile-field-input" style={{ marginBottom: 14 }}>
+              <textarea
+                value={replyContent}
+                onChange={(e) => setReplyContent(e.target.value)}
+                placeholder="Speak into the void…"
+                rows={5}
+                required
+              />
+            </div>
+            <div className="row-flex">
+              <button type="submit" className="btn blood" disabled={isSubmitting}>
+                {isSubmitting ? 'Summoning…' : 'Post Reply'}
+              </button>
+              {replyError && <span className="form-err">{replyError}</span>}
+            </div>
+          </form>
+        </div>
+      ) : (
+        <div className="empty" style={{ marginTop: 48 }}>
+          <p>You must enter the void to reply.</p>
+          <span className="soon-chip">Sign in to reply</span>
+        </div>
+      )}
+    </section>
   )
 }

@@ -26,11 +26,13 @@ export default function Nav({ onSignInClick }) {
           <small>EST. THE WITCHING HOUR</small>
         </div>
       </Link>
+
       <nav className="nav-links" aria-label="Main navigation">
         <NavLink to="/" end className={linkClass}>Home</NavLink>
         <NavLink to="/forum" className={linkClass}>The Crypt</NavLink>
         <NavLink to="/library" className={linkClass}>Library</NavLink>
       </nav>
+
       {session ? (
         <div className="nav-user">
           <Link to="/profile" className="nav-avatar-link" aria-label="Your profile">
@@ -43,14 +45,23 @@ export default function Nav({ onSignInClick }) {
             )}
             {handle && <span className="nav-handle">@{handle}</span>}
           </Link>
-          <button className="nav-cta ghost" onClick={() => supabase?.auth.signOut()} aria-label="Sign out">
+          <button
+            className="nav-cta ghost"
+            onClick={() => supabase?.auth.signOut()}
+            aria-label="Sign out"
+          >
             Sign Out
           </button>
         </div>
       ) : (
-        <button className="nav-cta" onClick={onSignInClick} aria-label="Sign in">
-          Sign In
-        </button>
+        <div className="nav-actions">
+          <button className="nav-cta ghost" onClick={onSignInClick}>
+            Sign In
+          </button>
+          <button className="nav-cta" onClick={onSignInClick}>
+            Join the Coven
+          </button>
+        </div>
       )}
     </div>
   )
