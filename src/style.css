@@ -239,6 +239,54 @@ img{max-width:100%;display:block}
   box-shadow: 0 0 24px rgba(255, 31, 58, 0.6), inset 0 0 12px rgba(255, 255, 255, 0.2);
 }
 
+/* Nav user avatar + handle (logged-in state) */
+.nav-user {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+.nav-avatar-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--r);
+  border: 1px solid rgba(255,31,58,0.2);
+  background: rgba(255,31,58,0.04);
+  transition: border-color 0.2s, background 0.2s;
+  text-decoration: none;
+  color: inherit;
+}
+.nav-avatar-link:hover {
+  border-color: rgba(255,31,58,0.5);
+  background: rgba(255,31,58,0.1);
+}
+.nav-avatar {
+  width: 34px !important;
+  height: 34px !important;
+  font-size: 12px !important;
+  flex-shrink: 0;
+}
+.nav-avatar-img {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(255,31,58,0.4);
+  flex-shrink: 0;
+}
+.nav-handle {
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0.15em;
+  color: var(--bone-dim);
+  text-transform: lowercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* HUD Adjustments for Sidebar */
 .control-deck .hud {
   position: relative;
@@ -282,6 +330,10 @@ img{max-width:100%;display:block}
   .nav-links { display: none; }
   .nav-actions { margin-top: 0; }
   .nav-cta { padding: 8px 12px; font-size: 12px; width: auto; }
+  .nav-user { flex-direction: row; align-items: center; gap: 8px; }
+  .nav-handle { display: none; }
+  .nav-avatar-link { padding: 6px; border: none; background: none; }
+  .nav-avatar-link:hover { background: rgba(255,31,58,0.1); }
   .content-viewport { overflow-y: visible; box-shadow: none; }
   .shell { padding: 32px 20px 80px; }
   
@@ -592,6 +644,47 @@ section.surface.active{display:block}
 }
 .book .badge.cyan{border-color:var(--cyan);color:var(--cyan)}
 .book .badge.gold{border-color:var(--gold);color:var(--gold)}
+
+/* ============================================================
+   Story reader — body, drop cap, reading-time chip
+   ============================================================ */
+.story-body {
+  margin-bottom: 4rem;
+}
+.story-para {
+  font-family: var(--body);
+  font-size: 1.2rem;
+  line-height: 1.85;
+  color: var(--bone);
+  margin-bottom: 1.6em;
+  text-indent: 1.8em;
+}
+.story-para:first-of-type {
+  text-indent: 0;
+}
+.story-dropcap::first-letter {
+  font-family: var(--serif);
+  font-size: 5em;
+  font-weight: 900;
+  color: var(--blood);
+  float: left;
+  line-height: 0.75;
+  margin-right: 0.1em;
+  margin-top: 0.07em;
+  text-shadow: 0 0 18px rgba(255,31,58,0.6);
+}
+.reading-time-chip {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--bone-dim);
+  border: 1px solid rgba(243,236,217,0.18);
+  padding: 5px 12px;
+  border-radius: 20px;
+  background: rgba(0,0,0,0.2);
+}
 
 /* ============================================================
    Rituals (prompts + contests)

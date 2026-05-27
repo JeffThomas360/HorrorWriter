@@ -2,9 +2,20 @@ import { NavLink, Link } from 'react-router-dom'
 import { useAuth } from './AuthContext'
 import { supabase } from '../supabaseClient'
 
+const AV_COLORS = ['', 'av-1', 'av-2', 'av-3', 'av-4', 'av-5', 'av-6']
+
+function initials(handle) {
+  if (!handle) return '??'
+  return handle.split('-').map(w => w[0].toUpperCase()).slice(0, 2).join('')
+}
+
 export default function Nav({ onSignInClick }) {
-  const { session } = useAuth()
+  const { session, profile } = useAuth()
   const linkClass = ({ isActive }) => isActive ? 'active' : undefined
+
+  const handle = profile?.handle
+  const avColor = handle ? AV_COLORS[(handle.length % 6) + 1] : 'av-1'
+  const avatarUrl = profile?.avatar_url
 
   return (
     <div className="nav-container">
@@ -19,12 +30,23 @@ export default function Nav({ onSignInClick }) {
         <NavLink to="/" end className={linkClass}>Home</NavLink>
         <NavLink to="/forum" className={linkClass}>The Crypt</NavLink>
         <NavLink to="/library" className={linkClass}>Library</NavLink>
-        {session && <NavLink to="/profile" className={linkClass}>Coven</NavLink>}
       </nav>
       {session ? (
-        <button className="nav-cta ghost" onClick={() => supabase?.auth.signOut()} aria-label="Sign out">
-          Sign Out
-        </button>
+        <div className="nav-user">
+          <Link to="/profile" className="nav-avatar-link" aria-label="Your profile">
+            {avatarUrl ? (
+              <img src={avatarUrl} alt={handle || 'Profile'} className="nav-avatar-img" />
+            ) : (
+              <div className={`avatar ${avColor} nav-avatar`}>
+                {initials(handle)}
+              </div>
+            )}
+            {handle && <span className="nav-handle">@{handle}</span>}
+          </Link>
+          <button className="nav-cta ghost" onClick={() => supabase?.auth.signOut()} aria-label="Sign out">
+            Sign Out
+          </button>
+        </div>
       ) : (
         <button className="nav-cta" onClick={onSignInClick} aria-label="Sign in">
           Sign In

@@ -23,6 +23,28 @@ function timeAgo(dateString) {
   return `${Math.floor(diff/86400)}d`
 }
 
+function readingTime(text) {
+  if (!text) return null
+  const words = text.trim().split(/\s+/).length
+  const mins = Math.ceil(words / 200)
+  return mins === 1 ? '~1 min read' : `~${mins} min read`
+}
+
+function StoryBody({ content }) {
+  if (!content) return <p className="dim">This story has no text...</p>
+  const paragraphs = content.split(/\n{2,}/).filter(p => p.trim())
+  if (paragraphs.length === 0) return <p className="dim">This story has no text...</p>
+  return (
+    <div className="story-body">
+      {paragraphs.map((para, i) => (
+        <p key={i} className={i === 0 ? 'story-para story-dropcap' : 'story-para'}>
+          {para.trim()}
+        </p>
+      ))}
+    </div>
+  )
+}
+
 export default function ReadStory() {
   const { id } = useParams()
   const { session } = useAuth()
@@ -40,7 +62,6 @@ export default function ReadStory() {
         .select('*, profiles(handle)')
         .eq('id', id)
         .single()
-      
       if (error) throw error
       return data
     }
@@ -55,7 +76,6 @@ export default function ReadStory() {
         .select('*, profiles(handle)')
         .eq('book_id', id)
         .order('created_at', { ascending: true })
-      
       if (error) throw error
       return data || []
     }
@@ -74,7 +94,6 @@ export default function ReadStory() {
         })
         .select('*, profiles(handle)')
         .single()
-      
       if (error) throw error
       return data
     },
@@ -92,12 +111,10 @@ export default function ReadStory() {
   const handleCommentSubmit = (e) => {
     e.preventDefault()
     setCommentError(null)
-
     if (!commentContent.trim()) {
       setCommentError('Cannot speak nothingness.')
       return
     }
-
     commentMutation.mutate(commentContent)
   }
 
@@ -107,37 +124,31 @@ export default function ReadStory() {
   if (error) return <section className="surface active"><p className="error">{error}</p><Link to="/library" className="btn ghost">Back to Library</Link></section>
 
   const isSubmitting = commentMutation.isPending
+  const rtLabel = readingTime(book?.content)
 
   return (
     <div className="layout-content fade-in">
       <section className="surface active" style={{ maxWidth: '800px', margin: '0 auto', paddingTop: '4rem' }}>
         <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
           <p className="eyebrow" style={{ color: `var(--${book?.cover || 'cyan'})` }}>
-            ▸ A story by @{book?.profiles?.handle || 'unknown'}
+            &#9658; A story by @{book?.profiles?.handle || 'unknown'}
           </p>
           <h1 className="title" style={{ fontSize: '3.5rem', marginBottom: '1.5rem', lineHeight: 1.1 }}>
             {book?.title}
           </h1>
-          <p className="lede" style={{ fontStyle: 'italic', fontSize: '1.25rem', color: 'var(--bone-dim)', maxWidth: '600px', margin: '0 auto' }}>
+          <p className="lede" style={{ fontStyle: 'italic', fontSize: '1.25rem', color: 'var(--bone-dim)', maxWidth: '600px', margin: '0 auto 1.25rem' }}>
             {book?.lede}
           </p>
+          {rtLabel && (
+            <span className="reading-time-chip">{rtLabel}</span>
+          )}
         </div>
 
-        <div style={{ 
-          fontSize: '1.15rem', 
-          lineHeight: '1.8', 
-          color: 'var(--bone)', 
-          fontFamily: 'var(--font-serif)',
-          whiteSpace: 'pre-wrap',
-          marginBottom: '4rem'
-        }}>
-          {book?.content || <span className="dim">This story has no text...</span>}
-        </div>
+        <StoryBody content={book?.content} />
 
-        {/* Critiques and Responses */}
-        <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '3rem', marginBottom: '4rem' }}>
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '3rem', marginBottom: '4rem', marginTop: '4rem' }}>
           <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.75rem', color: 'var(--gold)', marginBottom: '2rem' }}>
-            Critiques & Responses ({comments.length})
+            Critiques &amp; Responses ({comments.length})
           </h3>
 
           {commentsLoading ? (
@@ -151,7 +162,6 @@ export default function ReadStory() {
               {comments.map((c) => {
                 const handle = c.profiles?.handle || 'unknown'
                 const avColorIndex = (handle.length % 6) + 1
-
                 return (
                   <div key={c.id} style={{
                     background: 'var(--void)',
@@ -165,16 +175,15 @@ export default function ReadStory() {
                       </div>
                       <div>
                         <div style={{ fontWeight: 600, color: 'var(--bone)' }}>@{handle}</div>
-                        <div style={{ fontSize: 13, color: 'var(--bone-dim)' }}>
-                          {timeAgo(c.created_at)}
-                        </div>
+                        <div style={{ fontSize: 13, color: 'var(--bone-dim)' }}>{timeAgo(c.created_at)}</div>
                       </div>
                     </div>
-                    <div style={{ 
-                      color: 'var(--bone-dim)', 
-                      lineHeight: 1.6, 
-                      whiteSpace: 'pre-wrap', 
-                      fontFamily: 'var(--font-mono)' 
+                    <div style={{
+                      color: 'var(--bone-dim)',
+                      lineHeight: 1.7,
+                      whiteSpace: 'pre-wrap',
+                      fontFamily: 'var(--font-serif)',
+                      fontSize: '1rem'
                     }}>
                       {c.content}
                     </div>
@@ -186,7 +195,9 @@ export default function ReadStory() {
 
           {session ? (
             <form onSubmit={handleCommentSubmit} style={{ marginTop: '2rem' }}>
-              <h4 style={{ fontSize: '1.25rem', marginBottom: '1rem', color: 'var(--bone)' }}>Leave a Critique</h4>
+              <h4 style={{ fontSize: '1.25rem', marginBottom: '1rem', color: 'var(--bone)', fontFamily: 'var(--font-serif)' }}>
+                Leave a Critique
+              </h4>
               <textarea
                 value={commentContent}
                 onChange={(e) => setCommentContent(e.target.value)}
@@ -199,7 +210,9 @@ export default function ReadStory() {
                   border: '1px solid rgba(255,255,255,0.1)',
                   color: 'var(--bone)',
                   padding: '1rem',
-                  fontFamily: 'var(--font-mono)',
+                  fontFamily: 'var(--font-serif)',
+                  fontSize: '1rem',
+                  lineHeight: 1.7,
                   borderRadius: 'var(--r)',
                   resize: 'vertical',
                   marginBottom: '1rem'
