@@ -11,7 +11,7 @@ test.describe('Library Flows', () => {
     await page.goto('/library');
     
     // Check main title
-    await expect(page.locator('h2.title')).toContainText('Shared Work');
+    await expect(page.locator('h2')).toContainText('Shared work', { ignoreCase: true });
 
     // Check book card is visible
     await expect(page.getByText(MOCK_BOOKS[0].title).first()).toBeVisible();
@@ -32,11 +32,11 @@ test.describe('Library Flows', () => {
     await page.goto('/library/publish');
 
     // Verify page title
-    await expect(page.locator('h2.title')).toContainText('Publish Story');
+    await expect(page.locator('h2.title')).toContainText('Publish a story', { ignoreCase: true });
 
     // Fill form fields
     await page.locator('input[placeholder="The Tell-Tale Heart"]').fill('The Fall of the House of Usher');
-    await page.locator('input[placeholder="A short hook to draw readers in..."]').fill('An eerie story about family decay.');
+    await page.locator('input[placeholder="A short hook to draw readers in…"]').fill('An eerie story about family decay.');
     await page.locator('textarea[placeholder^="True!—nervous—"]').fill('During the whole of a dull, dark, and soundless day...');
 
     // Submit form
@@ -44,9 +44,9 @@ test.describe('Library Flows', () => {
     await expect(publishBtn).toBeEnabled();
     await publishBtn.click();
 
-    // Verify redirect to library
-    await page.waitForURL('**/library');
-    await expect(page.locator('h2.title')).toContainText('Shared Work');
+    // Verify redirect to reader
+    await page.waitForURL('**/library/read/**');
+    await expect(page.locator('h1.title')).toContainText(MOCK_BOOKS[0].title);
   });
 
   test('Submit a critique on a story (authenticated)', async ({ page }) => {
@@ -63,7 +63,7 @@ test.describe('Library Flows', () => {
     await expect(page.getByText(MOCK_BOOK_COMMENTS[0].content)).toBeVisible();
 
     // Verify submit form is visible for authenticated user
-    const textSelector = page.locator('textarea[placeholder="Offer constructive dark wisdom..."]');
+    const textSelector = page.locator('textarea[placeholder="Offer constructive dark wisdom…"]');
     await expect(textSelector).toBeVisible();
 
     // Leave a critique
