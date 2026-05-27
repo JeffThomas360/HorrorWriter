@@ -99,6 +99,17 @@ export const MOCK_BOOKS = [
   }
 ];
 
+export const MOCK_BOOK_COMMENTS = [
+  {
+    id: 'comment-1',
+    book_id: 'book-1',
+    author_id: 'user-2',
+    content: 'The description of Innsmouth is incredibly atmospheric. Love the pacing here.',
+    created_at: '2026-05-26T11:00:00Z',
+    profiles: { handle: 'goth_reader' }
+  }
+];
+
 // Helper to inject mock auth session to localStorage
 export async function setupMockAuth(page) {
   await page.addInitScript((session) => {
@@ -206,6 +217,31 @@ export async function setupSupabaseMocks(page) {
         status: 201,
         contentType: 'application/json',
         body: JSON.stringify(MOCK_BOOKS[0])
+      });
+    }
+  });
+
+  await page.route('**/rest/v1/book_comments*', async (route) => {
+    const method = route.request().method();
+    if (method === 'GET') {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(MOCK_BOOK_COMMENTS)
+      });
+    } else if (method === 'POST') {
+      const commentData = JSON.parse(route.request().postData() || '{}');
+      route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'comment-new',
+          book_id: 'book-1',
+          author_id: MOCK_USER_ID,
+          content: commentData.content || '',
+          created_at: new Date().toISOString(),
+          profiles: { handle: 'testwriter' }
+        })
       });
     }
   });

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { setupMockAuth, setupSupabaseMocks, MOCK_BOOKS } from './mocks';
+import { setupMockAuth, setupSupabaseMocks, MOCK_BOOKS, MOCK_BOOK_COMMENTS } from './mocks';
 
 test.describe('Library Flows', () => {
   test.beforeEach(async ({ page }) => {
@@ -47,5 +47,30 @@ test.describe('Library Flows', () => {
     // Verify redirect to library
     await page.waitForURL('**/library');
     await expect(page.locator('h2.title')).toContainText('Shared Work');
+  });
+
+  test('Submit a critique on a story (authenticated)', async ({ page }) => {
+    // Inject mock session
+    await setupMockAuth(page);
+
+    await page.goto('/library');
+    
+    // Click the book card to read
+    await page.getByText(MOCK_BOOKS[0].title).first().click();
+
+    // Verify comments list is loaded
+    await expect(page.locator('h3', { hasText: 'Critiques & Responses' })).toBeVisible();
+    await expect(page.getByText(MOCK_BOOK_COMMENTS[0].content)).toBeVisible();
+
+    // Verify submit form is visible for authenticated user
+    const textSelector = page.locator('textarea[placeholder="Offer constructive dark wisdom..."]');
+    await expect(textSelector).toBeVisible();
+
+    // Leave a critique
+    await textSelector.fill('Fascinating atmosphere, but the ending could build more tension.');
+    await page.getByRole('button', { name: /Post Critique/i }).click();
+
+    // Verify it got submitted (text area cleared)
+    await expect(textSelector).toHaveValue('');
   });
 });

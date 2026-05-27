@@ -47,9 +47,10 @@ async function fetchThreads() {
 
 export default function Forum() {
   useDocumentTitle('The Crypt')
-  const { session } = useAuth()
+  const { session, profile } = useAuth()
   const [activeCat, setActiveCat] = useState('all')
   const [query, setQuery]         = useState('')
+  const [onlineUsers, setOnlineUsers] = useState([])
   
   const { data: categories = [], isLoading: catLoading, error: catError } = useQuery({
     queryKey: ['categories'],
@@ -60,6 +61,50 @@ export default function Forum() {
     queryKey: ['threads'],
     queryFn: fetchThreads,
   })
+
+  useEffect(() => {
+    if (!supabase) return
+
+    const presenceKey = session?.user?.id || 'anonymous-' + Math.random().toString(36).substr(2, 9)
+    const channel = supabase.channel('global:lobby', {
+      config: {
+        presence: {
+          key: presenceKey,
+        },
+      },
+    })
+
+    channel.on('presence', { event: 'sync' }, () => {
+      const state = channel.presenceState()
+      const users = []
+      
+      Object.keys(state).forEach((key) => {
+        const presences = state[key]
+        if (presences && presences.length > 0) {
+          const p = presences[0]
+          users.push({
+            id: key,
+            handle: p.handle || 'Guest',
+            onlineAt: p.online_at,
+          })
+        }
+      })
+      setOnlineUsers(users)
+    })
+
+    channel.subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        await channel.track({
+          handle: profile?.handle || (session?.user ? 'Summoning...' : 'Guest'),
+          online_at: new Date().toISOString(),
+        })
+      }
+    })
+
+    return () => {
+      channel.unsubscribe()
+    }
+  }, [session, profile])
 
   const loading = catLoading || threadLoading
   const error = catError ? catError.message : threadError ? threadError.message : null
@@ -122,6 +167,44 @@ export default function Forum() {
               Read before posting. Critique is a gift; cruelty is not.
               Spoilers warned. No promo without a story attached.
             </p>
+          </div>
+          <div style={{ marginTop:24, padding:'18px', border:'1px dashed rgba(243,236,217,.14)', borderRadius:'var(--r)' }}>
+            <div className="eyebrow" style={{ marginBottom:12, fontSize:14, display:'flex', alignItems:'center', gap:8 }}>
+              <span className="dot" style={{
+                display: 'inline-block',
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                backgroundColor: 'var(--green)',
+                boxShadow: '0 0 8px var(--green)',
+                animation: u => 'rec 1.4s steps(2) infinite'
+              }}></span>
+              Writers Online ({onlineUsers.length})
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {onlineUsers.map((u) => {
+                const isGuest = u.handle === 'Guest' || u.handle === 'Summoning...'
+                const name = isGuest ? 'Guest' : `@${u.handle}`
+                const avColorIndex = isGuest ? 1 : (u.handle.length % 6) + 1
+                const initialsStr = isGuest ? '??' : initials(u.handle)
+                
+                return (
+                  <div 
+                    key={u.id} 
+                    title={name} 
+                    className={`avatar ${AV_COLORS[avColorIndex]}`} 
+                    style={{ 
+                      width: 32, 
+                      height: 32, 
+                      fontSize: 11, 
+                      border: '1px solid rgba(255,255,255,0.1)'
+                    }}
+                  >
+                    {initialsStr}
+                  </div>
+                )
+              })}
+            </div>
           </div>
         </aside>
 
