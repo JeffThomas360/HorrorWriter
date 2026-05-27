@@ -19,9 +19,8 @@ build
 *.local
 
 # Environment variables (DO NOT COMMIT)
-.env
-.env.local
-.env.*.local
+.env*
+!.env.example
 
 # IDE and editor directories
 .vscode/*
