@@ -1,37 +1,29 @@
-import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
+import { useQuery } from '@tanstack/react-query'
 
 export default function ReadStory() {
   const { id } = useParams()
-  const [book, setBook] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+
+  const { data: book, isLoading: loading, error: queryError } = useQuery({
+    queryKey: ['book', id],
+    queryFn: async () => {
+      if (!supabase) return null
+      const { data, error } = await supabase
+        .from('books')
+        .select('*, profiles(handle)')
+        .eq('id', id)
+        .single()
+      
+      if (error) throw error
+      return data
+    }
+  })
 
   useDocumentTitle(book ? book.title : 'Reading...')
 
-  useEffect(() => {
-    async function fetchBook() {
-      if (!supabase) return
-      try {
-        const { data, error } = await supabase
-          .from('books')
-          .select('*, profiles(handle)')
-          .eq('id', id)
-          .single()
-        
-        if (error) throw error
-        setBook(data)
-      } catch (err) {
-        console.error(err)
-        setError('Story not found in the archives.')
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchBook()
-  }, [id])
+  const error = queryError ? 'Story not found in the archives.' : null
 
   if (loading) return <section className="surface active"><p className="dim">Opening dusty pages...</p></section>
   if (error) return <section className="surface active"><p className="error">{error}</p><Link to="/library" className="btn ghost">Back to Library</Link></section>

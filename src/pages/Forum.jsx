@@ -4,6 +4,8 @@ import { supabase } from '../supabaseClient'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 import { useAuth } from '../components/AuthContext'
 
+import { useQuery } from '@tanstack/react-query'
+
 const AV_COLORS = ['','av-1','av-2','av-3','av-4','av-5','av-6']
 
 function initials(handle) {
@@ -22,43 +24,45 @@ function timeAgo(dateString) {
   return `${Math.floor(diff/86400)}d`
 }
 
+async function fetchCategories() {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('categories')
+    .select('*')
+    .order('sort_order', { ascending: true })
+  if (error) throw error
+  return data || []
+}
+
+async function fetchThreads() {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('threads')
+    .select('*, profiles(handle)')
+    .order('pinned', { ascending: false })
+    .order('updated_at', { ascending: false })
+  if (error) throw error
+  return data || []
+}
+
 export default function Forum() {
   useDocumentTitle('The Crypt')
   const { session } = useAuth()
   const [activeCat, setActiveCat] = useState('all')
   const [query, setQuery]         = useState('')
   
-  const [threads, setThreads] = useState([])
-  const [categories, setCategories] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const { data: categories = [], isLoading: catLoading, error: catError } = useQuery({
+    queryKey: ['categories'],
+    queryFn: fetchCategories,
+  })
 
-  useEffect(() => {
-    async function fetchData() {
-      if (!supabase) {
-        setLoading(false)
-        return
-      }
-      try {
-        const [catRes, threadRes] = await Promise.all([
-          supabase.from('categories').select('*').order('sort_order', { ascending: true }),
-          supabase.from('threads').select('*, profiles(handle)').order('pinned', { ascending: false }).order('updated_at', { ascending: false })
-        ])
-        
-        if (catRes.error) throw catRes.error
-        if (threadRes.error) throw threadRes.error
-        
-        setCategories(catRes.data || [])
-        setThreads(threadRes.data || [])
-      } catch (err) {
-        console.error('Error fetching forum data:', err)
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchData()
-  }, [])
+  const { data: threads = [], isLoading: threadLoading, error: threadError } = useQuery({
+    queryKey: ['threads'],
+    queryFn: fetchThreads,
+  })
+
+  const loading = catLoading || threadLoading
+  const error = catError ? catError.message : threadError ? threadError.message : null
 
   const catLabels = useMemo(() => {
     return categories.reduce((acc, c) => {
@@ -79,7 +83,7 @@ export default function Forum() {
     })
   }, [activeCat, query, threads, catLabels])
 
-  if (loading) return <section className="surface active"><p>Loading the crypt...</p></section>
+  if (loading) return <section className="surface active"><div style={{ padding: '80px 0', textAlign: 'center' }}><p className="loading-pulse">Loading the crypt...</p></div></section>
   if (error) return <section className="surface active"><p className="error">Error loading forum: {error}</p></section>
 
   return (
@@ -141,7 +145,18 @@ export default function Forum() {
           </div>
 
           {visible.length === 0 && (
-            <p style={{ color:'var(--muted)', fontStyle:'italic', padding:'40px 0' }}>Nothing here. The dark is quiet tonight.</p>
+            <div style={{ padding: '60px 0', textAlign: 'center', border: '1px dashed rgba(243,236,217,.1)', borderRadius: 'var(--r)' }}>
+              <p style={{ color:'var(--muted)', fontStyle:'italic', fontSize: '18px', marginBottom: '20px' }}>
+                Nothing here. The dark is quiet tonight.
+              </p>
+              {session ? (
+                <Link to="/forum/new" className="btn ghost">
+                  Start the first thread
+                </Link>
+              ) : (
+                <span className="soon-chip">Sign in to post</span>
+              )}
+            </div>
           )}
 
           {visible.map((t) => {

@@ -61,6 +61,7 @@ Deno.serve(async (req) => {
       user_id:   userId,
       challenge: options.challenge,
       type:      'authentication',
+      purpose:   'authenticate',
     })
 
     return new Response(JSON.stringify(options), {

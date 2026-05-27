@@ -168,10 +168,10 @@ Storage bucket: `avatars` — per-user folder, owner RLS.
 | Forum (browse) | ✅ Real (Supabase — `categories` + `threads` with profile join) |
 | CreateThread | ✅ Real (inserts thread + initial post) |
 | ThreadView (read + reply) | ✅ Real (fetches thread + posts, replies write to `posts`) |
-| Library (browse/publish) | ⚠️ Mocked — DB schema exists, pages use `src/data/books.js` |
-| PublishStory / ReadStory | ⚠️ Stub |
-| Rituals / writing prompts | ⚠️ Static data |
-| Turnstile CAPTCHA | ⚠️ Not configured (key not set) |
+| Library (browse/publish) | ✅ Real (Supabase `books` table) |
+| PublishStory / ReadStory | ✅ Real |
+| Rituals / writing prompts | ❌ Removed |
+| Turnstile CAPTCHA | ✅ Real |
 
 ---
 

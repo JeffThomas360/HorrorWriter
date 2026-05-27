@@ -109,6 +109,15 @@ Right now magic links arrive from `noreply@mail.app.supabase.io`. To fix:
 
 ---
 
+## Step 8 — Security Hardening (CORS & Rate Limits)
+
+To completely lock down your production API from abuse:
+
+1. **CORS:** Go to Supabase Dashboard → Settings → API → API Settings. Ensure **Custom Domains** or the CORS origins list only includes `https://horrorwriter.org` and `http://localhost:5173`.
+2. **Rate Limiting (Optional):** In Cloudflare Dashboard → Security → WAF → Rate limiting rules, create a rule that throttles excessive requests (e.g. > 100 requests per 10 seconds) to the Supabase REST endpoints to prevent application-layer DoS.
+
+---
+
 ## Done ✓
 
 Once all steps are complete:
@@ -116,3 +125,4 @@ Once all steps are complete:
 - Magic-link sign-in works from the site's own domain
 - Users can register and sign in with passkeys (Face ID / Touch ID / PIN)
 - Forum, Library, Rituals, and all profile features are live on real data
+- The API is locked down to your specific domains

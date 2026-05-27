@@ -67,6 +67,7 @@ Deno.serve(async (req) => {
       user_id:   user.id,
       challenge: options.challenge,
       type:      'registration',
+      purpose:   'register',
     })
 
     if (insertErr) {

@@ -2,16 +2,16 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../components/AuthContext'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 export default function CreateThread() {
   const { session, profile, loading: authLoading } = useAuth()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   
-  const [categories, setCategories] = useState([])
   const [title, setTitle] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [content, setContent] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
   useEffect(() => {
@@ -21,29 +21,24 @@ export default function CreateThread() {
     }
   }, [session, authLoading, navigate])
 
-  useEffect(() => {
-    async function loadCategories() {
+  const { data: categories = [] } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      if (!supabase) return []
       const { data, error } = await supabase.from('categories').select('*').order('sort_order')
-      if (data) {
-        setCategories(data)
-        if (data.length > 0) setCategoryId(data[0].id)
-      }
+      if (error) throw error
+      return data || []
     }
-    loadCategories()
-  }, [])
+  })
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-    setError(null)
-
-    if (!title.trim() || !content.trim()) {
-      setError('Title and content are required.')
-      setIsSubmitting(false)
-      return
+  useEffect(() => {
+    if (categories.length > 0 && !categoryId) {
+      setCategoryId(categories[0].id)
     }
+  }, [categories, categoryId])
 
-    try {
+  const mutation = useMutation({
+    mutationFn: async ({ title, categoryId, content }) => {
       // 1. Create the thread
       const { data: threadData, error: threadError } = await supabase
         .from('threads')
@@ -67,14 +62,31 @@ export default function CreateThread() {
         })
 
       if (postError) throw postError
-
-      // Redirect back to forum (or to the specific thread once that page exists)
+      return threadData
+    },
+    onSuccess: () => {
+      // Invalidate threads query cache to show the new thread immediately
+      queryClient.invalidateQueries({ queryKey: ['threads'] })
       navigate('/forum')
-    } catch (err) {
+    },
+    onError: (err) => {
       setError(err.message || 'Failed to summon thread.')
-      setIsSubmitting(false)
     }
+  })
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    setError(null)
+
+    if (!title.trim() || !content.trim()) {
+      setError('Title and content are required.')
+      return
+    }
+
+    mutation.mutate({ title, categoryId, content })
   }
+
+  const isSubmitting = mutation.isPending
 
   if (authLoading || !session) return <div className="layout-content"><p className="dim">Verifying soul...</p></div>
 

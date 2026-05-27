@@ -39,3 +39,11 @@ Thumbs.db
 .claude
 KEYS/
 CLAUDE.md
+
+# Playwright
+playwright-report/
+test-results/
+
+# Agent configurations
+.agents/
+skills-lock.json

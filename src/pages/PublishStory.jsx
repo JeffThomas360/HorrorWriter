@@ -2,16 +2,17 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../components/AuthContext'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 export default function PublishStory() {
   const { session, loading: authLoading } = useAuth()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   
   const [title, setTitle] = useState('')
   const [lede, setLede] = useState('')
   const [cover, setCover] = useState('blood')
   const [content, setContent] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
   useEffect(() => {
@@ -20,19 +21,9 @@ export default function PublishStory() {
     }
   }, [session, authLoading, navigate])
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-    setError(null)
-
-    if (!title.trim() || !lede.trim() || !content.trim()) {
-      setError('Title, lede, and content are required.')
-      setIsSubmitting(false)
-      return
-    }
-
-    try {
-      const { error: bookError } = await supabase
+  const mutation = useMutation({
+    mutationFn: async ({ title, lede, cover, content }) => {
+      const { data, error: bookError } = await supabase
         .from('books')
         .insert({
           title: title.trim(),
@@ -41,15 +32,31 @@ export default function PublishStory() {
           content: content.trim(),
           author_id: session.user.id
         })
-
       if (bookError) throw bookError
-
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['books'] })
       navigate('/library')
-    } catch (err) {
+    },
+    onError: (err) => {
       setError(err.message || 'Failed to publish story.')
-      setIsSubmitting(false)
     }
+  })
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    setError(null)
+
+    if (!title.trim() || !lede.trim() || !content.trim()) {
+      setError('Title, lede, and content are required.')
+      return
+    }
+
+    mutation.mutate({ title, lede, cover, content })
   }
+
+  const isSubmitting = mutation.isPending
 
   if (authLoading || !session) return <div className="layout-content"><p className="dim">Verifying soul...</p></div>
 

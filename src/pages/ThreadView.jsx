@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../components/AuthContext'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 const AV_COLORS = ['','av-1','av-2','av-3','av-4','av-5','av-6']
 
@@ -22,87 +23,108 @@ function timeAgo(dateString) {
   return `${Math.floor(diff/86400)}d`
 }
 
+const PAGE_SIZE = 15
+
 export default function ThreadView() {
   const { id } = useParams()
   const { session } = useAuth()
-  
-  const [thread, setThread] = useState(null)
-  const [posts, setPosts] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const queryClient = useQueryClient()
   
   // Reply state
   const [replyContent, setReplyContent] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [replyError, setReplyError] = useState(null)
 
-  useDocumentTitle(thread ? thread.title : 'Loading Thread...')
-
-  const fetchThreadAndPosts = async () => {
-    if (!supabase) return
-    try {
-      // 1. Fetch thread info
-      const { data: tData, error: tErr } = await supabase
+  const { data: thread, isLoading: threadLoading, error: threadError } = useQuery({
+    queryKey: ['thread', id],
+    queryFn: async () => {
+      if (!supabase) return null
+      const { data, error } = await supabase
         .from('threads')
         .select('*, profiles(handle), categories(name)')
         .eq('id', id)
         .single()
       
-      if (tErr) throw tErr
-      setThread(tData)
+      if (error) throw error
+      return data
+    }
+  })
 
-      // 2. Fetch posts
-      const { data: pData, error: pErr } = await supabase
+  useDocumentTitle(thread ? thread.title : 'Loading Thread...')
+
+  const {
+    data: postsData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading: postsLoading,
+    error: postsError
+  } = useInfiniteQuery({
+    queryKey: ['posts', id],
+    queryFn: async ({ pageParam = 0 }) => {
+      if (!supabase) return []
+      const from = pageParam * PAGE_SIZE
+      const to = from + PAGE_SIZE - 1
+      const { data, error } = await supabase
         .from('posts')
         .select('*, profiles(handle)')
         .eq('thread_id', id)
         .order('created_at', { ascending: true })
+        .range(from, to)
 
-      if (pErr) throw pErr
-      setPosts(pData || [])
-    } catch (err) {
-      console.error(err)
-      setError('Thread lost to the void. It may have been deleted.')
-    } finally {
-      setLoading(false)
+      if (error) throw error
+      return data || []
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      return lastPage.length === PAGE_SIZE ? allPages.length : undefined
     }
-  }
+  })
 
-  useEffect(() => {
-    fetchThreadAndPosts()
-  }, [id])
+  const posts = postsData ? postsData.pages.flat() : []
+  const loading = threadLoading || postsLoading
+  const error = threadError ? 'Thread lost to the void. It may have been deleted.' : postsError ? 'Failed to load posts.' : null
 
-  const handleReply = async (e) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-    setReplyError(null)
-
-    if (!replyContent.trim()) {
-      setReplyError('Cannot speak nothingness.')
-      setIsSubmitting(false)
-      return
-    }
-
-    try {
-      const { error } = await supabase
+  const replyMutation = useMutation({
+    mutationFn: async (content) => {
+      const { data, error } = await supabase
         .from('posts')
         .insert({
           thread_id: id,
           author_id: session.user.id,
-          content: replyContent.trim()
+          content: content.trim()
         })
+        .select('*, profiles(handle)')
+        .single()
       
       if (error) throw error
-
+      return data
+    },
+    onSuccess: () => {
       setReplyContent('')
-      // Re-fetch posts to show the new one
-      await fetchThreadAndPosts()
-    } catch (err) {
+      queryClient.invalidateQueries({ queryKey: ['posts', id] })
+      queryClient.invalidateQueries({ queryKey: ['threads'] })
+    },
+    onError: (err) => {
       setReplyError(err.message || 'Failed to post reply.')
-    } finally {
-      setIsSubmitting(false)
     }
+  })
+
+  const handleReply = (e) => {
+    e.preventDefault()
+    setReplyError(null)
+
+    if (!replyContent.trim()) {
+      setReplyError('Cannot speak nothingness.')
+      return
+    }
+
+    replyMutation.mutate(replyContent)
   }
+
+  const isSubmitting = replyMutation.isPending
+  const loadMore = fetchNextPage
+  const hasMore = hasNextPage
+  const loadingMore = isFetchingNextPage
 
   if (loading) return <section className="surface active"><p className="dim">Descending...</p></section>
   if (error) return <section className="surface active"><p className="error">{error}</p><Link to="/forum" className="btn ghost">Go Back</Link></section>
@@ -151,6 +173,18 @@ export default function ThreadView() {
               </div>
             )
           })}
+          
+          {hasMore && (
+            <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+              <button 
+                className="btn ghost" 
+                onClick={loadMore} 
+                disabled={loadingMore}
+              >
+                {loadingMore ? 'Summoning...' : '▸ Load More'}
+              </button>
+            </div>
+          )}
         </div>
 
         {session ? (

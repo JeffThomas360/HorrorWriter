@@ -17,6 +17,8 @@ export default function Nav({ onSignInClick }) {
       </Link>
       <nav className="nav-links" aria-label="Main navigation">
         <NavLink to="/" end className={linkClass}>Home</NavLink>
+        <NavLink to="/forum" className={linkClass}>The Crypt</NavLink>
+        <NavLink to="/library" className={linkClass}>Library</NavLink>
         {session && <NavLink to="/profile" className={linkClass}>Coven</NavLink>}
       </nav>
       {session ? (

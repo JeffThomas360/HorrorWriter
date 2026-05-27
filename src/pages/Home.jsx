@@ -1,38 +1,15 @@
-import { useEffect, useRef, useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
+import { useEffect, useRef } from 'react'
+import { useOutletContext, useNavigate } from 'react-router-dom'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 import { supabase } from '../supabaseClient'
+import { useAuth } from '../components/AuthContext'
+import { useQuery } from '@tanstack/react-query'
 
-const FALLBACK_TILES = [
-  {
-    tag: '// THE CRYPT',
-    hot: true,
-    title: "My MC won't bleed — first-person POV horror",
-    body: 'Twenty-two replies and counting. lin-carver needs your help before the manuscript eats her.',
-    meta: '22 replies · 14 min ago',
-  },
-  {
-    tag: '// SEANCE',
-    hot: false,
-    title: 'Writing quiet horror without it going limp',
-    body: 'marigold-rotten opens the floor. How do you sustain dread when nothing moves?',
-    meta: '48 replies · 1 hr ago',
-    cyan: true,
-  },
-  {
-    tag: '// RITUALS',
-    hot: false,
-    title: 'Prompt #31 — The House Remembers',
-    body: 'Six hundred words. One room. Something that should not be inside.',
-    meta: '9 submissions · closes friday',
-    gold: true,
-  },
-]
+const FALLBACK_TILES = []
 
 const WHY = [
   { icon: 'No.', label: 'No Algorithm', body: 'Chronological. Hand-curated. The best work rises because readers say so.' },
   { icon: 'Crit', label: 'Real Critique', body: 'A Critique Code every member agrees to. Praise is cheap; we deal in useful.' },
-  { icon: 'Wkly', label: 'Weekly Rituals', body: 'Timed prompts, themed contests, and a leaderboard that resets with the moon.' },
   { icon: '0ads', label: 'No Ads. Ever.', body: 'Member-supported. Your work is not the product.' },
 ]
 
@@ -40,36 +17,34 @@ export default function Home() {
   useDocumentTitle(null)
   const h1Ref = useRef(null)
   const ctx = useOutletContext()
-  const [tiles, setTiles] = useState(FALLBACK_TILES)
+  const navigate = useNavigate()
+  const { session } = useAuth()
 
-  useEffect(() => {
-    async function fetchRecent() {
-      if (!supabase) return
-      try {
-        const { data, error } = await supabase
-          .from('threads')
-          .select('*, categories(name), profiles(handle)')
-          .order('updated_at', { ascending: false })
-          .limit(3)
-        
-        if (error) throw error
-        if (data && data.length > 0) {
-          setTiles(data.map((t, i) => ({
-            tag: `// ${(t.categories?.name || t.category_id || 'THREAD').split('·')[0].toUpperCase().trim()}`,
-            hot: i === 0,
-            title: t.title,
-            body: `Started by ${t.profiles?.handle || 'someone'}. Join the discussion in the dark.`,
-            meta: `${t.replies_count || 0} replies`,
-            cyan: i === 1,
-            gold: i === 2
-          })))
-        }
-      } catch (err) {
-        console.error('Error fetching recent tiles:', err)
+  const { data: tiles = FALLBACK_TILES } = useQuery({
+    queryKey: ['recentThreads'],
+    queryFn: async () => {
+      if (!supabase) return FALLBACK_TILES
+      const { data, error } = await supabase
+        .from('threads')
+        .select('*, categories(name), profiles(handle)')
+        .order('updated_at', { ascending: false })
+        .limit(3)
+      
+      if (error) throw error
+      if (data && data.length > 0) {
+        return data.map((t, i) => ({
+          tag: `// ${(t.categories?.name || t.category_id || 'THREAD').split('·')[0].toUpperCase().trim()}`,
+          hot: i === 0,
+          title: t.title,
+          body: `Started by ${t.profiles?.handle || 'someone'}. Join the discussion in the dark.`,
+          meta: `${t.replies_count || 0} replies`,
+          cyan: i === 1,
+          gold: i === 2
+        }))
       }
+      return FALLBACK_TILES
     }
-    fetchRecent()
-  }, [])
+  })
 
   useEffect(() => {
     const el = h1Ref.current
@@ -103,9 +78,15 @@ export default function Home() {
         </p>
         <p className="sub2">No algorithm &nbsp;&middot;&nbsp; No ads &nbsp;&middot;&nbsp; No posturing</p>
         <div className="hero-ctas">
-          <button className="btn primary" onClick={() => ctx && ctx.openSignin()}>
-            Enter the Void
-          </button>
+          {session ? (
+            <button className="btn primary" onClick={() => navigate('/forum')}>
+              Enter the Crypt
+            </button>
+          ) : (
+            <button className="btn primary" onClick={() => ctx && ctx.openSignin()}>
+              Enter the Void
+            </button>
+          )}
           <a className="btn ghost" href="#why">What Is This?</a>
         </div>
       </div>

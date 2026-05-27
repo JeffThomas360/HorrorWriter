@@ -33,9 +33,9 @@
    element-specific shadow. Use :focus-visible so mouse clicks don't show it. */
 :focus{outline:none}
 :focus-visible{
-  outline:2px solid var(--cyan);
+  outline:2px solid var(--blood);
   outline-offset:2px;
-  box-shadow:0 0 14px rgba(76,213,255,.55);
+  box-shadow:0 0 14px rgba(255,31,58,.55);
   border-radius:var(--r);
 }
 html,body{background:var(--ink);color:var(--bone);font-family:var(--body);font-size:18px;line-height:1.55;-webkit-font-smoothing:antialiased}
@@ -385,6 +385,21 @@ img{max-width:100%;display:block}
 }
 .btn.cyan:hover{
   background:var(--cyan);color:#03121a;box-shadow:0 0 22px rgba(76,213,255,.55);
+}
+.btn:active{
+  transform:translateY(0) scale(0.98) !important;
+}
+
+@keyframes pulse-opacity {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.loading-pulse {
+  animation: pulse-opacity 1.5s ease-in-out infinite;
+  color: var(--bone-dim);
+  font-family: var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 /* Inline "not yet built" pill. Used in place of disabled placeholder buttons. */

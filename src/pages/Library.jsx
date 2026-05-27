@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 import { useAuth } from '../components/AuthContext'
+import { useQuery } from '@tanstack/react-query'
 
 const BADGE_CLASS = { NEW:'', CRITIQUE:'cyan', COMPLETE:'gold' }
 const COVER_SVG = (
@@ -17,35 +17,24 @@ const COVER_SVG = (
 export default function Library() {
   useDocumentTitle('Library')
   const { session } = useAuth()
-  const [books, setBooks] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
 
-  useEffect(() => {
-    async function fetchBooks() {
-      if (!supabase) {
-        setLoading(false)
-        return
-      }
-      try {
-        const { data, error } = await supabase
-          .from('books')
-          .select('*, profiles(handle)')
-          .order('created_at', { ascending: false })
-        
-        if (error) throw error
-        setBooks(data || [])
-      } catch (err) {
-        console.error('Error fetching books:', err)
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
+  const { data: books = [], isLoading: loading, error: queryError } = useQuery({
+    queryKey: ['books'],
+    queryFn: async () => {
+      if (!supabase) return []
+      const { data, error } = await supabase
+        .from('books')
+        .select('*, profiles(handle)')
+        .order('created_at', { ascending: false })
+      
+      if (error) throw error
+      return data || []
     }
-    fetchBooks()
-  }, [])
+  })
 
-  if (loading) return <section className="surface active"><p>Loading the dark archives...</p></section>
+  const error = queryError ? queryError.message : null
+
+  if (loading) return <section className="surface active"><div style={{ padding: '80px 0', textAlign: 'center' }}><p className="loading-pulse">Loading the dark archives...</p></div></section>
   if (error) return <section className="surface active"><p className="error">Error loading library: {error}</p></section>
 
   return (
@@ -66,8 +55,22 @@ export default function Library() {
         )}
       </div>
 
-      <div className="lib-grid" style={{ marginTop: '2rem' }}>
-        {books.length === 0 && <p style={{ color:'var(--muted)', fontStyle:'italic' }}>The library is empty.</p>}
+      {books.length === 0 && (
+        <div style={{ marginTop: '2rem', padding: '60px 0', textAlign: 'center', border: '1px dashed rgba(243,236,217,.1)', borderRadius: 'var(--r)' }}>
+          <p style={{ color:'var(--muted)', fontStyle:'italic', fontSize: '18px', marginBottom: '20px' }}>
+            The library is currently empty.
+          </p>
+          {session ? (
+            <Link to="/library/publish" className="btn ghost">
+              Publish the first story
+            </Link>
+          ) : (
+            <span className="soon-chip">Sign in to publish</span>
+          )}
+        </div>
+      )}
+
+      <div className="lib-grid" style={books.length > 0 ? { marginTop: '2rem' } : { display: 'none' }}>
         {books.map((b) => (
           <Link key={b.id} to={`/library/read/${b.id}`} className="book" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
             {b.badge && (
