@@ -12,6 +12,7 @@ export default function SignInModal({ isOpen, onClose }) {
   const [captchaToken, setCaptchaToken] = useState(null)
 
   const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY
+  const enableGoogle = import.meta.env.VITE_ENABLE_GOOGLE_LOGIN === 'true'
 
   // Close on Escape key
   useEffect(() => {
@@ -35,6 +36,29 @@ export default function SignInModal({ isOpen, onClose }) {
       setError(err.message)
     } finally {
       setIsPasskeySubmitting(false)
+    }
+  }
+
+  const handleGoogleSignIn = async () => {
+    setIsSubmitting(true)
+    setError(null)
+    setMessage(null)
+    if (!supabase) {
+      setError('Supabase is not connected yet.')
+      setIsSubmitting(false)
+      return
+    }
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin + '/auth/callback',
+        }
+      })
+      if (error) throw error
+    } catch (err) {
+      setError(err.message || 'Failed to initiate Google sign-in.')
+      setIsSubmitting(false)
     }
   }
 
@@ -137,6 +161,19 @@ export default function SignInModal({ isOpen, onClose }) {
           <span style={{ fontSize:18 }}>🔑</span>
           {isPasskeySubmitting ? 'Awaiting your device...' : 'Sign in with Passkey'}
         </button>
+
+        {enableGoogle && (
+          <button
+            type="button"
+            className="btn ghost full-width"
+            onClick={handleGoogleSignIn}
+            disabled={isPasskeySubmitting || isSubmitting}
+            style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, marginTop:12 }}
+          >
+            <span style={{ fontSize:18 }}>🌐</span>
+            Sign in with Google
+          </button>
+        )}
 
         <p className="modal-footer" style={{ marginTop:'24px' }}>
           By entering, you agree to the <a href="#rules">House Rules</a>. No algorithms, no ads.
