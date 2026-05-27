@@ -5,7 +5,7 @@ import { useAuth } from '../components/AuthContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 export default function CreateThread() {
-  const { session, profile, loading: authLoading } = useAuth()
+  const { session, profile, isLoading: authLoading } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   

@@ -5,7 +5,7 @@ import { useAuth } from '../components/AuthContext'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 export default function PublishStory() {
-  const { session, loading: authLoading } = useAuth()
+  const { session, isLoading: authLoading } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   
