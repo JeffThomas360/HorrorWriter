@@ -42,24 +42,23 @@ src/
     VcrClock.jsx         # VHS HUD clock
   pages/
     AuthCallback.jsx     # Handles Supabase magic-link redirect
-    CreateThread.jsx     # Forum thread creation (stub)
-    Forum.jsx            # Forum index (mocked data)
-    Home.jsx             # Landing page
-    Library.jsx          # Story library (mocked data)
+    CreateThread.jsx     # Forum thread creation (real Supabase)
+    Forum.jsx            # Forum index (real Supabase)
+    Home.jsx             # Landing page + global presence lobby (Realtime)
+    Library.jsx          # Story library (real Supabase)
     Profile.jsx          # Profile editor (real Supabase)
-    PublishStory.jsx     # Story publishing (stub)
-    ReadStory.jsx        # Story reader (stub)
-    Rituals.jsx          # Writing prompts
-    ThreadView.jsx       # Forum thread view (stub)
+    PublishStory.jsx     # Story publishing (real Supabase)
+    ReadStory.jsx        # Story reader + critiques/book_comments (real Supabase)
+    ThreadView.jsx       # Forum thread view + replies (real Supabase)
     UserProfile.jsx      # Public profile by handle (real Supabase)
   lib/
     passkey.js           # WebAuthn client (register + authenticate)
     profile.js           # Profile fetch/update helpers
     useDocumentTitle.js  # Per-route <title> hook
-  data/
-    books.js             # Mocked library data
-    prompts.js           # Writing prompts data
-    threads.js           # Mocked forum data
+  # NOTE: src/data/ mock files (books.js, prompts.js, threads.js) and Rituals.jsx
+  #       have been removed — every page now queries Supabase directly.
+tests/                   # Playwright E2E (chromium); mocks in tests/mocks.js
+  auth.spec.js  forum.spec.js  library.spec.js  profile.spec.js
 supabase/
   migrations/            # Applied to remote via `supabase db push`
     20240428000000_init_profiles.sql
@@ -71,6 +70,11 @@ supabase/
     20260519000000_passkeys.sql          # passkey_credentials, webauthn_challenges
     20260520034702_add_type_to_webauthn_challenges.sql
     20260520034846_add_type_to_webauthn_challenges.sql
+    20260523000000_fix_replies_count.sql           # OP no longer counted as a reply
+    20260523000001_create_missing_posts_table.sql  # ensures posts table + books.content
+    20260523000002_rate_limiting.sql               # enforce_rate_limit() trigger fn
+    20260527000000_enable_realtime_posts.sql       # Realtime publication for posts
+    20260527000001_book_comments.sql               # book_comments (story critiques)
   functions/
     webauthn-register-begin/
     webauthn-register-complete/
@@ -117,7 +121,11 @@ All CSS lives in `src/style.css`. No CSS modules, no Tailwind.
   - `VITE_SUPABASE_URL`
   - `VITE_SUPABASE_ANON_KEY` (secret)
   - `NODE_VERSION=20`
-  - `VITE_TURNSTILE_SITE_KEY` — NOT YET SET (Turnstile not configured)
+  - `VITE_TURNSTILE_SITE_KEY` — SET in production (real Cloudflare Turnstile key). Intentionally
+    commented out in local `.env.local` so the Send Magic Link button isn't stuck disabled when the
+    Turnstile script fails to load in dev. Playwright injects a dummy key via `webServer.env` so the
+    gating test stays deterministic (see `playwright.config.js`).
+  - `VITE_ENABLE_GOOGLE_LOGIN` — feature flag for the Google OAuth sign-in button (`'true'` to show)
 
 **Supabase Auth redirect URLs configured:**
 - `https://horrorwriter.org/auth/callback`
@@ -152,8 +160,13 @@ git push
 | `categories` | Forum categories (pre-seeded) | public read |
 | `threads` | Forum threads | owner write, public read |
 | `posts` | Forum replies | owner write, public read |
+| `book_comments` | Story critiques / responses | owner write, public read |
 
 Storage bucket: `avatars` — per-user folder, owner RLS.
+
+Insert rate limiting is enforced DB-side via the `enforce_rate_limit()` trigger function
+(`20260523000002_rate_limiting.sql`). `posts` is added to the Realtime publication
+(`20260527000000_enable_realtime_posts.sql`) for live thread updates.
 
 ---
 
@@ -170,15 +183,22 @@ Storage bucket: `avatars` — per-user folder, owner RLS.
 | ThreadView (read + reply) | ✅ Real (fetches thread + posts, replies write to `posts`) |
 | Library (browse/publish) | ✅ Real (Supabase `books` table) |
 | PublishStory / ReadStory | ✅ Real |
+| Library critiques | ✅ Real (Supabase `book_comments`) |
+| Realtime presence lobby | ✅ Real (Supabase Realtime — `Home.jsx`) |
+| Google OAuth sign-in | ✅ Real, feature-flagged (`VITE_ENABLE_GOOGLE_LOGIN`) |
+| Turnstile CAPTCHA | ✅ Real (key set in prod) |
 | Rituals / writing prompts | ❌ Removed |
-| Turnstile CAPTCHA | ✅ Real |
 
 ---
 
 ## Known constraints
 
-- **Git on Windows mount:** The sandbox cannot reliably run git commands on `D:\CLAUDECODE\Projects\horrorwriter`. Jeff commits and pushes from PowerShell.
-- **File edits in sandbox:** Use `cat > file << 'EOF'` heredocs for non-trivial writes. The Edit/Write file tools work fine for the mounted folder.
+- **Git on Windows mount:** Historically flaky from the sandbox, but `git add`/`commit`/`push` ran
+  successfully from the Bash tool in the 2026-05-30 session (commit `d243cf6` pushed). Treat it as
+  usually-works; fall back to Jeff's PowerShell if a command misbehaves.
+- **`gh` CLI not authenticated:** Opening PRs from here fails until `gh auth login` is run. Until
+  then, open PRs via the GitHub web compare URL (or `Start-Process <url>` to launch the browser).
+- **File edits in sandbox:** The Edit/Write file tools work fine for the mounted folder.
 - **No GitHub auto-deploy:** Cloudflare Pages has no GitHub connection. Every deploy requires the manual wrangler command above.
 - **Old Worker:** A separate Cloudflare Worker named `horrorwriter` still exists (`horrorwriter.orig-beetlebub.workers.dev`). It no longer serves any domains and can be deleted.
 
@@ -186,10 +206,10 @@ Storage bucket: `avatars` — per-user folder, owner RLS.
 
 ## Next priorities
 
-1. **Push pending forum-count migration** — `20260523000000_fix_replies_count.sql` corrects the off-by-one where `replies_count` was counting the OP as a reply. Run `supabase db push` from PowerShell.
-2. **Wire Library to Supabase** — replace `src/data/books.js` mock with real queries on `books`
-3. **Implement PublishStory / ReadStory** — insert/fetch from `books`
-4. **Pagination on ThreadView** — currently fetches all posts at once; add a page cursor before threads grow.
-5. **Turnstile CAPTCHA** — set up at dash.cloudflare.com → Turnstile, add `VITE_TURNSTILE_SITE_KEY` to Cloudflare Pages env vars
-6. **Delete old Worker** — Cloudflare → Workers & Pages → the Worker `horrorwriter` → Settings → Delete
-7. **Connect GitHub to Pages** — for auto-deploys on push
+> Done since last update: forum-count migration, Library wired to Supabase, PublishStory/ReadStory,
+> Turnstile in prod, library critiques, Realtime presence, feature-flagged Google OAuth.
+
+1. **Pagination on ThreadView** — currently fetches all posts at once; add a page cursor before threads grow.
+2. **Delete old Worker** — Cloudflare → Workers & Pages → the Worker `horrorwriter` → Settings → Delete
+3. **Connect GitHub to Pages** — for auto-deploys on push
+4. **Authenticate `gh`** — run `gh auth login` so PRs can be opened from the CLI/sandbox.
