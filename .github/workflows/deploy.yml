@@ -1,0 +1,46 @@
+name: Deploy to Cloudflare Pages
+
+# Auto-deploy: every push to main builds the Vite app and ships it to the
+# existing (direct-upload) Cloudflare Pages project `horrorwriter`, keeping the
+# current custom domains. Can also be run manually from the Actions tab.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: pages-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # Vite bakes VITE_* values into the bundle at build time, so they must be
+      # present here (not just in Cloudflare). Sourced from repo secrets/vars.
+      - name: Build
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_TURNSTILE_SITE_KEY: ${{ secrets.VITE_TURNSTILE_SITE_KEY }}
+          VITE_ENABLE_GOOGLE_LOGIN: ${{ vars.VITE_ENABLE_GOOGLE_LOGIN }}
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=horrorwriter --branch=main
