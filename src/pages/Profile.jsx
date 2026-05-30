@@ -34,13 +34,13 @@ export default function Profile() {
     setLoadingPasskeys(true)
     try {
       const { data } = await supabase
-        .from('passkeys')
-        .select('id, device_type, backed_up, created_at')
+        .from('passkey_credentials')
+        .select('id, created_at, last_used_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: true })
       setPasskeys(data ?? [])
     } catch (_) {
-      // silently ignore — table may not exist yet
+      // silently ignore — owner-gated read, returns nothing if signed out
     } finally {
       setLoadingPasskeys(false)
     }
@@ -212,10 +212,10 @@ export default function Profile() {
               }}>
                 <span style={{ fontSize: 20 }}>🔑</span>
                 <span style={{ flex: 1, fontSize: 14, color: 'var(--bone-dim)' }}>
-                  {pk.device_type === 'multiDevice' ? 'Synced passkey' : 'Device-bound passkey'}
-                  {pk.backed_up && ' · backed up'}
+                  Passkey
                   <span style={{ marginLeft: 8, opacity: .5 }}>
                     Added {new Date(pk.created_at).toLocaleDateString()}
+                    {pk.last_used_at && ` · last used ${new Date(pk.last_used_at).toLocaleDateString()}`}
                   </span>
                 </span>
               </li>
