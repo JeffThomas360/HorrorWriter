@@ -20,7 +20,7 @@ test.describe('Forum Flows', () => {
 
     // Click a thread to navigate to ThreadView
     await page.getByText(MOCK_THREADS[0].title).click();
-    await expect(page.locator('h2.title')).toContainText(MOCK_THREADS[0].title);
+    await expect(page.locator('h1.title')).toContainText(MOCK_THREADS[0].title);
     
     // Verify posts in thread details
     await expect(page.getByText(MOCK_POSTS[0].content)).toBeVisible();
@@ -34,8 +34,8 @@ test.describe('Forum Flows', () => {
     await page.goto('/forum/new');
 
     // Fill the title and content
-    await page.locator('input[placeholder="A chilling subject..."]').fill('The New Haunted Mansion');
-    await page.locator('textarea[placeholder="Speak into the void..."]').fill('I think there is something in the attic...');
+    await page.locator('input[placeholder="A chilling subject…"]').fill('The New Haunted Mansion');
+    await page.locator('textarea[placeholder="Speak into the void…"]').fill('I think there is something in the attic...');
 
     // Submit
     const submitBtn = page.getByRole('button', { name: /Post Thread/i });
@@ -57,7 +57,7 @@ test.describe('Forum Flows', () => {
     await expect(page.getByRole('heading', { name: 'Leave a Reply' })).toBeVisible();
 
     // Type a reply
-    const textarea = page.locator('textarea[placeholder="Speak into the void..."]');
+    const textarea = page.locator('textarea[placeholder="Speak into the void…"]');
     await textarea.fill('My spine is shivering.');
 
     // Submit reply
