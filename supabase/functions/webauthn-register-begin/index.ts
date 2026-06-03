@@ -40,12 +40,12 @@ Deno.serve(async (req) => {
 
     // Exclude already-registered credentials
     const { data: existingKeys } = await admin
-      .from('passkeys')
-      .select('credential_id')
+      .from('passkey_credentials')
+      .select('id')
       .eq('user_id', user.id)
 
-    const excludeCredentials = (existingKeys ?? []).map((k: { credential_id: string }) => ({
-      id: k.credential_id,
+    const excludeCredentials = (existingKeys ?? []).map((k: { id: string }) => ({
+      id: k.id,
       type: 'public-key' as const,
     }))
 

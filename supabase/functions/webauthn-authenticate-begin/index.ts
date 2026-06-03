@@ -38,11 +38,11 @@ Deno.serve(async (req) => {
         if (match) {
           userId = match.id
           const { data: keys } = await adminClient
-            .from('passkeys')
-            .select('credential_id, transports')
+            .from('passkey_credentials')
+            .select('id, transports')
             .eq('user_id', match.id)
-          allowCredentials = (keys ?? []).map((k: { credential_id: string; transports?: string[] }) => ({
-            id: k.credential_id,
+          allowCredentials = (keys ?? []).map((k: { id: string; transports?: string[] }) => ({
+            id: k.id,
             type: 'public-key' as const,
             transports: k.transports,
           }))

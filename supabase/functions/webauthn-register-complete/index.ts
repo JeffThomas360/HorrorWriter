@@ -86,19 +86,16 @@ Deno.serve(async (req) => {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
+    const { credential } = verification.registrationInfo
 
-    const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo
+    const bytesToHex = (bytes: Uint8Array) =>
+      '\\x' + Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('')
 
-    // Use Deno-native base64 (no Buffer)
-    const publicKeyB64 = encodeBase64(credential.publicKey)
-
-    const { error: pkInsertErr } = await admin.from('passkeys').insert({
+    const { error: pkInsertErr } = await admin.from('passkey_credentials').insert({
+      id:            credential.id,
       user_id:       user.id,
-      credential_id: credential.id,
-      public_key:    publicKeyB64,
+      public_key:    bytesToHex(credential.publicKey),
       counter:       credential.counter,
-      device_type:   credentialDeviceType,
-      backed_up:     credentialBackedUp,
       transports:    body.response?.transports ?? [],
     })
 

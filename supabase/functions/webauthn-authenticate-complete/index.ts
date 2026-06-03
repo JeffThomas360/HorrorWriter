@@ -29,9 +29,9 @@ Deno.serve(async (req) => {
 
     // Look up the passkey by credential id
     const { data: passkey, error: pkErr } = await admin
-      .from('passkeys')
+      .from('passkey_credentials')
       .select('*')
-      .eq('credential_id', body.id)
+      .eq('id', body.id)
       .single()
 
     if (pkErr || !passkey) {
@@ -73,8 +73,16 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Use Deno-native base64 decode (no Buffer)
-    const publicKeyBytes = decodeBase64(passkey.public_key)
+    // Decode hex string starting with \x to bytes
+    const hexToBytes = (hexString: string) => {
+      const cleanHex = hexString.startsWith('\\x') ? hexString.slice(2) : hexString
+      const bytes = new Uint8Array(cleanHex.length / 2)
+      for (let i = 0; i < cleanHex.length; i += 2) {
+        bytes[i / 2] = parseInt(cleanHex.slice(i, i + 2), 16)
+      }
+      return bytes
+    }
+    const publicKeyBytes = hexToBytes(passkey.public_key)
 
     const verification = await verifyAuthenticationResponse({
       response: body,
@@ -82,7 +90,7 @@ Deno.serve(async (req) => {
       expectedOrigin: ORIGIN,
       expectedRPID: RP_ID,
       credential: {
-        id:         passkey.credential_id,
+        id:         passkey.id,
         publicKey:  publicKeyBytes,
         counter:    passkey.counter,
         transports: passkey.transports,
@@ -97,11 +105,14 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Update the stored counter
+    // Update the stored counter and last used time
     await admin
-      .from('passkeys')
-      .update({ counter: verification.authenticationInfo.newCounter })
-      .eq('credential_id', passkey.credential_id)
+      .from('passkey_credentials')
+      .update({
+        counter: verification.authenticationInfo.newCounter,
+        last_used_at: new Date().toISOString()
+      })
+      .eq('id', passkey.id)
 
     // Get the user's email to mint a sign-in token
     const { data: { user }, error: uErr } = await admin.auth.admin.getUserById(passkey.user_id)
