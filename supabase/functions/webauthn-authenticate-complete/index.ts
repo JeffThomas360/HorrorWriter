@@ -5,7 +5,20 @@ import { decodeBase64 } from 'jsr:@std/encoding/base64'
 const SUPABASE_URL     = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const RP_ID            = Deno.env.get('WEBAUTHN_RP_ID') ?? 'horrorwriter.org'
-const ORIGIN           = Deno.env.get('WEBAUTHN_ORIGIN') ?? 'https://horrorwriter.org'
+
+const ORIGINS = [
+  'https://horrorwriter.org',
+  'https://www.horrorwriter.org',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+]
+const envOrigin = Deno.env.get('WEBAUTHN_ORIGIN')
+if (envOrigin) {
+  envOrigin.split(',').forEach(o => {
+    const trimmed = o.trim()
+    if (trimmed && !ORIGINS.includes(trimmed)) ORIGINS.push(trimmed)
+  })
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin':  '*',
@@ -87,7 +100,7 @@ Deno.serve(async (req) => {
     const verification = await verifyAuthenticationResponse({
       response: body,
       expectedChallenge: challenge.challenge,
-      expectedOrigin: ORIGIN,
+      expectedOrigin: ORIGINS,
       expectedRPID: RP_ID,
       credential: {
         id:         passkey.id,
