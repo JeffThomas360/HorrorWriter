@@ -42,6 +42,7 @@ CLAUDE.md
 # Playwright
 playwright-report/
 test-results/
+.playwright-mcp/
 
 # Agent configurations
 .agents/
