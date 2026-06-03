@@ -92,7 +92,7 @@ export default function SignInModal({ isOpen, onClose }) {
       return
     }
 
-    if (siteKey && !captchaToken) {
+    if (siteKey && !captchaToken && !captchaFailed) {
       setError('Please complete the security check first.')
       setIsSubmitting(false)
       return
@@ -103,7 +103,9 @@ export default function SignInModal({ isOpen, onClose }) {
         email,
         options: {
           emailRedirectTo: window.location.origin + '/auth/callback',
-          captchaToken,
+          // Only pass token if we actually got one — if Turnstile failed to load
+          // we attempt without it (Supabase will reject if CAPTCHA is strictly enforced)
+          ...(captchaToken ? { captchaToken } : {}),
         }
       })
 
@@ -231,7 +233,7 @@ export default function SignInModal({ isOpen, onClose }) {
                 />
                 {captchaFailed && (
                   <div style={{ color: 'var(--blood)', fontSize: 13, marginTop: 8 }}>
-                    The security check couldn’t load.{' '}
+                    Security check failed to load.{' '}
                     <button
                       type="button"
                       onClick={() => {
@@ -247,6 +249,7 @@ export default function SignInModal({ isOpen, onClose }) {
                     >
                       Retry
                     </button>
+                    {' '}or continue anyway.
                   </div>
                 )}
               </div>
@@ -264,7 +267,7 @@ export default function SignInModal({ isOpen, onClose }) {
               <button
                 type="submit"
                 className="btn primary"
-                disabled={isSubmitting || isPasskeySubmitting || (siteKey && !captchaToken)}
+                disabled={isSubmitting || isPasskeySubmitting || (siteKey && !captchaToken && !captchaFailed)}
                 style={{ flex: 2, padding: '12px 16px' }}
               >
                 {isSubmitting ? 'Channeling...' : 'Send Magic Link'}
