@@ -57,7 +57,8 @@ Deno.serve(async (req) => {
       attestationType: 'none',
       excludeCredentials,
       authenticatorSelection: {
-        residentKey: 'preferred',
+        authenticatorAttachment: 'cross-platform',
+        residentKey: 'required',
         userVerification: 'preferred',
       },
     })
