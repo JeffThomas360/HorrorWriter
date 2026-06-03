@@ -1,6 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
-import { Turnstile } from '@marsidev/react-turnstile'
 import { signInWithPasskey } from '../lib/passkey'
 
 export default function SignInModal({ isOpen, onClose }) {
@@ -9,15 +8,8 @@ export default function SignInModal({ isOpen, onClose }) {
   const [isPasskeySubmitting, setIsPasskeySubmitting] = useState(false)
   const [message, setMessage] = useState(null)
   const [error, setError] = useState(null)
-  const [captchaToken, setCaptchaToken] = useState(null)
-  // Tracks whether the captcha widget itself failed to load/validate, so we can
-  // show a dedicated message + retry affordance instead of silently locking the
-  // Send Magic Link button forever.
-  const [captchaFailed, setCaptchaFailed] = useState(false)
   const [showMagicLink, setShowMagicLink] = useState(false)
-  const turnstileRef = useRef(null)
 
-  const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY
   const enableGoogle = import.meta.env.VITE_ENABLE_GOOGLE_LOGIN === 'true'
 
   // Close on Escape key
@@ -36,8 +28,6 @@ export default function SignInModal({ isOpen, onClose }) {
       setEmail('')
       setError(null)
       setMessage(null)
-      setCaptchaToken(null)
-      setCaptchaFailed(false)
     }
   }, [isOpen])
 
@@ -92,20 +82,12 @@ export default function SignInModal({ isOpen, onClose }) {
       return
     }
 
-    if (siteKey && !captchaToken && !captchaFailed) {
-      setError('Please complete the security check first.')
-      setIsSubmitting(false)
-      return
-    }
 
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
           emailRedirectTo: window.location.origin + '/auth/callback',
-          // Only pass token if we actually got one — if Turnstile failed to load
-          // we attempt without it (Supabase will reject if CAPTCHA is strictly enforced)
-          ...(captchaToken ? { captchaToken } : {}),
         }
       })
 
@@ -207,53 +189,8 @@ export default function SignInModal({ isOpen, onClose }) {
               />
             </div>
 
-            {siteKey && (
-              <div style={{ marginBottom: 16 }}>
-                <Turnstile
-                  ref={turnstileRef}
-                  siteKey={siteKey}
-                  onSuccess={(token) => {
-                    setCaptchaToken(token)
-                    setCaptchaFailed(false)
-                    setError(null)
-                  }}
-                  onError={() => {
-                    setCaptchaToken(null)
-                    setCaptchaFailed(true)
-                  }}
-                  onExpire={() => {
-                    setCaptchaToken(null)
-                    turnstileRef.current?.reset()
-                  }}
-                  onTimeout={() => {
-                    setCaptchaToken(null)
-                    setCaptchaFailed(true)
-                  }}
-                  options={{ theme: 'dark' }}
-                />
-                {captchaFailed && (
-                  <div style={{ color: 'var(--blood)', fontSize: 13, marginTop: 8 }}>
-                    Security check failed to load.{' '}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCaptchaFailed(false)
-                        setCaptchaToken(null)
-                        turnstileRef.current?.reset()
-                      }}
-                      style={{
-                        background: 'none', border: 'none', padding: 0,
-                        color: 'var(--cyan)', cursor: 'pointer',
-                        textDecoration: 'underline', font: 'inherit',
-                      }}
-                    >
-                      Retry
-                    </button>
-                    {' '}or continue anyway.
-                  </div>
-                )}
-              </div>
-            )}
+
+
 
             <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
               <button
@@ -267,7 +204,7 @@ export default function SignInModal({ isOpen, onClose }) {
               <button
                 type="submit"
                 className="btn primary"
-                disabled={isSubmitting || isPasskeySubmitting || (siteKey && !captchaToken && !captchaFailed)}
+                disabled={isSubmitting || isPasskeySubmitting}
                 style={{ flex: 2, padding: '12px 16px' }}
               >
                 {isSubmitting ? 'Channeling...' : 'Send Magic Link'}
