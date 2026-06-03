@@ -6,7 +6,7 @@ import { supabase } from '../supabaseClient'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 import ProfileHead from '../components/ProfileHead'
 
-const HANDLE_RE = /^[a-z0-9-]{3,30}$/
+const HANDLE_RE = /^[a-z0-9._-]{3,30}$/
 
 export default function Profile() {
   const { user, profile, refreshProfile } = useAuth()
@@ -71,13 +71,20 @@ export default function Profile() {
     )
   }
 
-  const onChange = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
+  const onChange = (k) => (e) => {
+    let val = e.target.value
+    if (k === 'handle') {
+      // Auto-lowercase and strip spaces
+      val = val.toLowerCase().replace(/\s+/g, '')
+    }
+    setForm((f) => ({ ...f, [k]: val }))
+  }
 
   const onSave = async (e) => {
     e.preventDefault()
     setStatus(null)
     if (!HANDLE_RE.test(form.handle)) {
-      setStatus({ error: 'Handle must be 3-30 chars: a-z, 0-9, hyphens only.' })
+      setStatus({ error: 'Handle must be 3-30 chars: a-z, 0-9, hyphens, underscores, or dots only.' })
       return
     }
     // Warn before changing an existing handle — old /u/<handle> links break.
@@ -162,7 +169,7 @@ export default function Profile() {
       </ProfileHead>
 
       <form onSubmit={onSave} className="profile-form">
-        <Field label="Handle" hint="Lowercase, numbers and hyphens only. Used in your profile URL.">
+        <Field label="Handle" hint="Lowercase, numbers, hyphens, underscores, and dots only. Used in your profile URL.">
           <input value={form.handle} onChange={onChange('handle')} required />
         </Field>
         <Field label="Display name">
