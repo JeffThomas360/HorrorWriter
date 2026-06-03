@@ -1,62 +1,56 @@
 # Login Fix — Action Checklist
 
-**Status:** Production magic-link sign-up is currently broken. Passkey sign-in still works.
+**Status:** Hostnames fixed + secret rotated. Two manual steps remain before live
+signup works: set the new secret in Supabase, and deploy. Passkey sign-in works throughout.
 
-**Root cause:** The Cloudflare Turnstile widget on the live site returns a **400** for site
-key `0x4AAAAAADPgGbyDwYkJ3VSh`. The widget never produces a token, so the "Send Magic Link"
-button stays permanently disabled and the modal shows *"Security check failed."*
-
-A 400 on `challenges.cloudflare.com/.../<sitekey>/...` almost always means the widget's
-**hostname allowlist does not include the live domain** (or the key was rotated/deleted).
+**Root cause (resolved):** The Cloudflare Turnstile widget returned a **400** on the
+live site because the widget's hostname allowlist didn't include the live domain, so
+it never produced a token and the "Send Magic Link" button stayed disabled.
 
 ---
 
-## ✅ Done (code side)
+## ✅ Done
 
 - [x] Hardened `src/components/SignInModal.jsx` so a Turnstile failure is **recoverable**
-      (Retry button + passkey fallback) instead of a dead-end disabled button.
+      (Retry button + passkey fallback) instead of a dead-end disabled button. **(merged, PR #5)**
 - [x] Added `onExpire` handling so a token that expires (~5 min) auto-resets instead of
-      silently failing on submit.
+      silently failing on submit. **(merged, PR #5)**
 - [x] Local dev unblocked (`VITE_TURNSTILE_SITE_KEY` commented out in `.env.local`).
-- [x] PR opened: **fix/turnstile-resilience** (merge after review).
-
-> ⚠️ The code fix prevents the button from *bricking*, but the captcha still won't **pass**
-> until the Turnstile config below is fixed. Both are needed for magic-link signup to work.
+- [x] **Hostnames added** to the Turnstile widget: `horrorwriter.org` + `www.horrorwriter.org`.
+- [x] **Secret key rotated** in Cloudflare Turnstile. New secret to put in Supabase below.
 
 ---
 
-## ☐ TODO — Jeff (Cloudflare dashboard — I can't access this)
+## ☐ Remaining — Jeff (dashboards / deploy — agent can't reach these)
 
-### 1. Fix the Turnstile hostname allowlist (the actual cure)
-1. Cloudflare Dashboard → **Turnstile**.
-2. Open the widget with site key `0x4AAAAAADPgGbyDwYkJ3VSh`.
-3. Under **Hostname Management / Domains**, confirm these are present (add if missing):
-   - `horrorwriter.org`
-   - `www.horrorwriter.org`
-4. Save.
-5. If the key was deleted or you can't find it:
-   - Create a **new** Turnstile widget (Managed mode) with the hostnames above.
-   - Copy the new **Site Key** and **Secret Key**.
-   - Cloudflare Pages → `horrorwriter` → Settings → Variables → update
-     `VITE_TURNSTILE_SITE_KEY` to the new site key.
-   - Supabase → Auth → Settings → **CAPTCHA protection** → update the Turnstile
-     **secret key** to match (the secret and site key must be from the same widget).
+### 1. Set the new Turnstile secret in Supabase  ← do this
+- Supabase Dashboard → project `bmvvugrfnuedjlucmlbw` → **Authentication** →
+  **Settings** → **Bot and Abuse Protection / CAPTCHA**.
+- Enable CAPTCHA protection, provider = **Turnstile**.
+- Paste the new secret: `0x4AAAAAADVOjwwSdwc0_ne8OZPUgl-YdaQ`  → Save.
+  (Old secret `0x4AAAAAADVOj88WYd2nbUNluvl1Wsaiyk0` is overwritten/retired.)
+- ⚠️ The secret goes **only** here — never in the repo or a `VITE_` variable.
 
-### 2. Re-authenticate Wrangler, then deploy the code fix
-The stored wrangler token expired (`Authentication error [code: 10000]`), so the deploy
-couldn't run from the agent. Run locally:
+### 2. Site key — confirm it didn't change
+- If you only **rotated the secret** on the existing widget, the site key is still
+  `0x4AAAAAADPgGbyDwYkJ3VSh` → **nothing to change** in `.env.production` or Cloudflare.
+- If you made a **new widget**, send the new **site** key so it can be updated in
+  `.env.production` + the Cloudflare Pages `VITE_TURNSTILE_SITE_KEY` var.
+
+### 3. Re-authenticate Wrangler, then deploy
+The stored wrangler token expired (`error 10000`). Run locally:
 ```powershell
 npx wrangler login          # opens browser, sign in to Cloudflare
 npm run build
 npx wrangler pages deploy dist --project-name horrorwriter
 ```
 
-### 3. Verify on the live site
-1. Hard-refresh `https://horrorwriter.org`.
-2. Click **Sign In** → the Turnstile widget should render and **auto-pass** (no
-   "Security check failed").
-3. **Send Magic Link** should become enabled after entering an email.
-4. Confirm the magic-link email arrives and signs you in at `/auth/callback`.
+### 4. Verify (agent will re-test via Playwright once 1 & 3 are done)
+1. Hard-refresh `https://horrorwriter.org`, click **Sign In**.
+2. Turnstile renders and **auto-passes** (no "Security check failed").
+3. **Send Magic Link** enables after entering an email; clicking it returns
+   "Check your email…" (not a captcha-disallowed error → secret matches).
+4. Magic-link email arrives and signs in at `/auth/callback`.
 
 ---
 
