@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabaseClient'
 import { Turnstile } from '@marsidev/react-turnstile'
 import { signInWithPasskey } from '../lib/passkey'
@@ -10,6 +10,11 @@ export default function SignInModal({ isOpen, onClose }) {
   const [message, setMessage] = useState(null)
   const [error, setError] = useState(null)
   const [captchaToken, setCaptchaToken] = useState(null)
+  // Tracks whether the captcha widget itself failed to load/validate, so we can
+  // show a dedicated message + retry affordance instead of silently locking the
+  // Send Magic Link button forever.
+  const [captchaFailed, setCaptchaFailed] = useState(false)
+  const turnstileRef = useRef(null)
 
   const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY
   const enableGoogle = import.meta.env.VITE_ENABLE_GOOGLE_LOGIN === 'true'
@@ -128,11 +133,50 @@ export default function SignInModal({ isOpen, onClose }) {
           {siteKey && (
             <div style={{ marginBottom: 16 }}>
               <Turnstile
+                ref={turnstileRef}
                 siteKey={siteKey}
-                onSuccess={(token) => setCaptchaToken(token)}
-                onError={() => setError('Security check failed. Please try again.')}
+                onSuccess={(token) => {
+                  setCaptchaToken(token)
+                  setCaptchaFailed(false)
+                  setError(null)
+                }}
+                onError={() => {
+                  setCaptchaToken(null)
+                  setCaptchaFailed(true)
+                }}
+                onExpire={() => {
+                  // Tokens are single-use and expire after ~5 min. Clear it and
+                  // auto-reset so a waiting user isn't silently rejected on submit.
+                  setCaptchaToken(null)
+                  turnstileRef.current?.reset()
+                }}
+                onTimeout={() => {
+                  setCaptchaToken(null)
+                  setCaptchaFailed(true)
+                }}
                 options={{ theme: 'dark' }}
               />
+              {captchaFailed && (
+                <div style={{ color: 'var(--blood)', fontSize: 13, marginTop: 8 }}>
+                  The security check couldn’t load.{' '}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCaptchaFailed(false)
+                      setCaptchaToken(null)
+                      turnstileRef.current?.reset()
+                    }}
+                    style={{
+                      background: 'none', border: 'none', padding: 0,
+                      color: 'var(--cyan)', cursor: 'pointer',
+                      textDecoration: 'underline', font: 'inherit',
+                    }}
+                  >
+                    Retry
+                  </button>
+                  {' '}or use a passkey below.
+                </div>
+              )}
             </div>
           )}
 
