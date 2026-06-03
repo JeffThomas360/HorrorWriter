@@ -4,7 +4,36 @@ import { generateRegistrationOptions } from 'npm:@simplewebauthn/server@11'
 const SUPABASE_URL     = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const RP_NAME          = 'HorrorWriter'
-const RP_ID            = Deno.env.get('WEBAUTHN_RP_ID') ?? 'horrorwriter.org'
+const ALLOWED_HOSTS = [
+  'horrorwriter.org',
+  'www.horrorwriter.org',
+  'localhost',
+  '127.0.0.1',
+]
+
+function getRpIdAndOrigin(originHeader: string | null) {
+  let rpID = Deno.env.get('WEBAUTHN_RP_ID') ?? 'horrorwriter.org'
+  let origin = 'https://horrorwriter.org'
+
+  if (originHeader) {
+    try {
+      const parsed = new URL(originHeader)
+      const hostname = parsed.hostname
+      const isAllowed = 
+        ALLOWED_HOSTS.includes(hostname) || 
+        hostname.endsWith('.horrorwriter.pages.dev') ||
+        hostname === 'horrorwriter.pages.dev'
+
+      if (isAllowed) {
+        rpID = hostname
+        origin = originHeader
+      }
+    } catch (e) {
+      console.error('Error parsing origin header:', e)
+    }
+  }
+  return { rpID, origin }
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin':  '*',
@@ -49,16 +78,19 @@ Deno.serve(async (req) => {
       type: 'public-key' as const,
     }))
 
+    const originHeader = req.headers.get('Origin')
+    const { rpID } = getRpIdAndOrigin(originHeader)
+
     const options = await generateRegistrationOptions({
       rpName: RP_NAME,
-      rpID: RP_ID,
+      rpID,
       userName: user.email ?? user.id,
       userDisplayName: user.email ?? 'Horror Writer',
       attestationType: 'none',
       excludeCredentials,
       authenticatorSelection: {
-        authenticatorAttachment: 'cross-platform',
         residentKey: 'required',
+        requireResidentKey: true,
         userVerification: 'preferred',
       },
     })
