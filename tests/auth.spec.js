@@ -5,6 +5,9 @@ test.describe('Authentication Flows', () => {
     await page.goto('/');
     await page.getByText('Sign In', { exact: true }).first().click();
 
+    // Click the toggle to reveal the magic link form
+    await page.getByRole('button', { name: /Sign in with email link/i }).click();
+
     const magicLinkBtn = page.getByRole('button', { name: /Send Magic Link/i });
     await expect(magicLinkBtn).toBeDisabled();
   });
