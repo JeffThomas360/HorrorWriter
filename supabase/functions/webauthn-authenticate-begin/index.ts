@@ -54,6 +54,10 @@ Deno.serve(async (req) => {
     const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
     
     // Optional: scope to a specific user's credentials
+    // NOTE: We intentionally omit the `transports` hint from allowCredentials.
+    // Passing transports: ["internal"] would tell Chrome to ONLY show platform
+    // authenticators (Windows Hello), blocking third-party providers like Bitwarden.
+    // Without the hint, all authenticators (platform AND cross-platform) are offered.
     let allowCredentials: { id: string; type: 'public-key' }[] = []
     let userId: string | null = null
 
@@ -68,12 +72,13 @@ Deno.serve(async (req) => {
           userId = match.id
           const { data: keys } = await adminClient
             .from('passkey_credentials')
-            .select('id, transports')
+            .select('id')
             .eq('user_id', match.id)
-          allowCredentials = (keys ?? []).map((k: { id: string; transports?: string[] }) => ({
+          // Do NOT include transports — supplying transports: ["internal"] causes
+          // Chrome to filter out cross-platform providers (Bitwarden, 1Password, etc.).
+          allowCredentials = (keys ?? []).map((k: { id: string }) => ({
             id: k.id,
             type: 'public-key' as const,
-            transports: k.transports,
           }))
         }
       }
@@ -86,6 +91,8 @@ Deno.serve(async (req) => {
       rpID,
       userVerification: 'preferred',
       allowCredentials,
+      // 60s gives Bitwarden's MV3 service worker time to wake from idle
+      timeout: 60000,
     })
 
     // Store challenge (not tied to a user_id for passkey-first / discoverable flow)

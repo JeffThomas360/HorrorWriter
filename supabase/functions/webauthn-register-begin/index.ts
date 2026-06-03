@@ -88,7 +88,14 @@ Deno.serve(async (req) => {
       userDisplayName: user.email ?? 'Horror Writer',
       attestationType: 'none',
       excludeCredentials,
+      // 60s timeout: Bitwarden's MV3 service worker can take 200-500ms to wake
+      // from idle — a generous timeout prevents silent fallback to native handlers.
+      timeout: 60000,
       authenticatorSelection: {
+        // Do NOT set authenticatorAttachment: 'platform' — that blocks Bitwarden
+        // entirely (Bitwarden is classified as cross-platform). Omitting it lets
+        // both platform (Windows Hello) and cross-platform (Bitwarden) authenticators
+        // respond, allowing the user to choose.
         residentKey: 'required',
         requireResidentKey: true,
         userVerification: 'preferred',

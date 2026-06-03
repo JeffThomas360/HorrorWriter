@@ -87,3 +87,22 @@ export async function signInWithPasskey(email = '') {
   })
   if (error) throw new Error(error.message)
 }
+
+/**
+ * Delete a registered passkey by credential ID.
+ * Only the authenticated user can delete their own passkeys.
+ */
+export async function deletePasskey(credentialId) {
+  if (!supabase) throw new Error('Supabase not configured')
+
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) throw new Error('You must be signed in to remove a passkey.')
+
+  const { error } = await supabase
+    .from('passkey_credentials')
+    .delete()
+    .eq('id', credentialId)
+    .eq('user_id', session.user.id)
+
+  if (error) throw new Error(error.message || 'Failed to delete passkey')
+}

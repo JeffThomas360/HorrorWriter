@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useAuth } from '../components/AuthContext'
 import { updateProfile, uploadAvatar } from '../lib/profile'
-import { registerPasskey } from '../lib/passkey'
+import { registerPasskey, deletePasskey } from '../lib/passkey'
 import { supabase } from '../supabaseClient'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 import ProfileHead from '../components/ProfileHead'
@@ -28,6 +28,8 @@ export default function Profile() {
   const [passkeys, setPasskeys] = useState([])
   const [loadingPasskeys, setLoadingPasskeys] = useState(false)
   const [enrollingPasskey, setEnrollingPasskey] = useState(false)
+  const [deletingPasskeyId, setDeletingPasskeyId] = useState(null)
+  const [showBitwardenHelp, setShowBitwardenHelp] = useState(false)
 
   const loadPasskeys = useCallback(async () => {
     if (!supabase || !user) return
@@ -143,6 +145,21 @@ export default function Profile() {
     }
   }
 
+  const onDeletePasskey = async (id) => {
+    if (!window.confirm('Remove this passkey? You can always add a new one.')) return
+    setDeletingPasskeyId(id)
+    setStatus(null)
+    try {
+      await deletePasskey(id)
+      await loadPasskeys()
+      setStatus(null)
+    } catch (err) {
+      setStatus({ error: err.message })
+    } finally {
+      setDeletingPasskeyId(null)
+    }
+  }
+
   const joinedFmt = profile.created_at
     ? new Date(profile.created_at).toLocaleDateString(undefined, {
         year: 'numeric', month: 'short', day: 'numeric',
@@ -205,7 +222,7 @@ export default function Profile() {
           Fast <em>sign-in</em>
         </h3>
         <p style={{ color: 'var(--bone-dim)', fontSize: 15, marginBottom: 24 }}>
-          Passkeys let you sign in with Face ID, Touch ID, or your device PIN — no email needed.
+          Passkeys let you sign in with Face ID, Touch ID, your device PIN — or your Bitwarden vault. No email needed.
         </p>
 
         {loadingPasskeys ? (
@@ -225,6 +242,15 @@ export default function Profile() {
                     {pk.last_used_at && ` · last used ${new Date(pk.last_used_at).toLocaleDateString()}`}
                   </span>
                 </span>
+                <button
+                  type="button"
+                  className="btn ghost"
+                  style={{ fontSize: 12, padding: '4px 10px', opacity: 0.7 }}
+                  disabled={deletingPasskeyId === pk.id}
+                  onClick={() => onDeletePasskey(pk.id)}
+                >
+                  {deletingPasskeyId === pk.id ? 'Removing…' : '✕ Remove'}
+                </button>
               </li>
             ))}
           </ul>
@@ -240,8 +266,73 @@ export default function Profile() {
           disabled={enrollingPasskey}
           onClick={onAddPasskey}
         >
-          {enrollingPasskey ? 'Follow your device prompt…' : '▸ Add a Passkey'}
+          {enrollingPasskey ? 'Follow your browser prompt…' : '▸ Add a Passkey'}
         </button>
+
+        {/* Bitwarden setup guide */}
+        <div style={{ marginTop: 28, borderTop: '1px solid rgba(243,236,217,.08)', paddingTop: 20 }}>
+          <button
+            type="button"
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+              color: 'var(--bone-dim)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6
+            }}
+            onClick={() => setShowBitwardenHelp(h => !h)}
+          >
+            <span style={{ fontSize: 16 }}>🔐</span>
+            <span style={{ textDecoration: 'underline dotted' }}>
+              {showBitwardenHelp ? 'Hide' : 'Using Bitwarden? See setup guide'}
+            </span>
+            <span style={{ opacity: 0.5 }}>{showBitwardenHelp ? '▲' : '▼'}</span>
+          </button>
+
+          {showBitwardenHelp && (
+            <div style={{
+              marginTop: 16, padding: '16px 20px',
+              background: 'rgba(243,236,217,.04)',
+              border: '1px solid rgba(243,236,217,.10)',
+              borderRadius: 8, fontSize: 13.5, lineHeight: 1.7,
+              color: 'var(--bone-dim)'
+            }}>
+              <p style={{ margin: '0 0 12px', fontWeight: 600, color: 'var(--bone)' }}>
+                Setting up Bitwarden passkeys on Chrome / Windows
+              </p>
+              <p style={{ margin: '0 0 10px' }}>If the Windows Security dialog appears instead of Bitwarden, follow these steps:</p>
+              <ol style={{ margin: '0 0 12px', paddingLeft: 20 }}>
+                <li style={{ marginBottom: 8 }}>
+                  <strong>Open Bitwarden extension → Settings → Notifications</strong><br />
+                  Make sure <em>"Ask to save and use passkeys"</em> is <strong>ON</strong>.
+                </li>
+                <li style={{ marginBottom: 8 }}>
+                  <strong>Disable Chrome's built-in passkey storage</strong><br />
+                  Go to{' '}
+                  <code style={{ fontSize: 12, background: 'rgba(255,255,255,.08)', padding: '1px 5px', borderRadius: 3 }}>
+                    chrome://password-manager/settings
+                  </code>
+                  {' '}and turn off <em>"Offer to save passwords and passkeys"</em>.
+                </li>
+                <li style={{ marginBottom: 8 }}>
+                  <strong>Windows 11 (24H2+): Set Bitwarden as your passkey provider</strong><br />
+                  Go to <em>Windows Settings → Accounts → Passkeys → Advanced options</em> and select Bitwarden.
+                  This is the most reliable fix — it bypasses Chrome's modal entirely.
+                </li>
+                <li style={{ marginBottom: 8 }}>
+                  <strong>Make sure your Bitwarden vault is unlocked</strong> before clicking "Add a Passkey".
+                </li>
+                <li>
+                  <strong>Check Excluded Domains</strong><br />
+                  In Bitwarden → Settings → Notifications → Excluded Domains, make sure
+                  {' '}<code style={{ fontSize: 12, background: 'rgba(255,255,255,.08)', padding: '1px 5px', borderRadius: 3 }}>horrorwriter.org</code>
+                  {' '}is not listed.
+                </li>
+              </ol>
+              <p style={{ margin: 0, fontSize: 12.5, opacity: 0.7 }}>
+                Tip: If Windows Security dialog appears, cancel it — Bitwarden's prompt may appear behind it.
+                On older Chrome/Windows, the two dialogs can appear simultaneously.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
     </section>
