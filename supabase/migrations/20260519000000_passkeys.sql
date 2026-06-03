@@ -2,26 +2,23 @@
 -- Passkeys (WebAuthn credentials) — stored by Edge Functions
 -- only; no direct client insert/update/delete.
 -- ============================================================
-create table public.passkeys (
-  id             uuid primary key default gen_random_uuid(),
+create table public.passkey_credentials (
+  id             text primary key,
   user_id        uuid not null references auth.users(id) on delete cascade,
-  credential_id  text unique not null,
-  public_key     text not null,
-  counter        bigint not null default 0,
-  device_type    text,            -- 'singleDevice' | 'multiDevice'
-  backed_up      boolean default false,
+  public_key     bytea not null,
   transports     text[],
-  created_at     timestamptz default now()
+  counter        bigint not null default 0,
+  created_at     timestamptz default now(),
+  last_used_at   timestamptz
 );
 
-create index passkeys_user_id_idx        on public.passkeys (user_id);
-create index passkeys_credential_id_idx  on public.passkeys (credential_id);
+create index passkey_credentials_user_id_idx on public.passkey_credentials (user_id);
 
-alter table public.passkeys enable row level security;
+alter table public.passkey_credentials enable row level security;
 
 -- Users can read their own passkeys (for the management UI in Profile)
 create policy "Users can view their own passkeys"
-  on public.passkeys for select
+  on public.passkey_credentials for select
   using (auth.uid() = user_id);
 
 -- Edge Functions run as service role — they bypass RLS, so we
@@ -36,6 +33,7 @@ create table public.webauthn_challenges (
   user_id     uuid references auth.users(id) on delete cascade,
   challenge   text not null,
   type        text not null check (type in ('registration', 'authentication')),
+  purpose     text,
   created_at  timestamptz default now()
 );
 
