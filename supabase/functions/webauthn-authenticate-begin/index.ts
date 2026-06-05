@@ -1,14 +1,9 @@
-/**
- * webauthn-authenticate-begin
- * Called (unauthenticated) when the user wants to sign in with a passkey.
- * Accepts an optional { email } body to scope allowed credentials.
- * Returns PublicKeyCredentialRequestOptions.
- */
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { generateAuthenticationOptions } from 'npm:@simplewebauthn/server@11'
 
 const SUPABASE_URL     = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+
 const ALLOWED_HOSTS = [
   'horrorwriter.org',
   'www.horrorwriter.org',
@@ -16,28 +11,28 @@ const ALLOWED_HOSTS = [
   '127.0.0.1',
 ]
 
-function getRpIdAndOrigin(originHeader: string | null) {
-  let rpID = Deno.env.get('WEBAUTHN_RP_ID') ?? 'horrorwriter.org'
-  let origin = 'https://horrorwriter.org'
-
-  if (originHeader) {
+const envOrigin = Deno.env.get('WEBAUTHN_ORIGIN')
+if (envOrigin) {
+  envOrigin.split(',').forEach(o => {
     try {
-      const parsed = new URL(originHeader)
-      const hostname = parsed.hostname
-      const isAllowed = 
-        ALLOWED_HOSTS.includes(hostname) || 
-        hostname.endsWith('.horrorwriter.pages.dev') ||
-        hostname === 'horrorwriter.pages.dev'
+      const h = new URL(o.trim()).hostname
+      if (h && !ALLOWED_HOSTS.includes(h)) ALLOWED_HOSTS.push(h)
+    } catch (_) {}
+  })
+}
 
-      if (isAllowed) {
-        rpID = hostname
-        origin = originHeader
-      }
-    } catch (e) {
-      console.error('Error parsing origin header:', e)
-    }
+function getRpId(originHeader: string | null): string {
+  const fallback = Deno.env.get('WEBAUTHN_RP_ID') ?? 'horrorwriter.org'
+  if (!originHeader) return fallback
+  try {
+    const hostname = new URL(originHeader).hostname
+    const allowed = ALLOWED_HOSTS.includes(hostname) ||
+      hostname.endsWith('.horrorwriter.pages.dev') ||
+      hostname === 'horrorwriter.pages.dev'
+    return allowed ? hostname : fallback
+  } catch (_) {
+    return fallback
   }
-  return { rpID, origin }
 }
 
 const corsHeaders = {
@@ -45,37 +40,36 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  })
+}
+
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
-    const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
-    
-    // Optional: scope to a specific user's credentials
-    // NOTE: We intentionally omit the `transports` hint from allowCredentials.
-    // Passing transports: ["internal"] would tell Chrome to ONLY show platform
-    // authenticators (Windows Hello), blocking third-party providers like Bitwarden.
-    // Without the hint, all authenticators (platform AND cross-platform) are offered.
+    const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } })
+
     let allowCredentials: { id: string; type: 'public-key' }[] = []
     let userId: string | null = null
 
-    const contentType = req.headers.get('content-type') ?? ''
-    if (contentType.includes('application/json')) {
+    const ct = req.headers.get('content-type') ?? ''
+    if (ct.includes('application/json')) {
       const body = await req.json().catch(() => ({}))
       if (body.email) {
-        // Look up the user by email via admin API
-        const { data: { users } } = await adminClient.auth.admin.listUsers()
-        const match = users?.find((u: { email?: string; id: string }) => u.email === body.email)
-        if (match) {
-          userId = match.id
-          const { data: keys } = await adminClient
+        // Targeted single-row lookup instead of listing all users
+        const { data: uid } = await admin.rpc('get_user_by_email', { lookup_email: body.email })
+        if (uid) {
+          userId = uid as string
+          const { data: keys } = await admin
             .from('passkey_credentials')
             .select('id')
-            .eq('user_id', match.id)
-          // Do NOT include transports — supplying transports: ["internal"] causes
-          // Chrome to filter out cross-platform providers (Bitwarden, 1Password, etc.).
+            .eq('user_id', uid)
+          // Omit transports — including them would filter out cross-platform
+          // authenticators (Bitwarden, 1Password) on some browsers.
           allowCredentials = (keys ?? []).map((k: { id: string }) => ({
             id: k.id,
             type: 'public-key' as const,
@@ -84,33 +78,35 @@ Deno.serve(async (req) => {
       }
     }
 
-    const originHeader = req.headers.get('Origin')
-    const { rpID } = getRpIdAndOrigin(originHeader)
+    const rpID = getRpId(req.headers.get('Origin'))
 
     const options = await generateAuthenticationOptions({
       rpID,
       userVerification: 'preferred',
       allowCredentials,
-      // 60s gives Bitwarden's MV3 service worker time to wake from idle
       timeout: 60000,
     })
 
-    // Store challenge (not tied to a user_id for passkey-first / discoverable flow)
-    await adminClient.from('webauthn_challenges').insert({
-      user_id:   userId,
-      challenge: options.challenge,
-      type:      'authentication',
-      purpose:   'authenticate',
-    })
+    const { data: challengeRow, error: insertErr } = await admin
+      .from('webauthn_challenges')
+      .insert({
+        user_id:   userId,
+        challenge: options.challenge,
+        type:      'authentication',
+        purpose:   'authenticate',
+      })
+      .select('id')
+      .single()
 
-    return new Response(JSON.stringify(options), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    if (insertErr || !challengeRow) {
+      console.error('[authenticate-begin] challenge insert failed:', insertErr)
+      return json({ error: 'Failed to store challenge' }, 500)
+    }
+
+    // _cid lets authenticate-complete do a direct lookup instead of fuzzy matching
+    return json({ ...options, _cid: challengeRow.id })
   } catch (err) {
-    console.error('[webauthn-authenticate-begin]', err)
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    console.error('[authenticate-begin]', err)
+    return json({ error: 'Internal server error' }, 500)
   }
 })

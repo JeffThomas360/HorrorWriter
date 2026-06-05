@@ -19,7 +19,13 @@ export default function AuthCallback() {
     const errName = params.get('error')
     const errDesc = params.get('error_description')
     if (errName || errDesc) {
-      setError(errDesc || errName || "Authentication failed.")
+      const msg = errDesc || errName || "Authentication failed."
+      if (window.opener) {
+        window.opener.postMessage({ type: 'AUTH_FAILURE', message: msg }, window.location.origin)
+        window.close()
+      } else {
+        setError(msg)
+      }
       return
     }
 
@@ -28,7 +34,13 @@ export default function AuthCallback() {
     const hashErrName = hashParams.get('error')
     const hashErrDesc = hashParams.get('error_description')
     if (hashErrName || hashErrDesc) {
-      setError(hashErrDesc || hashErrName || "Authentication failed.")
+      const msg = hashErrDesc || hashErrName || "Authentication failed."
+      if (window.opener) {
+        window.opener.postMessage({ type: 'AUTH_FAILURE', message: msg }, window.location.origin)
+        window.close()
+      } else {
+        setError(msg)
+      }
       return
     }
 
@@ -79,7 +91,15 @@ export default function AuthCallback() {
           }
         }
       } else {
-        if (active) setError("The authentication link expired or was invalid. Please try again.")
+        if (active) {
+          const msg = "The authentication link expired or was invalid. Please try again."
+          if (window.opener) {
+            window.opener.postMessage({ type: 'AUTH_FAILURE', message: msg }, window.location.origin)
+            window.close()
+          } else {
+            setError(msg)
+          }
+        }
       }
     }, 15000)
 

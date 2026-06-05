@@ -9,7 +9,6 @@ async function callFunction(name, body = {}, token = null) {
   if (!FUNCTIONS_URL) throw new Error('Supabase not configured')
   const headers = { 'Content-Type': 'application/json' }
   if (token) headers['Authorization'] = `Bearer ${token}`
-
   const res = await fetch(`${FUNCTIONS_URL}/${name}`, {
     method: 'POST',
     headers,
@@ -26,83 +25,61 @@ async function callFunction(name, body = {}, token = null) {
  */
 export async function registerPasskey() {
   if (!supabase) throw new Error('Supabase not configured')
-
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) throw new Error('You must be signed in to add a passkey.')
-
   const token = session.access_token
-
-  // 1. Get options from server
   const options = await callFunction('webauthn-register-begin', {}, token)
-
-  // 2. Let the browser/authenticator create the credential
   let attResp
   try {
     attResp = await startRegistration({ optionsJSON: options })
   } catch (err) {
-    if (err.name === 'InvalidStateError') {
-      throw new Error('This passkey is already registered on your account.')
-    }
-    if (err.name === 'NotAllowedError') {
-      throw new Error('Passkey setup was cancelled or timed out.')
-    }
+    if (err.name === 'InvalidStateError') throw new Error('This passkey is already registered on your account.')
+    if (err.name === 'NotAllowedError')   throw new Error('Passkey setup was cancelled or timed out.')
     throw err
   }
-
-  // 3. Send attestation to server to verify + store
   await callFunction('webauthn-register-complete', attResp, token)
 }
 
 /**
- * Sign in with a passkey (no existing session required).
- * On success, the Supabase session is set in the client automatically.
+ * Sign in with a passkey. email scopes allowCredentials so Bitwarden
+ * and other managers surface the right credential immediately.
  */
 export async function signInWithPasskey(email = '') {
   if (!supabase) throw new Error('Supabase not configured')
 
-  // 1. Get challenge options (optionally scoped to email)
-  const options = await callFunction('webauthn-authenticate-begin', email ? { email } : {})
+  const raw = await callFunction('webauthn-authenticate-begin', email ? { email } : {})
 
-  // 2. Run the browser authentication ceremony
+  // _cid is our internal challenge row ID — strip it before handing options
+  // to the browser so the WebAuthn API only sees valid CBOR fields.
+  const { _cid, ...optionsJSON } = raw
+
   let assertResp
   try {
-    assertResp = await startAuthentication({ optionsJSON: options })
+    assertResp = await startAuthentication({ optionsJSON })
   } catch (err) {
-    if (err.name === 'NotAllowedError') {
-      throw new Error('Passkey sign-in was cancelled or timed out.')
-    }
+    if (err.name === 'NotAllowedError') throw new Error('Passkey sign-in was cancelled or timed out.')
     throw err
   }
 
-  // 3. Verify on the server — get back a token_hash
-  const { token_hash, email: userEmail } = await callFunction(
-    'webauthn-authenticate-complete',
-    assertResp
-  )
+  // Send _cid alongside the assertion so the server can do a direct
+  // challenge lookup instead of fuzzy-matching across stale rows.
+  const { token_hash } = await callFunction('webauthn-authenticate-complete', { ...assertResp, _cid })
 
-  // 4. Exchange token_hash for a real Supabase session (no email sent)
-  const { error } = await supabase.auth.verifyOtp({
-    token_hash,
-    type: 'email',
-  })
+  const { error } = await supabase.auth.verifyOtp({ token_hash, type: 'email' })
   if (error) throw new Error(error.message)
 }
 
 /**
  * Delete a registered passkey by credential ID.
- * Only the authenticated user can delete their own passkeys.
  */
 export async function deletePasskey(credentialId) {
   if (!supabase) throw new Error('Supabase not configured')
-
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) throw new Error('You must be signed in to remove a passkey.')
-
   const { error } = await supabase
     .from('passkey_credentials')
     .delete()
     .eq('id', credentialId)
     .eq('user_id', session.user.id)
-
   if (error) throw new Error(error.message || 'Failed to delete passkey')
 }

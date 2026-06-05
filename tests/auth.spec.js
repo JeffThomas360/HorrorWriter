@@ -62,6 +62,10 @@ test.describe('Authentication Flows', () => {
     // The RequireAuth wrapper will keep us on /profile but automatically open the Sign In modal
     const passkeyBtn = page.getByRole('button', { name: /Sign in with Passkey/i });
     await expect(passkeyBtn).toBeVisible({ timeout: 5000 });
+
+    // Email is required before passkey sign-in
+    const signInEmail = page.locator('#email');
+    await signInEmail.fill('testwriter@horrorwriter.org');
     await passkeyBtn.click();
 
     // Verify successful sign-in transitions UI to authenticated state (modal closed, Sign Out shows)
@@ -104,6 +108,16 @@ test.describe('Authentication Flows', () => {
 
     // Verify Supabase was NEVER called
     expect(otpTriggered).toBe(false);
+  });
+
+  test('Passkey button shows error when email is empty', async ({ page }) => {
+    await page.goto('/');
+    await page.getByText('Sign In', { exact: true }).first().click();
+
+    // Click passkey without filling email
+    await page.getByRole('button', { name: /Sign in with Passkey/i }).click();
+
+    await expect(page.locator('.modal-content')).toContainText('Enter your email address first.');
   });
 
   test('Disposable email address is rejected', async ({ page }) => {
