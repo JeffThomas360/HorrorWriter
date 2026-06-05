@@ -299,41 +299,31 @@ export default function Profile() {
               color: 'var(--bone-dim)'
             }}>
               <p style={{ margin: '0 0 12px', fontWeight: 600, color: 'var(--bone)' }}>
-                Setting up Bitwarden passkeys on Chrome / Windows
+                Setting up Bitwarden passkeys on Windows (Chrome & Firefox)
               </p>
               <p style={{ margin: '0 0 10px' }}>If the Windows Security dialog appears instead of Bitwarden, follow these steps:</p>
               <ol style={{ margin: '0 0 12px', paddingLeft: 20 }}>
                 <li style={{ marginBottom: 8 }}>
-                  <strong>Open Bitwarden extension → Settings → Notifications</strong><br />
-                  Make sure <em>"Ask to save and use passkeys"</em> is <strong>ON</strong>.
+                  <strong>Enable Passkeys in Bitwarden Extension settings</strong><br />
+                  Open Bitwarden extension ➔ Settings ➔ Notifications, and make sure <em>"Ask to save and use passkeys"</em> is <strong>ON</strong>.
                 </li>
                 <li style={{ marginBottom: 8 }}>
-                  <strong>Disable Chrome's built-in passkey storage</strong><br />
-                  Go to{' '}
-                  <code style={{ fontSize: 12, background: 'rgba(255,255,255,.08)', padding: '1px 5px', borderRadius: 3 }}>
-                    chrome://password-manager/settings
-                  </code>
-                  {' '}and turn off <em>"Offer to save passwords and passkeys"</em>.
+                  <strong>Desktop App Integration (Crucial for Firefox & Windows)</strong><br />
+                  Open the **Bitwarden Desktop App** on your PC. Enable **"Unlock with Windows Hello"** and **"Enable browser integration"** in Settings. Then, in your browser's Bitwarden extension Settings, check **"Unlock with biometrics"** to link them.
                 </li>
                 <li style={{ marginBottom: 8 }}>
-                  <strong>Windows 11 (24H2+): Set Bitwarden as your passkey provider</strong><br />
-                  Go to <em>Windows Settings → Accounts → Passkeys → Advanced options</em> and select Bitwarden.
-                  This is the most reliable fix — it bypasses Chrome's modal entirely.
+                  <strong>Disable built-in browser managers (For Chrome/Edge)</strong><br />
+                  Go to <code style={{ fontSize: 12, background: 'rgba(255,255,255,.08)', padding: '1px 5px', borderRadius: 3 }}>chrome://password-manager/settings</code> and disable <em>"Offer to save passwords and passkeys"</em>.
                 </li>
                 <li style={{ marginBottom: 8 }}>
-                  <strong>Make sure your Bitwarden vault is unlocked</strong> before clicking "Add a Passkey".
+                  <strong>Firefox Add-on Permissions</strong><br />
+                  Verify the Bitwarden extension has "Access your data for all websites" enabled in Firefox's <code style={{ fontSize: 12, background: 'rgba(255,255,255,.08)', padding: '1px 5px', borderRadius: 3 }}>about:addons</code> settings (and is allowed to run in Private Windows).
                 </li>
-                <li>
-                  <strong>Check Excluded Domains</strong><br />
-                  In Bitwarden → Settings → Notifications → Excluded Domains, make sure
-                  {' '}<code style={{ fontSize: 12, background: 'rgba(255,255,255,.08)', padding: '1px 5px', borderRadius: 3 }}>horrorwriter.org</code>
-                  {' '}is not listed.
+                <li style={{ marginBottom: 8 }}>
+                  <strong>The "Cancel" Workaround</strong><br />
+                  If the Windows Security popup asking for a security key appears, **click Cancel on the Windows Security window**. On Firefox and Chrome, this forces the native prompt to back off, allowing the Bitwarden extension's prompt to immediately slide down.
                 </li>
               </ol>
-              <p style={{ margin: 0, fontSize: 12.5, opacity: 0.7 }}>
-                Tip: If Windows Security dialog appears, cancel it — Bitwarden's prompt may appear behind it.
-                On older Chrome/Windows, the two dialogs can appear simultaneously.
-              </p>
             </div>
           )}
         </div>

@@ -40,7 +40,12 @@ export default function AuthCallback() {
         const { data, error: sessionErr } = await supabase.auth.getSession()
         if (sessionErr) throw sessionErr
         if (data.session && active) {
-          navigate('/profile', { replace: true })
+          if (window.opener) {
+            window.opener.postMessage({ type: 'AUTH_SUCCESS' }, window.location.origin)
+            window.close()
+          } else {
+            navigate('/profile', { replace: true })
+          }
         }
       } catch (err) {
         console.error("Immediate session check failed:", err)
@@ -52,7 +57,12 @@ export default function AuthCallback() {
     // We just need to wait for it to emit the SIGNED_IN event.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session && active) {
-        navigate('/profile', { replace: true })
+        if (window.opener) {
+          window.opener.postMessage({ type: 'AUTH_SUCCESS' }, window.location.origin)
+          window.close()
+        } else {
+          navigate('/profile', { replace: true })
+        }
       }
     })
 
@@ -60,7 +70,14 @@ export default function AuthCallback() {
     const timer = setTimeout(async () => {
       const { data } = await supabase.auth.getSession()
       if (data.session) {
-        if (active) navigate('/profile', { replace: true })
+        if (active) {
+          if (window.opener) {
+            window.opener.postMessage({ type: 'AUTH_SUCCESS' }, window.location.origin)
+            window.close()
+          } else {
+            navigate('/profile', { replace: true })
+          }
+        }
       } else {
         if (active) setError("The authentication link expired or was invalid. Please try again.")
       }

@@ -19,8 +19,7 @@ test.describe('Authentication Flows', () => {
     await page.goto('/');
     await page.getByText('Sign In', { exact: true }).first().click();
 
-    // Click the toggle to reveal the magic link form
-    await page.getByRole('button', { name: /Sign in with email link/i }).click();
+
 
     const emailInput = page.locator('#email');
     await emailInput.fill('testwriter@horrorwriter.org');
@@ -90,8 +89,7 @@ test.describe('Authentication Flows', () => {
     await page.goto('/');
     await page.getByText('Sign In', { exact: true }).first().click();
 
-    // Click the toggle to reveal the magic link form
-    await page.getByRole('button', { name: /Sign in with email link/i }).click();
+
 
     // Fill normal email
     const emailInput = page.locator('#email');
@@ -116,8 +114,7 @@ test.describe('Authentication Flows', () => {
     await page.goto('/');
     await page.getByText('Sign In', { exact: true }).first().click();
 
-    // Click the toggle to reveal the magic link form
-    await page.getByRole('button', { name: /Sign in with email link/i }).click();
+
 
     // Fill blacklisted domain email
     const emailInput = page.locator('#email');
