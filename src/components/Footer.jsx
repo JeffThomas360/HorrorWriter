@@ -32,9 +32,9 @@ export default function Footer() {
         <div>
           <h5>House</h5>
           <ul>
-            <li><span className="footer-soon">House Rules · soon</span></li>
-            <li><span className="footer-soon">Critique Code · soon</span></li>
-            <li><span className="footer-soon">Content Warnings · soon</span></li>
+            <li><Link to="/rules#house-rules">House Rules</Link></li>
+            <li><Link to="/rules#critique-code">Critique Code</Link></li>
+            <li><Link to="/rules#content-warnings">Content Warnings</Link></li>
             <li><span className="footer-soon">Moderators · soon</span></li>
           </ul>
         </div>
@@ -42,10 +42,10 @@ export default function Footer() {
         <div>
           <h5>Quiet</h5>
           <ul>
-            <li><span className="footer-soon">Privacy · soon</span></li>
-            <li><span className="footer-soon">Passkeys · soon</span></li>
+            <li><Link to="/rules#privacy">Privacy</Link></li>
+            <li><Link to="/rules#liability-dmca">DMCA Safe Harbor</Link></li>
+            <li><Link to="/profile">Passkey Settings</Link></li>
             <li><span className="footer-soon">RSS · soon</span></li>
-            <li><span className="footer-soon">Contact · soon</span></li>
           </ul>
         </div>
       </div>

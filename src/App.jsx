@@ -17,6 +17,7 @@ const CreateThread = lazy(() => import('./pages/CreateThread'))
 const ThreadView = lazy(() => import('./pages/ThreadView'))
 const PublishStory = lazy(() => import('./pages/PublishStory'))
 const ReadStory = lazy(() => import('./pages/ReadStory'))
+const Rules = lazy(() => import('./pages/Rules'))
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -47,6 +48,7 @@ export default function App() {
                 <Route path="u/:handle" element={<UserProfile />} />
                 <Route path="profile" element={<RequireAuth><Profile /></RequireAuth>} />
                 <Route path="auth/callback" element={<AuthCallback />} />
+                <Route path="rules" element={<Rules />} />
               </Route>
             </Routes>
           </ErrorBoundary>

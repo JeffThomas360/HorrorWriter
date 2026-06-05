@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { signInWithPasskey } from '../lib/passkey'
 
@@ -248,7 +249,7 @@ export default function SignInModal({ isOpen, onClose }) {
         )}
 
         <p className="modal-footer" style={{ marginTop:'24px' }}>
-          By entering, you agree to the <a href="#rules">House Rules</a>. No algorithms, no ads.
+          By entering, you agree to the <Link to="/rules" onClick={onClose}>House Rules</Link>. No algorithms, no ads.
         </p>
       </div>
     </div>
