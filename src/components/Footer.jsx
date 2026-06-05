@@ -52,6 +52,10 @@ export default function Footer() {
 
       <div className="footer-bottom">
         <span>© {year} Horror Writer · No ads, ever.</span>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: '11px', letterSpacing: '0.12em', display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'var(--muted)' }}>
+          <span className="osd-rec-dot" />
+          REC · 1986
+        </span>
         <span>Made by hand · in the dark</span>
       </div>
     </footer>

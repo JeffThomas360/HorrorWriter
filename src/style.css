@@ -96,7 +96,10 @@ body::after {
   inset: 0;
   pointer-events: none;
   z-index: 1;
-  background: radial-gradient(120% 90% at 50% 40%, transparent 60%, rgba(0,0,0,.55) 100%);
+  background: 
+    linear-gradient(rgba(11, 10, 16, 0) 50%, rgba(0, 0, 0, 0.12) 50%),
+    radial-gradient(120% 90% at 50% 40%, transparent 60%, rgba(0,0,0,.55) 100%);
+  background-size: 100% 4px, 100% 100%;
 }
 
 #root { min-height: 100vh; position: relative; z-index: 2; }
@@ -1456,4 +1459,70 @@ footer li a:hover { color: var(--paper); }
     transition-duration: .01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ============================================================
+   VHS Retro-OSD & Interactive Glow Enhancements
+   ============================================================ */
+
+/* Soft neon indicator pulse */
+@keyframes rec-pulse {
+  0%, 100% { opacity: 0.55; box-shadow: 0 0 4px var(--blood); }
+  50% { opacity: 1; box-shadow: 0 0 12px var(--blood), 0 0 20px var(--blood); }
+}
+
+.osd-rec-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--blood);
+  animation: rec-pulse 1.8s infinite ease-in-out;
+}
+
+/* Chromatic Aberration Text split on Hover (Subtle 80s CRT displacement) */
+.brand:hover .brand-name,
+.nav-links a:hover,
+.cat-list li:hover,
+.cat-pill:hover,
+.tile:hover h3,
+.book:hover .title {
+  text-shadow: 
+    -1px -0.5px 0 rgba(230, 57, 70, 0.6), 
+    1px 0.5px 0 rgba(95, 207, 219, 0.6);
+  transition: text-shadow 0.15s var(--ease);
+}
+
+/* Button specific neon active glow */
+.btn:hover {
+  text-shadow: 
+    -0.5px -0.5px 0 rgba(230, 57, 70, 0.4), 
+    0.5px 0.5px 0 rgba(95, 207, 219, 0.4);
+}
+
+/* Soft text glow for critical headers/titles */
+.title em,
+.surface h2.title em {
+  text-shadow: 0 0 24px rgba(230, 57, 70, 0.22);
+}
+.eyebrow.cyan {
+  text-shadow: 0 0 16px rgba(95, 207, 219, 0.25);
+}
+
+/* Scrollbar VHS Styling */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--ink);
+  border-left: 1px solid var(--line);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--ink-3);
+  border: 2px solid var(--ink);
+  border-radius: var(--r-pill);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--line-strong);
 }
