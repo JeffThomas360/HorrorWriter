@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../components/AuthContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import TranscribeButton from '../components/TranscribeButton'
 
 export default function CreateThread() {
   const { session, isLoading: authLoading } = useAuth()
@@ -114,6 +115,11 @@ export default function CreateThread() {
               required
               rows={8}
               placeholder="Speak into the void…"
+            />
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <TranscribeButton
+              onTranscribed={(text) => setContent(prev => prev ? `${prev}\n\n${text}` : text)}
             />
           </div>
         </label>
