@@ -54,9 +54,9 @@ workers/
 ### `TranscribeButton` (`src/components/TranscribeButton.jsx`)
 
 A small button rendered inline within a form, positioned near its target textarea. Props:
-- `textareaRef` — ref to the textarea to inject text into
+- `onTranscribed` — callback `(text: string) => void` provided by the parent; appends transcript to existing content with a double-newline separator, or sets it directly if the field is empty
 
-Renders a microphone icon button. Opens `TranscribeModal` on click. On successful transcription, inserts the returned text at the textarea's current cursor position (or appends if no selection).
+Renders a microphone icon button. Opens `TranscribeModal` on click. On successful transcription, calls `onTranscribed(text)` which the parent uses to update React state. Append-at-end is intentional — simpler than cursor tracking and predictable for long-form writing.
 
 ### `TranscribeModal` (`src/components/TranscribeModal.jsx`)
 

@@ -126,6 +126,13 @@ All CSS lives in `src/style.css`. No CSS modules, no Tailwind.
     Turnstile script fails to load in dev. Playwright injects a dummy key via `webServer.env` so the
     gating test stays deterministic (see `playwright.config.js`).
   - `VITE_ENABLE_GOOGLE_LOGIN` — feature flag for the Google OAuth sign-in button (`'true'` to show)
+  - `VITE_TRANSCRIBE_URL` — base URL of the transcription Worker (`https://horrorwriter-transcribe.orig-beetlebub.workers.dev`). Required for audio transcription feature to work in production.
+
+**Cloudflare Worker: `horrorwriter-transcribe`**
+- Live at: `https://horrorwriter-transcribe.orig-beetlebub.workers.dev`
+- Deploy: `cd workers/transcribe && npx wrangler deploy`
+- Uses Workers AI binding (`env.AI`) — `@cf/openai/whisper` model
+- Accepts `POST /transcribe` with `multipart/form-data` field `audio`, max 4 MB
 
 **Supabase Auth redirect URLs configured:**
 - `https://horrorwriter.org/auth/callback`
@@ -187,6 +194,7 @@ Insert rate limiting is enforced DB-side via the `enforce_rate_limit()` trigger 
 | Realtime presence lobby | ✅ Real (Supabase Realtime — `Home.jsx`) |
 | Google OAuth sign-in | ✅ Real, feature-flagged (`VITE_ENABLE_GOOGLE_LOGIN`) |
 | Turnstile CAPTCHA | ✅ Real (key set in prod) |
+| Audio transcription | ✅ Real (CF Worker + Workers AI Whisper — story editor + thread composer) |
 | Rituals / writing prompts | ❌ Removed |
 
 ---
@@ -207,9 +215,10 @@ Insert rate limiting is enforced DB-side via the `enforce_rate_limit()` trigger 
 ## Next priorities
 
 > Done since last update: forum-count migration, Library wired to Supabase, PublishStory/ReadStory,
-> Turnstile in prod, library critiques, Realtime presence, feature-flagged Google OAuth.
+> Turnstile in prod, library critiques, Realtime presence, feature-flagged Google OAuth, audio transcription (CF Worker + Whisper).
 
-1. **Pagination on ThreadView** — currently fetches all posts at once; add a page cursor before threads grow.
-2. **Delete old Worker** — Cloudflare → Workers & Pages → the Worker `horrorwriter` → Settings → Delete
-3. **Connect GitHub to Pages** — for auto-deploys on push
-4. **Authenticate `gh`** — run `gh auth login` so PRs can be opened from the CLI/sandbox.
+1. **Set `VITE_TRANSCRIBE_URL` in Cloudflare Pages** — Cloudflare Dashboard → Pages → horrorwriter → Settings → Environment Variables → add `VITE_TRANSCRIBE_URL=https://horrorwriter-transcribe.orig-beetlebub.workers.dev` for both Production and Preview. Then redeploy.
+2. **Pagination on ThreadView** — currently fetches all posts at once; add a page cursor before threads grow.
+3. **Delete old Worker** — Cloudflare → Workers & Pages → the Worker `horrorwriter` → Settings → Delete
+4. **Connect GitHub to Pages** — for auto-deploys on push
+5. **Authenticate `gh`** — run `gh auth login` so PRs can be opened from the CLI/sandbox.
