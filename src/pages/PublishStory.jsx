@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../components/AuthContext'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import TranscribeButton from '../components/TranscribeButton'
 
 function wordCount(text) {
   if (!text || !text.trim()) return 0
@@ -167,6 +168,11 @@ export default function PublishStory() {
               rows={20}
               placeholder="True!—nervous—very, very dreadfully nervous I had been and am; but why will you say that I am mad?"
               style={{ fontFamily: 'var(--body)', fontSize: '1.1rem', lineHeight: 1.7 }}
+            />
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <TranscribeButton
+              onTranscribed={(text) => setContent(prev => prev ? `${prev}\n\n${text}` : text)}
             />
           </div>
         </label>
