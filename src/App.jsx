@@ -1,20 +1,22 @@
+import { lazy } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout'
 import Home from './pages/Home'
-import Forum from './pages/Forum'
-import Library from './pages/Library'
-import Profile from './pages/Profile'
-import UserProfile from './pages/UserProfile'
-import AuthCallback from './pages/AuthCallback'
-import CreateThread from './pages/CreateThread'
-import ThreadView from './pages/ThreadView'
-import PublishStory from './pages/PublishStory'
-import ReadStory from './pages/ReadStory'
 import RequireAuth from './components/RequireAuth'
 import { AuthProvider } from './components/AuthContext'
 import ErrorBoundary from './components/ErrorBoundary'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
+
+const Forum = lazy(() => import('./pages/Forum'))
+const Library = lazy(() => import('./pages/Library'))
+const Profile = lazy(() => import('./pages/Profile'))
+const UserProfile = lazy(() => import('./pages/UserProfile'))
+const AuthCallback = lazy(() => import('./pages/AuthCallback'))
+const CreateThread = lazy(() => import('./pages/CreateThread'))
+const ThreadView = lazy(() => import('./pages/ThreadView'))
+const PublishStory = lazy(() => import('./pages/PublishStory'))
+const ReadStory = lazy(() => import('./pages/ReadStory'))
 
 const queryClient = new QueryClient({
   defaultOptions: {

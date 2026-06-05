@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { Outlet } from 'react-router-dom'
 import Atmospherics from './Atmospherics'
 import Nav from './Nav'
@@ -18,7 +18,15 @@ export default function Layout() {
       <div className="content-viewport">
         <OnboardingBanner />
         <main className="shell">
-          <Outlet context={{ openSignin: () => setSigninOpen(true) }} />
+          <Suspense fallback={
+            <section className="surface active">
+              <div className="status-panel">
+                <p className="eyebrow">▸ Loading…</p>
+              </div>
+            </section>
+          }>
+            <Outlet context={{ openSignin: () => setSigninOpen(true) }} />
+          </Suspense>
         </main>
         <Footer />
       </div>
