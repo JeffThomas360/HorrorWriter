@@ -1,3 +1,5 @@
+const MAX_BYTES = 4 * 1024 * 1024
+
 const ALLOWED_ORIGINS = [
   'https://horrorwriter.org',
   'https://www.horrorwriter.org',
@@ -33,6 +35,36 @@ export default {
       return json({ error: 'Method not allowed' }, 405, origin)
     }
 
-    return json({ text: 'scaffold ok' }, 200, origin)
+    let formData
+    try {
+      formData = await req.formData()
+    } catch {
+      return json({ error: 'Invalid request body' }, 400, origin)
+    }
+
+    const audioFile = formData.get('audio')
+    if (!audioFile || typeof audioFile === 'string') {
+      return json({ error: 'No audio file provided' }, 400, origin)
+    }
+
+    const audioBuffer = await audioFile.arrayBuffer()
+
+    if (audioBuffer.byteLength > MAX_BYTES) {
+      return json({ error: 'File exceeds the 4 MB limit.' }, 413, origin)
+    }
+
+    try {
+      const result = await env.AI.run('@cf/openai/whisper', {
+        audio: [...new Uint8Array(audioBuffer)],
+      })
+      return json({ text: result.text ?? '' }, 200, origin)
+    } catch (err) {
+      console.error('[transcribe]', err)
+      return json(
+        { error: 'Transcription failed — try a shorter clip or cleaner audio.' },
+        500,
+        origin,
+      )
+    }
   },
 }
