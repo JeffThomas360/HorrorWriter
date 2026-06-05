@@ -50,5 +50,8 @@ export default defineConfig({
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
+    env: {
+      VITE_TRANSCRIBE_URL: 'http://localhost:5173',
+    },
   },
 });
