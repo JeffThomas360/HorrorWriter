@@ -92,14 +92,8 @@ Deno.serve(async (req) => {
       // from idle — a generous timeout prevents silent fallback to native handlers.
       timeout: 60000,
       authenticatorSelection: {
-        // 'cross-platform' tells Windows/Chrome NOT to show the OS-level
-        // "Choose where to save your passkey" dialog (which only shows Windows
-        // Hello & phone options). Instead Chrome routes through its own WebAuthn
-        // layer where Bitwarden's extension can intercept the call.
-        // Trade-off: users cannot use Windows Hello (device PIN/face/fingerprint)
-        // as a passkey provider — only cross-platform providers (Bitwarden,
-        // hardware keys, phones) are offered.
-        authenticatorAttachment: 'cross-platform',
+        // Allow both platform (Windows Hello, TouchID) and cross-platform
+        // (Bitwarden, security keys, phones) authenticators.
         residentKey: 'required',
         requireResidentKey: true,
         userVerification: 'preferred',
