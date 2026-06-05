@@ -1,6 +1,11 @@
 import { test, expect } from '@playwright/test';
+import { setupSupabaseMocks, setupMockAuth } from './mocks';
 
 test.describe('Authentication Flows', () => {
+  test.beforeEach(async ({ page }) => {
+    await setupSupabaseMocks(page);
+  });
+
   test('Magic link sign-in form submits successfully', async ({ page }) => {
     // Mock the OTP endpoint
     await page.route('**/auth/v1/otp*', async (route) => {
@@ -28,30 +33,43 @@ test.describe('Authentication Flows', () => {
     await expect(page.getByText('Check your email for the magic link.')).toBeVisible();
   });
 
-  test('Passkey Virtual Authenticator Flow', async ({ page, context }) => {
+  test('Passkey E2E Registration and Sign-in Flow', async ({ page, context }) => {
+    // 1. Enable virtual authenticator (usb transport)
     const cdpSession = await context.newCDPSession(page);
     await cdpSession.send('WebAuthn.enable');
     await cdpSession.send('WebAuthn.addVirtualAuthenticator', {
       options: {
         protocol: 'ctap2',
-        transport: 'internal',
+        transport: 'usb',
         hasResidentKey: true,
         hasUserVerification: true,
         isUserVerified: true,
       }
     });
 
-    await page.goto('/');
-    await page.getByText('Sign In', { exact: true }).first().click();
+    // 2. Log in using Mock Auth (inject session) to access profile
+    await setupMockAuth(page);
+    await page.goto('/profile');
 
-    const passkeyBtn = page.getByRole('button', { name: /SIGN IN WITH PASSKEY/i });
-    await expect(passkeyBtn).toBeVisible();
-    
+    // 3. Register the passkey
+    const addBtn = page.getByRole('button', { name: /Add a Passkey/i });
+    await expect(addBtn).toBeVisible();
+    await addBtn.click();
+
+    // Verify confirmation message
+    await expect(page.locator('.form-ok')).toContainText('Passkey added');
+
+    // 4. Sign out
+    await page.getByRole('button', { name: /Sign Out/i }).click();
+
+    // The RequireAuth wrapper will keep us on /profile but automatically open the Sign In modal
+    const passkeyBtn = page.getByRole('button', { name: /Sign in with Passkey/i });
+    await expect(passkeyBtn).toBeVisible({ timeout: 5000 });
     await passkeyBtn.click();
 
-    // Verify the UI reacts to the click by entering the loading state
-    const loadingState = page.getByText('Awaiting your device...');
-    await expect(loadingState).toBeVisible({ timeout: 5000 });
+    // Verify successful sign-in transitions UI to authenticated state (modal closed, Sign Out shows)
+    await expect(page.getByText('Sign Out', { exact: true })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Sign In', { exact: true })).not.toBeVisible();
     
     await cdpSession.send('WebAuthn.disable');
   });

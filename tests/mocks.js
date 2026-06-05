@@ -110,6 +110,15 @@ export const MOCK_BOOK_COMMENTS = [
   }
 ];
 
+export const MOCK_PASSKEYS = [
+  {
+    id: 'pk-1',
+    user_id: MOCK_USER_ID,
+    created_at: '2026-05-27T00:00:00Z',
+    last_used_at: '2026-05-28T00:00:00Z'
+  }
+];
+
 // Helper to inject mock auth session to localStorage
 export async function setupMockAuth(page) {
   await page.addInitScript((session) => {
@@ -244,5 +253,103 @@ export async function setupSupabaseMocks(page) {
         })
       });
     }
+  });
+
+  // Passkey credentials table mockup
+  await page.route('**/rest/v1/passkey_credentials*', async (route) => {
+    const method = route.request().method();
+    if (method === 'GET') {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(MOCK_PASSKEYS)
+      });
+    } else if (method === 'DELETE') {
+      route.fulfill({
+        status: 204,
+        contentType: 'application/json'
+      });
+    }
+  });
+
+  // WebAuthn Begin/Complete Edge Functions
+  await page.route('**/functions/v1/webauthn-register-begin', async (route) => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        challenge: 'bW9ja19jaGFsbGVuZ2VfdmFsdWVfZm9yX3Rlc3Q',
+        rp: { name: 'HorrorWriter', id: 'localhost' },
+        user: { id: 'bW9ja191c2VyX2lk', name: 'testwriter', displayName: 'Test Writer' },
+        pubKeyCredParams: [
+          { type: 'public-key', alg: -7 },
+          { type: 'public-key', alg: -257 }
+        ],
+        authenticatorSelection: {
+          authenticatorAttachment: 'cross-platform',
+          requireResidentKey: true,
+          userVerification: 'required'
+        }
+      })
+    });
+  });
+
+  await page.route('**/functions/v1/webauthn-register-complete', async (route) => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ status: 'ok' })
+    });
+  });
+
+  await page.route('**/functions/v1/webauthn-authenticate-begin', async (route) => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        challenge: 'bW9ja19jaGFsbGVuZ2VfdmFsdWVfZm9yX3Rlc3Q',
+        rpId: 'localhost',
+        allowCredentials: [],
+        userVerification: 'preferred'
+      })
+    });
+  });
+
+  await page.route('**/functions/v1/webauthn-authenticate-complete', async (route) => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        token_hash: 'mock_token_hash',
+        email: 'testwriter@horrorwriter.org'
+      })
+    });
+  });
+
+  // Supabase Auth OTP verification (for exchange of token_hash -> session)
+  await page.route('**/auth/v1/verify*', async (route) => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        access_token: 'mock-access-token',
+        token_type: 'bearer',
+        expires_in: 3600,
+        refresh_token: 'mock-refresh-token',
+        user: {
+          id: MOCK_USER_ID,
+          aud: 'authenticated',
+          role: 'authenticated',
+          email: 'testwriter@horrorwriter.org',
+          email_confirmed_at: '2026-05-26T00:00:00Z',
+          app_metadata: { provider: 'email', providers: ['email'] },
+          user_metadata: {},
+          identities: [],
+          created_at: '2026-05-26T00:00:00Z',
+          updated_at: '2026-05-26T00:00:00Z'
+        },
+        expires_at: 9999999999
+      })
+    });
   });
 }
