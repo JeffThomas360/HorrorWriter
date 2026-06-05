@@ -10,9 +10,6 @@ const DISPOSABLE_DOMAINS = [
 
 export default function SignInModal({ isOpen, onClose }) {
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [isSignUp, setIsSignUp] = useState(false)
-  const [authMode, setAuthMode] = useState('password') // 'password' or 'magic_link'
   const [honeypot, setHoneypot] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isPasskeySubmitting, setIsPasskeySubmitting] = useState(false)
@@ -50,9 +47,6 @@ export default function SignInModal({ isOpen, onClose }) {
   useEffect(() => {
     if (!isOpen) {
       setEmail('')
-      setPassword('')
-      setIsSignUp(false)
-      setAuthMode('password')
       setError(null)
       setMessage(null)
     }
@@ -122,14 +116,9 @@ export default function SignInModal({ isOpen, onClose }) {
     setMessage(null)
 
     if (honeypot.trim()) {
-      // Honeypot triggered: simulate success for the bot
+      // Honeypot triggered: simulate success for the bot, but do not send anything
       setTimeout(() => {
-        if (authMode === 'magic_link') {
-          setMessage('Check your email for the magic link.')
-        } else {
-          setMessage('Welcome back!')
-          onClose()
-        }
+        setMessage('Check your email for the magic link.')
         setIsSubmitting(false)
       }, 500)
       return
@@ -149,41 +138,15 @@ export default function SignInModal({ isOpen, onClose }) {
     }
 
     try {
-      if (authMode === 'password') {
-        if (isSignUp) {
-          // Sign Up
-          const { data, error } = await supabase.auth.signUp({
-            email,
-            password,
-          })
-          if (error) throw error
-          if (data?.session) {
-            onClose()
-          } else {
-            setMessage('Registration successful! Please sign in.')
-            setIsSignUp(false)
-            setPassword('')
-          }
-        } else {
-          // Sign In
-          const { error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          })
-          if (error) throw error
-          onClose()
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: window.location.origin + '/auth/callback',
         }
-      } else {
-        // Magic Link
-        const { error } = await supabase.auth.signInWithOtp({
-          email,
-          options: {
-            emailRedirectTo: window.location.origin + '/auth/callback',
-          }
-        })
-        if (error) throw error
-        setMessage('Check your email for the magic link.')
-      }
+      })
+
+      if (error) throw error
+      setMessage('Check your email for the magic link.')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -198,11 +161,7 @@ export default function SignInModal({ isOpen, onClose }) {
 
         <div className="modal-header">
           <h2>Summon <em>Yourself</em></h2>
-          <p>
-            {authMode === 'password'
-              ? (isSignUp ? 'Establish your credentials to enter.' : 'Enter the void with your password.')
-              : 'Enter the void using magic link or passkey.'}
-          </p>
+          <p>Enter the void using your passkey or email credentials.</p>
 
           {error && <div style={{ color:'var(--blood)', fontSize:14, marginBottom:16 }}>{error}</div>}
           {message && <div style={{ color:'var(--cyan)', fontSize:14, marginBottom:16 }}>{message}</div>}
@@ -221,7 +180,7 @@ export default function SignInModal({ isOpen, onClose }) {
             />
           </div>
 
-          <div className="input-group" style={{ marginBottom: 16 }}>
+          <div className="input-group" style={{ marginBottom: 20 }}>
             <label htmlFor="email">Email Address</label>
             <input
               id="email"
@@ -233,20 +192,6 @@ export default function SignInModal({ isOpen, onClose }) {
             />
           </div>
 
-          {authMode === 'password' && (
-            <div className="input-group" style={{ marginBottom: 16 }}>
-              <label htmlFor="password">Password</label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-              />
-            </div>
-          )}
-
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <button
               type="submit"
@@ -254,43 +199,8 @@ export default function SignInModal({ isOpen, onClose }) {
               disabled={isSubmitting || isPasskeySubmitting}
               style={{ padding: '12px 16px' }}
             >
-              {isSubmitting
-                ? 'Channeling...'
-                : (authMode === 'password'
-                  ? (isSignUp ? '▸ Create Account' : '▸ Sign In')
-                  : '✉ Send Magic Link')}
+              {isSubmitting ? 'Channeling...' : '✉ Send Magic Link'}
             </button>
-
-            {authMode === 'password' ? (
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 4 }}>
-                <button
-                  type="button"
-                  onClick={() => setIsSignUp(!isSignUp)}
-                  style={{ background: 'none', border: 'none', color: 'var(--cyan)', cursor: 'pointer', padding: 0 }}
-                >
-                  {isSignUp ? 'Already have a password? Sign In' : 'Need a password? Register'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAuthMode('magic_link')}
-                  style={{ background: 'none', border: 'none', color: 'var(--bone-dim)', cursor: 'pointer', padding: 0 }}
-                >
-                  Use Magic Link instead
-                </button>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: 13, marginTop: 4 }}>
-                <button
-                  type="button"
-                  onClick={() => setAuthMode('password')}
-                  style={{ background: 'none', border: 'none', color: 'var(--cyan)', cursor: 'pointer', padding: 0 }}
-                >
-                  Sign in with Password
-                </button>
-              </div>
-            )}
-
-            <div style={{ borderTop: '1px solid rgba(243,236,217,.1)', margin: '12px 0 4px' }} />
 
             <button
               type="button"

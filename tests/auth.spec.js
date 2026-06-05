@@ -19,9 +19,6 @@ test.describe('Authentication Flows', () => {
     await page.goto('/');
     await page.getByText('Sign In', { exact: true }).first().click();
 
-    // Switch to magic link mode
-    await page.getByText('Use Magic Link instead').click();
-
     const emailInput = page.locator('#email');
     await emailInput.fill('testwriter@horrorwriter.org');
 
@@ -31,81 +28,6 @@ test.describe('Authentication Flows', () => {
 
     // Verify success message
     await expect(page.getByText('Check your email for the magic link.')).toBeVisible();
-  });
-
-  test('Email/password sign-in submits successfully', async ({ page }) => {
-    // Mock token password exchange
-    await page.route('**/auth/v1/token?grant_type=password', async (route) => {
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          access_token: 'mock-access-token',
-          token_type: 'bearer',
-          expires_in: 3600,
-          refresh_token: 'mock-refresh-token',
-          user: {
-            id: 'da141b7f-712c-47bc-9173-mockuserid01',
-            email: 'testwriter@horrorwriter.org',
-          }
-        })
-      });
-    });
-
-    await page.goto('/');
-    await page.getByText('Sign In', { exact: true }).first().click();
-
-    const emailInput = page.locator('#email');
-    await emailInput.fill('testwriter@horrorwriter.org');
-
-    const passwordInput = page.locator('#password');
-    await passwordInput.fill('scarypassword123');
-
-    const signInBtn = page.getByRole('button', { name: /▸ Sign In/i });
-    await expect(signInBtn).toBeEnabled();
-    await signInBtn.click();
-
-    // Verify modal closes (which happens on successful login)
-    await expect(page.locator('.modal-content')).not.toBeVisible();
-  });
-
-  test('Email/password registration submits successfully', async ({ page }) => {
-    // Mock signup endpoint
-    await page.route('**/auth/v1/signup', async (route) => {
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          access_token: 'mock-access-token',
-          token_type: 'bearer',
-          expires_in: 3600,
-          refresh_token: 'mock-refresh-token',
-          user: {
-            id: 'da141b7f-712c-47bc-9173-mockuserid01',
-            email: 'newwriter@horrorwriter.org',
-          }
-        })
-      });
-    });
-
-    await page.goto('/');
-    await page.getByText('Sign In', { exact: true }).first().click();
-
-    // Click register link
-    await page.getByText('Need a password? Register').click();
-
-    const emailInput = page.locator('#email');
-    await emailInput.fill('newwriter@horrorwriter.org');
-
-    const passwordInput = page.locator('#password');
-    await passwordInput.fill('scarypassword123');
-
-    const signUpBtn = page.getByRole('button', { name: /▸ Create Account/i });
-    await expect(signUpBtn).toBeEnabled();
-    await signUpBtn.click();
-
-    // Verify modal closes (session is returned immediately so it signs in and closes)
-    await expect(page.locator('.modal-content')).not.toBeVisible();
   });
 
   test('Passkey E2E Registration and Sign-in Flow', async ({ page, context }) => {
@@ -165,9 +87,6 @@ test.describe('Authentication Flows', () => {
     await page.goto('/');
     await page.getByText('Sign In', { exact: true }).first().click();
 
-    // Switch to magic link mode
-    await page.getByText('Use Magic Link instead').click();
-
     // Fill normal email
     const emailInput = page.locator('#email');
     await emailInput.fill('testwriter@horrorwriter.org');
@@ -190,9 +109,6 @@ test.describe('Authentication Flows', () => {
   test('Disposable email address is rejected', async ({ page }) => {
     await page.goto('/');
     await page.getByText('Sign In', { exact: true }).first().click();
-
-    // Switch to magic link mode
-    await page.getByText('Use Magic Link instead').click();
 
     // Fill blacklisted domain email
     const emailInput = page.locator('#email');
