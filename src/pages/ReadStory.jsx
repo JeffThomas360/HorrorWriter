@@ -118,6 +118,35 @@ export default function ReadStory() {
     commentMutation.mutate(commentContent)
   }
 
+  const handleFlag = async (targetType, targetId) => {
+    if (!supabase || !session) return
+    const reason = window.prompt("Reason for report (offensive content, spam, harassment):")
+    if (reason === null) return // User cancelled
+    
+    try {
+      const { error } = await supabase
+        .from('moderation_flags')
+        .insert({
+          reporter_id: session.user.id,
+          target_type: targetType,
+          target_id: targetId,
+          reason: reason.trim() || null
+        })
+      
+      if (error) {
+        if (error.code === '23505' || error.message?.includes('unique')) {
+          alert('You have already flagged this content.')
+        } else {
+          throw error
+        }
+      } else {
+        alert('Content flagged for review. Thank you for keeping the coven safe.')
+      }
+    } catch (err) {
+      alert(err.message || 'Failed to report content.')
+    }
+  }
+
   const error = queryError ? 'Story not found in the archives.' : null
 
   if (loading) return (
@@ -143,7 +172,18 @@ export default function ReadStory() {
   return (
     <section className="surface" style={{ maxWidth: 820, margin: '0 auto' }}>
       <div style={{ textAlign: 'center', marginBottom: 56 }}>
-        <p className="eyebrow">A story by @{book?.profiles?.handle || 'unknown'}</p>
+        <p className="eyebrow" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+          <span>A story by @{book?.profiles?.handle || 'unknown'}</span>
+          {session && session.user.id !== book?.author_id && (
+            <button 
+              type="button"
+              onClick={() => handleFlag('story', book.id)}
+              style={{ fontSize: 11, color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', opacity: 0.7 }}
+            >
+              🏳 Report
+            </button>
+          )}
+        </p>
         <h1 className="title" style={{ marginBottom: 18 }}>
           {book?.title}
         </h1>
@@ -175,14 +215,26 @@ export default function ReadStory() {
               const avColorIndex = (handle.length % 6) + 1
               return (
                 <article key={c.id} className="card">
-                  <div className="author">
-                    <div className={`avatar ${AV_COLORS[avColorIndex]}`} style={{ width: 36, height: 36, fontSize: 13 }}>
-                      {initials(handle)}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%', marginBottom: 14 }}>
+                    <div className="author" style={{ marginBottom: 0 }}>
+                      <div className={`avatar ${AV_COLORS[avColorIndex]}`} style={{ width: 36, height: 36, fontSize: 13 }}>
+                        {initials(handle)}
+                      </div>
+                      <div className="who">
+                        <span className="name">@{handle}</span>
+                        <span className="when">{timeAgo(c.created_at)}</span>
+                      </div>
                     </div>
-                    <div className="who">
-                      <span className="name">@{handle}</span>
-                      <span className="when">{timeAgo(c.created_at)}</span>
-                    </div>
+                    {session && session.user.id !== c.author_id && (
+                      <button 
+                        type="button" 
+                        onClick={() => handleFlag('critique', c.id)}
+                        style={{ fontSize: 12, color: 'var(--muted)', opacity: 0.7, padding: '4px 8px', background: 'none', border: 'none', cursor: 'pointer' }}
+                        className="flag-btn"
+                      >
+                        🏳 Report
+                      </button>
+                    )}
                   </div>
                   <div className="body">{c.content}</div>
                 </article>

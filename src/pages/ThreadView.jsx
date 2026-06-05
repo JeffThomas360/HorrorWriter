@@ -153,6 +153,35 @@ export default function ThreadView() {
     replyMutation.mutate(replyContent)
   }
 
+  const handleFlag = async (targetType, targetId) => {
+    if (!supabase || !session) return
+    const reason = window.prompt("Reason for report (offensive content, spam, harassment):")
+    if (reason === null) return // User cancelled
+    
+    try {
+      const { error } = await supabase
+        .from('moderation_flags')
+        .insert({
+          reporter_id: session.user.id,
+          target_type: targetType,
+          target_id: targetId,
+          reason: reason.trim() || null
+        })
+      
+      if (error) {
+        if (error.code === '23505' || error.message?.includes('unique')) {
+          alert('You have already flagged this content.')
+        } else {
+          throw error
+        }
+      } else {
+        alert('Content flagged for review. Thank you for keeping the coven safe.')
+      }
+    } catch (err) {
+      alert(err.message || 'Failed to report content.')
+    }
+  }
+
   const isSubmitting = replyMutation.isPending
 
   if (loading) return (
@@ -182,8 +211,17 @@ export default function ThreadView() {
         ← Back to {thread?.categories?.name?.split('·')[0].trim() || 'The Crypt'}
       </Link>
 
-      <h1 className="title" style={{ fontSize: 'clamp(32px, 4.5vw, 48px)', marginBottom: 14 }}>
-        {thread?.title}
+      <h1 className="title" style={{ fontSize: 'clamp(32px, 4.5vw, 48px)', marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
+        <span>{thread?.title}</span>
+        {session && session.user.id !== thread?.author_id && (
+          <button 
+            type="button"
+            onClick={() => handleFlag('thread', thread.id)}
+            style={{ fontSize: 13, color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 12px', opacity: 0.7 }}
+          >
+            🏳 Report
+          </button>
+        )}
       </h1>
 
       <span className="chip live" style={{ marginBottom: 32 }}>
@@ -196,16 +234,28 @@ export default function ThreadView() {
           const avColorIndex = (handle.length % 6) + 1
           return (
             <article key={p.id} className="card">
-              <div className="author">
-                <div className={`avatar ${AV_COLORS[avColorIndex]}`} style={{ width: 36, height: 36, fontSize: 13 }}>
-                  {initials(handle)}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%', marginBottom: 14 }}>
+                <div className="author" style={{ marginBottom: 0 }}>
+                  <div className={`avatar ${AV_COLORS[avColorIndex]}`} style={{ width: 36, height: 36, fontSize: 13 }}>
+                    {initials(handle)}
+                  </div>
+                  <div className="who">
+                    <span className="name">@{handle}</span>
+                    <span className="when">
+                      {index === 0 ? 'Original Post' : `Reply #${index}`} · {timeAgo(p.created_at)}
+                    </span>
+                  </div>
                 </div>
-                <div className="who">
-                  <span className="name">@{handle}</span>
-                  <span className="when">
-                    {index === 0 ? 'Original Post' : `Reply #${index}`} · {timeAgo(p.created_at)}
-                  </span>
-                </div>
+                {session && session.user.id !== p.author_id && (
+                  <button 
+                    type="button" 
+                    onClick={() => handleFlag('post', p.id)}
+                    style={{ fontSize: 12, color: 'var(--muted)', opacity: 0.7, padding: '4px 8px', background: 'none', border: 'none', cursor: 'pointer' }}
+                    className="flag-btn"
+                  >
+                    🏳 Report
+                  </button>
+                )}
               </div>
               <div className="body">{p.content}</div>
             </article>

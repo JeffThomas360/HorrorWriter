@@ -361,4 +361,13 @@ export async function setupSupabaseMocks(page) {
       body: JSON.stringify('thread-1')
     });
   });
+
+  // Moderation flags mock
+  await page.route('**/rest/v1/moderation_flags*', async (route) => {
+    route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({ status: 'flagged' })
+    });
+  });
 }
