@@ -66,7 +66,7 @@ export default function AuthCallback() {
       }
     })
 
-    // Fallback: If no event fires within 5 seconds, check session manually
+    // Fallback: If no event fires within 15 seconds, check session manually
     const timer = setTimeout(async () => {
       const { data } = await supabase.auth.getSession()
       if (data.session) {
@@ -81,7 +81,7 @@ export default function AuthCallback() {
       } else {
         if (active) setError("The authentication link expired or was invalid. Please try again.")
       }
-    }, 5000)
+    }, 15000)
 
     return () => {
       active = false
