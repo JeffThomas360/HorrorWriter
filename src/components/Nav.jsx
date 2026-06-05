@@ -31,6 +31,11 @@ export default function Nav({ onSignInClick }) {
         <NavLink to="/" end className={linkClass}>Home</NavLink>
         <NavLink to="/forum" className={linkClass}>The Crypt</NavLink>
         <NavLink to="/library" className={linkClass}>Library</NavLink>
+        {profile?.is_admin && (
+          <NavLink to="/moderation" className={linkClass} style={{ color: 'var(--red)' }}>
+            [Terminal]
+          </NavLink>
+        )}
       </nav>
 
       {session ? (

@@ -119,6 +119,27 @@ export const MOCK_PASSKEYS = [
   }
 ];
 
+export const MOCK_MODERATION_FLAGS = [
+  {
+    id: 'flag-1',
+    reporter_id: 'user-2',
+    target_type: 'story',
+    target_id: 'book-1',
+    reason: 'Spam content in Innsmouth',
+    created_at: '2026-06-05T01:00:00Z',
+    profiles: { handle: 'goth_reader' }
+  },
+  {
+    id: 'flag-2',
+    reporter_id: 'user-2',
+    target_type: 'critique',
+    target_id: 'comment-1',
+    reason: 'Harassment',
+    created_at: '2026-06-05T01:10:00Z',
+    profiles: { handle: 'goth_reader' }
+  }
+];
+
 // Helper to inject mock auth session to localStorage
 export async function setupMockAuth(page) {
   await page.addInitScript((session) => {
@@ -131,11 +152,29 @@ export async function setupSupabaseMocks(page) {
   await page.route('**/rest/v1/profiles*', async (route) => {
     const method = route.request().method();
     if (method === 'GET') {
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(MOCK_PROFILE)
-      });
+      const url = route.request().url();
+      if (url.includes('handle=ilike.')) {
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([
+            {
+              id: 'user-3',
+              handle: 'spooky_newbie',
+              display_name: 'Spooky Newbie',
+              is_admin: false,
+              is_shadowbanned: false,
+              requires_screening: true
+            }
+          ])
+        });
+      } else {
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(MOCK_PROFILE)
+        });
+      }
     } else if (method === 'POST' || method === 'PUT' || method === 'PATCH') {
       route.fulfill({
         status: 200,
@@ -157,7 +196,21 @@ export async function setupSupabaseMocks(page) {
     const method = route.request().method();
     if (method === 'GET') {
       const url = route.request().url();
-      if (url.includes('id=eq.')) {
+      if (url.includes('approved=eq.false')) {
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([
+            {
+              id: 'thread-unapproved',
+              title: 'Unapproved Thread',
+              author_id: 'user-3',
+              created_at: '2026-06-05T02:10:00Z',
+              profiles: { handle: 'spooky_newbie' }
+            }
+          ])
+        });
+      } else if (url.includes('id=eq.')) {
         route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -176,17 +229,41 @@ export async function setupSupabaseMocks(page) {
         contentType: 'application/json',
         body: JSON.stringify(MOCK_THREADS[0])
       });
+    } else if (method === 'PATCH' || method === 'PUT') {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ status: 'ok' })
+      });
     }
   });
 
   await page.route('**/rest/v1/posts*', async (route) => {
     const method = route.request().method();
     if (method === 'GET') {
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(MOCK_POSTS)
-      });
+      const url = route.request().url();
+      if (url.includes('approved=eq.false')) {
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([
+            {
+              id: 'post-unapproved',
+              content: 'Unapproved Post Reply',
+              thread_id: 'thread-1',
+              author_id: 'user-3',
+              created_at: '2026-06-05T02:15:00Z',
+              profiles: { handle: 'spooky_newbie' }
+            }
+          ])
+        });
+      } else {
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(MOCK_POSTS)
+        });
+      }
     } else if (method === 'POST') {
       const postData = JSON.parse(route.request().postData() || '{}');
       route.fulfill({
@@ -201,6 +278,12 @@ export async function setupSupabaseMocks(page) {
           profiles: { handle: 'testwriter' }
         })
       });
+    } else if (method === 'PATCH' || method === 'PUT') {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ status: 'ok' })
+      });
     }
   });
 
@@ -208,7 +291,21 @@ export async function setupSupabaseMocks(page) {
     const method = route.request().method();
     if (method === 'GET') {
       const url = route.request().url();
-      if (url.includes('id=eq.')) {
+      if (url.includes('approved=eq.false')) {
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([
+            {
+              id: 'book-unapproved',
+              title: 'Unapproved Story',
+              author_id: 'user-3',
+              created_at: '2026-06-05T02:00:00Z',
+              profiles: { handle: 'spooky_newbie' }
+            }
+          ])
+        });
+      } else if (url.includes('id=eq.')) {
         route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -227,17 +324,41 @@ export async function setupSupabaseMocks(page) {
         contentType: 'application/json',
         body: JSON.stringify(MOCK_BOOKS[0])
       });
+    } else if (method === 'PATCH' || method === 'PUT') {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ status: 'ok' })
+      });
     }
   });
 
   await page.route('**/rest/v1/book_comments*', async (route) => {
     const method = route.request().method();
     if (method === 'GET') {
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(MOCK_BOOK_COMMENTS)
-      });
+      const url = route.request().url();
+      if (url.includes('approved=eq.false')) {
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([
+            {
+              id: 'comment-unapproved',
+              content: 'Unapproved Critique content',
+              book_id: 'book-1',
+              author_id: 'user-3',
+              created_at: '2026-06-05T02:05:00Z',
+              profiles: { handle: 'spooky_newbie' }
+            }
+          ])
+        });
+      } else {
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(MOCK_BOOK_COMMENTS)
+        });
+      }
     } else if (method === 'POST') {
       const commentData = JSON.parse(route.request().postData() || '{}');
       route.fulfill({
@@ -251,6 +372,12 @@ export async function setupSupabaseMocks(page) {
           created_at: new Date().toISOString(),
           profiles: { handle: 'testwriter' }
         })
+      });
+    } else if (method === 'PATCH' || method === 'PUT') {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ status: 'ok' })
       });
     }
   });
@@ -364,10 +491,25 @@ export async function setupSupabaseMocks(page) {
 
   // Moderation flags mock
   await page.route('**/rest/v1/moderation_flags*', async (route) => {
-    route.fulfill({
-      status: 201,
-      contentType: 'application/json',
-      body: JSON.stringify({ status: 'flagged' })
-    });
+    const method = route.request().method();
+    if (method === 'GET') {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(MOCK_MODERATION_FLAGS)
+      });
+    } else if (method === 'POST') {
+      route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({ status: 'flagged' })
+      });
+    } else if (method === 'DELETE') {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ status: 'deleted' })
+      });
+    }
   });
 }
