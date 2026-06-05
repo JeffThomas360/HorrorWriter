@@ -12,8 +12,12 @@ async function postAudio(blob, filename) {
   const form = new FormData()
   form.append('audio', blob, filename)
   const res = await fetch(`${TRANSCRIBE_URL}/transcribe`, { method: 'POST', body: form })
+  if (!res.ok) {
+    let msg = 'Transcription failed.'
+    try { const d = await res.json(); msg = d.error ?? msg } catch {} // eslint-disable-line no-empty
+    throw new Error(msg)
+  }
   const data = await res.json()
-  if (!res.ok) throw new Error(data.error ?? 'Transcription failed.')
   return data.text
 }
 
@@ -99,7 +103,9 @@ export default function TranscribeModal({ onTranscribed, onClose }) {
       setRecording(false)
       if (blob.size > MAX_BYTES) {
         setRecError('Recording is too large — try a shorter clip.')
+        setRecBlob(null)
       } else {
+        setRecError(null)
         setRecBlob(blob)
       }
     }
