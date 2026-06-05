@@ -2,8 +2,14 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
 import { signInWithPasskey } from '../lib/passkey'
 
+const DISPOSABLE_DOMAINS = [
+  'mailinator.com', 'yopmail.com', '10minutemail.com', 'tempmail.com',
+  'guerrillamail.com', 'sharklasers.com', 'dispostable.com', 'getairmail.com'
+]
+
 export default function SignInModal({ isOpen, onClose }) {
   const [email, setEmail] = useState('')
+  const [honeypot, setHoneypot] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isPasskeySubmitting, setIsPasskeySubmitting] = useState(false)
   const [message, setMessage] = useState(null)
@@ -75,6 +81,22 @@ export default function SignInModal({ isOpen, onClose }) {
     setIsSubmitting(true)
     setError(null)
     setMessage(null)
+
+    if (honeypot.trim()) {
+      // Honeypot triggered: simulate success for the bot, but do not send anything
+      setTimeout(() => {
+        setMessage('Check your email for the magic link.')
+        setIsSubmitting(false)
+      }, 500)
+      return
+    }
+
+    const domain = email.split('@')[1]?.toLowerCase().trim()
+    if (DISPOSABLE_DOMAINS.includes(domain)) {
+      setError('Temporary or disposable email addresses are not allowed.')
+      setIsSubmitting(false)
+      return
+    }
 
     if (!supabase) {
       setError('Supabase is not connected yet.')
@@ -176,6 +198,18 @@ export default function SignInModal({ isOpen, onClose }) {
           </button>
         ) : (
           <form onSubmit={handleSubmit} className="modal-form" style={{ animation: 'modalSlideUp 0.2s var(--ease)' }}>
+            {/* Honeypot field - hidden from humans */}
+            <div style={{ position: 'absolute', left: '-5000px' }} aria-hidden="true">
+              <input
+                type="text"
+                name="website_url_hp"
+                value={honeypot}
+                onChange={e => setHoneypot(e.target.value)}
+                tabIndex="-1"
+                autoComplete="off"
+              />
+            </div>
+
             <div className="input-group">
               <label htmlFor="email">Email Address</label>
               <input
