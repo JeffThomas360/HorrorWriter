@@ -72,13 +72,12 @@ The site is deployed but `horrorwriter.org` still points to an old Pages project
 
 ## Step 5 — Verify Cloudflare Pages environment variables
 
-In the **horrorwriter** Pages project → Settings → Environment variables, confirm all three exist for **Production** (and optionally Preview):
+In the **horrorwriter** Pages project → Settings → Environment variables, confirm both exist for **Production** (and optionally Preview):
 
 | Variable | Where to find it |
 |---|---|
 | `VITE_SUPABASE_URL` | Supabase Dashboard → Settings → API |
 | `VITE_SUPABASE_ANON_KEY` | Supabase Dashboard → Settings → API |
-| `VITE_TURNSTILE_SITE_KEY` | Cloudflare Dashboard → Turnstile |
 
 Trigger a manual redeploy after adding/changing env vars.
 

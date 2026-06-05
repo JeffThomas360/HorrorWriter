@@ -50,12 +50,5 @@ export default defineConfig({
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
-    env: {
-      // Cloudflare dummy site key: forces an interactive challenge that never
-      // auto-solves, so the Send Magic Link button stays gated. Decouples the
-      // Turnstile gating test from the developer's .env.local (where the key is
-      // intentionally commented out for local-dev ergonomics).
-      VITE_TURNSTILE_SITE_KEY: '3x00000000000000000000FF',
-    },
   },
 });
