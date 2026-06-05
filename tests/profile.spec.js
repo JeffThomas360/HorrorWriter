@@ -26,6 +26,11 @@ test.describe('Profile Editor Flows', () => {
   test('Modify and save profile details successfully', async ({ page }) => {
     await page.goto('/profile');
 
+    // Set up request listener before clicking save
+    const requestPromise = page.waitForRequest(req => 
+      req.url().includes('/rest/v1/profiles') && (req.method() === 'PUT' || req.method() === 'PATCH' || req.method() === 'POST')
+    );
+
     // Fill new location and bio details
     const locationInput = page.locator('input[placeholder="Ohio"]');
     await locationInput.fill('Transylvania');
@@ -38,8 +43,68 @@ test.describe('Profile Editor Flows', () => {
     await expect(saveBtn).toBeEnabled();
     await saveBtn.click();
 
+    // Verify request payload
+    const request = await requestPromise;
+    const postData = JSON.parse(request.postData() || '{}');
+    expect(postData).toEqual({
+      handle: 'testwriter',
+      display_name: 'Test Writer',
+      bio: 'I write scary stories in a dark castle.',
+      location: 'Transylvania',
+      pronouns: 'they/them',
+      website_url: 'https://horrorwriter.org'
+    });
+
     // Verify confirmation message
     await expect(page.locator('.form-ok')).toContainText('Saved');
+  });
+
+  test('Profile editor handles validation errors - invalid inputs', async ({ page }) => {
+    await page.goto('/profile');
+
+    // 1. Try to input an invalid website URL (no http/https but valid URL format for HTML5 type="url")
+    const websiteInput = page.locator('label:has-text("Website") input');
+    await websiteInput.fill('ftp://invalid-website-format.com');
+
+    // Click save
+    await page.getByRole('button', { name: /Save changes/i }).click();
+
+    // Verify error is shown
+    await expect(page.locator('.form-err')).toContainText('Website must start with http:// or https://');
+
+    // 2. Try to input an invalid handle (too short)
+    const handleInput = page.locator('label:has-text("Handle") input');
+    await handleInput.fill('ab');
+
+    // Click save
+    await page.getByRole('button', { name: /Save changes/i }).click();
+
+    // Verify error is shown
+    await expect(page.locator('.form-err')).toContainText('Handle must be 3-30 chars: a-z, 0-9, hyphens, underscores, or dots only.');
+  });
+
+  test('Profile save fails - database error handling', async ({ page }) => {
+    // Override profile update to fail
+    await page.route('**/rest/v1/profiles*', async (route) => {
+      const method = route.request().method();
+      if (method === 'PUT' || method === 'PATCH' || method === 'POST') {
+        route.fulfill({
+          status: 409,
+          contentType: 'application/json',
+          body: JSON.stringify({ message: 'That handle is already taken.' })
+        });
+      } else {
+        route.fallback();
+      }
+    });
+
+    await page.goto('/profile');
+
+    // Save changes
+    await page.getByRole('button', { name: /Save changes/i }).click();
+
+    // Verify database error handling in UI
+    await expect(page.locator('.form-err')).toContainText('That handle is already taken.');
   });
 
   test('List existing passkeys on profile page', async ({ page }) => {

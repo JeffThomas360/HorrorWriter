@@ -33,6 +33,11 @@ test.describe('Forum Flows', () => {
     
     await page.goto('/forum/new');
 
+    // Set up request listener before clicking submit
+    const requestPromise = page.waitForRequest(req => 
+      req.url().includes('/rpc/create_thread_with_post') && req.method() === 'POST'
+    );
+
     // Fill the title and content
     await page.locator('input[placeholder="A chilling subject…"]').fill('The New Haunted Mansion');
     await page.locator('textarea[placeholder="Speak into the void…"]').fill('I think there is something in the attic...');
@@ -42,9 +47,49 @@ test.describe('Forum Flows', () => {
     await expect(submitBtn).toBeEnabled();
     await submitBtn.click();
 
+    // Verify request payload
+    const request = await requestPromise;
+    const postData = JSON.parse(request.postData() || '{}');
+    expect(postData).toEqual({
+      p_title: 'The New Haunted Mansion',
+      p_category_id: 'cat-1',
+      p_content: 'I think there is something in the attic...'
+    });
+
     // Verify it redirects back to the forum
     await page.waitForURL('**/forum');
     await expect(page.locator('.forum-grid')).toBeVisible();
+  });
+
+  test('Create a new thread fails - error handling', async ({ page }) => {
+    // Inject mock session
+    await setupMockAuth(page);
+
+    // Override the RPC call to return a database error
+    await page.route('**/rest/v1/rpc/create_thread_with_post*', async (route) => {
+      route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({ message: 'Database constraint violation' })
+      });
+    });
+
+    await page.goto('/forum/new');
+
+    // Fill the title and content
+    await page.locator('input[placeholder="A chilling subject…"]').fill('Broken Thread');
+    await page.locator('textarea[placeholder="Speak into the void…"]').fill('Will fail to submit.');
+
+    // Submit
+    const submitBtn = page.getByRole('button', { name: /Post Thread/i });
+    await expect(submitBtn).toBeEnabled();
+    await submitBtn.click();
+
+    // Verify error message is rendered
+    await expect(page.locator('.form-err')).toContainText('Database constraint violation');
+
+    // Verify we are still on the create page
+    expect(page.url()).toContain('/forum/new');
   });
 
   test('Post a reply to a thread (authenticated)', async ({ page }) => {
