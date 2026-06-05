@@ -47,15 +47,24 @@ export default {
       return json({ error: 'No audio file provided' }, 400, origin)
     }
 
+    const cl = Number(req.headers.get('content-length'))
+    if (!isNaN(cl) && cl > MAX_BYTES) {
+      return json({ error: 'File exceeds the 4 MB limit.' }, 413, origin)
+    }
+
     const audioBuffer = await audioFile.arrayBuffer()
 
     if (audioBuffer.byteLength > MAX_BYTES) {
       return json({ error: 'File exceeds the 4 MB limit.' }, 413, origin)
     }
 
+    if (!env.AI) {
+      return json({ error: 'AI binding not configured.' }, 503, origin)
+    }
+
     try {
       const result = await env.AI.run('@cf/openai/whisper', {
-        audio: [...new Uint8Array(audioBuffer)],
+        audio: new Uint8Array(audioBuffer),
       })
       return json({ text: result.text ?? '' }, 200, origin)
     } catch (err) {
