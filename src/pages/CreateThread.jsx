@@ -36,26 +36,13 @@ export default function CreateThread() {
 
   const mutation = useMutation({
     mutationFn: async ({ title, categoryId, content }) => {
-      const { data: threadData, error: threadError } = await supabase
-        .from('threads')
-        .insert({
-          title: title.trim(),
-          category_id: categoryId,
-          author_id: session.user.id
-        })
-        .select()
-        .single()
-      if (threadError) throw threadError
-
-      const { error: postError } = await supabase
-        .from('posts')
-        .insert({
-          thread_id: threadData.id,
-          author_id: session.user.id,
-          content: content.trim()
-        })
-      if (postError) throw postError
-      return threadData
+      const { data, error } = await supabase.rpc('create_thread_with_post', {
+        p_title: title.trim(),
+        p_category_id: categoryId,
+        p_content: content.trim()
+      })
+      if (error) throw error
+      return { id: data }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['threads'] })

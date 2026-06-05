@@ -89,6 +89,10 @@ export default function Profile() {
       setStatus({ error: 'Handle must be 3-30 chars: a-z, 0-9, hyphens, underscores, or dots only.' })
       return
     }
+    if (form.website_url && !/^https?:\/\//i.test(form.website_url.trim())) {
+      setStatus({ error: 'Website must start with http:// or https://' })
+      return
+    }
     // Warn before changing an existing handle — old /u/<handle> links break.
     if (profile.handle && form.handle !== profile.handle) {
       const ok = window.confirm(

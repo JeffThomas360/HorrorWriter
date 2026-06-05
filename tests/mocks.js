@@ -352,4 +352,13 @@ export async function setupSupabaseMocks(page) {
       })
     });
   });
+
+  // RPC mock for create_thread_with_post
+  await page.route('**/rest/v1/rpc/create_thread_with_post*', async (route) => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify('thread-1')
+    });
+  });
 }

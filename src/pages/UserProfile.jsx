@@ -90,9 +90,13 @@ export default function UserProfile() {
         )}
         {profile.website_url && (
           <p className="profile-website">
-            <a href={profile.website_url} target="_blank" rel="noopener noreferrer">
-              {profile.website_url}
-            </a>
+            {profile.website_url.trim().startsWith('http://') || profile.website_url.trim().startsWith('https://') ? (
+              <a href={profile.website_url.trim()} target="_blank" rel="noopener noreferrer">
+                {profile.website_url}
+              </a>
+            ) : (
+              <span>{profile.website_url}</span>
+            )}
           </p>
         )}
       </ProfileHead>
