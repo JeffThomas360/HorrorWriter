@@ -60,21 +60,11 @@ src/
 tests/                   # Playwright E2E (chromium); mocks in tests/mocks.js
   auth.spec.js  forum.spec.js  library.spec.js  profile.spec.js
 supabase/
-  migrations/            # Applied to remote via `supabase db push`
-    20240428000000_init_profiles.sql
-    20240428000002_profile_extras.sql    # location, pronouns, website, avatar
-    20240428000004_storage_avatars.sql   # storage bucket + RLS
-    20240514000000_library_schema.sql    # books table
-    20240514000001_forum_schema.sql      # categories, threads tables
-    20240520000000_content_schemas.sql   # posts table, content col on books
-    20260519000000_passkeys.sql          # passkey_credentials, webauthn_challenges
-    20260520034702_add_type_to_webauthn_challenges.sql
-    20260520034846_add_type_to_webauthn_challenges.sql
-    20260523000000_fix_replies_count.sql           # OP no longer counted as a reply
-    20260523000001_create_missing_posts_table.sql  # ensures posts table + books.content
-    20260523000002_rate_limiting.sql               # enforce_rate_limit() trigger fn
-    20260527000000_enable_realtime_posts.sql       # Realtime publication for posts
-    20260527000001_book_comments.sql               # book_comments (story critiques)
+  migrations/            # ONE consolidated baseline (clean-reset, 2026-06-08)
+    00000000000000_baseline.sql   # full schema: auth-trigger, profiles, passkeys,
+                                  # library, forum, comments, storage, realtime,
+                                  # rate-limit RPC + the moderation suite data model
+  migrations_archive/    # the 24 pre-baseline migrations (history only, NOT applied)
   functions/
     webauthn-register-begin/
     webauthn-register-complete/
@@ -168,12 +158,27 @@ git push
 | `threads` | Forum threads | owner write, public read |
 | `posts` | Forum replies | owner write, public read |
 | `book_comments` | Story critiques / responses | owner write, public read |
+| `reports` | User reports (content/user/site/appeal) | reporter + mods (Phase 2 UI) |
+| `mod_actions` | Append-only moderation audit log | warden+ read (Phase 4 UI) |
+| `notifications` | Closed-loop user notifications | owner read; definer-only insert |
+| `mod_role_badges` | Role→emoji map (Keeper-editable) | public read, keeper write |
+| `filter_rules` | Submission auto-filter rules | keeper only (Phase 5 UI) |
 
 Storage bucket: `avatars` — per-user folder, owner RLS.
 
-Insert rate limiting is enforced DB-side via the `enforce_rate_limit()` trigger function
-(`20260523000002_rate_limiting.sql`). `posts` is added to the Realtime publication
-(`20260527000000_enable_realtime_posts.sql`) for live thread updates.
+**Moderation model (Phase 0 baseline, 2026-06-08):** `is_admin`/`hidden`/`approved`/
+`moderation_flags` were dropped and replaced. `profiles` now carries `mod_role`
+(`sentinel|moderator|warden|keeper`) + `mod_scope` (`all|forum|library`) plus standing
+flags (`requires_screening`, `is_shadowbanned`, `banned_until`, `ban_reason`). Content
+tables (`books`/`threads`/`posts`/`book_comments`) carry a single `mod_status`
+(`live|screening|hidden`). Visibility/permissions are enforced in RLS via the SQL helpers
+`mod_can(action, area)` and `content_visible(status, author, area)`. The 5 new tables
+above are created empty — their behavioral triggers + admin UI land in Phases 1–6
+(see `docs/superpowers/specs/2026-06-08-moderation-suite-design.md`).
+
+Insert rate limiting is enforced DB-side via the `enforce_rate_limit()` trigger function.
+`posts` is on the Realtime publication for live thread updates. (Both now live in the
+consolidated baseline migration.)
 
 ---
 
