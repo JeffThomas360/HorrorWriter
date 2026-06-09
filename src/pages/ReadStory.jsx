@@ -118,35 +118,6 @@ export default function ReadStory() {
     commentMutation.mutate(commentContent)
   }
 
-  const handleFlag = async (targetType, targetId) => {
-    if (!supabase || !session) return
-    const reason = window.prompt("Reason for report (offensive content, spam, harassment):")
-    if (reason === null) return // User cancelled
-    
-    try {
-      const { error } = await supabase
-        .from('moderation_flags')
-        .insert({
-          reporter_id: session.user.id,
-          target_type: targetType,
-          target_id: targetId,
-          reason: reason.trim() || null
-        })
-      
-      if (error) {
-        if (error.code === '23505' || error.message?.includes('unique')) {
-          alert('You have already flagged this content.')
-        } else {
-          throw error
-        }
-      } else {
-        alert('Content flagged for review. Thank you for keeping the coven safe.')
-      }
-    } catch (err) {
-      alert(err.message || 'Failed to report content.')
-    }
-  }
-
   const error = queryError ? 'Story not found in the archives.' : null
 
   if (loading) return (
@@ -174,15 +145,7 @@ export default function ReadStory() {
       <div style={{ textAlign: 'center', marginBottom: 56 }}>
         <p className="eyebrow" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
           <span>A story by @{book?.profiles?.handle || 'unknown'}</span>
-          {session && session.user.id !== book?.author_id && (
-            <button 
-              type="button"
-              onClick={() => handleFlag('story', book.id)}
-              style={{ fontSize: 11, color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', opacity: 0.7 }}
-            >
-              🏳 Report
-            </button>
-          )}
+          {/* TODO(phase2): ReportModal trigger */}
         </p>
         <h1 className="title" style={{ marginBottom: 18 }}>
           {book?.title}
@@ -225,16 +188,7 @@ export default function ReadStory() {
                         <span className="when">{timeAgo(c.created_at)}</span>
                       </div>
                     </div>
-                    {session && session.user.id !== c.author_id && (
-                      <button 
-                        type="button" 
-                        onClick={() => handleFlag('critique', c.id)}
-                        style={{ fontSize: 12, color: 'var(--muted)', opacity: 0.7, padding: '4px 8px', background: 'none', border: 'none', cursor: 'pointer' }}
-                        className="flag-btn"
-                      >
-                        🏳 Report
-                      </button>
-                    )}
+                    {/* TODO(phase2): ReportModal trigger */}
                   </div>
                   <div className="body">{c.content}</div>
                 </article>
