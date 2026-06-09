@@ -39,6 +39,9 @@ Thumbs.db
 KEYS/
 CLAUDE.md
 
+# Supabase scratch schema dumps (DO NOT COMMIT)
+supabase/_remote_dump*.sql
+
 # Playwright
 playwright-report/
 test-results/
