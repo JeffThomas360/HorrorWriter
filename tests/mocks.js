@@ -112,6 +112,20 @@ export const MOCK_BOOK_COMMENTS = [
   }
 ];
 
+export const MOCK_REPORTS = [
+  {
+    id: 'report-1',
+    target_type: 'site',
+    target_id: null,
+    reporter_id: MOCK_USER_ID,
+    category: 'other',
+    details: 'The site is broken on my fridge.',
+    status: 'open',
+    created_at: '2026-06-10T00:00:00Z',
+    profiles: { handle: 'testwriter' }
+  }
+];
+
 export const MOCK_PASSKEYS = [
   {
     id: 'pk-1',
@@ -409,26 +423,26 @@ export async function setupSupabaseMocks(page, opts = {}) {
     });
   });
 
-  // Moderation flags mock
-  await page.route('**/rest/v1/moderation_flags*', async (route) => {
+  // Reports mock
+  await page.route('**/rest/v1/reports*', async (route) => {
     const method = route.request().method();
     if (method === 'GET') {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(MOCK_MODERATION_FLAGS)
+        body: JSON.stringify(MOCK_REPORTS)
       });
     } else if (method === 'POST') {
       route.fulfill({
         status: 201,
         contentType: 'application/json',
-        body: JSON.stringify({ status: 'flagged' })
+        body: JSON.stringify(MOCK_REPORTS[0])
       });
-    } else if (method === 'DELETE') {
+    } else if (method === 'PATCH' || method === 'PUT') {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ status: 'deleted' })
+        body: JSON.stringify({ status: 'ok' })
       });
     }
   });

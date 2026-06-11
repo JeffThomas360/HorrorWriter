@@ -16,7 +16,7 @@ export default function ReportsTab() {
     setLoading(true)
     const { data, error } = await supabase
       .from('reports')
-      .select('*, profiles(handle)')
+      .select('*, profiles!reporter_id(handle)')
       .neq('target_type', 'site')
       .eq('status', 'open')
       .order('created_at', { ascending: false })
