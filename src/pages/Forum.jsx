@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 import { useAuth } from '../components/AuthContext'
 import { useQuery } from '@tanstack/react-query'
+import Skeleton from '../components/Skeleton'
 
 const AV_COLORS = ['', 'av-1', 'av-2', 'av-3', 'av-4', 'av-5', 'av-6']
 
@@ -121,8 +122,37 @@ export default function Forum() {
 
   if (loading) return (
     <section className="surface">
-      <div className="status-panel">
-        <p className="loading-pulse">Descending into the Crypt…</p>
+      <div className="section-head">
+        <div className="left">
+          <p className="eyebrow">The Forums</p>
+          <h2>The <em>Crypt</em></h2>
+          <p>Where the conversations live. Pick a category, or search the dark.</p>
+        </div>
+      </div>
+      <div className="forum-grid">
+        <aside>
+          <ul className="cat-list">
+            {[1, 2, 3, 4].map(i => (
+              <li key={i} style={{ padding: '8px 0' }}>
+                <Skeleton width="60%" height="20px" />
+              </li>
+            ))}
+          </ul>
+        </aside>
+        <div>
+          <div className="forum-tools" style={{ marginBottom: 24 }}>
+            <Skeleton width="100%" height="40px" borderRadius="99px" />
+          </div>
+          {[1, 2, 3, 4, 5].map(i => (
+            <div key={i} className="thread" style={{ opacity: 1 }}>
+              <Skeleton width="40px" height="40px" borderRadius="50%" />
+              <div className="body" style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '4px 0' }}>
+                <Skeleton width="70%" height="18px" />
+                <Skeleton width="40%" height="14px" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   )

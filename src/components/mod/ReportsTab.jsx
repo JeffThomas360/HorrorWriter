@@ -3,6 +3,7 @@ import { supabase } from '../../supabaseClient'
 import { resolveReport } from '../../lib/modActions'
 import { Link } from 'react-router-dom'
 import UserModProfile from './UserModProfile'
+import { toast } from 'sonner'
 
 const MOD_MACROS = ["Spam", "House Rules Violation", "Plagiarism", "False Flag"]
 
@@ -48,8 +49,9 @@ export default function ReportsTab() {
     try {
       await resolveReport(id, actionTaken, note)
       setReports(prev => prev.filter(r => r.id !== id))
+      toast.success(`Report ${actionTaken}`)
     } catch (err) {
-      alert(err.message)
+      toast.error(err.message)
     }
   }
 

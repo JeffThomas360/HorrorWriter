@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../supabaseClient'
+import { toast } from 'sonner'
 
 export default function FilterRulesTab() {
   const [rules, setRules] = useState([])
@@ -25,23 +26,27 @@ export default function FilterRulesTab() {
       kind: newKind,
       value: newValue.trim()
     }]).select().single()
-    if (error) alert(error.message)
+    if (error) toast.error(error.message)
     else {
       setRules([data, ...rules])
       setNewValue('')
+      toast.success('Rule added')
     }
   }
 
   const handleToggle = async (id, currentEnabled) => {
     const { error } = await supabase.from('filter_rules').update({ enabled: !currentEnabled }).eq('id', id)
-    if (error) alert(error.message)
+    if (error) toast.error(error.message)
     else setRules(rules.map(r => r.id === id ? { ...r, enabled: !currentEnabled } : r))
   }
 
   const handleDelete = async (id) => {
     const { error } = await supabase.from('filter_rules').delete().eq('id', id)
-    if (error) alert(error.message)
-    else setRules(rules.filter(r => r.id !== id))
+    if (error) toast.error(error.message)
+    else {
+      setRules(rules.filter(r => r.id !== id))
+      toast.success('Rule deleted')
+    }
   }
 
   if (loading) return <p className="dim">Loading AutoMod rules...</p>

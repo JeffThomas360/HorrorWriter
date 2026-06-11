@@ -3,6 +3,7 @@ import { supabase } from '../supabaseClient'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 import { useAuth } from '../components/AuthContext'
 import { useQuery } from '@tanstack/react-query'
+import Skeleton from '../components/Skeleton'
 
 const BADGE_CLASS = { NEW: '', CRITIQUE: 'cyan', COMPLETE: 'gold' }
 
@@ -47,22 +48,6 @@ export default function Library() {
 
   const error = queryError ? queryError.message : null
 
-  if (loading) return (
-    <section className="surface">
-      <div className="status-panel">
-        <p className="loading-pulse">Loading the dark archives…</p>
-      </div>
-    </section>
-  )
-  if (error) return (
-    <section className="surface">
-      <div className="status-panel">
-        <p className="eyebrow error">Error loading library</p>
-        <p className="status-panel-body">{error}</p>
-      </div>
-    </section>
-  )
-
   return (
     <section className="surface">
       <div className="section-head">
@@ -78,7 +63,30 @@ export default function Library() {
         )}
       </div>
 
-      {books.length === 0 && (
+      {loading && (
+        <div className="lib-grid">
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <div key={i} className="book" style={{ border: 'none', background: 'transparent' }}>
+              <Skeleton height="320px" borderRadius="8px" />
+              <div style={{ marginTop: 16 }}>
+                <Skeleton height="16px" width="40%" style={{ marginBottom: 12 }} />
+                <Skeleton height="24px" width="90%" style={{ marginBottom: 8 }} />
+                <Skeleton height="24px" width="60%" style={{ marginBottom: 16 }} />
+                <Skeleton height="14px" width="30%" />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {error && (
+        <div className="status-panel">
+          <p className="eyebrow error">Error loading library</p>
+          <p className="status-panel-body">{error}</p>
+        </div>
+      )}
+
+      {!loading && !error && books.length === 0 && (
         <div className="empty">
           <p>The library is currently empty.</p>
           {session ? (
@@ -89,7 +97,7 @@ export default function Library() {
         </div>
       )}
 
-      {books.length > 0 && (
+      {!loading && !error && books.length > 0 && (
         <div className="lib-grid">
           {books.map((b) => (
             <Link key={b.id} to={`/library/read/${b.id}`} className="book">

@@ -22,8 +22,10 @@
     "@simplewebauthn/browser": "^11.0.0",
     "@supabase/supabase-js": "^2.90.0",
     "@tanstack/react-query": "^5.100.14",
+    "framer-motion": "^12.40.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "react-router-dom": "^7.12.0"
+    "react-router-dom": "^7.12.0",
+    "sonner": "^2.0.7"
   }
 }

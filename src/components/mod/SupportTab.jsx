@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../supabaseClient'
 import { resolveReport } from '../../lib/modActions'
+import { Link } from 'react-router-dom'
+import { toast } from 'sonner'
 
 export default function SupportTab() {
   const [reports, setReports] = useState([])
@@ -26,13 +28,14 @@ export default function SupportTab() {
   }
 
   const handleResolve = async (id, actionTaken) => {
-    const note = window.prompt(`Resolution note for marking as ${actionTaken}? (Optional)`)
+    const note = window.prompt(`Resolution note to send to the user? (Optional)`)
     if (note === null) return // cancelled
     try {
       await resolveReport(id, actionTaken, note)
       setReports(prev => prev.filter(r => r.id !== id))
+      toast.success(`Support ticket ${actionTaken}`)
     } catch (err) {
-      alert(err.message)
+      toast.error(err.message)
     }
   }
 

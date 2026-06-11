@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../../supabaseClient'
+import { toast } from 'sonner'
 
 export default function SanctionsTab() {
   const [handle, setHandle] = useState('')
@@ -26,15 +27,21 @@ export default function SanctionsTab() {
     if (!user) return
     const until = days === -1 ? '2099-12-31T23:59:59Z' : new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
     const { error } = await supabase.from('profiles').update({ banned_until: until }).eq('id', user.id)
-    if (error) alert(error.message)
-    else setUser({ ...user, banned_until: until })
+    if (error) toast.error(error.message)
+    else {
+      setUser({ ...user, banned_until: until })
+      toast.success(days === -1 ? 'User permanently shadowbanned' : `User suspended for ${days} days`)
+    }
   }
 
   const handleRevoke = async () => {
     if (!user) return
     const { error } = await supabase.from('profiles').update({ banned_until: null }).eq('id', user.id)
-    if (error) alert(error.message)
-    else setUser({ ...user, banned_until: null })
+    if (error) toast.error(error.message)
+    else {
+      setUser({ ...user, banned_until: null })
+      toast.success('Suspension revoked')
+    }
   }
 
   return (

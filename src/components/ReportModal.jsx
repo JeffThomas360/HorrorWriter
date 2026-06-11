@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { submitReport } from '../lib/modActions'
+import { toast } from 'sonner'
 import { useAuth } from './AuthContext'
 
 export default function ReportModal({ isOpen, onClose, targetType, targetId }) {
@@ -45,8 +46,8 @@ export default function ReportModal({ isOpen, onClose, targetType, targetId }) {
     setError(null)
     try {
       await submitReport({ targetType, targetId, category, details })
-      setSuccess(true)
-      setTimeout(onClose, 2000)
+      toast.success('Report submitted successfully')
+      onClose()
     } catch (err) {
       setError(err.message)
     } finally {

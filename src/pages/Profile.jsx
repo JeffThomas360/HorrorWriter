@@ -6,6 +6,7 @@ import { supabase } from '../supabaseClient'
 import { Link } from 'react-router-dom'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 import ProfileHead from '../components/ProfileHead'
+import { toast } from 'sonner'
 
 const HANDLE_RE = /^[a-z0-9._-]{3,30}$/
 
@@ -115,11 +116,13 @@ export default function Profile() {
       await updateProfile(user.id, form)
       await refreshProfile()
       setStatus('saved')
+      toast.success('Profile updated')
     } catch (err) {
       const msg = err?.message?.includes('duplicate')
         ? 'That handle is already taken.'
         : err?.message || 'Save failed.'
       setStatus({ error: msg })
+      toast.error(msg)
     } finally {
       setSaving(false)
     }
@@ -135,8 +138,10 @@ export default function Profile() {
       await updateProfile(user.id, { avatar_url: url })
       await refreshProfile()
       setStatus('saved')
+      toast.success('Avatar updated')
     } catch (err) {
       setStatus({ error: err?.message || 'Avatar upload failed.' })
+      toast.error(err?.message || 'Avatar upload failed.')
     } finally {
       setUploading(false)
       e.target.value = ''
@@ -150,8 +155,10 @@ export default function Profile() {
       await registerPasskey()
       await loadPasskeys()
       setStatus('passkey_enrolled')
+      toast.success('Passkey added successfully')
     } catch (err) {
       setStatus({ error: err.message })
+      toast.error(err.message)
     } finally {
       setEnrollingPasskey(false)
     }
@@ -165,8 +172,10 @@ export default function Profile() {
       await deletePasskey(id)
       await loadPasskeys()
       setStatus(null)
+      toast.success('Passkey removed')
     } catch (err) {
       setStatus({ error: err.message })
+      toast.error(err.message)
     } finally {
       setDeletingPasskeyId(null)
     }
