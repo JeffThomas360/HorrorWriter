@@ -48,8 +48,8 @@ test.describe('Authentication Flows', () => {
     await setupMockAuth(page);
     await page.goto('/profile');
 
-    // 3. Register the passkey
-    const addBtn = page.getByRole('button', { name: /Add a Passkey/i });
+    // 3. Register the passkey (synced/cross-platform matches the USB virtual authenticator)
+    const addBtn = page.getByRole('button', { name: /Add synced passkey/i });
     await expect(addBtn).toBeVisible();
     await addBtn.click();
 

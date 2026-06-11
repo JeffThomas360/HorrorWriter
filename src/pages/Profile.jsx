@@ -8,6 +8,14 @@ import ProfileHead from '../components/ProfileHead'
 
 const HANDLE_RE = /^[a-z0-9._-]{3,30}$/
 
+// Maps a credential's `attachment` to its display icon + label. `null` covers
+// legacy passkeys registered before we recorded the type.
+const PASSKEY_KIND = {
+  'cross-platform': { icon: '🔐', label: 'Synced passkey' },
+  'platform':       { icon: '🔑', label: 'Device-bound passkey' },
+  null:             { icon: '🔑', label: 'Passkey' },
+}
+
 export default function Profile() {
   const { user, profile, refreshProfile } = useAuth()
   useDocumentTitle('Your Profile')
@@ -27,9 +35,10 @@ export default function Profile() {
   // Passkeys management state
   const [passkeys, setPasskeys] = useState([])
   const [loadingPasskeys, setLoadingPasskeys] = useState(false)
-  const [enrollingPasskey, setEnrollingPasskey] = useState(false)
+  // enrollingPasskey is the attachment type currently being enrolled
+  // ('platform' | 'cross-platform'), or null when idle.
+  const [enrollingPasskey, setEnrollingPasskey] = useState(null)
   const [deletingPasskeyId, setDeletingPasskeyId] = useState(null)
-  const [showBitwardenHelp, setShowBitwardenHelp] = useState(false)
 
   const loadPasskeys = useCallback(async () => {
     if (!supabase || !user) return
@@ -37,7 +46,7 @@ export default function Profile() {
     try {
       const { data } = await supabase
         .from('passkey_credentials')
-        .select('id, created_at, last_used_at')
+        .select('id, created_at, last_used_at, attachment')
         .eq('user_id', user.id)
         .order('created_at', { ascending: true })
       setPasskeys(data ?? [])
@@ -135,17 +144,17 @@ export default function Profile() {
     }
   }
 
-  const onAddPasskey = async () => {
-    setEnrollingPasskey(true)
+  const onAddPasskey = async (attachment) => {
+    setEnrollingPasskey(attachment)
     setStatus(null)
     try {
-      await registerPasskey()
+      await registerPasskey(attachment)
       await loadPasskeys()
       setStatus('passkey_enrolled')
     } catch (err) {
       setStatus({ error: err.message })
     } finally {
-      setEnrollingPasskey(false)
+      setEnrollingPasskey(null)
     }
   }
 
@@ -233,14 +242,16 @@ export default function Profile() {
           <p style={{ color: 'var(--bone-dim)', fontSize: 14 }}>Loading passkeys…</p>
         ) : passkeys.length > 0 ? (
           <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 20px' }}>
-            {passkeys.map((pk) => (
+            {passkeys.map((pk) => {
+              const kind = PASSKEY_KIND[pk.attachment] ?? PASSKEY_KIND.null
+              return (
               <li key={pk.id} style={{
                 display: 'flex', alignItems: 'center', gap: 12,
                 padding: '10px 0', borderBottom: '1px solid rgba(243,236,217,.08)'
               }}>
-                <span style={{ fontSize: 20 }}>🔑</span>
+                <span style={{ fontSize: 20 }}>{kind.icon}</span>
                 <span style={{ flex: 1, fontSize: 14, color: 'var(--bone-dim)' }}>
-                  Passkey
+                  {kind.label}
                   <span style={{ marginLeft: 8, opacity: .5 }}>
                     Added {new Date(pk.created_at).toLocaleDateString()}
                     {pk.last_used_at && ` · last used ${new Date(pk.last_used_at).toLocaleDateString()}`}
@@ -256,7 +267,8 @@ export default function Profile() {
                   {deletingPasskeyId === pk.id ? 'Removing…' : '✕ Remove'}
                 </button>
               </li>
-            ))}
+              )
+            })}
           </ul>
         ) : (
           <p style={{ color: 'var(--bone-dim)', fontStyle: 'italic', fontSize: 14, marginBottom: 20 }}>
@@ -264,68 +276,33 @@ export default function Profile() {
           </p>
         )}
 
-        <button
-          type="button"
-          className="btn ghost"
-          disabled={enrollingPasskey}
-          onClick={onAddPasskey}
-        >
-          {enrollingPasskey ? 'Follow your browser prompt…' : '▸ Add a Passkey'}
-        </button>
-
-        {/* Bitwarden setup guide */}
-        <div style={{ marginTop: 28, borderTop: '1px solid rgba(243,236,217,.08)', paddingTop: 20 }}>
+        {/* Two registration paths — synced (cloud vault) vs device-bound. */}
+        <div className="passkey-add-grid">
           <button
             type="button"
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-              color: 'var(--bone-dim)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6
-            }}
-            onClick={() => setShowBitwardenHelp(h => !h)}
+            className="btn ghost passkey-add-btn"
+            disabled={!!enrollingPasskey}
+            onClick={() => onAddPasskey('cross-platform')}
           >
-            <span style={{ fontSize: 16 }}>🔐</span>
-            <span style={{ textDecoration: 'underline dotted' }}>
-              {showBitwardenHelp ? 'Hide' : 'Using Bitwarden? See setup guide'}
+            <span className="passkey-add-title">
+              {enrollingPasskey === 'cross-platform' ? 'Follow your browser prompt…' : '🔐 Add synced passkey'}
             </span>
-            <span style={{ opacity: 0.5 }}>{showBitwardenHelp ? '▲' : '▼'}</span>
+            <span className="passkey-add-sub">Works on any device</span>
+            <span className="passkey-add-sub">Bitwarden · 1Password · iCloud Keychain</span>
           </button>
 
-          {showBitwardenHelp && (
-            <div style={{
-              marginTop: 16, padding: '16px 20px',
-              background: 'rgba(243,236,217,.04)',
-              border: '1px solid rgba(243,236,217,.10)',
-              borderRadius: 8, fontSize: 13.5, lineHeight: 1.7,
-              color: 'var(--bone-dim)'
-            }}>
-              <p style={{ margin: '0 0 12px', fontWeight: 600, color: 'var(--bone)' }}>
-                Setting up Bitwarden passkeys on Windows (Chrome & Firefox)
-              </p>
-              <p style={{ margin: '0 0 10px' }}>If the Windows Security dialog appears instead of Bitwarden, follow these steps:</p>
-              <ol style={{ margin: '0 0 12px', paddingLeft: 20 }}>
-                <li style={{ marginBottom: 8 }}>
-                  <strong>Enable Passkeys in Bitwarden Extension settings</strong><br />
-                  Open Bitwarden extension ➔ Settings ➔ Notifications, and make sure <em>"Ask to save and use passkeys"</em> is <strong>ON</strong>.
-                </li>
-                <li style={{ marginBottom: 8 }}>
-                  <strong>Desktop App Integration (Crucial for Firefox & Windows)</strong><br />
-                  Open the **Bitwarden Desktop App** on your PC. Enable **"Unlock with Windows Hello"** and **"Enable browser integration"** in Settings. Then, in your browser's Bitwarden extension Settings, check **"Unlock with biometrics"** to link them.
-                </li>
-                <li style={{ marginBottom: 8 }}>
-                  <strong>Disable built-in browser managers (For Chrome/Edge)</strong><br />
-                  Go to <code style={{ fontSize: 12, background: 'rgba(255,255,255,.08)', padding: '1px 5px', borderRadius: 3 }}>chrome://password-manager/settings</code> and disable <em>"Offer to save passwords and passkeys"</em>.
-                </li>
-                <li style={{ marginBottom: 8 }}>
-                  <strong>Firefox Add-on Permissions</strong><br />
-                  Verify the Bitwarden extension has "Access your data for all websites" enabled in Firefox's <code style={{ fontSize: 12, background: 'rgba(255,255,255,.08)', padding: '1px 5px', borderRadius: 3 }}>about:addons</code> settings (and is allowed to run in Private Windows).
-                </li>
-                <li style={{ marginBottom: 8 }}>
-                  <strong>The "Cancel" Workaround</strong><br />
-                  If the Windows Security popup asking for a security key appears, **click Cancel on the Windows Security window**. On Firefox and Chrome, this forces the native prompt to back off, allowing the Bitwarden extension's prompt to immediately slide down.
-                </li>
-              </ol>
-            </div>
-          )}
+          <button
+            type="button"
+            className="btn ghost passkey-add-btn"
+            disabled={!!enrollingPasskey}
+            onClick={() => onAddPasskey('platform')}
+          >
+            <span className="passkey-add-title">
+              {enrollingPasskey === 'platform' ? 'Follow your browser prompt…' : '🔑 Add device-bound passkey'}
+            </span>
+            <span className="passkey-add-sub">This machine only</span>
+            <span className="passkey-add-sub">Windows Hello · Touch ID</span>
+          </button>
         </div>
       </div>
 

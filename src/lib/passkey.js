@@ -22,13 +22,19 @@ async function callFunction(name, body = {}, token = null) {
 /**
  * Register a new passkey for the currently signed-in user.
  * Call from Profile page — user must already have a session.
+ *
+ * @param {'platform'|'cross-platform'} [attachment] Optional hint that steers
+ *   the browser toward a device-bound ('platform', e.g. Windows Hello) or
+ *   synced ('cross-platform', e.g. Bitwarden) authenticator. Omit to let the
+ *   browser decide.
  */
-export async function registerPasskey() {
+export async function registerPasskey(attachment) {
   if (!supabase) throw new Error('Supabase not configured')
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) throw new Error('You must be signed in to add a passkey.')
   const token = session.access_token
-  const options = await callFunction('webauthn-register-begin', {}, token)
+  const beginBody = attachment ? { attachment } : {}
+  const options = await callFunction('webauthn-register-begin', beginBody, token)
   let attResp
   try {
     attResp = await startRegistration({ optionsJSON: options })
@@ -37,7 +43,9 @@ export async function registerPasskey() {
     if (err.name === 'NotAllowedError')   throw new Error('Passkey setup was cancelled or timed out.')
     throw err
   }
-  await callFunction('webauthn-register-complete', attResp, token)
+  // Echo the attachment back so the server can record it on the credential row.
+  const completeBody = attachment ? { ...attResp, attachment } : attResp
+  await callFunction('webauthn-register-complete', completeBody, token)
 }
 
 /**

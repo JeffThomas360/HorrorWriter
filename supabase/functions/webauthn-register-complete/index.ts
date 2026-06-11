@@ -81,6 +81,15 @@ Deno.serve(async (req) => {
     })
     const body = await req.json()
 
+    // The client echoes the attachment it requested at begin. Pull it off the
+    // body before handing the rest to verifyRegistrationResponse, which expects
+    // a plain WebAuthn attestation and nothing else.
+    const { attachment: rawAttachment, ...attestation } = body
+    const attachment =
+      rawAttachment === 'platform' || rawAttachment === 'cross-platform'
+        ? rawAttachment
+        : null
+
     // Retrieve the most recent pending registration challenge for this user
     const { data: challenges, error: fetchErr } = await admin
       .from('webauthn_challenges')
@@ -117,7 +126,7 @@ Deno.serve(async (req) => {
     const { rpID, origin } = getRpIdAndOrigin(originHeader)
 
     const verification = await verifyRegistrationResponse({
-      response: body,
+      response: attestation,
       expectedChallenge: challenge.challenge,
       expectedOrigin: origin,
       expectedRPID: rpID,
@@ -141,7 +150,8 @@ Deno.serve(async (req) => {
       user_id:       user.id,
       public_key:    bytesToHex(credential.publicKey),
       counter:       credential.counter,
-      transports:    body.response?.transports ?? [],
+      transports:    attestation.response?.transports ?? [],
+      attachment,
     })
 
     if (pkInsertErr) {

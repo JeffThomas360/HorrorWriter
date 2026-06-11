@@ -132,7 +132,7 @@ test.describe('Profile Editor Flows', () => {
 
     await page.goto('/profile');
 
-    const addBtn = page.getByRole('button', { name: /Add a Passkey/i });
+    const addBtn = page.getByRole('button', { name: /Add synced passkey/i });
     await expect(addBtn).toBeVisible();
     await addBtn.click();
 
