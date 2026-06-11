@@ -40,7 +40,7 @@ test.describe('Forum Flows', () => {
 
     // Fill the title and content
     await page.locator('input[placeholder="A chilling subject…"]').fill('The New Haunted Mansion');
-    await page.locator('textarea[placeholder="Speak into the void…"]').fill('I think there is something in the attic...');
+    await page.locator('textarea.md-textarea').fill('I think there is something in the attic...');
 
     // Submit
     const submitBtn = page.getByRole('button', { name: /Post Thread/i });
@@ -78,7 +78,7 @@ test.describe('Forum Flows', () => {
 
     // Fill the title and content
     await page.locator('input[placeholder="A chilling subject…"]').fill('Broken Thread');
-    await page.locator('textarea[placeholder="Speak into the void…"]').fill('Will fail to submit.');
+    await page.locator('textarea.md-textarea').fill('Will fail to submit.');
 
     // Submit
     const submitBtn = page.getByRole('button', { name: /Post Thread/i });
@@ -102,7 +102,7 @@ test.describe('Forum Flows', () => {
     await expect(page.getByRole('heading', { name: 'Leave a Reply' })).toBeVisible();
 
     // Type a reply
-    const textarea = page.locator('textarea[placeholder="Speak into the void…"]');
+    const textarea = page.locator('textarea.md-textarea');
     await textarea.fill('My spine is shivering.');
 
     // Submit reply

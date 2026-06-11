@@ -17,26 +17,26 @@ test.describe('Audio Transcription', () => {
 
   test('Transcribe Audio button appears on story editor', async ({ page }) => {
     await page.goto('/library/publish')
-    await expect(page.getByRole('button', { name: /Transcribe Audio/i })).toBeVisible()
+    await expect(page.locator('button.transcribe-btn')).toBeVisible()
   })
 
   test('Transcribe Audio button appears on create thread form', async ({ page }) => {
     await page.goto('/forum/new')
-    await expect(page.getByRole('button', { name: /Transcribe Audio/i })).toBeVisible()
+    await expect(page.locator('button.transcribe-btn')).toBeVisible()
   })
 
   test('Modal opens with warning banner', async ({ page }) => {
     await page.goto('/library/publish')
-    await page.getByRole('button', { name: /Transcribe Audio/i }).click()
+    await page.locator('button.transcribe-btn').click()
     await expect(page.locator('.modal-content')).toBeVisible()
     await expect(page.locator('.modal-content')).toContainText('For best results')
   })
 
   test('File over 4 MB shows size error and disables Transcribe button', async ({ page }) => {
     await page.goto('/library/publish')
-    await page.getByRole('button', { name: /Transcribe Audio/i }).click()
+    await page.locator('button.transcribe-btn').click()
 
-    await page.locator('input[type="file"]').setInputFiles({
+    await page.locator('input[accept*="audio"]').setInputFiles({
       name: 'big.mp3',
       mimeType: 'audio/mpeg',
       buffer: Buffer.alloc(5 * 1024 * 1024, 0),
@@ -48,9 +48,9 @@ test.describe('Audio Transcription', () => {
 
   test('Successful upload transcription injects text into story content textarea', async ({ page }) => {
     await page.goto('/library/publish')
-    await page.getByRole('button', { name: /Transcribe Audio/i }).click()
+    await page.locator('button.transcribe-btn').click()
 
-    await page.locator('input[type="file"]').setInputFiles({
+    await page.locator('input[accept*="audio"]').setInputFiles({
       name: 'test.mp3',
       mimeType: 'audio/mpeg',
       buffer: Buffer.alloc(1024, 0),
@@ -60,15 +60,15 @@ test.describe('Audio Transcription', () => {
 
     await expect(page.locator('.modal-content')).not.toBeVisible()
     await expect(
-      page.locator('textarea[placeholder*="nervous"]')
+      page.locator('textarea.md-textarea')
     ).toHaveValue('Darkness fell upon the ancient house.')
   })
 
   test('Successful upload transcription injects text into thread body textarea', async ({ page }) => {
     await page.goto('/forum/new')
-    await page.getByRole('button', { name: /Transcribe Audio/i }).click()
+    await page.locator('button.transcribe-btn').click()
 
-    await page.locator('input[type="file"]').setInputFiles({
+    await page.locator('input[accept*="audio"]').setInputFiles({
       name: 'test.mp3',
       mimeType: 'audio/mpeg',
       buffer: Buffer.alloc(1024, 0),
@@ -78,7 +78,7 @@ test.describe('Audio Transcription', () => {
 
     await expect(page.locator('.modal-content')).not.toBeVisible()
     await expect(
-      page.locator('textarea[placeholder*="void"]')
+      page.locator('textarea.md-textarea')
     ).toHaveValue('Darkness fell upon the ancient house.')
   })
 })

@@ -1,13 +1,3 @@
-import mammoth from 'mammoth'
-import TurndownService from 'turndown'
-
-const turndownService = new TurndownService({
-  headingStyle: 'atx',
-  hr: '---',
-  bulletListMarker: '-',
-  codeBlockStyle: 'fenced',
-})
-
 /**
  * Parses a File object (.txt, .docx, .md) and returns a Markdown string.
  * @param {File} file 
@@ -24,6 +14,17 @@ export async function parseFileToMarkdown(file) {
 
   if (ext === 'docx') {
     try {
+      // Dynamic imports to prevent these massive libraries from bloating the main bundle
+      const mammoth = (await import('mammoth')).default
+      const TurndownService = (await import('turndown')).default
+      
+      const turndownService = new TurndownService({
+        headingStyle: 'atx',
+        hr: '---',
+        bulletListMarker: '-',
+        codeBlockStyle: 'fenced',
+      })
+
       const arrayBuffer = await file.arrayBuffer()
       const result = await mammoth.convertToHtml({ arrayBuffer })
       const html = result.value
