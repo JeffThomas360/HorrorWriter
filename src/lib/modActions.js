@@ -47,9 +47,19 @@ export async function setRoleBadge(role, emoji, label) {
 
 export async function submitReport({ targetType, targetId, category, details }) {
   if (!supabase) throw new Error('Supabase not configured')
+  
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('You must be signed in to submit a report.')
+
   const { data, error } = await supabase
     .from('reports')
-    .insert([{ target_type: targetType, target_id: targetId || null, category, details }])
+    .insert([{ 
+      reporter_id: user.id,
+      target_type: targetType, 
+      target_id: targetId || null, 
+      category, 
+      details 
+    }])
     .select()
     .single()
   if (error) throw new Error(error.message)
