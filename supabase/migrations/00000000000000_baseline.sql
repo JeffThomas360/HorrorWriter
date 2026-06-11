@@ -775,33 +775,33 @@ GRANT USAGE ON SCHEMA "public" TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."create_thread_with_post"("p_title" "text", "p_category_id" "text", "p_content" "text") TO "anon";
+REVOKE ALL ON FUNCTION "public"."create_thread_with_post"("p_title" "text", "p_category_id" "text", "p_content" "text") FROM PUBLIC, "anon";
 GRANT ALL ON FUNCTION "public"."create_thread_with_post"("p_title" "text", "p_category_id" "text", "p_content" "text") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."create_thread_with_post"("p_title" "text", "p_category_id" "text", "p_content" "text") TO "service_role";
 
 
 
-REVOKE ALL ON FUNCTION "public"."enforce_rate_limit"() FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."enforce_rate_limit"() FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON FUNCTION "public"."enforce_rate_limit"() TO "service_role";
 
 
 
-REVOKE ALL ON FUNCTION "public"."handle_new_book_comment"() FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."handle_new_book_comment"() FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON FUNCTION "public"."handle_new_book_comment"() TO "service_role";
 
 
 
-REVOKE ALL ON FUNCTION "public"."handle_new_post"() FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."handle_new_post"() FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON FUNCTION "public"."handle_new_post"() TO "service_role";
 
 
 
-REVOKE ALL ON FUNCTION "public"."handle_new_user"() FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."handle_new_user"() FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "service_role";
 
 
 
-REVOKE ALL ON FUNCTION "public"."touch_profile_updated_at"() FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."touch_profile_updated_at"() FROM PUBLIC, "anon", "authenticated";
 GRANT ALL ON FUNCTION "public"."touch_profile_updated_at"() TO "service_role";
 
 
@@ -996,7 +996,9 @@ create index idx_book_comments_modstatus on public.book_comments(mod_status) whe
 -- ── Step 3: Capability helper mod_can(action, area) ──────────────────
 -- Maps a content target_type to its moderation area.
 create or replace function public.mod_area(p_target_type text)
-returns text language sql immutable as $$
+returns text language sql immutable
+set search_path = ''
+as $$
   select case
     when p_target_type in ('story','critique') then 'library'
     when p_target_type in ('thread','post')    then 'forum'
