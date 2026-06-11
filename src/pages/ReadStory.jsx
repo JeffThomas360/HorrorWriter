@@ -144,8 +144,8 @@ export default function ReadStory() {
   const rtLabel = readingTime(book?.content)
 
   return (
-    <section className="surface" style={{ maxWidth: 820, margin: '0 auto' }}>
-      <div style={{ textAlign: 'center', marginBottom: 56 }}>
+    <section className="surface" style={{ width: '100%', margin: '0 auto', maxWidth: 'var(--prose-w)' }}>
+      <div className="section-head" style={{ marginBottom: 40, borderBottom: '1px solid var(--line)', paddingBottom: 24 }}>
         <p className="eyebrow" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
           <span>A story by @{book?.profiles?.handle || 'unknown'}</span>
           <button onClick={() => setReportTarget({ type: 'story', id: book.id })} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '12px' }}>[Report]</button>

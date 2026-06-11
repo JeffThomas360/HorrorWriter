@@ -79,7 +79,7 @@ export default function PublishStory() {
   )
 
   return (
-    <section className="surface" style={{ maxWidth: 820, margin: '0 auto' }}>
+    <section className="surface" style={{ width: '100%', margin: '0 auto', maxWidth: 'var(--prose-w)' }}>
       <p className="eyebrow">The Library</p>
       <h2 className="title">Publish <em>a story</em></h2>
 

@@ -176,7 +176,7 @@ export default function ThreadView() {
   )
 
   return (
-    <section className="surface" style={{ maxWidth: 820, margin: '0 auto' }}>
+    <section className="surface" style={{ width: '100%', margin: '0 auto', maxWidth: 'var(--prose-w)' }}>
       <Link
         to="/forum"
         className="eyebrow"

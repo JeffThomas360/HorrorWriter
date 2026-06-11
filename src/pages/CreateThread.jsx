@@ -75,7 +75,7 @@ export default function CreateThread() {
   )
 
   return (
-    <section className="surface" style={{ maxWidth: 820, margin: '0 auto' }}>
+    <section className="surface" style={{ width: '100%', margin: '0 auto', maxWidth: 'var(--prose-w)' }}>
       <p className="eyebrow">The Crypt</p>
       <h2 className="title">Summon <em>a thread</em></h2>
 

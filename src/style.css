@@ -1,48 +1,48 @@
 /* ============================================================
-   HORROR WRITER — Gothic Editorial design system
+   HORROR WRITER — Retro CRT / 1980s System
    ============================================================ */
 
 :root {
-  --ink: #0b0a10;
-  --ink-2: #11101a;
-  --ink-3: #1a1924;
-  --ink-rise: #21202c;
-  --paper: #f6f1e6;
-  --bone: #e7e1d1;
-  --bone-soft: #b9b2a2;
-  --muted: #6f6a5e;
-  --line: rgba(231, 225, 209, 0.10);
-  --line-strong: rgba(231, 225, 209, 0.22);
+  --ink: #050508;
+  --ink-2: #0a0a10;
+  --ink-3: #12121c;
+  --ink-rise: #1a1a28;
+  --paper: #e2e8f0;
+  --bone: #cbd5e1;
+  --bone-soft: #94a3b8;
+  --muted: #64748b;
+  --line: rgba(5, 217, 232, 0.15);
+  --line-strong: rgba(5, 217, 232, 0.35);
 
-  --blood: #e63946;
-  --blood-deep: #b1182a;
-  --ember: #ff7a45;
-  --rose: #f0a5ad;
-  --gold: #d3a24a;
-  --cyan: #5fcfd9;
-  --green: #79e3a1;
+  --blood: #ff2a6d; /* Neon Magenta */
+  --blood-deep: #b31d4c;
+  --ember: #ffb900; /* Amber Terminal */
+  --rose: #ff75a0;
+  --gold: #fcee0a; /* Cyber Yellow */
+  --cyan: #05d9e8; /* Neon Cyan */
+  --green: #01ffc3;
 
-  --grad-blood: linear-gradient(135deg, var(--blood) 0%, var(--blood-deep) 100%);
+  --grad-blood: linear-gradient(135deg, var(--blood) 0%, var(--cyan) 100%);
   --grad-ember: linear-gradient(135deg, var(--ember) 0%, var(--blood) 100%);
 
-  --display: "Fraunces", "Cinzel", "Times New Roman", serif;
-  --serif:   "Cinzel", "Fraunces", serif;
-  --body:    "EB Garamond", Georgia, serif;
-  --ui:      "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --mono:    "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+  --display: "Inter", system-ui, sans-serif;
+  --serif:   "JetBrains Mono", monospace;
+  --body:    "Inter", system-ui, sans-serif;
+  --ui:      "Inter", system-ui, sans-serif;
+  --mono:    "JetBrains Mono", ui-monospace, monospace;
 
-  --r: 4px;
-  --r-lg: 10px;
+  --r: 2px;
+  --r-lg: 4px;
   --r-pill: 999px;
 
-  --shadow-1: 0 1px 2px rgba(0,0,0,.4);
-  --shadow-2: 0 8px 24px rgba(0,0,0,.45);
-  --shadow-3: 0 24px 60px rgba(0,0,0,.55), 0 0 0 1px rgba(231,225,209,.04);
-  --shadow-glow: 0 0 36px rgba(230,57,70,.28);
+  --shadow-1: 0 1px 2px rgba(0,0,0,.6);
+  --shadow-2: 0 4px 12px rgba(5,217,232,.1);
+  --shadow-3: 0 12px 32px rgba(255,42,109,.15), 0 0 0 1px rgba(5,217,232,.1);
+  --shadow-glow: 0 0 20px rgba(255,42,109,.4);
 
-  --nav-h: 68px;
-  --content-w: 1120px;
-  --prose-w: 720px;
+  --nav-h: 64px;
+  --content-w: 100%;
+  --prose-w: 800px;
 
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
 }
@@ -52,17 +52,14 @@ html, body { background: var(--ink); color: var(--bone); }
 html { scroll-behavior: smooth; }
 body {
   font-family: var(--body);
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1.6;
+  letter-spacing: 0.02em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
   overflow-x: hidden;
-  background:
-    radial-gradient(ellipse 1400px 700px at 80% -10%, rgba(230,57,70,.10), transparent 60%),
-    radial-gradient(ellipse 1100px 700px at -10% 30%, rgba(255,122,69,.05), transparent 60%),
-    radial-gradient(ellipse 1100px 800px at 50% 110%, rgba(95,207,217,.04), transparent 60%),
-    linear-gradient(180deg, #0a090f 0%, #0b0a10 60%, #08070d 100%);
+  background: var(--ink);
   background-attachment: fixed;
 }
 
@@ -85,7 +82,7 @@ body::before {
   inset: 0;
   pointer-events: none;
   z-index: 1;
-  opacity: .035;
+  opacity: .08; /* increased grain for 80s feel */
   mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .95 0 0 0 0 .9 0 0 0 0 .8 0 0 0 .9 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
 }
@@ -96,10 +93,14 @@ body::after {
   inset: 0;
   pointer-events: none;
   z-index: 1;
-  background: 
-    linear-gradient(rgba(11, 10, 16, 0) 50%, rgba(0, 0, 0, 0.12) 50%),
-    radial-gradient(120% 90% at 50% 40%, transparent 60%, rgba(0,0,0,.55) 100%);
-  background-size: 100% 4px, 100% 100%;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.15),
+    rgba(0, 0, 0, 0.15) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+  opacity: 0.6;
 }
 
 @keyframes skeleton-pulse {
@@ -120,7 +121,7 @@ body::after {
   width: 100%;
   max-width: var(--content-w);
   margin: 0 auto;
-  padding: 56px 28px 120px;
+  padding: 56px 64px 120px;
 }
 @media (max-width: 640px) { .shell { padding: 32px 20px 80px; } }
 
@@ -131,10 +132,10 @@ body::after {
   height: var(--nav-h);
   width: 100%;
   border-bottom: 1px solid var(--line);
-  background: rgba(11, 10, 16, 0.65);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  box-shadow: inset 0 -1px 0 rgba(255,255,255,0.02), 0 4px 24px rgba(0,0,0,0.4);
+  background: rgba(5, 5, 8, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 20px rgba(5, 217, 232, 0.05);
 }
 
 .nav-container {
@@ -144,9 +145,9 @@ body::after {
   height: 100%;
   max-width: var(--content-w);
   margin: 0 auto;
-  padding: 0 28px;
+  padding: 0 64px;
 }
-@media (max-width: 640px) { .nav-container { padding: 0 16px; gap: 16px; } }
+@media (max-width: 640px) { .nav-container { padding: 0 20px; gap: 16px; } }
 
 .brand {
   display: inline-flex;
@@ -1481,13 +1482,13 @@ footer li a:hover { color: var(--paper); }
 .empty p { color: var(--bone-soft); font-style: italic; font-size: 17px; margin-bottom: 20px; }
 
 .card {
-  background: linear-gradient(180deg, var(--ink-2), var(--ink-3));
+  background: var(--ink-2);
   padding: 24px 26px;
-  border-radius: var(--r-lg);
+  border-radius: var(--r);
   border: 1px solid var(--line);
-  transition: border-color .2s var(--ease);
+  transition: all .2s var(--ease);
 }
-.card:hover { border-color: var(--line-strong); }
+.card:hover { border-color: rgba(5,217,232,0.3); box-shadow: 0 4px 12px rgba(5,217,232,0.05); }
 .card .author { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
 .card .author .who { display: flex; flex-direction: column; }
 .card .author .who .name { font-family: var(--ui); font-weight: 600; color: var(--paper); font-size: 14px; }
@@ -1542,8 +1543,8 @@ footer li a:hover { color: var(--paper); }
 .tile:hover h3,
 .book:hover .title {
   text-shadow: 
-    -1px -0.5px 0 rgba(230, 57, 70, 0.6), 
-    1px 0.5px 0 rgba(95, 207, 219, 0.6);
+    -1px -0.5px 0 rgba(255, 42, 109, 0.6), 
+    1px 0.5px 0 rgba(5, 217, 232, 0.6);
   transition: text-shadow 0.15s var(--ease);
 }
 
