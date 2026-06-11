@@ -1590,3 +1590,10 @@ footer li a:hover { color: var(--paper); }
 }
 .mod-tab:hover { color: var(--bone); }
 .mod-tab.active { color: var(--blood); border-bottom-color: var(--blood); }
+
+.mod-search { display: flex; gap: 8px; margin-bottom: 16px; }
+.mod-search input { flex: 1; }
+.mod-user-list { list-style: none; padding: 0; margin: 0; }
+.mod-user-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(243,236,217,.08); flex-wrap: wrap; }
+.mod-user-controls { display: inline-flex; gap: 8px; align-items: center; }
+.mod-user-self { color: var(--bone-dim); font-size: 13px; font-style: italic; }

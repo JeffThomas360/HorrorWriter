@@ -157,14 +157,20 @@ export async function setupSupabaseMocks(page, opts = {}) {
     const method = route.request().method();
     if (method === 'GET') {
       const url = route.request().url();
-      if (url.includes('handle=ilike.') || url.includes('handle=eq.')) {
+      if (url.includes('handle=eq.')) {
         route.fulfill({
           status: 200, contentType: 'application/json',
-          body: JSON.stringify([{
-            id: 'user-warden', handle: 'warden_wendy', display_name: 'Warden Wendy',
-            avatar_url: null, mod_role: 'warden', mod_scope: 'all',
-            created_at: '2026-06-01T00:00:00Z',
-          }]),
+          body: JSON.stringify([
+            { id: 'user-warden', handle: 'warden_wendy', display_name: 'Warden Wendy', avatar_url: null, mod_role: 'warden', mod_scope: 'all', created_at: '2026-06-01T00:00:00Z' }
+          ]),
+        })
+      } else if (url.includes('handle=ilike.')) {
+        route.fulfill({
+          status: 200, contentType: 'application/json',
+          body: JSON.stringify([
+            { id: 'user-warden', handle: 'warden_wendy', display_name: 'Warden Wendy', avatar_url: null, mod_role: 'warden', mod_scope: 'all', created_at: '2026-06-01T00:00:00Z' },
+            { id: 'user-newbie', handle: 'spooky_newbie', display_name: 'Spooky Newbie', avatar_url: null, mod_role: null, mod_scope: 'all', created_at: '2026-06-02T00:00:00Z' },
+          ]),
         })
       } else {
         route.fulfill({
