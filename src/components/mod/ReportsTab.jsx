@@ -2,11 +2,15 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../supabaseClient'
 import { resolveReport } from '../../lib/modActions'
 import { Link } from 'react-router-dom'
+import UserModProfile from './UserModProfile'
+
+const MOD_MACROS = ["Spam", "House Rules Violation", "Plagiarism", "False Flag"]
 
 export default function ReportsTab() {
   const [reports, setReports] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [activeContextUserId, setActiveContextUserId] = useState(null)
 
   useEffect(() => {
     fetchReports()
@@ -35,9 +39,12 @@ export default function ReportsTab() {
     setLoading(false)
   }
 
-  const handleResolve = async (id, actionTaken) => {
-    const note = window.prompt(`Resolution note for marking as ${actionTaken}? (Optional)`)
-    if (note === null) return // cancelled
+  const handleResolve = async (id, actionTaken, noteStr = null) => {
+    let note = noteStr
+    if (!noteStr && actionTaken !== 'dismissed') {
+      note = window.prompt(`Custom resolution note for marking as ${actionTaken}? (Optional)`)
+      if (note === null) return // cancelled
+    }
     try {
       await resolveReport(id, actionTaken, note)
       setReports(prev => prev.filter(r => r.id !== id))
@@ -49,7 +56,7 @@ export default function ReportsTab() {
   const renderTargetLink = (type, id) => {
     if (type === 'story' || type === 'critique') return <Link to={`/story/${id}`}>View Content</Link>
     if (type === 'thread' || type === 'post') return <Link to={`/thread/${id}`}>View Content</Link>
-    if (type === 'user') return <Link to={`/member/${id}`}>View User</Link>
+    if (type === 'user') return <button className="btn ghost" style={{ fontSize: 12, padding: '4px 8px' }} onClick={() => setActiveContextUserId(id)}>View User Context</button>
     return id
   }
 
@@ -59,30 +66,46 @@ export default function ReportsTab() {
   if (reports.length === 0) return <p className="dim">The queue is quiet. No open reports.</p>
 
   return (
-    <div className="mod-reports-list" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {reports.map(r => (
-        <div key={r.id} style={{ 
-          border: `1px solid ${r.category === 'urgent' ? 'var(--blood)' : '#333'}`,
-          padding: 16, borderRadius: 4, background: r.category === 'urgent' ? 'rgba(255,0,0,0.05)' : 'transparent'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-            <strong>{r.target_type.toUpperCase()} - {r.category}</strong>
-            <span className="dim">{new Date(r.created_at).toLocaleString()}</span>
+    <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
+      <div className="mod-reports-list" style={{ display: 'flex', flexDirection: 'column', gap: 16, flex: 2 }}>
+        {reports.map(r => (
+          <div key={r.id} style={{ 
+            border: `1px solid ${r.category === 'urgent' ? 'var(--blood)' : '#333'}`,
+            padding: 16, borderRadius: 4, background: r.category === 'urgent' ? 'rgba(255,0,0,0.05)' : 'transparent'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+              <strong>{r.target_type.toUpperCase()} - {r.category}</strong>
+              <span className="dim">{new Date(r.created_at).toLocaleString()}</span>
+            </div>
+            <p style={{ margin: '8px 0', fontSize: '14px' }}>
+              <strong>Reporter:</strong> {r.profiles?.handle ? `@${r.profiles.handle}` : 'Unknown'}
+            </p>
+            <p style={{ margin: '8px 0', fontSize: '14px' }}>
+              <strong>Details:</strong> {r.details || 'None provided'}
+            </p>
+            <div style={{ marginTop: 16, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+              {renderTargetLink(r.target_type, r.target_id)}
+              <div style={{ flex: 1 }}></div>
+              <button className="btn ghost" style={{ fontSize: 12, padding: '4px 8px' }} onClick={() => handleResolve(r.id, 'dismissed', 'Dismissed without action')}>Dismiss</button>
+              
+              {/* Mod Macros */}
+              {MOD_MACROS.map(m => (
+                <button key={m} className="btn" style={{ fontSize: 12, padding: '4px 8px', borderColor: '#444' }} onClick={() => handleResolve(r.id, 'actioned', m)}>
+                  {m}
+                </button>
+              ))}
+              <button className="btn blood" style={{ fontSize: 12, padding: '4px 8px' }} onClick={() => handleResolve(r.id, 'actioned')}>Custom Action...</button>
+            </div>
           </div>
-          <p style={{ margin: '8px 0', fontSize: '14px' }}>
-            <strong>Reporter:</strong> {r.profiles?.handle ? `@${r.profiles.handle}` : 'Unknown'}
-          </p>
-          <p style={{ margin: '8px 0', fontSize: '14px' }}>
-            <strong>Details:</strong> {r.details || 'None provided'}
-          </p>
-          <div style={{ marginTop: 12, display: 'flex', gap: 12, alignItems: 'center' }}>
-            {renderTargetLink(r.target_type, r.target_id)}
-            <div style={{ flex: 1 }}></div>
-            <button className="btn ghost" style={{ fontSize: 12, padding: '4px 8px' }} onClick={() => handleResolve(r.id, 'dismissed')}>Dismiss</button>
-            <button className="btn blood" style={{ fontSize: 12, padding: '4px 8px' }} onClick={() => handleResolve(r.id, 'actioned')}>Action Taken</button>
-          </div>
+        ))}
+      </div>
+      
+      {/* Content Context Drawer */}
+      {activeContextUserId && (
+        <div style={{ flex: 1, position: 'sticky', top: 24, height: 'calc(100vh - 100px)' }}>
+          <UserModProfile userId={activeContextUserId} onClose={() => setActiveContextUserId(null)} />
         </div>
-      ))}
+      )}
     </div>
   )
 }

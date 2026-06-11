@@ -3,6 +3,7 @@ import { useAuth } from '../components/AuthContext'
 import { updateProfile, uploadAvatar } from '../lib/profile'
 import { registerPasskey, deletePasskey } from '../lib/passkey'
 import { supabase } from '../supabaseClient'
+import { Link } from 'react-router-dom'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 import ProfileHead from '../components/ProfileHead'
 
@@ -179,7 +180,10 @@ export default function Profile() {
 
   return (
     <section className="surface active">
-      <p className="eyebrow">▸ Your account</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <p className="eyebrow">▸ Your account</p>
+        <Link to="/my-reports" className="btn ghost" style={{ fontSize: 13 }}>View My Reports</Link>
+      </div>
       <h2 className="title">Edit <em>profile</em></h2>
 
       <ProfileHead profile={profile}>

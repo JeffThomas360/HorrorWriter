@@ -13,6 +13,8 @@ const Library = lazy(() => import('./pages/Library'))
 const Profile = lazy(() => import('./pages/Profile'))
 const UserProfile = lazy(() => import('./pages/UserProfile'))
 const AuthCallback = lazy(() => import('./pages/AuthCallback'))
+const MyReports = lazy(() => import('./pages/MyReports'))
+const TransparencyLog = lazy(() => import('./pages/TransparencyLog'))
 const CreateThread = lazy(() => import('./pages/CreateThread'))
 const ThreadView = lazy(() => import('./pages/ThreadView'))
 const PublishStory = lazy(() => import('./pages/PublishStory'))
@@ -48,8 +50,10 @@ export default function App() {
                 <Route path="library/read/:id" element={<ReadStory />} />
                 <Route path="u/:handle" element={<UserProfile />} />
                 <Route path="profile" element={<RequireAuth><Profile /></RequireAuth>} />
+                <Route path="my-reports" element={<RequireAuth><MyReports /></RequireAuth>} />
                 <Route path="auth/callback" element={<AuthCallback />} />
                 <Route path="rules" element={<Rules />} />
+                <Route path="transparency" element={<TransparencyLog />} />
                 <Route path="moderation" element={<Moderation />} />
               </Route>
             </Routes>

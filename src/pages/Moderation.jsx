@@ -6,6 +6,8 @@ import RegistryTab from '../components/mod/RegistryTab'
 import BadgesTab from '../components/mod/BadgesTab'
 import ReportsTab from '../components/mod/ReportsTab'
 import SupportTab from '../components/mod/SupportTab'
+import FilterRulesTab from '../components/mod/FilterRulesTab'
+import SanctionsTab from '../components/mod/SanctionsTab'
 
 export default function Moderation() {
   useDocumentTitle('Keeper Terminal')
@@ -35,6 +37,8 @@ export default function Moderation() {
   const tabs = [
     modCan(profile, 'handle_report', 'all') && { id: 'reports', label: 'Reports' },
     modCan(profile, 'handle_report', 'all') && { id: 'support', label: 'Support' },
+    modCan(profile, 'configure', 'all') && { id: 'filters', label: 'AutoMod' },
+    modCan(profile, 'assign_role', 'all') && { id: 'sanctions', label: 'Sanctions' },
     modCan(profile, 'assign_role', 'all') && { id: 'registry', label: 'Registry' },
     modCan(profile, 'configure', 'all') && { id: 'badges', label: 'Badges' },
   ].filter(Boolean)
@@ -64,6 +68,8 @@ export default function Moderation() {
       <div className="mod-tab-panel">
         {activeId === 'reports' && <ReportsTab />}
         {activeId === 'support' && <SupportTab />}
+        {activeId === 'filters' && <FilterRulesTab />}
+        {activeId === 'sanctions' && <SanctionsTab />}
         {activeId === 'registry' && <RegistryTab profile={profile} />}
         {activeId === 'badges' && <BadgesTab />}
       </div>
