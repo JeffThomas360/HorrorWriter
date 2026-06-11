@@ -288,9 +288,39 @@ export default function Profile() {
         <p style={{ color: 'var(--bone-dim)', fontSize: 13, marginTop: 12, lineHeight: 1.6, maxWidth: 520 }}>
           Your browser will ask where to save it — this device (Windows Hello, Touch ID),
           your phone, a security key, or a password manager like Bitwarden or 1Password.
-          On Windows, pick your manager from that list; if it isn’t shown, enable it as a
-          passkey provider in your browser’s settings.
         </p>
+
+        <details className="passkey-help">
+          <summary>Using a password manager (Bitwarden, 1Password)?</summary>
+          <div className="passkey-help-body">
+            <p>
+              Where a passkey is saved is chosen by your <strong>browser</strong>, not by this
+              site. To save it to a password manager instead of this device:
+            </p>
+            <ol>
+              <li>
+                <strong>Install and unlock</strong> your manager’s browser extension, and turn on
+                <em> “Ask to save and use passkeys”</em> in its settings. If it’s locked, the
+                browser falls back to the device prompt.
+              </li>
+              <li>
+                <strong>Chrome / Edge:</strong> open <code>chrome://settings/passkeys</code>
+                {' '}(Edge: <code>edge://settings/passkeys</code>) and enable your manager as a
+                passkey provider.
+              </li>
+              <li>
+                <strong>Firefox:</strong> no browser setting needed — the unlocked extension
+                catches the prompt itself. Make sure it’s allowed to run on all sites (and in
+                Private Windows if you use them) under <code>about:addons</code>.
+              </li>
+              <li>
+                Click <strong>Add a passkey</strong> and choose your manager. If the Windows
+                Security dialog appears instead, the manager didn’t catch it — confirm it’s
+                unlocked and the passkey setting is on.
+              </li>
+            </ol>
+          </div>
+        </details>
       </div>
 
     </section>
