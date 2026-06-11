@@ -35,9 +35,7 @@ export default function Profile() {
   // Passkeys management state
   const [passkeys, setPasskeys] = useState([])
   const [loadingPasskeys, setLoadingPasskeys] = useState(false)
-  // enrollingPasskey is the attachment type currently being enrolled
-  // ('platform' | 'cross-platform'), or null when idle.
-  const [enrollingPasskey, setEnrollingPasskey] = useState(null)
+  const [enrollingPasskey, setEnrollingPasskey] = useState(false)
   const [deletingPasskeyId, setDeletingPasskeyId] = useState(null)
 
   const loadPasskeys = useCallback(async () => {
@@ -144,17 +142,17 @@ export default function Profile() {
     }
   }
 
-  const onAddPasskey = async (attachment) => {
-    setEnrollingPasskey(attachment)
+  const onAddPasskey = async () => {
+    setEnrollingPasskey(true)
     setStatus(null)
     try {
-      await registerPasskey(attachment)
+      await registerPasskey()
       await loadPasskeys()
       setStatus('passkey_enrolled')
     } catch (err) {
       setStatus({ error: err.message })
     } finally {
-      setEnrollingPasskey(null)
+      setEnrollingPasskey(false)
     }
   }
 
@@ -276,34 +274,23 @@ export default function Profile() {
           </p>
         )}
 
-        {/* Two registration paths — synced (cloud vault) vs device-bound. */}
-        <div className="passkey-add-grid">
-          <button
-            type="button"
-            className="btn ghost passkey-add-btn"
-            disabled={!!enrollingPasskey}
-            onClick={() => onAddPasskey('cross-platform')}
-          >
-            <span className="passkey-add-title">
-              {enrollingPasskey === 'cross-platform' ? 'Follow your browser prompt…' : '🔐 Add synced passkey'}
-            </span>
-            <span className="passkey-add-sub">Works on any device</span>
-            <span className="passkey-add-sub">Bitwarden · 1Password · iCloud Keychain</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn ghost passkey-add-btn"
-            disabled={!!enrollingPasskey}
-            onClick={() => onAddPasskey('platform')}
-          >
-            <span className="passkey-add-title">
-              {enrollingPasskey === 'platform' ? 'Follow your browser prompt…' : '🔑 Add device-bound passkey'}
-            </span>
-            <span className="passkey-add-sub">This machine only</span>
-            <span className="passkey-add-sub">Windows Hello · Touch ID</span>
-          </button>
-        </div>
+        {/* One standards-based flow: the browser shows its native passkey
+            picker and the user chooses where the credential is saved. We never
+            force an authenticator type — a site cannot pick the provider. */}
+        <button
+          type="button"
+          className="btn ghost"
+          disabled={enrollingPasskey}
+          onClick={onAddPasskey}
+        >
+          {enrollingPasskey ? 'Follow your browser prompt…' : '＋ Add a passkey'}
+        </button>
+        <p style={{ color: 'var(--bone-dim)', fontSize: 13, marginTop: 12, lineHeight: 1.6, maxWidth: 520 }}>
+          Your browser will ask where to save it — this device (Windows Hello, Touch ID),
+          your phone, a security key, or a password manager like Bitwarden or 1Password.
+          On Windows, pick your manager from that list; if it isn’t shown, enable it as a
+          passkey provider in your browser’s settings.
+        </p>
       </div>
 
     </section>

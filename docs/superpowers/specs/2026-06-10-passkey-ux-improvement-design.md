@@ -1,6 +1,18 @@
 # Passkey UX Improvement — Design Spec
 **Date:** 2026-06-10  
-**Status:** Approved
+**Status:** Superseded (2026-06-10)
+
+> **Superseded:** The two-button "synced vs device-bound" design below was
+> implemented and then reverted. Forcing `authenticatorAttachment: 'cross-platform'`
+> routes Windows straight to the OS security-key dialog and does **not** summon a
+> synced provider like Bitwarden — and per the WebAuthn spec a relying party
+> **cannot** choose the provider at all. The shipped approach is the industry
+> standard (GitHub/Google): a single **"Add a passkey"** button that sends **no**
+> `authenticatorAttachment`, so the browser presents its native picker (this
+> device, phone, security key, or a password-manager provider) and the user
+> chooses. The credential's real attachment is read off the WebAuthn response
+> (`authenticatorAttachment`) and stored for display. Whether a manager appears
+> is a browser/extension client-side setting, outside the site's control.
 
 ---
 

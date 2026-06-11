@@ -81,16 +81,6 @@ Deno.serve(async (req) => {
     const originHeader = req.headers.get('Origin')
     const { rpID } = getRpIdAndOrigin(originHeader)
 
-    // Optional attachment hint from the client. 'platform' steers the browser
-    // to a device-bound authenticator (Windows Hello, Touch ID); 'cross-platform'
-    // steers it to a synced/roaming one (Bitwarden, 1Password, phone, security key).
-    // Anything else is ignored so the browser keeps its default behaviour.
-    const body = await req.json().catch(() => ({}))
-    const attachment =
-      body?.attachment === 'platform' || body?.attachment === 'cross-platform'
-        ? body.attachment
-        : undefined
-
     const options = await generateRegistrationOptions({
       rpName: RP_NAME,
       rpID,
@@ -102,14 +92,14 @@ Deno.serve(async (req) => {
       // from idle — a generous timeout prevents silent fallback to native handlers.
       timeout: 60000,
       authenticatorSelection: {
-        // Allow both platform (Windows Hello, TouchID) and cross-platform
-        // (Bitwarden, security keys, phones) authenticators.
+        // Deliberately NO authenticatorAttachment: the browser shows its full
+        // native passkey picker (platform, phone, security key, or a synced
+        // provider like Bitwarden / 1Password) and the user chooses. Forcing
+        // an attachment hurts cross-provider compatibility — on Windows
+        // 'cross-platform' jumps straight to the OS security-key dialog.
         residentKey: 'required',
         requireResidentKey: true,
         userVerification: 'preferred',
-        // Only set when the client explicitly asked — omitting it preserves the
-        // current "browser decides" behaviour as a safe fallback.
-        ...(attachment ? { authenticatorAttachment: attachment } : {}),
       },
     })
 

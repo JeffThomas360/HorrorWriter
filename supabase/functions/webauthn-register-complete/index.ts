@@ -80,14 +80,13 @@ Deno.serve(async (req) => {
       auth: { persistSession: false },
     })
     const body = await req.json()
+    const attestation = body
 
-    // The client echoes the attachment it requested at begin. Pull it off the
-    // body before handing the rest to verifyRegistrationResponse, which expects
-    // a plain WebAuthn attestation and nothing else.
-    const { attachment: rawAttachment, ...attestation } = body
+    // The WebAuthn response itself reports which authenticator kind was used
+    // (a standard PublicKeyCredential field) — no client hint needed.
     const attachment =
-      rawAttachment === 'platform' || rawAttachment === 'cross-platform'
-        ? rawAttachment
+      body.authenticatorAttachment === 'platform' || body.authenticatorAttachment === 'cross-platform'
+        ? body.authenticatorAttachment
         : null
 
     // Retrieve the most recent pending registration challenge for this user

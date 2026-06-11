@@ -1215,33 +1215,6 @@ section.surface {
 .form-ok { color: var(--green); font-family: var(--mono); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; }
 .form-err { color: var(--blood); font-family: var(--ui); font-size: 13px; }
 
-/* Passkey registration: two side-by-side cards (synced vs device-bound). */
-.passkey-add-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-}
-.passkey-add-btn {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  height: auto;
-  padding: 16px 18px;
-  white-space: normal;
-  text-align: left;
-}
-.passkey-add-title { font-size: 14px; font-weight: 600; }
-.passkey-add-sub {
-  font-family: var(--ui);
-  font-weight: 400;
-  font-size: 12px;
-  color: var(--bone-dim);
-  letter-spacing: 0;
-}
-@media (max-width: 560px) {
-  .passkey-add-grid { grid-template-columns: 1fr; }
-}
-
 .onboarding-banner {
   border-bottom: 1px solid rgba(95,207,217,.25);
   background: rgba(95,207,217,.06);
