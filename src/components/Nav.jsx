@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react'
-import { NavLink, Link, useLocation } from 'react-router-dom'
+import { NavLink, Link } from 'react-router-dom'
 import { isMod } from '../lib/moderation'
 import { useAuth } from './AuthContext'
 import { supabase } from '../supabaseClient'
@@ -14,15 +13,8 @@ function initials(handle) {
 
 export default function Nav({ onSignInClick }) {
   const { session, profile } = useAuth()
-  const location = useLocation()
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
   
   const linkClass = ({ isActive }) => isActive ? 'active' : undefined
-
-  // Close menu when route changes
-  useEffect(() => {
-    setIsMenuOpen(false)
-  }, [location.pathname])
 
   const handle = profile?.handle
   const avColor = handle ? AV_COLORS[(handle.length % 6) + 1] : 'av-1'
@@ -84,57 +76,10 @@ export default function Nav({ onSignInClick }) {
         )}
       </div>
 
-      {/* Mobile Toggle */}
-      <div className="nav-mobile-toggle">
+      {/* Mobile Top Bar */}
+      <div className="nav-mobile-top">
         {session && <NotificationsBell />}
-        <button 
-          className="hamburger-btn" 
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-          aria-label="Toggle menu"
-        >
-          <span className={`hamburger-icon ${isMenuOpen ? 'open' : ''}`} />
-        </button>
       </div>
-
-      {/* Mobile Drawer */}
-      <div className={`mobile-drawer ${isMenuOpen ? 'open' : ''}`}>
-        <nav className="mobile-nav-links">
-          <NavLink to="/" end className={linkClass}>Home</NavLink>
-          <NavLink to="/forum" className={linkClass}>The Crypt</NavLink>
-          <NavLink to="/library" className={linkClass}>Library</NavLink>
-          {session && <NavLink to="/profile" className={linkClass}>Profile</NavLink>}
-          {isMod(profile) && (
-            <NavLink to="/moderation" className={linkClass} style={{ color: 'var(--blood)' }}>
-              [Terminal]
-            </NavLink>
-          )}
-        </nav>
-
-        <div className="mobile-nav-footer">
-          {session ? (
-            <button
-              className="btn ghost full-width"
-              onClick={() => supabase?.auth.signOut()}
-            >
-              Sign Out
-            </button>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <button className="btn blood full-width" onClick={() => { setIsMenuOpen(false); onSignInClick(); }}>
-                Join the Coven
-              </button>
-              <button className="btn ghost full-width" onClick={() => { setIsMenuOpen(false); onSignInClick(); }}>
-                Sign In
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-      
-      {/* Mobile Drawer Backdrop */}
-      {isMenuOpen && (
-        <div className="mobile-drawer-backdrop" onClick={() => setIsMenuOpen(false)} />
-      )}
     </div>
   )
 }

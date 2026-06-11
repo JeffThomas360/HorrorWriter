@@ -7,6 +7,8 @@ import Nav from './Nav'
 import Footer from './Footer'
 import SignInModal from './SignInModal'
 import OnboardingBanner from './OnboardingBanner'
+import MobileBottomNav from './MobileBottomNav'
+import FloatingAction from './FloatingAction'
 
 export default function Layout() {
   const [signinOpen, setSigninOpen] = useState(false)
@@ -53,6 +55,9 @@ export default function Layout() {
         <Footer />
       </div>
 
+      <FloatingAction onSignInClick={() => setSigninOpen(true)} />
+      <MobileBottomNav onSignInClick={() => setSigninOpen(true)} />
+      
       <SignInModal isOpen={signinOpen} onClose={() => setSigninOpen(false)} />
       <Atmospherics />
     </div>
