@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ModBadge from './ModBadge'
 
 /**
  * Avatar + name + handle + optional meta block. Shared between the editable
@@ -26,7 +27,10 @@ export default function ProfileHead({ profile, children }) {
         <div className="profile-avatar">{initial}</div>
       )}
       <div className="profile-info">
-        <h3>{profile.display_name || profile.handle}</h3>
+        <h3>
+          {profile.display_name || profile.handle}
+          <ModBadge role={profile.mod_role} />
+        </h3>
         <div className="handle">@{profile.handle}</div>
         {children}
       </div>

@@ -153,21 +153,15 @@ export async function setupSupabaseMocks(page) {
     const method = route.request().method();
     if (method === 'GET') {
       const url = route.request().url();
-      if (url.includes('handle=ilike.')) {
+      if (url.includes('handle=ilike.') || url.includes('handle=eq.')) {
         route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify([
-            {
-              id: 'user-3',
-              handle: 'spooky_newbie',
-              display_name: 'Spooky Newbie',
-              is_admin: false,
-              is_shadowbanned: false,
-              requires_screening: true
-            }
-          ])
-        });
+          status: 200, contentType: 'application/json',
+          body: JSON.stringify([{
+            id: 'user-warden', handle: 'warden_wendy', display_name: 'Warden Wendy',
+            avatar_url: null, mod_role: 'warden', mod_scope: 'all',
+            created_at: '2026-06-01T00:00:00Z',
+          }]),
+        })
       } else {
         route.fulfill({
           status: 200,
@@ -511,5 +505,17 @@ export async function setupSupabaseMocks(page) {
         body: JSON.stringify({ status: 'deleted' })
       });
     }
+  });
+
+  await page.route('**/rest/v1/mod_role_badges*', async (route) => {
+    route.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify([
+        { role: 'keeper', emoji: '🗝️', label: 'Keeper' },
+        { role: 'warden', emoji: '🕯️', label: 'Warden' },
+        { role: 'moderator', emoji: '👁️', label: 'Moderator' },
+        { role: 'sentinel', emoji: '🔦', label: 'Sentinel' },
+      ]),
+    })
   });
 }
