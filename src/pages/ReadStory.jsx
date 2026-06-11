@@ -72,6 +72,29 @@ export default function ReadStory() {
     }
   })
 
+  const { data: seriesList = [] } = useQuery({
+    queryKey: ['book_series', id],
+    queryFn: async () => {
+      if (!supabase) return []
+      const { data: sbData } = await supabase.from('series_books').select('series_id').eq('book_id', id)
+      if (!sbData?.length) return []
+      
+      const seriesIds = sbData.map(s => s.series_id)
+      const { data: seriesInfo } = await supabase.from('series').select('*').in('id', seriesIds)
+      
+      const res = []
+      for (const series of seriesInfo || []) {
+        // We do not have books(title) relation set up via fk in our query easily without testing, 
+        // but we can query them separately or just show "Next Part"
+        const { data: booksInSeries } = await supabase.from('series_books').select('book_id, sort_order').eq('series_id', series.id).order('created_at', { ascending: true })
+        const currIdx = booksInSeries.findIndex(b => b.book_id === id)
+        const nextBook = currIdx >= 0 && currIdx < booksInSeries.length - 1 ? booksInSeries[currIdx + 1] : null
+        res.push({ series, nextBook, currIdx, total: booksInSeries.length })
+      }
+      return res
+    }
+  })
+
   useDocumentTitle(book ? book.title : 'Reading…')
 
   const commentMutation = useMutation({
@@ -153,6 +176,23 @@ export default function ReadStory() {
       <div className="prose">
         <ReactMarkdown remarkPlugins={[remarkGfm]}>{book?.content || ''}</ReactMarkdown>
       </div>
+
+      {seriesList.length > 0 && (
+        <div style={{ marginTop: 40, padding: 24, border: '1px solid var(--blood)', borderRadius: 'var(--r-block)', background: 'rgba(255,0,0,0.02)' }}>
+          {seriesList.map(s => (
+            <div key={s.series.id} style={{ marginBottom: s === seriesList[seriesList.length-1] ? 0 : 20 }}>
+              <h4 style={{ fontSize: 16, color: 'var(--cyan)', margin: '0 0 12px 0', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                Part of: {s.series.title} <span style={{ color: 'var(--muted)', fontSize: 12 }}>({s.currIdx + 1} of {s.total})</span>
+              </h4>
+              {s.nextBook ? (
+                <Link to={`/library/read/${s.nextBook.book_id}`} className="btn blood">Read Next Part →</Link>
+              ) : (
+                <span style={{ color: 'var(--muted)', fontStyle: 'italic' }}>You have reached the end of this series.</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       <div style={{ borderTop: '1px solid var(--line)', paddingTop: 48, marginTop: 56 }}>
         <h3 style={{ fontFamily: 'var(--display)', fontWeight: 700, fontSize: 26, color: 'var(--paper)', marginBottom: 24 }}>

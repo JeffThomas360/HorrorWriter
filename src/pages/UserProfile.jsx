@@ -4,6 +4,7 @@ import { getProfileByHandle } from '../lib/profile'
 import ProfileHead from '../components/ProfileHead'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 import ReportModal from '../components/ReportModal'
+import FollowButton from '../components/FollowButton'
 
 // status: 'loading' | 'found' | 'notfound' | 'error'
 export default function UserProfile() {
@@ -102,6 +103,7 @@ export default function UserProfile() {
             )}
           </p>
         )}
+        <FollowButton targetProfileId={profile.id} />
       </ProfileHead>
 
       <ReportModal

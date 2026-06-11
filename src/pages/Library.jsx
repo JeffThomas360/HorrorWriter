@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
@@ -32,15 +33,31 @@ function postedAgo(dateString) {
 export default function Library() {
   useDocumentTitle('Library')
   const { session } = useAuth()
+  const [feedMode, setFeedMode] = useState('all')
 
   const { data: books = [], isLoading: loading, error: queryError } = useQuery({
-    queryKey: ['books'],
+    queryKey: ['books', feedMode, session?.user?.id],
     queryFn: async () => {
       if (!supabase) return []
-      const { data, error } = await supabase
+      
+      let query = supabase
         .from('books')
         .select('*, profiles(handle)')
         .order('created_at', { ascending: false })
+
+      if (feedMode === 'following' && session) {
+        const { data: follows } = await supabase
+          .from('user_follows')
+          .select('following_id')
+          .eq('follower_id', session.user.id)
+        
+        const authorIds = follows?.map(f => f.following_id) || []
+        if (authorIds.length === 0) return [] // Following nobody
+        
+        query = query.in('author_id', authorIds)
+      }
+
+      const { data, error } = await query
       if (error) throw error
       return data || []
     }
@@ -50,7 +67,7 @@ export default function Library() {
 
   return (
     <section className="surface">
-      <div className="section-head">
+      <div className="section-head" style={{ marginBottom: 24 }}>
         <div className="left">
           <p className="eyebrow">The Library</p>
           <h2>Shared <em>work</em></h2>
@@ -62,6 +79,25 @@ export default function Library() {
           <span className="soon-chip">Sign in to publish</span>
         )}
       </div>
+
+      {session && (
+        <div style={{ display: 'flex', gap: 12, marginBottom: 32 }}>
+          <button 
+            className={`btn ${feedMode === 'all' ? 'blood' : 'ghost'}`} 
+            onClick={() => setFeedMode('all')}
+            style={{ fontSize: 13, padding: '6px 12px' }}
+          >
+            All Stories
+          </button>
+          <button 
+            className={`btn ${feedMode === 'following' ? 'blood' : 'ghost'}`} 
+            onClick={() => setFeedMode('following')}
+            style={{ fontSize: 13, padding: '6px 12px' }}
+          >
+            My Feed
+          </button>
+        </div>
+      )}
 
       {loading && (
         <div className="lib-grid">

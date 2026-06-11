@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../components/AuthContext'
 import MarkdownEditor from '../components/MarkdownEditor'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import TranscribeButton from '../components/TranscribeButton'
 
 function wordCount(text) {
@@ -28,12 +28,29 @@ export default function PublishStory() {
   const [content, setContent] = useState('')
   const [error,   setError]   = useState(null)
 
+  const [seriesId, setSeriesId] = useState('none')
+  const [newSeriesTitle, setNewSeriesTitle] = useState('')
+
+  const { data: mySeries = [] } = useQuery({
+    queryKey: ['mySeries', session?.user?.id],
+    queryFn: async () => {
+      if (!session) return []
+      const { data } = await supabase
+        .from('series')
+        .select('*')
+        .eq('author_id', session.user.id)
+        .order('created_at', { ascending: false })
+      return data || []
+    },
+    enabled: !!session
+  })
+
   useEffect(() => {
     if (!authLoading && !session) navigate('/library')
   }, [session, authLoading, navigate])
 
   const mutation = useMutation({
-    mutationFn: async ({ title, lede, cover, content }) => {
+    mutationFn: async ({ title, lede, cover, content, seriesId, newSeriesTitle }) => {
       const { data, error: bookError } = await supabase
         .from('books')
         .insert({
@@ -46,6 +63,20 @@ export default function PublishStory() {
         .select('id')
         .single()
       if (bookError) throw bookError
+
+      if (seriesId === 'new' && newSeriesTitle.trim()) {
+        const { data: createdSeries, error: sErr } = await supabase
+          .from('series')
+          .insert({ title: newSeriesTitle.trim(), author_id: session.user.id })
+          .select('id')
+          .single()
+        if (!sErr && createdSeries) {
+          await supabase.from('series_books').insert({ series_id: createdSeries.id, book_id: data.id })
+        }
+      } else if (seriesId && seriesId !== 'none') {
+        await supabase.from('series_books').insert({ series_id: seriesId, book_id: data.id })
+      }
+
       return data
     },
     onSuccess: (data) => {
@@ -64,7 +95,11 @@ export default function PublishStory() {
       setError('Title, lede, and content are required.')
       return
     }
-    mutation.mutate({ title, lede, cover, content })
+    if (seriesId === 'new' && !newSeriesTitle.trim()) {
+      setError('Please provide a title for the new series.')
+      return
+    }
+    mutation.mutate({ title, lede, cover, content, seriesId, newSeriesTitle })
   }
 
   const isSubmitting = mutation.isPending
@@ -108,6 +143,34 @@ export default function PublishStory() {
             />
           </div>
         </label>
+
+        <label className="profile-field">
+          <div className="profile-field-label">Series / Anthology</div>
+          <div className="profile-field-input">
+            <select
+              value={seriesId}
+              onChange={(e) => setSeriesId(e.target.value)}
+              style={{ padding: '8px 12px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', color: 'var(--paper)', borderRadius: 'var(--r-button)' }}
+            >
+              <option value="none">Standalone Story</option>
+              {mySeries.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
+              <option value="new">+ Create New Series</option>
+            </select>
+          </div>
+        </label>
+
+        {seriesId === 'new' && (
+          <label className="profile-field" style={{ marginTop: '-12px' }}>
+            <div className="profile-field-label">New Series Title</div>
+            <div className="profile-field-input">
+              <input
+                value={newSeriesTitle}
+                onChange={(e) => setNewSeriesTitle(e.target.value)}
+                placeholder="e.g. The Haunted Trilogy"
+              />
+            </div>
+          </label>
+        )}
 
         <div className="profile-field">
           <div className="profile-field-label">Cover</div>
