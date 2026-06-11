@@ -6,6 +6,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../components/AuthContext'
 import ReportModal from '../components/ReportModal'
 import InlineModControls from '../components/mod/InlineModControls'
+import MarkdownEditor from '../components/MarkdownEditor'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 const AV_COLORS = ['', 'av-1', 'av-2', 'av-3', 'av-4', 'av-5', 'av-6']
 
@@ -30,21 +33,6 @@ function readingTime(text) {
   const words = text.trim().split(/\s+/).length
   const mins = Math.ceil(words / 200)
   return mins === 1 ? '~1 min read' : `~${mins} min read`
-}
-
-function StoryBody({ content }) {
-  if (!content) return <p className="dim">This story has no text…</p>
-  const paragraphs = content.split(/\n{2,}/).filter(p => p.trim())
-  if (paragraphs.length === 0) return <p className="dim">This story has no text…</p>
-  return (
-    <div className="story-body">
-      {paragraphs.map((para, i) => (
-        <p key={i} className={i === 0 ? 'story-para story-dropcap' : 'story-para'}>
-          {para.trim()}
-        </p>
-      ))}
-    </div>
-  )
 }
 
 export default function ReadStory() {
@@ -162,7 +150,9 @@ export default function ReadStory() {
         {rtLabel && <span className="reading-time-chip">{rtLabel}</span>}
       </div>
 
-      <StoryBody content={book?.content} />
+      <div className="prose">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{book?.content || ''}</ReactMarkdown>
+      </div>
 
       <div style={{ borderTop: '1px solid var(--line)', paddingTop: 48, marginTop: 56 }}>
         <h3 style={{ fontFamily: 'var(--display)', fontWeight: 700, fontSize: 26, color: 'var(--paper)', marginBottom: 24 }}>
@@ -197,7 +187,9 @@ export default function ReadStory() {
                       <InlineModControls targetType="critique" targetId={c.id} currentStatus={c.mod_status} authorId={c.author_id} />
                     </div>
                   </div>
-                  <div className="body">{c.content}</div>
+                  <div className="body prose">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{c.content}</ReactMarkdown>
+                  </div>
                 </article>
               )
             })}
@@ -210,12 +202,12 @@ export default function ReadStory() {
               Leave a critique
             </h4>
             <div className="profile-field-input" style={{ marginBottom: 14 }}>
-              <textarea
+              <MarkdownEditor
                 value={commentContent}
                 onChange={(e) => setCommentContent(e.target.value)}
                 placeholder="Offer constructive dark wisdom…"
                 rows={5}
-                required
+                disabled={isSubmitting}
               />
             </div>
             <div className="row-flex">

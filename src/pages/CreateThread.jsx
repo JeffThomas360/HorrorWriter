@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../components/AuthContext'
+import MarkdownEditor from '../components/MarkdownEditor'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import TranscribeButton from '../components/TranscribeButton'
 
@@ -107,14 +108,14 @@ export default function CreateThread() {
         </label>
 
         <label className="profile-field">
-          <div className="profile-field-label">Initial Post</div>
-          <div className="profile-field-input">
-            <textarea
+          <div className="profile-field-input" style={{ marginBottom: 32 }}>
+            <div className="profile-field-label">Initial Post</div>
+            <MarkdownEditor
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              required
-              rows={8}
-              placeholder="Speak into the void…"
+              placeholder="What is on your mind?"
+              rows={10}
+              disabled={isSubmitting}
             />
           </div>
           <div style={{ marginTop: 8 }}>

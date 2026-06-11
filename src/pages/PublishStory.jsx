@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../components/AuthContext'
+import MarkdownEditor from '../components/MarkdownEditor'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import TranscribeButton from '../components/TranscribeButton'
 
@@ -161,13 +162,10 @@ export default function PublishStory() {
             )}
           </div>
           <div className="profile-field-input">
-            <textarea
+            <MarkdownEditor
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              required
-              rows={20}
               placeholder="True!—nervous—very, very dreadfully nervous I had been and am; but why will you say that I am mad?"
-              style={{ fontFamily: 'var(--body)', fontSize: '1.1rem', lineHeight: 1.7 }}
             />
           </div>
           <div style={{ marginTop: 8 }}>

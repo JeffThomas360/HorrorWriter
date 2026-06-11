@@ -6,6 +6,9 @@ import { useDocumentTitle } from '../lib/useDocumentTitle'
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import ReportModal from '../components/ReportModal'
 import InlineModControls from '../components/mod/InlineModControls'
+import MarkdownEditor from '../components/MarkdownEditor'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 const AV_COLORS = ['', 'av-1', 'av-2', 'av-3', 'av-4', 'av-5', 'av-6']
 const PAGE_SIZE = 15
@@ -220,7 +223,9 @@ export default function ThreadView() {
                   <InlineModControls targetType="post" targetId={p.id} currentStatus={p.mod_status} authorId={p.author_id} />
                 </div>
               </div>
-              <div className="body">{p.content}</div>
+              <div className="body prose">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{p.content}</ReactMarkdown>
+              </div>
             </article>
           )
         })}
@@ -245,12 +250,12 @@ export default function ThreadView() {
           </h3>
           <form onSubmit={handleReply}>
             <div className="profile-field-input" style={{ marginBottom: 14 }}>
-              <textarea
+              <MarkdownEditor
                 value={replyContent}
                 onChange={(e) => setReplyContent(e.target.value)}
                 placeholder="Speak into the void…"
                 rows={5}
-                required
+                disabled={isSubmitting}
               />
             </div>
             <div className="row-flex">
