@@ -319,6 +319,11 @@ export default function Profile() {
                 unlocked and the passkey setting is on.
               </li>
             </ol>
+            <p className="passkey-help-note">
+              Still nothing? Make sure this site isn’t listed in your password manager’s
+              <strong> excluded or blocked domains</strong> — that silently stops it from ever
+              prompting, with no error to tell you why.
+            </p>
           </div>
         </details>
       </div>

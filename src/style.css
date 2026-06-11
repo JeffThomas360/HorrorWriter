@@ -1247,6 +1247,12 @@ section.surface {
   padding: 1px 5px;
   border-radius: 3px;
 }
+.passkey-help-note {
+  margin: 12px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid rgba(243, 236, 217, 0.10);
+  color: var(--bone);
+}
 
 .onboarding-banner {
   border-bottom: 1px solid rgba(95,207,217,.25);
