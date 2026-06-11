@@ -9,6 +9,8 @@ import InlineModControls from '../components/mod/InlineModControls'
 import MarkdownEditor from '../components/MarkdownEditor'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import ShareBar from '../components/ShareBar'
+import QuoteSharer from '../components/QuoteSharer'
 
 const AV_COLORS = ['', 'av-1', 'av-2', 'av-3', 'av-4', 'av-5', 'av-6']
 
@@ -156,6 +158,7 @@ export default function ReadStory() {
 
   return (
     <section className="surface" style={{ width: '100%', margin: '0 auto', maxWidth: 'var(--prose-w)' }}>
+      <QuoteSharer title={book?.title} />
       <div className="section-head" style={{ marginBottom: 40, borderBottom: '1px solid var(--line)', paddingBottom: 24 }}>
         <p className="eyebrow" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
           <span>A story by @{book?.profiles?.handle || 'unknown'}</span>
@@ -193,6 +196,8 @@ export default function ReadStory() {
           ))}
         </div>
       )}
+
+      <ShareBar title={book?.title} />
 
       <div style={{ borderTop: '1px solid var(--line)', paddingTop: 48, marginTop: 56 }}>
         <h3 style={{ fontFamily: 'var(--display)', fontWeight: 700, fontSize: 26, color: 'var(--paper)', marginBottom: 24 }}>
