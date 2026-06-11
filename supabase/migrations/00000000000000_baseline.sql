@@ -261,7 +261,9 @@ CREATE TABLE IF NOT EXISTS "public"."passkey_credentials" (
     "transports" "text"[],
     "counter" bigint DEFAULT 0 NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"(),
-    "last_used_at" timestamp with time zone
+    "last_used_at" timestamp with time zone,
+    "attachment" "text",
+    CONSTRAINT "passkey_credentials_attachment_check" CHECK (("attachment" IN ('platform', 'cross-platform')))
 );
 
 
@@ -529,10 +531,6 @@ CREATE POLICY "Users can delete own threads." ON "public"."threads" FOR DELETE U
 
 
 
-CREATE POLICY "Users can delete their own passkeys" ON "public"."passkey_credentials" FOR DELETE USING (("auth"."uid"() = "user_id"));
-
-
-
 CREATE POLICY "Users can delete their own passkeys." ON "public"."passkey_credentials" FOR DELETE USING ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
 
 
@@ -574,10 +572,6 @@ CREATE POLICY "Users can update own profile." ON "public"."profiles" FOR UPDATE 
 
 
 CREATE POLICY "Users can update own threads." ON "public"."threads" FOR UPDATE USING ((( SELECT "auth"."uid"() AS "uid") = "author_id"));
-
-
-
-CREATE POLICY "Users can view their own passkeys" ON "public"."passkey_credentials" FOR SELECT USING (("auth"."uid"() = "user_id"));
 
 
 
