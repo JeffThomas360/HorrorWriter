@@ -4,6 +4,8 @@ import { supabase } from '../supabaseClient'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../components/AuthContext'
+import ReportModal from '../components/ReportModal'
+import InlineModControls from '../components/mod/InlineModControls'
 
 const AV_COLORS = ['', 'av-1', 'av-2', 'av-3', 'av-4', 'av-5', 'av-6']
 
@@ -52,6 +54,7 @@ export default function ReadStory() {
 
   const [commentContent, setCommentContent] = useState('')
   const [commentError, setCommentError] = useState(null)
+  const [reportTarget, setReportTarget] = useState(null)
 
   const { data: book, isLoading: loading, error: queryError } = useQuery({
     queryKey: ['book', id],
@@ -145,7 +148,8 @@ export default function ReadStory() {
       <div style={{ textAlign: 'center', marginBottom: 56 }}>
         <p className="eyebrow" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
           <span>A story by @{book?.profiles?.handle || 'unknown'}</span>
-          {/* TODO(phase2): ReportModal trigger */}
+          <button onClick={() => setReportTarget({ type: 'story', id: book.id })} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '12px' }}>[Report]</button>
+          {book && <InlineModControls targetType="story" targetId={book.id} currentStatus={book.mod_status} authorId={book.author_id} />}
         </p>
         <h1 className="title" style={{ marginBottom: 18 }}>
           {book?.title}
@@ -188,7 +192,10 @@ export default function ReadStory() {
                         <span className="when">{timeAgo(c.created_at)}</span>
                       </div>
                     </div>
-                    {/* TODO(phase2): ReportModal trigger */}
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <button onClick={() => setReportTarget({ type: 'critique', id: c.id })} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '11px' }}>Report</button>
+                      <InlineModControls targetType="critique" targetId={c.id} currentStatus={c.mod_status} authorId={c.author_id} />
+                    </div>
                   </div>
                   <div className="body">{c.content}</div>
                 </article>
@@ -229,6 +236,13 @@ export default function ReadStory() {
       <div style={{ textAlign: 'center', borderTop: '1px solid var(--line)', paddingTop: 32, marginTop: 56 }}>
         <Link to="/library" className="btn ghost">← Return to the Library</Link>
       </div>
+
+      <ReportModal
+        isOpen={!!reportTarget}
+        onClose={() => setReportTarget(null)}
+        targetType={reportTarget?.type}
+        targetId={reportTarget?.id}
+      />
     </section>
   )
 }

@@ -2,6 +2,7 @@ import { NavLink, Link } from 'react-router-dom'
 import { isMod } from '../lib/moderation'
 import { useAuth } from './AuthContext'
 import { supabase } from '../supabaseClient'
+import NotificationsBell from './NotificationsBell'
 
 const AV_COLORS = ['', 'av-1', 'av-2', 'av-3', 'av-4', 'av-5', 'av-6']
 
@@ -51,6 +52,7 @@ export default function Nav({ onSignInClick }) {
             )}
             {handle && <span className="nav-handle">@{handle}</span>}
           </Link>
+          <NotificationsBell />
           <button
             className="nav-cta ghost"
             onClick={() => supabase?.auth.signOut()}

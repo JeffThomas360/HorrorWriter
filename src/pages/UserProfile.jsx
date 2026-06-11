@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { getProfileByHandle } from '../lib/profile'
 import ProfileHead from '../components/ProfileHead'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
+import ReportModal from '../components/ReportModal'
 
 // status: 'loading' | 'found' | 'notfound' | 'error'
 export default function UserProfile() {
@@ -10,6 +11,7 @@ export default function UserProfile() {
   useDocumentTitle(handle ? `@${handle}` : 'Member')
   const [profile, setProfile] = useState(null)
   const [status, setStatus] = useState('loading')
+  const [reportTarget, setReportTarget] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -86,6 +88,7 @@ export default function UserProfile() {
             {joinedFmt && <>Joined {joinedFmt}</>}
             {joinedFmt && profile.location && <> · </>}
             {profile.location}
+            <button onClick={() => setReportTarget({ type: 'user', id: profile.id })} style={{ marginLeft: 15, background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '12px' }}>[Report User]</button>
           </p>
         )}
         {profile.website_url && (
@@ -100,6 +103,13 @@ export default function UserProfile() {
           </p>
         )}
       </ProfileHead>
+
+      <ReportModal
+        isOpen={!!reportTarget}
+        onClose={() => setReportTarget(null)}
+        targetType={reportTarget?.type}
+        targetId={reportTarget?.id}
+      />
     </section>
   )
 }

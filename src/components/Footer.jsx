@@ -1,7 +1,10 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import ReportModal from './ReportModal'
 
 export default function Footer() {
   const year = new Date().getFullYear()
+  const [reportOpen, setReportOpen] = useState(false)
 
   return (
     <footer>
@@ -35,7 +38,7 @@ export default function Footer() {
             <li><Link to="/rules#house-rules">House Rules</Link></li>
             <li><Link to="/rules#critique-code">Critique Code</Link></li>
             <li><Link to="/rules#content-warnings">Content Warnings</Link></li>
-            <li><span className="footer-soon">Moderators · soon</span></li>
+            <li><button onClick={() => setReportOpen(true)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 0, fontFamily: 'var(--mono)', fontSize: '11px', letterSpacing: '0.12em' }}>Report a Problem</button></li>
           </ul>
         </div>
 
@@ -58,6 +61,13 @@ export default function Footer() {
         </span>
         <span>Made by hand · in the dark</span>
       </div>
+
+      <ReportModal
+        isOpen={reportOpen}
+        onClose={() => setReportOpen(false)}
+        targetType="site"
+        targetId={null}
+      />
     </footer>
   )
 }

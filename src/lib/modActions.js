@@ -44,3 +44,38 @@ export async function setRoleBadge(role, emoji, label) {
   })
   if (error) throw new Error(error.message)
 }
+
+export async function submitReport({ targetType, targetId, category, details }) {
+  if (!supabase) throw new Error('Supabase not configured')
+  const { data, error } = await supabase
+    .from('reports')
+    .insert([{ target_type: targetType, target_id: targetId || null, category, details }])
+    .select()
+    .single()
+  if (error) throw new Error(error.message)
+  
+  if (category === 'urgent' && data) {
+    supabase.functions.invoke('urgent-report-email', { body: { reportId: data.id } }).catch(console.error)
+  }
+}
+
+export async function resolveReport(reportId, actionTaken, resolutionNote) {
+  if (!supabase) throw new Error('Supabase not configured')
+  const { error } = await supabase.rpc('resolve_report', {
+    p_report_id: reportId,
+    p_action_taken: actionTaken,
+    p_resolution_note: resolutionNote
+  })
+  if (error) throw new Error(error.message)
+}
+
+export async function setContentModStatus(targetType, targetId, status, reason) {
+  if (!supabase) throw new Error('Supabase not configured')
+  const { error } = await supabase.rpc('set_content_mod_status', {
+    p_target_type: targetType,
+    p_target_id: targetId,
+    p_status: status,
+    p_reason: reason
+  })
+  if (error) throw new Error(error.message)
+}

@@ -4,6 +4,8 @@ import { supabase } from '../supabaseClient'
 import { useAuth } from '../components/AuthContext'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import ReportModal from '../components/ReportModal'
+import InlineModControls from '../components/mod/InlineModControls'
 
 const AV_COLORS = ['', 'av-1', 'av-2', 'av-3', 'av-4', 'av-5', 'av-6']
 const PAGE_SIZE = 15
@@ -32,6 +34,7 @@ export default function ThreadView() {
   const [replyContent, setReplyContent] = useState('')
   const [replyError, setReplyError] = useState(null)
   const [activeReadersCount, setActiveReadersCount] = useState(1)
+  const [reportTarget, setReportTarget] = useState(null)
 
   const { data: thread, isLoading: threadLoading, error: threadError } = useQuery({
     queryKey: ['thread', id],
@@ -184,7 +187,10 @@ export default function ThreadView() {
 
       <h1 className="title" style={{ fontSize: 'clamp(32px, 4.5vw, 48px)', marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
         <span>{thread?.title}</span>
-        {/* TODO(phase2): ReportModal trigger */}
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <button onClick={() => setReportTarget({ type: 'thread', id: thread?.id })} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '12px' }}>[Report]</button>
+          {thread && <InlineModControls targetType="thread" targetId={thread.id} currentStatus={thread.mod_status} authorId={thread.author_id} />}
+        </div>
       </h1>
 
       <span className="chip live" style={{ marginBottom: 32 }}>
@@ -209,7 +215,10 @@ export default function ThreadView() {
                     </span>
                   </div>
                 </div>
-                {/* TODO(phase2): ReportModal trigger */}
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <button onClick={() => setReportTarget({ type: 'post', id: p.id })} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '11px' }}>Report</button>
+                  <InlineModControls targetType="post" targetId={p.id} currentStatus={p.mod_status} authorId={p.author_id} />
+                </div>
               </div>
               <div className="body">{p.content}</div>
             </article>
@@ -258,6 +267,13 @@ export default function ThreadView() {
           <span className="soon-chip">Sign in to reply</span>
         </div>
       )}
+
+      <ReportModal
+        isOpen={!!reportTarget}
+        onClose={() => setReportTarget(null)}
+        targetType={reportTarget?.type}
+        targetId={reportTarget?.id}
+      />
     </section>
   )
 }
