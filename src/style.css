@@ -1565,3 +1565,35 @@ footer li a:hover { color: var(--paper); }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--line-strong);
 }
+
+.mod-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 10px;
+  padding: 2px 8px;
+  font-family: var(--ui);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--gold);
+  border: 1px solid rgba(211, 162, 74, 0.4);
+  border-radius: var(--r-pill);
+  vertical-align: middle;
+}
+
+.mod-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin: 16px 0 24px; border-bottom: 1px solid var(--line-strong); }
+.mod-tab {
+  background: none; border: none; cursor: pointer;
+  font-family: var(--ui); font-size: 13px; letter-spacing: 0.04em;
+  padding: 8px 14px; color: var(--bone-dim); border-bottom: 2px solid transparent;
+}
+.mod-tab:hover { color: var(--bone); }
+.mod-tab.active { color: var(--blood); border-bottom-color: var(--blood); }
+
+.mod-search { display: flex; gap: 8px; margin-bottom: 16px; }
+.mod-search input { flex: 1; }
+.mod-user-list { list-style: none; padding: 0; margin: 0; }
+.mod-user-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(243,236,217,.08); flex-wrap: wrap; }
+.mod-user-controls { display: inline-flex; gap: 8px; align-items: center; }
+.mod-user-self { color: var(--bone-dim); font-size: 13px; font-style: italic; }

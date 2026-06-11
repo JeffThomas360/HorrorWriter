@@ -7,13 +7,16 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "verify:baseline": "node scripts/verify-baseline.mjs"
+    "verify:baseline": "node scripts/verify-baseline.mjs",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
     "@tanstack/react-query-devtools": "^5.100.14",
     "@vitejs/plugin-react": "^5.1.2",
-    "vite": "^7.2.4"
+    "vite": "^7.2.4",
+    "vitest": "^2.1.9"
   },
   "dependencies": {
     "@simplewebauthn/browser": "^11.0.0",

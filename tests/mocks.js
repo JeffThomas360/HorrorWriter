@@ -29,7 +29,9 @@ export const MOCK_PROFILE = {
   pronouns: 'they/them',
   website_url: 'https://horrorwriter.org',
   avatar_url: null,
-  created_at: '2026-05-26T00:00:00Z'
+  created_at: '2026-05-26T00:00:00Z',
+  mod_role: null,
+  mod_scope: 'all'
 };
 
 export const MOCK_CATEGORIES = [
@@ -119,26 +121,6 @@ export const MOCK_PASSKEYS = [
   }
 ];
 
-export const MOCK_MODERATION_FLAGS = [
-  {
-    id: 'flag-1',
-    reporter_id: 'user-2',
-    target_type: 'story',
-    target_id: 'book-1',
-    reason: 'Spam content in Innsmouth',
-    created_at: '2026-06-05T01:00:00Z',
-    profiles: { handle: 'goth_reader' }
-  },
-  {
-    id: 'flag-2',
-    reporter_id: 'user-2',
-    target_type: 'critique',
-    target_id: 'comment-1',
-    reason: 'Harassment',
-    created_at: '2026-06-05T01:10:00Z',
-    profiles: { handle: 'goth_reader' }
-  }
-];
 
 // Helper to inject mock auth session to localStorage
 export async function setupMockAuth(page) {
@@ -148,38 +130,40 @@ export async function setupMockAuth(page) {
 }
 
 // Intercept REST calls
-export async function setupSupabaseMocks(page) {
+export async function setupSupabaseMocks(page, opts = {}) {
+  const selfProfile = { ...MOCK_PROFILE, mod_role: opts.mod_role ?? null, mod_scope: 'all' };
+
   await page.route('**/rest/v1/profiles*', async (route) => {
     const method = route.request().method();
     if (method === 'GET') {
       const url = route.request().url();
-      if (url.includes('handle=ilike.')) {
+      if (url.includes('handle=eq.')) {
         route.fulfill({
-          status: 200,
-          contentType: 'application/json',
+          status: 200, contentType: 'application/json',
           body: JSON.stringify([
-            {
-              id: 'user-3',
-              handle: 'spooky_newbie',
-              display_name: 'Spooky Newbie',
-              is_admin: false,
-              is_shadowbanned: false,
-              requires_screening: true
-            }
-          ])
-        });
+            { id: 'user-warden', handle: 'warden_wendy', display_name: 'Warden Wendy', avatar_url: null, mod_role: 'warden', mod_scope: 'all', created_at: '2026-06-01T00:00:00Z' }
+          ]),
+        })
+      } else if (url.includes('handle=ilike.')) {
+        route.fulfill({
+          status: 200, contentType: 'application/json',
+          body: JSON.stringify([
+            { id: 'user-warden', handle: 'warden_wendy', display_name: 'Warden Wendy', avatar_url: null, mod_role: 'warden', mod_scope: 'all', created_at: '2026-06-01T00:00:00Z' },
+            { id: 'user-newbie', handle: 'spooky_newbie', display_name: 'Spooky Newbie', avatar_url: null, mod_role: null, mod_scope: 'all', created_at: '2026-06-02T00:00:00Z' },
+          ]),
+        })
       } else {
         route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify(MOCK_PROFILE)
+          body: JSON.stringify(selfProfile)
         });
       }
     } else if (method === 'POST' || method === 'PUT' || method === 'PATCH') {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(MOCK_PROFILE)
+        body: JSON.stringify(selfProfile)
       });
     }
   });
@@ -196,21 +180,7 @@ export async function setupSupabaseMocks(page) {
     const method = route.request().method();
     if (method === 'GET') {
       const url = route.request().url();
-      if (url.includes('approved=eq.false')) {
-        route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify([
-            {
-              id: 'thread-unapproved',
-              title: 'Unapproved Thread',
-              author_id: 'user-3',
-              created_at: '2026-06-05T02:10:00Z',
-              profiles: { handle: 'spooky_newbie' }
-            }
-          ])
-        });
-      } else if (url.includes('id=eq.')) {
+      if (url.includes('id=eq.')) {
         route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -241,29 +211,11 @@ export async function setupSupabaseMocks(page) {
   await page.route('**/rest/v1/posts*', async (route) => {
     const method = route.request().method();
     if (method === 'GET') {
-      const url = route.request().url();
-      if (url.includes('approved=eq.false')) {
-        route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify([
-            {
-              id: 'post-unapproved',
-              content: 'Unapproved Post Reply',
-              thread_id: 'thread-1',
-              author_id: 'user-3',
-              created_at: '2026-06-05T02:15:00Z',
-              profiles: { handle: 'spooky_newbie' }
-            }
-          ])
-        });
-      } else {
-        route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify(MOCK_POSTS)
-        });
-      }
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(MOCK_POSTS)
+      });
     } else if (method === 'POST') {
       const postData = JSON.parse(route.request().postData() || '{}');
       route.fulfill({
@@ -291,21 +243,7 @@ export async function setupSupabaseMocks(page) {
     const method = route.request().method();
     if (method === 'GET') {
       const url = route.request().url();
-      if (url.includes('approved=eq.false')) {
-        route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify([
-            {
-              id: 'book-unapproved',
-              title: 'Unapproved Story',
-              author_id: 'user-3',
-              created_at: '2026-06-05T02:00:00Z',
-              profiles: { handle: 'spooky_newbie' }
-            }
-          ])
-        });
-      } else if (url.includes('id=eq.')) {
+      if (url.includes('id=eq.')) {
         route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -336,29 +274,11 @@ export async function setupSupabaseMocks(page) {
   await page.route('**/rest/v1/book_comments*', async (route) => {
     const method = route.request().method();
     if (method === 'GET') {
-      const url = route.request().url();
-      if (url.includes('approved=eq.false')) {
-        route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify([
-            {
-              id: 'comment-unapproved',
-              content: 'Unapproved Critique content',
-              book_id: 'book-1',
-              author_id: 'user-3',
-              created_at: '2026-06-05T02:05:00Z',
-              profiles: { handle: 'spooky_newbie' }
-            }
-          ])
-        });
-      } else {
-        route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify(MOCK_BOOK_COMMENTS)
-        });
-      }
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(MOCK_BOOK_COMMENTS)
+      });
     } else if (method === 'POST') {
       const commentData = JSON.parse(route.request().postData() || '{}');
       route.fulfill({
@@ -511,5 +431,17 @@ export async function setupSupabaseMocks(page) {
         body: JSON.stringify({ status: 'deleted' })
       });
     }
+  });
+
+  await page.route('**/rest/v1/mod_role_badges*', async (route) => {
+    route.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify([
+        { role: 'keeper', emoji: '🗝️', label: 'Keeper' },
+        { role: 'warden', emoji: '🕯️', label: 'Warden' },
+        { role: 'moderator', emoji: '👁️', label: 'Moderator' },
+        { role: 'sentinel', emoji: '🔦', label: 'Sentinel' },
+      ]),
+    })
   });
 }

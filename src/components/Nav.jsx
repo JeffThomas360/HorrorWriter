@@ -1,4 +1,5 @@
 import { NavLink, Link } from 'react-router-dom'
+import { isMod } from '../lib/moderation'
 import { useAuth } from './AuthContext'
 import { supabase } from '../supabaseClient'
 
@@ -31,9 +32,8 @@ export default function Nav({ onSignInClick }) {
         <NavLink to="/" end className={linkClass}>Home</NavLink>
         <NavLink to="/forum" className={linkClass}>The Crypt</NavLink>
         <NavLink to="/library" className={linkClass}>Library</NavLink>
-        {/* TODO(phase1): restore mod terminal link gated on profile?.mod_role */}
-        {false && (
-          <NavLink to="/moderation" className={linkClass} style={{ color: 'var(--red)' }}>
+        {isMod(profile) && (
+          <NavLink to="/moderation" className={linkClass} style={{ color: 'var(--blood)' }}>
             [Terminal]
           </NavLink>
         )}
