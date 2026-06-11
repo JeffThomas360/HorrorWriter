@@ -121,26 +121,6 @@ export const MOCK_PASSKEYS = [
   }
 ];
 
-export const MOCK_MODERATION_FLAGS = [
-  {
-    id: 'flag-1',
-    reporter_id: 'user-2',
-    target_type: 'story',
-    target_id: 'book-1',
-    reason: 'Spam content in Innsmouth',
-    created_at: '2026-06-05T01:00:00Z',
-    profiles: { handle: 'goth_reader' }
-  },
-  {
-    id: 'flag-2',
-    reporter_id: 'user-2',
-    target_type: 'critique',
-    target_id: 'comment-1',
-    reason: 'Harassment',
-    created_at: '2026-06-05T01:10:00Z',
-    profiles: { handle: 'goth_reader' }
-  }
-];
 
 // Helper to inject mock auth session to localStorage
 export async function setupMockAuth(page) {
@@ -200,21 +180,7 @@ export async function setupSupabaseMocks(page, opts = {}) {
     const method = route.request().method();
     if (method === 'GET') {
       const url = route.request().url();
-      if (url.includes('approved=eq.false')) {
-        route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify([
-            {
-              id: 'thread-unapproved',
-              title: 'Unapproved Thread',
-              author_id: 'user-3',
-              created_at: '2026-06-05T02:10:00Z',
-              profiles: { handle: 'spooky_newbie' }
-            }
-          ])
-        });
-      } else if (url.includes('id=eq.')) {
+      if (url.includes('id=eq.')) {
         route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -245,29 +211,11 @@ export async function setupSupabaseMocks(page, opts = {}) {
   await page.route('**/rest/v1/posts*', async (route) => {
     const method = route.request().method();
     if (method === 'GET') {
-      const url = route.request().url();
-      if (url.includes('approved=eq.false')) {
-        route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify([
-            {
-              id: 'post-unapproved',
-              content: 'Unapproved Post Reply',
-              thread_id: 'thread-1',
-              author_id: 'user-3',
-              created_at: '2026-06-05T02:15:00Z',
-              profiles: { handle: 'spooky_newbie' }
-            }
-          ])
-        });
-      } else {
-        route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify(MOCK_POSTS)
-        });
-      }
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(MOCK_POSTS)
+      });
     } else if (method === 'POST') {
       const postData = JSON.parse(route.request().postData() || '{}');
       route.fulfill({
@@ -295,21 +243,7 @@ export async function setupSupabaseMocks(page, opts = {}) {
     const method = route.request().method();
     if (method === 'GET') {
       const url = route.request().url();
-      if (url.includes('approved=eq.false')) {
-        route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify([
-            {
-              id: 'book-unapproved',
-              title: 'Unapproved Story',
-              author_id: 'user-3',
-              created_at: '2026-06-05T02:00:00Z',
-              profiles: { handle: 'spooky_newbie' }
-            }
-          ])
-        });
-      } else if (url.includes('id=eq.')) {
+      if (url.includes('id=eq.')) {
         route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -340,29 +274,11 @@ export async function setupSupabaseMocks(page, opts = {}) {
   await page.route('**/rest/v1/book_comments*', async (route) => {
     const method = route.request().method();
     if (method === 'GET') {
-      const url = route.request().url();
-      if (url.includes('approved=eq.false')) {
-        route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify([
-            {
-              id: 'comment-unapproved',
-              content: 'Unapproved Critique content',
-              book_id: 'book-1',
-              author_id: 'user-3',
-              created_at: '2026-06-05T02:05:00Z',
-              profiles: { handle: 'spooky_newbie' }
-            }
-          ])
-        });
-      } else {
-        route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify(MOCK_BOOK_COMMENTS)
-        });
-      }
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(MOCK_BOOK_COMMENTS)
+      });
     } else if (method === 'POST') {
       const commentData = JSON.parse(route.request().postData() || '{}');
       route.fulfill({
