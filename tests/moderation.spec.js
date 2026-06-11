@@ -48,3 +48,23 @@ test.describe('Moderation — registry', () => {
     expect(rpcBody.p_scope).toBe('forum')
   })
 })
+
+test.describe('Moderation — badges tab', () => {
+  test('keeper edits a badge label (calls set_role_badge)', async ({ page }) => {
+    await setupSupabaseMocks(page, { mod_role: 'keeper' })
+    await setupMockAuth(page)
+    let rpcBody = null
+    await page.route('**/rest/v1/rpc/set_role_badge*', async (route) => {
+      rpcBody = JSON.parse(route.request().postData() || '{}')
+      route.fulfill({ status: 204, contentType: 'application/json', body: '' })
+    })
+    await page.goto('/moderation')
+    await page.getByRole('tab', { name: 'Badges' }).click()
+    const label = page.getByLabel('Label for warden')
+    await expect(label).toBeVisible()
+    await label.fill('Lampbearer')
+    await page.locator('li', { hasText: 'warden' }).getByRole('button', { name: 'Save' }).click()
+    await expect.poll(() => rpcBody?.p_role).toBe('warden')
+    expect(rpcBody.p_label).toBe('Lampbearer')
+  })
+})
