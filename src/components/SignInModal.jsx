@@ -8,8 +8,17 @@ const DISPOSABLE_DOMAINS = [
   'guerrillamail.com', 'sharklasers.com', 'dispostable.com', 'getairmail.com'
 ]
 
+const getEmailCookie = () => {
+  const match = document.cookie.match(/(?:^|; )hw_last_email=([^;]*)/)
+  return match ? decodeURIComponent(match[1]) : ''
+}
+
+const saveEmailCookie = (emailToSave) => {
+  document.cookie = `hw_last_email=${encodeURIComponent(emailToSave)}; max-age=${60 * 60 * 24 * 365}; path=/; SameSite=Strict`
+}
+
 export default function SignInModal({ isOpen, onClose }) {
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(getEmailCookie)
   const [honeypot, setHoneypot] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isPasskeySubmitting, setIsPasskeySubmitting] = useState(false)
@@ -45,7 +54,7 @@ export default function SignInModal({ isOpen, onClose }) {
   // Reset state when modal closes
   useEffect(() => {
     if (!isOpen) {
-      setEmail('')
+      setEmail(getEmailCookie())
       setError(null)
       setMessage(null)
     }
@@ -63,6 +72,7 @@ export default function SignInModal({ isOpen, onClose }) {
     setIsPasskeySubmitting(true)
     setError(null)
     setMessage(null)
+    saveEmailCookie(email)
     try {
       await signInWithPasskey(email)
       onClose()
@@ -140,6 +150,7 @@ export default function SignInModal({ isOpen, onClose }) {
     }
 
     try {
+      saveEmailCookie(email)
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: { emailRedirectTo: window.location.origin + '/auth/callback' }
