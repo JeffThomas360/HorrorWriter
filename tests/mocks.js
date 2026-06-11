@@ -29,7 +29,9 @@ export const MOCK_PROFILE = {
   pronouns: 'they/them',
   website_url: 'https://horrorwriter.org',
   avatar_url: null,
-  created_at: '2026-05-26T00:00:00Z'
+  created_at: '2026-05-26T00:00:00Z',
+  mod_role: null,
+  mod_scope: 'all'
 };
 
 export const MOCK_CATEGORIES = [
@@ -148,7 +150,9 @@ export async function setupMockAuth(page) {
 }
 
 // Intercept REST calls
-export async function setupSupabaseMocks(page) {
+export async function setupSupabaseMocks(page, opts = {}) {
+  const selfProfile = { ...MOCK_PROFILE, mod_role: opts.mod_role ?? null, mod_scope: 'all' };
+
   await page.route('**/rest/v1/profiles*', async (route) => {
     const method = route.request().method();
     if (method === 'GET') {
@@ -166,14 +170,14 @@ export async function setupSupabaseMocks(page) {
         route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify(MOCK_PROFILE)
+          body: JSON.stringify(selfProfile)
         });
       }
     } else if (method === 'POST' || method === 'PUT' || method === 'PATCH') {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(MOCK_PROFILE)
+        body: JSON.stringify(selfProfile)
       });
     }
   });

@@ -1581,3 +1581,12 @@ footer li a:hover { color: var(--paper); }
   border-radius: var(--r-pill);
   vertical-align: middle;
 }
+
+.mod-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin: 16px 0 24px; border-bottom: 1px solid var(--line-strong); }
+.mod-tab {
+  background: none; border: none; cursor: pointer;
+  font-family: var(--ui); font-size: 13px; letter-spacing: 0.04em;
+  padding: 8px 14px; color: var(--bone-dim); border-bottom: 2px solid transparent;
+}
+.mod-tab:hover { color: var(--bone); }
+.mod-tab.active { color: var(--blood); border-bottom-color: var(--blood); }
