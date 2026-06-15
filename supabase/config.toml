@@ -411,6 +411,17 @@ verify_jwt = false
 [functions.webauthn-authenticate-complete]
 verify_jwt = false
 
+# verify_jwt MUST be false: these self-verify the caller's JWT internally
+# (getUser) and return CORS-bearing 401s. With the gateway's default verify_jwt
+# = true, an unauthorized/expired request is rejected at the platform WITHOUT
+# CORS headers, which the browser reports as an opaque "NetworkError" instead of
+# the real 401. Keep these in sync with authenticate-* above.
+[functions.webauthn-register-begin]
+verify_jwt = false
+
+[functions.webauthn-register-complete]
+verify_jwt = false
+
 
 [functions.urgent-report-email]
 enabled = true
