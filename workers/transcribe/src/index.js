@@ -1,3 +1,5 @@
+import { Buffer } from 'node:buffer'
+
 const MAX_BYTES = 4 * 1024 * 1024
 
 const ALLOWED_ORIGINS = [
@@ -30,48 +32,62 @@ export default {
   async fetch(req, env) {
     const origin = req.headers.get('Origin') ?? ''
 
-    if (req.method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: corsHeaders(origin) })
-    }
-
-    if (req.method !== 'POST') {
-      return json({ error: 'Method not allowed' }, 405, origin)
-    }
-
-    let formData
+    // Top-level guard: NOTHING leaves this worker without CORS headers. A bare
+    // throw or early platform error would otherwise reach the browser as an
+    // opaque "NetworkError" that masks the real cause (this bit us hard).
     try {
-      formData = await req.formData()
-    } catch {
-      return json({ error: 'Invalid request body' }, 400, origin)
-    }
+      if (req.method === 'OPTIONS') {
+        return new Response(null, { status: 204, headers: corsHeaders(origin) })
+      }
+      if (req.method !== 'POST') {
+        return json({ error: 'Method not allowed' }, 405, origin)
+      }
 
-    const audioFile = formData.get('audio')
-    if (!audioFile || typeof audioFile === 'string') {
-      return json({ error: 'No audio file provided' }, 400, origin)
-    }
+      let formData
+      try {
+        formData = await req.formData()
+      } catch {
+        return json({ error: 'Invalid request body' }, 400, origin)
+      }
 
-    const cl = Number(req.headers.get('content-length'))
-    if (!isNaN(cl) && cl > MAX_BYTES) {
-      return json({ error: 'File exceeds the 4 MB limit.' }, 413, origin)
-    }
+      const audioFile = formData.get('audio')
+      if (!audioFile || typeof audioFile === 'string') {
+        return json({ error: 'No audio file provided' }, 400, origin)
+      }
 
-    const audioBuffer = await audioFile.arrayBuffer()
+      const cl = Number(req.headers.get('content-length'))
+      if (!isNaN(cl) && cl > MAX_BYTES) {
+        return json({ error: 'File exceeds the 4 MB limit.' }, 413, origin)
+      }
 
-    if (audioBuffer.byteLength > MAX_BYTES) {
-      return json({ error: 'File exceeds the 4 MB limit.' }, 413, origin)
-    }
+      const audioBuffer = await audioFile.arrayBuffer()
+      if (audioBuffer.byteLength > MAX_BYTES) {
+        return json({ error: 'File exceeds the 4 MB limit.' }, 413, origin)
+      }
+      if (audioBuffer.byteLength === 0) {
+        return json({ error: 'The recording was empty — please try again.' }, 400, origin)
+      }
 
-    if (!env.AI) {
-      return json({ error: 'AI binding not configured.' }, 503, origin)
-    }
+      if (!env.AI) {
+        return json({ error: 'AI binding not configured.' }, 503, origin)
+      }
 
-    try {
-      const result = await env.AI.run('@cf/openai/whisper', {
-        audio: new Uint8Array(audioBuffer),
+      // whisper-large-v3-turbo takes base64-encoded audio. base64 is cheap to
+      // build from the buffer; the older @cf/openai/whisper wanted the bytes
+      // spread into a plain array ([...Uint8Array]), which for a multi-MB clip
+      // allocates millions of JS numbers and can blow the isolate's CPU/memory
+      // limit — crashing it before it can respond (the CORS-less NetworkError).
+      const base64 = Buffer.from(audioBuffer).toString('base64')
+
+      const result = await env.AI.run('@cf/openai/whisper-large-v3-turbo', {
+        audio: base64,
+        language: 'en',
       })
-      return json({ text: result.text ?? '' }, 200, origin)
+
+      return json({ text: result?.text ?? '' }, 200, origin)
     } catch (err) {
-      console.error('[transcribe]', err)
+      // Surfaces in `wrangler tail` / Workers Logs (observability enabled).
+      console.error('[transcribe]', err?.stack || String(err))
       return json(
         { error: 'Transcription failed — try a shorter clip or cleaner audio.' },
         500,
