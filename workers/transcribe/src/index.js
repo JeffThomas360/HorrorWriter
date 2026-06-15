@@ -3,6 +3,9 @@ const MAX_BYTES = 4 * 1024 * 1024
 const ALLOWED_ORIGINS = [
   'https://horrorwriter.org',
   'https://www.horrorwriter.org',
+  'https://horrorwriter.pages.dev',
+  'http://localhost:5173',
+  'http://localhost:4173',
 ]
 
 function corsHeaders(origin) {

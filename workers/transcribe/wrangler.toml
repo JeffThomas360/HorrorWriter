@@ -1,6 +1,7 @@
 name = "horrorwriter-transcribe"
 main = "src/index.js"
 compatibility_date = "2024-09-23"
+account_id = "e61bdda6d2e023366f97a9bf015c6334"
 
 [ai]
 binding = "AI"
