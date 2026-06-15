@@ -16,7 +16,7 @@ A horror writing community at **horrorwriter.org**. React + Vite SPA on Cloudfla
 | Deploy | Cloudflare Pages (GitHub auto-deploy on push to `main`) |
 | Node | 20 (pinned in `.nvmrc`) |
 
-**Dependencies:** `@supabase/supabase-js`, `react-router-dom`, `@simplewebauthn/browser`, `@marsidev/react-turnstile`
+**Dependencies:** `@supabase/supabase-js`, `react-router-dom`, `@simplewebauthn/browser` (Turnstile/`@marsidev/react-turnstile` was removed — no captcha in the current app)
 
 ---
 
@@ -106,30 +106,33 @@ All CSS lives in `src/style.css`. No CSS modules, no Tailwind.
 **Cloudflare Pages project:** `horrorwriter` (the Pages one, not the Worker)
 - Live at: `horrorwriter.org`, `www.horrorwriter.org`, `horrorwriter.pages.dev`
 - Account ID: `e61bdda6d2e023366f97a9bf015c6334`
-- **Deploy: push to `main`** — GitHub auto-deploy is connected; Cloudflare rebuilds on every push.
-  No manual wrangler step for normal releases. Build command `npm run build`, output dir `dist`.
+- **Deploy: push to `main`.** Cloudflare's native Git integration rebuilds Pages on every push,
+  reading the root **`wrangler.toml`** as the source of truth. Build command `npm run build`,
+  output dir `dist`. (A second pipeline — a `.github/workflows/deploy.yml` GitHub Action that
+  deployed via `wrangler pages deploy` using GitHub repo secrets — was **deleted 2026-06-15** to
+  stop the two pipelines racing; see Known constraints.)
 
-**⚠️ Production env vars (Settings → Variables and Secrets → Production).** Vite bakes `VITE_*` vars
-into the bundle at **build time** — editing a var in the dashboard does NOTHING until a new build
-runs (see Deploy workflow for how to force a rebuild without a code change). **On 2026-06-14 every
-var EXCEPT `VITE_SUPABASE_ANON_KEY` was found wiped from production** (cause unknown — possibly the
-GitHub-integration setup), which silently broke the Supabase client ("Supabase not configured"),
-transcription, Turnstile, and Google login. **If the site breaks site-wide after a deploy, check
-these first.** Full required set (restored + verified 2026-06-14):
+**⚠️ Production env vars live in the root `wrangler.toml` `[vars]` block — NOT the dashboard.**
+Because a `wrangler.toml` exists, Cloudflare treats it as the source of truth and **wipes any
+dashboard plain-text vars on every deploy** (secrets survive). This bit us hard on 2026-06-14/15:
+the build shipped with no `VITE_SUPABASE_URL`, producing a site-wide "Supabase not configured"
+outage. **To change a build var: edit `wrangler.toml [vars]` and push — do NOT use the dashboard.**
+Vite bakes `VITE_*` into the bundle at build time. Current required set (all PUBLIC by design, safe
+to commit — verified live 2026-06-15):
   - `VITE_SUPABASE_URL` = `https://bmvvugrfnuedjlucmlbw.supabase.co`
-  - `VITE_SUPABASE_ANON_KEY` (secret — value not API-readable; if login fails with "Invalid API key"
-    rather than "not configured", re-check this one)
+  - `VITE_SUPABASE_ANON_KEY` = `sb_publishable_...` (Supabase **publishable** key — RLS-protected,
+    public by design; it ships in the client bundle regardless)
   - `VITE_TRANSCRIBE_URL` = `https://horrorwriter-transcribe.orig-beetlebub.workers.dev`
-  - `VITE_TURNSTILE_SITE_KEY` = `0x4AAAAAADVOj70TqBIdnJER` (PUBLIC site key — safe to commit/expose)
   - `VITE_ENABLE_GOOGLE_LOGIN` = `true` (feature flag for the Google OAuth button)
-  - `NODE_VERSION` = `20`
-  - Local `.env.local` intentionally omits `VITE_TURNSTILE_SITE_KEY` so the Send Magic Link button
-    isn't stuck disabled when the Turnstile script fails to load in dev. Playwright injects a dummy
-    key via `webServer.env` so the gating test stays deterministic (see `playwright.config.js`).
+  - `VITE_TURNSTILE_SITE_KEY` — kept in `[vars]` but **currently unused**: the frontend has no
+    Turnstile code and `@marsidev/react-turnstile` is no longer a dependency (see below).
+  - Local `.env.local` (gitignored) holds these for `npm run dev`. `.env.production` (also gitignored)
+    is local-only and never reaches the build.
 
-**Turnstile SECRET key** lives in **Supabase Auth** (Authentication → Settings → Bot and Abuse
-Protection / CAPTCHA), NOT in Cloudflare. **Never** put the secret key in a `VITE_*` var — it would
-ship in the public bundle. The secret key is a separate system and was untouched by the wipe above.
+**Turnstile is vestigial.** Supabase Auth CAPTCHA is commented out in `supabase/config.toml` and the
+React app has no Turnstile/captcha code, so neither the site key nor a secret key is functionally
+needed right now. If you ever re-enable it: the **site** key goes in `wrangler.toml [vars]`; the
+**secret** key goes in Supabase Auth (Authentication → Settings → CAPTCHA), NEVER in a `VITE_*` var.
 
 **Cloudflare Worker: `horrorwriter-transcribe`**
 - Live at: `https://horrorwriter-transcribe.orig-beetlebub.workers.dev`
@@ -152,17 +155,20 @@ git add .
 git commit -m "..."
 git push
 
-# Rebuild WITHOUT a code change (e.g. after editing env vars in the dashboard):
-# trigger a fresh production deployment via the Cloudflare API.
+# Change a build/runtime env var: edit the [vars] block in the root wrangler.toml, then push.
+# (Do NOT set it in the Cloudflare dashboard — wrangler.toml is the source of truth and the
+#  dashboard plain-text vars get wiped on every deploy.)
+
+# Force a rebuild WITHOUT a code change: trigger a fresh production deployment via the Cloudflare API.
 $h = @{ Authorization = "Bearer $env:CLOUDFLARE_API_TOKEN" }
 $acct = "e61bdda6d2e023366f97a9bf015c6334"
 Invoke-RestMethod -Method POST -Headers $h `
   -Uri "https://api.cloudflare.com/client/v4/accounts/$acct/pages/projects/horrorwriter/deployments"
 
-# Read / set production env vars via the API (PATCH MERGES by key; set a key to null to delete it):
-#   GET   .../pages/projects/horrorwriter   → .result.deployment_configs.production.env_vars
-#   PATCH .../pages/projects/horrorwriter   with body:
-#     { deployment_configs: { production: { env_vars: { NAME: { type: "plain_text", value: "..." } } } } }
+# Verify a deploy actually baked the vars in — fetch the live bundle and grep it:
+#   $html = (Invoke-WebRequest "https://horrorwriter.org/" -UseBasicParsing).Content
+#   $js   = [regex]::Match($html, '/assets/[^"'']+\.js').Value
+#   (Invoke-WebRequest "https://horrorwriter.org$js" -UseBasicParsing).Content -match 'bmvvugrfnuedjlucmlbw'
 
 # Transcribe Worker (separate from Pages — NOT auto-deployed; deploy manually):
 cd workers/transcribe; npx wrangler deploy
@@ -222,7 +228,7 @@ consolidated baseline migration.)
 | Library critiques | ✅ Real (Supabase `book_comments`) |
 | Realtime presence lobby | ✅ Real (Supabase Realtime — `Home.jsx`) |
 | Google OAuth sign-in | ✅ Real, feature-flagged (`VITE_ENABLE_GOOGLE_LOGIN`) |
-| Turnstile CAPTCHA | ✅ Real (key set in prod) |
+| Turnstile CAPTCHA | ❌ Removed (no captcha code in app; Supabase Auth CAPTCHA disabled) |
 | Audio transcription | ✅ Real (CF Worker + Workers AI Whisper — story editor + thread composer) |
 | Rituals / writing prompts | ❌ Removed |
 
@@ -236,7 +242,16 @@ consolidated baseline migration.)
 - **`gh` CLI not authenticated:** Opening PRs from here fails until `gh auth login` is run. Until
   then, open PRs via the GitHub web compare URL (or `Start-Process <url>` to launch the browser).
 - **File edits in sandbox:** The Edit/Write file tools work fine for the mounted folder.
-- **GitHub auto-deploy:** Cloudflare Pages is connected to GitHub. Pushes to main trigger automatic deploys (confirmed 2026-06-14). Manual wrangler deploy is no longer needed for normal releases.
+- **GitHub auto-deploy:** Cloudflare Pages' native Git integration rebuilds on every push to `main`,
+  using the root `wrangler.toml` (incl. its `[vars]`). Manual wrangler deploy is not needed for
+  normal releases.
+- **Two-pipeline outage (2026-06-14/15):** the site had BOTH Cloudflare's native Git integration AND
+  a `.github/workflows/deploy.yml` GitHub Action deploying on every push — they raced, and the
+  native build shipped broken bundles (no env vars, because `wrangler.toml` had no `[vars]` and the
+  dashboard vars get wiped on deploy). Fixed by moving all `VITE_*` vars into `wrangler.toml [vars]`
+  and **deleting the GitHub Action** so the native integration is the sole pipeline. If "Supabase
+  not configured" ever returns, first confirm the live bundle actually contains the Supabase URL
+  (grep recipe in Deploy workflow) — that distinguishes an env-var/build problem from a code bug.
 - **Cloudflare API token mechanics:** `CLOUDFLARE_API_TOKEN` (machine env var) needs **Workers
   Scripts Edit + Cloudflare Pages Edit** (current token verified to have both, 2026-06-14). The
   PowerShell/Bash tools spawn fresh shells that read the CURRENT machine value, but the **MCP
@@ -250,15 +265,14 @@ consolidated baseline migration.)
 
 ## Next priorities
 
-> Done 2026-06-14: restored all 6 wiped Pages env vars + forced a rebuild (fixed the site-wide
-> "Supabase not configured" outage); deployed transcribe Worker CORS fix (added `*.pages.dev` +
-> localhost origins). Earlier: moderation suite phases 1–3, site phases 4–10, GitHub auto-deploy.
+> Done 2026-06-15: fixed the site-wide "Supabase not configured" outage at the root — moved all
+> `VITE_*` vars into `wrangler.toml [vars]` (Pages was wiping dashboard vars on every deploy) and
+> deleted the redundant `.github/workflows/deploy.yml` so a single deploy pipeline remains. Verified
+> the live bundle now contains the Supabase URL + working publishable key and the transcribe URL.
+> Also deployed the transcribe Worker CORS fix. Earlier: moderation suite phases 1–3, site phases 4–10.
 
-1. **Verify the 2026-06-14 fix on the live site** — after a hard refresh, passkey + magic-link
-   login, the Google button, and audio transcription should all work. (The transcription
-   `NetworkError` was likely caused by the missing `VITE_TRANSCRIBE_URL`, now restored, in addition
-   to the Worker CORS fix.) If login fails with "Invalid API key" instead of "Supabase not
-   configured", re-check the `VITE_SUPABASE_ANON_KEY` value.
+1. **Confirm in-browser** — Jeff to hard-refresh and verify passkey/Google login + audio
+   transcription actually work end-to-end (bundle is verified; live user flow not yet confirmed).
 2. **Pagination on ThreadView** — currently fetches all posts at once; add a page cursor before threads grow.
 3. **Delete old Worker** — Cloudflare → Workers & Pages → the Worker `horrorwriter` → Settings → Delete
 4. **Authenticate `gh`** — run `gh auth login` so PRs can be opened from the CLI/sandbox.
