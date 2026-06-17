@@ -23,7 +23,7 @@ Cloudflare Pages, Supabase backend.
 | Storage | Supabase Storage (avatars bucket, per-user RLS) |
 | Edge Functions | Supabase Deno functions (WebAuthn ceremonies) |
 | Deploy | Cloudflare Pages (GitHub auto-deploy on push to `main`) |
-| Node | 20 (pinned in `.nvmrc`) |
+| Node | 22 (pinned in `.nvmrc`; Astro 6 requires ≥22.12) |
 
 **Notes**
 - `react-router-dom` is still a dependency and imported by a few **orphaned** legacy SPA
