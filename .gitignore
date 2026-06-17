@@ -18,6 +18,13 @@ dist-ssr
 build
 *.local
 
+# Astro / Wrangler local caches
+.astro/
+.wrangler/
+
+# Local scratch / debug throwaways (DO NOT COMMIT)
+scratch/
+
 # Environment variables (DO NOT COMMIT)
 .env*
 !.env.example

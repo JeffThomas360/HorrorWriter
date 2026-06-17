@@ -1,0 +1,32 @@
+---
+export const prerender = false; // Render server-side at request time to support metadata insertion
+
+import MainLayout from '../../layouts/MainLayout.astro';
+import UserProfile from '../../pages-react/UserProfile.jsx';
+import { supabase } from '../../supabaseClient';
+
+const { handle } = Astro.params;
+
+let profile = null;
+try {
+  const isTest = typeof process !== 'undefined' && process.env.PLAYWRIGHT_TEST === 'true';
+  if (supabase && handle && !isTest) {
+    const { data } = await supabase
+      .from('profiles')
+      .select('display_name, bio')
+      .eq('handle', handle)
+      .single();
+    profile = data;
+  }
+} catch (e) {
+  console.error('Error fetching user profile details for SEO:', e);
+}
+
+const displayName = profile?.display_name || `@${handle}`;
+const title = `${displayName} | Horror Writer`;
+const description = profile?.bio || `Read ${displayName}'s stories and critiques on Horror Writer.`;
+---
+
+<MainLayout title={title} description={description}>
+  <UserProfile handle={handle} client:load />
+</MainLayout>

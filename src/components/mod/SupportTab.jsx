@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../supabaseClient'
 import { resolveReport } from '../../lib/modActions'
-import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 
 export default function SupportTab() {

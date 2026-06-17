@@ -1,0 +1,31 @@
+---
+export const prerender = false; // Render server-side at request time to support metadata insertion
+
+import MainLayout from '../../../layouts/MainLayout.astro';
+import ThreadView from '../../../pages-react/ThreadView.jsx';
+import { supabase } from '../../../supabaseClient';
+
+const { id } = Astro.params;
+
+let thread = null;
+try {
+  const isTest = typeof process !== 'undefined' && process.env.PLAYWRIGHT_TEST === 'true';
+  if (supabase && !isTest) {
+    const { data } = await supabase
+      .from('threads')
+      .select('title')
+      .eq('id', id)
+      .single();
+    thread = data;
+  }
+} catch (e) {
+  console.error('Error fetching thread for SEO:', e);
+}
+
+const title = thread ? `${thread.title} | Forum` : 'Forum Thread';
+const description = 'Join the discussion on Horror Writer.';
+---
+
+<MainLayout title={title} description={description}>
+  <ThreadView id={id} client:load />
+</MainLayout>

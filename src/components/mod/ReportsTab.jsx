@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../supabaseClient'
 import { resolveReport } from '../../lib/modActions'
-import { Link } from 'react-router-dom'
 import UserModProfile from './UserModProfile'
 import { toast } from 'sonner'
 
@@ -56,8 +55,8 @@ export default function ReportsTab() {
   }
 
   const renderTargetLink = (type, id) => {
-    if (type === 'story' || type === 'critique') return <Link to={`/story/${id}`}>View Content</Link>
-    if (type === 'thread' || type === 'post') return <Link to={`/thread/${id}`}>View Content</Link>
+    if (type === 'story' || type === 'critique') return <a href={`/library/read/${id}`} className="underline hover:text-[var(--color-accent-crimson)]">View Content</a>
+    if (type === 'thread' || type === 'post') return <a href={`/forum/thread/${id}`} className="underline hover:text-[var(--color-accent-crimson)]">View Content</a>
     if (type === 'user') return <button className="btn ghost" style={{ fontSize: 12, padding: '4px 8px' }} onClick={() => setActiveContextUserId(id)}>View User Context</button>
     return id
   }

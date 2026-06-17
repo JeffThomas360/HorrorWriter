@@ -1,0 +1,65 @@
+@import "tailwindcss";
+@import "./fonts.css";
+
+@theme {
+  --color-bg-primary: #121212;
+  --color-bg-surface: #1a1a1a;
+  --color-text-primary: #E5E1D8;
+  --color-text-secondary: #A3A39C;
+  --color-accent-crimson: #991B1B;
+}
+
+/* Base structural tokens for 1980s typography-focused typesetting */
+html,
+body {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: 'Merriweather', serif;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Define explicit 1980s page structure elements */
+main.shell {
+  max-width: 64rem; /* max-w-5xl for outer shell */
+  margin: 0 auto;
+  padding: 2rem 1.5rem 6rem;
+}
+
+/* Content block constraints (65-75 chars per line) */
+.prose-book {
+  max-width: 42rem; /* max-w-2xl */
+  margin: 0 auto;
+  font-size: 1.125rem;
+  line-height: 1.75;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: 'Cinzel', serif;
+  color: var(--color-text-primary);
+  letter-spacing: -0.01em;
+}
+
+/* Thin, desaturated borders instead of modern shadows */
+.vintage-border {
+  border: 1px solid #2d2d2a;
+}
+
+.vintage-card {
+  background-color: var(--color-bg-surface);
+  border: 1px solid #2d2d2a;
+  padding: 1.5rem;
+}
+
+/* Link transitions and micro-animations */
+a {
+  transition: color 0.15s ease-in-out;
+}
+
+a:hover {
+  color: var(--color-accent-crimson);
+}

@@ -1,0 +1,60 @@
+---
+const year = new Date().getFullYear();
+---
+
+<footer class="border-t border-[#2d2d2a] bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] py-12 mt-20">
+  <div class="max-w-5xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-8">
+    <div class="flex flex-col gap-4">
+      <a href="/" class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full border border-[var(--color-accent-crimson)] bg-[#1a0a14] flex items-center justify-center relative">
+          <span class="font-serif font-black text-[var(--color-accent-crimson)] text-sm">H</span>
+        </div>
+        <div class="font-serif font-black tracking-widest text-sm text-[var(--color-text-primary)]">
+          HORROR WRITER
+          <span class="block text-[8px] tracking-[0.25em] text-[var(--color-text-secondary)] font-mono mt-0.5">EST. THE WITCHING HOUR</span>
+        </div>
+      </a>
+      <p class="text-xs font-serif leading-relaxed mt-2">
+        A circle for those who write the dark.
+        Hand-built, no algorithm, no ads.
+      </p>
+    </div>
+
+    <div>
+      <h5 class="text-xs font-mono uppercase tracking-widest text-[var(--color-text-primary)] mb-4">The Coven</h5>
+      <ul class="text-xs font-serif flex flex-col gap-2">
+        <li><a href="/forum" class="hover:text-[var(--color-accent-crimson)]">The Crypt</a></li>
+        <li><a href="/library" class="hover:text-[var(--color-accent-crimson)]">Library</a></li>
+        <li><a href="/profile" class="hover:text-[var(--color-accent-crimson)]">Your Profile</a></li>
+      </ul>
+    </div>
+
+    <div>
+      <h5 class="text-xs font-mono uppercase tracking-widest text-[var(--color-text-primary)] mb-4">House</h5>
+      <ul class="text-xs font-serif flex flex-col gap-2">
+        <li><a href="/rules#house-rules" class="hover:text-[var(--color-accent-crimson)]">House Rules</a></li>
+        <li><a href="/rules#critique-code" class="hover:text-[var(--color-accent-crimson)]">Critique Code</a></li>
+        <li><a href="/rules#content-warnings" class="hover:text-[var(--color-accent-crimson)]">Content Warnings</a></li>
+        <li><a href="/transparency" class="hover:text-[var(--color-accent-crimson)]">Transparency Log</a></li>
+      </ul>
+    </div>
+
+    <div>
+      <h5 class="text-xs font-mono uppercase tracking-widest text-[var(--color-text-primary)] mb-4">Quiet</h5>
+      <ul class="text-xs font-serif flex flex-col gap-2">
+        <li><a href="/rules#privacy" class="hover:text-[var(--color-accent-crimson)]">Privacy</a></li>
+        <li><a href="/rules#liability-dmca" class="hover:text-[var(--color-accent-crimson)]">DMCA Safe Harbor</a></li>
+        <li><span class="opacity-50">RSS · soon</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="max-w-5xl mx-auto px-6 border-t border-[#2d2d2a] mt-8 pt-8 flex flex-col sm:flex-row justify-between items-center text-[10px] font-mono gap-4">
+    <span>© {year} Horror Writer · No ads, ever.</span>
+    <span class="flex items-center gap-2">
+      <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-accent-crimson)] animate-pulse"></span>
+      REC · 1986
+    </span>
+    <span>Made by hand · in the dark</span>
+  </div>
+</footer>

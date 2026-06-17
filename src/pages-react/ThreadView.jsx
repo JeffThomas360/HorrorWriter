@@ -1,16 +1,14 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../components/AuthContext'
-import { useDocumentTitle } from '../lib/useDocumentTitle'
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import ReportModal from '../components/ReportModal'
 import InlineModControls from '../components/mod/InlineModControls'
 import MarkdownEditor from '../components/MarkdownEditor'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { withProviders } from '../components/Providers'
 
-const AV_COLORS = ['', 'av-1', 'av-2', 'av-3', 'av-4', 'av-5', 'av-6']
 const PAGE_SIZE = 15
 
 function initials(handle) {
@@ -29,8 +27,7 @@ function timeAgo(dateString) {
   return `${Math.floor(diff / 86400)}d`
 }
 
-export default function ThreadView() {
-  const { id } = useParams()
+function ThreadView({ id }) {
   const { session } = useAuth()
   const queryClient = useQueryClient()
 
@@ -52,8 +49,6 @@ export default function ThreadView() {
       return data
     }
   })
-
-  useDocumentTitle(thread ? thread.title : 'Loading…')
 
   const {
     data: postsData,
@@ -162,68 +157,76 @@ export default function ThreadView() {
   const isSubmitting = replyMutation.isPending
 
   if (loading) return (
-    <section className="surface">
-      <div className="status-panel">
-        <p className="loading-pulse">Descending…</p>
-      </div>
-    </section>
+    <div className="flex flex-col items-center justify-center min-h-[40vh]">
+      <p className="font-mono text-xs uppercase tracking-widest text-[var(--color-text-secondary)] animate-pulse">Descending…</p>
+    </div>
   )
   if (error) return (
-    <section className="surface">
-      <div className="status-panel">
-        <p className="eyebrow error">Something went wrong</p>
-        <p className="status-panel-body">{error}</p>
-        <Link to="/forum" className="btn ghost">Back to the Crypt</Link>
-      </div>
-    </section>
+    <div className="vintage-card text-center py-12 border-red-950 mt-8 max-w-2xl mx-auto">
+      <p className="font-mono text-xs uppercase tracking-widest text-[var(--color-accent-crimson)] mb-4">Error</p>
+      <p className="font-serif italic text-sm text-[var(--color-text-secondary)] mb-6">{error}</p>
+      <a href="/forum" className="border border-[#2d2d2a] hover:border-white font-mono text-xs uppercase px-4 py-2 transition-colors">Back to the Crypt</a>
+    </div>
   )
 
   return (
-    <section className="surface" style={{ width: '100%', margin: '0 auto', maxWidth: 'var(--prose-w)' }}>
-      <Link
-        to="/forum"
-        className="eyebrow"
-        style={{ marginBottom: 12 }}
+    <div className="mt-8 max-w-2xl mx-auto">
+      <a
+        href="/forum"
+        className="inline-block font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--color-accent-crimson)] mb-4 hover:underline"
       >
         ← Back to {thread?.categories?.name?.split('·')[0].trim() || 'The Crypt'}
-      </Link>
+      </a>
 
-      <h1 className="title" style={{ fontSize: 'clamp(32px, 4.5vw, 48px)', marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
-        <span>{thread?.title}</span>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <button onClick={() => setReportTarget({ type: 'thread', id: thread?.id })} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '12px' }}>[Report]</button>
+      <div className="border-b border-[#2d2d2a] pb-6 mb-8 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div>
+          <h1 className="title text-2xl md:text-3xl font-serif font-black text-[var(--color-text-primary)] leading-tight mb-2">
+            {thread?.title}
+          </h1>
+          <span className="inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-wider text-[var(--color-text-secondary)]">
+            <span className="w-1 h-1 rounded-full bg-red-800 animate-pulse"></span>
+            {activeReadersCount} {activeReadersCount === 1 ? 'writer reading' : 'writers reading'}
+          </span>
+        </div>
+        <div className="flex items-center gap-3 text-xs font-mono">
+          <button 
+            onClick={() => setReportTarget({ type: 'thread', id: thread?.id })} 
+            className="text-[var(--color-text-secondary)] hover:text-[var(--color-accent-crimson)] border border-[#2d2d2a] px-2 py-0.5 hover:border-red-950 cursor-pointer"
+          >
+            Report
+          </button>
           {thread && <InlineModControls targetType="thread" targetId={thread.id} currentStatus={thread.mod_status} authorId={thread.author_id} />}
         </div>
-      </h1>
+      </div>
 
-      <span className="chip live" style={{ marginBottom: 32 }}>
-        {activeReadersCount} {activeReadersCount === 1 ? 'writer reading' : 'writers reading'}
-      </span>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div className="flex flex-col gap-6">
         {posts.map((p, index) => {
           const handle = p.profiles?.handle || 'unknown'
-          const avColorIndex = (handle.length % 6) + 1
           return (
-            <article key={p.id} className="card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%', marginBottom: 14 }}>
-                <div className="author" style={{ marginBottom: 0 }}>
-                  <div className={`avatar ${AV_COLORS[avColorIndex]}`} style={{ width: 36, height: 36, fontSize: 13 }}>
+            <article key={p.id} className="vintage-card flex flex-col gap-4">
+              <div className="flex justify-between items-start border-b border-[#2d2d2a] pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[var(--color-bg-primary)] border border-[#2d2d2a] flex items-center justify-center font-mono text-xs text-[var(--color-text-secondary)]">
                     {initials(handle)}
                   </div>
-                  <div className="who">
-                    <span className="name">@{handle}</span>
-                    <span className="when">
+                  <div className="flex flex-col">
+                    <span className="font-mono text-xs font-bold text-[var(--color-accent-crimson)]">@{handle}</span>
+                    <span className="font-mono text-[9px] text-[var(--color-text-secondary)]">
                       {index === 0 ? 'Original Post' : `Reply #${index}`} · {timeAgo(p.created_at)}
                     </span>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <button onClick={() => setReportTarget({ type: 'post', id: p.id })} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '11px' }}>Report</button>
+                <div className="flex gap-3 items-center text-[10px] font-mono">
+                  <button 
+                    onClick={() => setReportTarget({ type: 'post', id: p.id })} 
+                    className="text-[var(--color-text-secondary)] hover:text-[var(--color-accent-crimson)] cursor-pointer"
+                  >
+                    Report
+                  </button>
                   <InlineModControls targetType="post" targetId={p.id} currentStatus={p.mod_status} authorId={p.author_id} />
                 </div>
               </div>
-              <div className="body prose">
+              <div className="prose prose-invert font-serif text-sm leading-relaxed text-[var(--color-text-primary)]">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{p.content}</ReactMarkdown>
               </div>
             </article>
@@ -231,9 +234,9 @@ export default function ThreadView() {
         })}
 
         {hasNextPage && (
-          <div className="text-center" style={{ marginTop: 16 }}>
+          <div className="text-center mt-6">
             <button
-              className="btn ghost"
+              className="border border-[#2d2d2a] hover:border-white text-[var(--color-text-primary)] font-mono text-xs uppercase px-4 py-2 transition-colors cursor-pointer"
               onClick={fetchNextPage}
               disabled={isFetchingNextPage}
             >
@@ -244,12 +247,12 @@ export default function ThreadView() {
       </div>
 
       {session ? (
-        <div style={{ marginTop: 56, paddingTop: 32, borderTop: '1px solid var(--line)' }}>
-          <h3 style={{ fontFamily: 'var(--display)', fontSize: 22, marginBottom: 14, color: 'var(--paper)' }}>
+        <div className="mt-12 border-t border-[#2d2d2a] pt-8">
+          <h3 className="font-serif font-bold text-sm text-[var(--color-text-primary)] mb-4 uppercase tracking-wide">
             Leave a reply
           </h3>
           <form onSubmit={handleReply}>
-            <div className="profile-field-input" style={{ marginBottom: 14 }}>
+            <div className="mb-4">
               <MarkdownEditor
                 value={replyContent}
                 onChange={(e) => setReplyContent(e.target.value)}
@@ -258,18 +261,27 @@ export default function ThreadView() {
                 disabled={isSubmitting}
               />
             </div>
-            <div className="row-flex">
-              <button type="submit" className="btn blood" disabled={isSubmitting}>
+            <div className="flex items-center gap-4">
+              <button 
+                type="submit" 
+                className="bg-[var(--color-accent-crimson)] text-white font-mono text-xs uppercase px-5 py-3 hover:bg-red-700 transition-colors cursor-pointer"
+                disabled={isSubmitting}
+              >
                 {isSubmitting ? 'Summoning…' : 'Post Reply'}
               </button>
-              {replyError && <span className="form-err">{replyError}</span>}
+              {replyError && <span className="form-err font-mono text-xs text-[var(--color-accent-crimson)]">{replyError}</span>}
             </div>
           </form>
         </div>
       ) : (
-        <div className="empty" style={{ marginTop: 48 }}>
-          <p>You must enter the void to reply.</p>
-          <span className="soon-chip">Sign in to reply</span>
+        <div className="vintage-card text-center py-8 mt-12">
+          <p className="font-serif italic text-xs text-[var(--color-text-secondary)] mb-4">You must enter the void to reply.</p>
+          <button 
+            className="font-mono text-xs uppercase border border-[#2d2d2a] hover:border-white px-4 py-2 transition-colors cursor-pointer"
+            onClick={() => window.dispatchEvent(new CustomEvent('open-signin'))}
+          >
+            Sign In to Reply
+          </button>
         </div>
       )}
 
@@ -279,6 +291,8 @@ export default function ThreadView() {
         targetType={reportTarget?.type}
         targetId={reportTarget?.id}
       />
-    </section>
+    </div>
   )
 }
+
+export default withProviders(ThreadView)

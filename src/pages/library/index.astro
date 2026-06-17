@@ -1,0 +1,8 @@
+---
+import MainLayout from '../../layouts/MainLayout.astro';
+import Library from '../../pages-react/Library.jsx';
+---
+
+<MainLayout title="The Library | Horror Writer" description="Excerpts, shorts, and chapters shared by the coven.">
+  <Library client:load />
+</MainLayout>

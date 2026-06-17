@@ -8,6 +8,10 @@ export default defineConfig({
   testDir: './tests',
   /* Run tests in files in parallel */
   fullyParallel: true,
+  /* Astro's dev server compiles routes + React islands JIT on first request.
+     Under parallel workers the first cold hit to a route can exceed the default
+     5s expect timeout, so give assertions more headroom. */
+  expect: { timeout: 15000 },
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
@@ -52,6 +56,7 @@ export default defineConfig({
     timeout: 120 * 1000,
     env: {
       VITE_TRANSCRIBE_URL: 'http://localhost:5173',
+      PLAYWRIGHT_TEST: 'true',
     },
   },
 });

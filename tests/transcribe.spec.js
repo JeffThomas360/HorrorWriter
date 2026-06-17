@@ -17,12 +17,12 @@ test.describe('Audio Transcription', () => {
 
   test('Transcribe Audio button appears on story editor', async ({ page }) => {
     await page.goto('/library/publish')
-    await expect(page.locator('button.transcribe-btn')).toBeVisible()
+    await expect(page.locator('button.transcribe-btn')).toBeVisible({ timeout: 15000 })
   })
 
   test('Transcribe Audio button appears on create thread form', async ({ page }) => {
     await page.goto('/forum/new')
-    await expect(page.locator('button.transcribe-btn')).toBeVisible()
+    await expect(page.locator('button.transcribe-btn')).toBeVisible({ timeout: 15000 })
   })
 
   test('Modal opens with warning banner', async ({ page }) => {

@@ -1,0 +1,8 @@
+---
+import MainLayout from '../layouts/MainLayout.astro';
+import Profile from '../pages-react/Profile.jsx';
+---
+
+<MainLayout title="Your Profile | Horror Writer" description="Manage your profile details, avatar, and passkey authentication credentials.">
+  <Profile client:load />
+</MainLayout>

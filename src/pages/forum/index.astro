@@ -1,0 +1,8 @@
+---
+import MainLayout from '../../layouts/MainLayout.astro';
+import Forum from '../../pages-react/Forum.jsx';
+---
+
+<MainLayout title="The Crypt | Horror Writer" description="The discussions forum of our coven. Search threads, categories, and talk craft.">
+  <Forum client:load />
+</MainLayout>

@@ -1,0 +1,236 @@
+---
+import MainLayout from '../layouts/MainLayout.astro';
+import { supabase } from '../supabaseClient';
+
+const FALLBACK_TILES = [
+  {
+    tag: '▸ CRITIQUE',
+    title: 'How do you write quiet horror?',
+    body: 'A discussion on dread without a body count — the slow architecture of unease.',
+    meta: '12 replies · 2h',
+    hot: true,
+  },
+  {
+    tag: '▸ WORKSHOP',
+    title: 'First page, no mercy',
+    body: 'Drop the first 250 words. We tell you whether we kept reading. And why we stopped.',
+    meta: '34 replies · today',
+  },
+  {
+    tag: '▸ LIBRARY',
+    title: 'New shorts this week',
+    body: 'Fresh pieces from the coven — left in the dark for others to find.',
+    meta: '6 stories',
+  },
+];
+
+const WHY = [
+  {
+    ic: 'I.',
+    label: 'No algorithm',
+    body: 'Chronological. Hand-curated. The best work rises because readers say so — not because a feed decided.',
+  },
+  {
+    ic: 'II.',
+    label: 'Real critique',
+    body: 'A Critique Code every member agrees to. Praise is cheap; we deal in useful. Cruelty is shown the door.',
+  },
+  {
+    ic: 'III.',
+    label: 'No ads. Ever.',
+    body: 'Member-supported. Your attention is not for sale. Your work is not the product.',
+  },
+];
+
+const PROMPT = {
+  label: '▸ Prompt of the Week',
+  quote: 'Write 500 words about a house that remembers you, even though you have never been inside.',
+  cite: 'Week of May 26 — submit by Sunday',
+};
+
+let stats = { writers: 0, stories: 0, threads: 0 };
+let tiles = FALLBACK_TILES;
+
+try {
+  const isTest = typeof process !== 'undefined' && process.env.PLAYWRIGHT_TEST === 'true';
+  if (supabase && !isTest) {
+    const [w, s, t] = await Promise.all([
+      supabase.from('profiles').select('id', { count: 'exact', head: true }),
+      supabase.from('books').select('id', { count: 'exact', head: true }),
+      supabase.from('threads').select('id', { count: 'exact', head: true }),
+    ]);
+    stats = {
+      writers: w.count ?? 0,
+      stories: s.count ?? 0,
+      threads: t.count ?? 0,
+    };
+
+    const { data } = await supabase
+      .from('threads')
+      .select('*, categories(name), profiles(handle)')
+      .order('updated_at', { ascending: false })
+      .limit(3);
+
+    if (data && data.length > 0) {
+      tiles = data.map((t, i) => ({
+        tag: `▸ ${(t.categories?.name || 'THREAD').split('·')[0].toUpperCase().trim()}`,
+        hot: i === 0,
+        title: t.title,
+        body: `Started by @${t.profiles?.handle || 'someone'}. Join the discussion in the dark.`,
+        meta: `${t.replies_count || 0} replies`,
+        id: t.id,
+      }));
+    }
+  }
+} catch (e) {
+  console.error('Error fetching dynamic stats/threads during build:', e);
+}
+
+const [heroTile, ...restTiles] = tiles;
+---
+
+<MainLayout title="Horror Writer" description="A circle for serious horror writers — forums, critique, weekly prompts, and craft.">
+  
+  <!-- Hero Section -->
+  <section class="border-b border-[#2d2d2a] pb-12 mb-16 pt-8">
+    <span class="inline-block font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--color-accent-crimson)] mb-4">
+      Members · Writers Only · Founded 1986
+    </span>
+    <h1 class="text-4xl md:text-6xl font-serif font-black leading-tight tracking-tight text-[var(--color-text-primary)] max-w-4xl mb-6">
+      Write the things <br />
+      <span class="text-[var(--color-accent-crimson)] italic">that keep them up.</span>
+    </h1>
+    <p class="text-base md:text-lg font-serif italic text-[var(--color-text-secondary)] max-w-2xl mb-8 leading-relaxed">
+      A circle for serious horror writers — forums, critique, weekly prompts,
+      and a coven that takes the craft as seriously as you do.
+    </p>
+
+    <div class="flex flex-wrap gap-4 items-center">
+      <a id="cta-enter" href="/forum" class="hidden bg-[var(--color-accent-crimson)] text-white font-mono text-xs uppercase px-6 py-3.5 hover:bg-red-700 transition-colors">
+        Enter the Crypt
+      </a>
+      <button id="cta-join" class="hidden bg-[var(--color-accent-crimson)] text-white font-mono text-xs uppercase px-6 py-3.5 hover:bg-red-700 transition-colors cursor-pointer">
+        Join the Coven
+      </button>
+      <a href="/library" class="border border-[#2d2d2a] text-[var(--color-text-primary)] font-mono text-xs uppercase px-6 py-3.5 hover:border-white transition-colors">
+        Read the Library
+      </a>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mt-16 pt-8 border-t border-dashed border-[#2d2d2a]" aria-label="Site stats">
+      <div>
+        <span class="block text-2xl font-serif font-bold text-[var(--color-text-primary)]">{stats.writers ? stats.writers.toLocaleString() : '—'}</span>
+        <span class="block font-mono text-[9px] uppercase tracking-wider text-[var(--color-text-secondary)] mt-1">Writers</span>
+      </div>
+      <div>
+        <span class="block text-2xl font-serif font-bold text-[var(--color-text-primary)]">{stats.stories ? stats.stories.toLocaleString() : '—'}</span>
+        <span class="block font-mono text-[9px] uppercase tracking-wider text-[var(--color-text-secondary)] mt-1">Stories Shared</span>
+      </div>
+      <div>
+        <span class="block text-2xl font-serif font-bold text-[var(--color-text-primary)]">{stats.threads ? stats.threads.toLocaleString() : '—'}</span>
+        <span class="block font-mono text-[9px] uppercase tracking-wider text-[var(--color-text-secondary)] mt-1">Threads in Crypt</span>
+      </div>
+      <div>
+        <span class="block text-2xl font-serif font-bold text-[var(--color-text-primary)]">0</span>
+        <span class="block font-mono text-[9px] uppercase tracking-wider text-[var(--color-text-secondary)] mt-1">Ads, Ever</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Content Grid Section -->
+  <section class="mb-20">
+    <div class="flex justify-between items-end mb-8">
+      <div>
+        <span class="block font-mono text-[9px] uppercase tracking-[0.25em] text-[var(--color-accent-crimson)] mb-2">In the Crypt right now</span>
+        <h2 class="text-2xl md:text-3xl font-serif font-black">The <em class="italic text-[var(--color-accent-crimson)] font-serif">conversations</em> tonight</h2>
+      </div>
+      <a href="/forum" class="hidden sm:inline-block font-mono text-xs hover:text-[var(--color-accent-crimson)] transition-colors border-b border-[#2d2d2a] pb-1">All threads →</a>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <!-- Hero Tile (Large) -->
+      <a href={heroTile.id ? `/forum/thread/${heroTile.id}` : '/forum'} class="md:col-span-2 vintage-card relative flex flex-col justify-between hover:border-white transition-all min-h-[260px]">
+        <div>
+          <div class="flex justify-between items-start mb-4">
+            <span class="font-mono text-[10px] tracking-wider text-[var(--color-accent-crimson)] font-bold">{heroTile.tag}</span>
+            {heroTile.hot && <span class="font-mono text-[9px] border border-[var(--color-accent-crimson)] text-[var(--color-accent-crimson)] px-1.5 py-0.5 animate-pulse">TRENDING</span>}
+          </div>
+          <h3 class="text-xl font-serif font-bold mb-3 hover:text-[var(--color-accent-crimson)] transition-colors">{heroTile.title}</h3>
+          <p class="text-sm font-serif text-[var(--color-text-secondary)] leading-relaxed max-w-xl">{heroTile.body}</p>
+        </div>
+        <span class="block font-mono text-[10px] text-[var(--color-text-secondary)] mt-6 uppercase tracking-wider">{heroTile.meta}</span>
+      </a>
+
+      <!-- Sub stack tiles -->
+      <div class="flex flex-col gap-6">
+        {restTiles.map((t) => (
+          <a href={t.id ? `/forum/thread/${t.id}` : '/forum'} class="vintage-card flex-1 flex flex-col justify-between hover:border-white transition-all min-h-[120px]">
+            <div>
+              <span class="block font-mono text-[10px] tracking-wider text-[var(--color-text-secondary)] mb-2 font-bold">{t.tag}</span>
+              <h3 class="text-base font-serif font-bold mb-2 leading-snug hover:text-[var(--color-accent-crimson)] transition-colors">{t.title}</h3>
+            </div>
+            <span class="block font-mono text-[9px] text-[var(--color-text-secondary)] mt-4 uppercase tracking-wider">{t.meta}</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- Pull Quote (Prompt of the Week) -->
+  <aside class="vintage-card bg-neutral-900/40 relative py-12 px-8 mb-20 text-center flex flex-col items-center justify-center max-w-4xl mx-auto" aria-label="Prompt of the week">
+    <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-[var(--color-bg-primary)] px-4 py-0.5 border border-[#2d2d2a] font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--color-accent-crimson)]">
+      {PROMPT.label}
+    </div>
+    <blockquote class="text-lg md:text-xl font-serif italic text-[var(--color-text-primary)] max-w-2xl mb-6 leading-relaxed">
+      “{PROMPT.quote}”
+    </blockquote>
+    <cite class="not-italic font-mono text-[9px] uppercase tracking-widest text-[var(--color-text-secondary)]">{PROMPT.cite}</cite>
+  </aside>
+
+  <!-- Why Section -->
+  <section class="max-w-4xl mx-auto mb-12">
+    <span class="block font-mono text-[9px] uppercase tracking-[0.25em] text-[var(--color-accent-crimson)] mb-2 text-center">Why this place</span>
+    <h2 class="text-2xl md:text-3xl font-serif font-black text-center mb-12">For writers who <em class="italic text-[var(--color-accent-crimson)] font-serif">mean it.</em></h2>
+    
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+      {WHY.map((w) => (
+        <div class="flex flex-col gap-3">
+          <div class="font-serif font-black text-2xl text-[var(--color-accent-crimson)] italic">{w.ic}</div>
+          <h3 class="text-base font-serif font-bold tracking-tight text-[var(--color-text-primary)]">{w.label}</h3>
+          <p class="text-xs font-serif text-[var(--color-text-secondary)] leading-relaxed">{w.body}</p>
+        </div>
+      ))}
+    </div>
+  </section>
+
+</MainLayout>
+
+<script>
+  const checkSession = () => {
+    try {
+      const url = import.meta.env.PUBLIC_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
+      if (!url) return;
+      const storageKey = 'sb-' + url.split('//')[1].split('.')[0] + '-auth-token';
+      const sessionData = localStorage.getItem(storageKey);
+      const enterBtn = document.getElementById('cta-enter');
+      const joinBtn = document.getElementById('cta-join');
+      
+      if (sessionData) {
+        enterBtn?.classList.remove('hidden');
+      } else {
+        joinBtn?.classList.remove('hidden');
+      }
+    } catch (e) {
+      document.getElementById('cta-join')?.classList.remove('hidden');
+    }
+  };
+
+  // Run on mount
+  checkSession();
+
+  // Listen to custom signin clicks
+  document.getElementById('cta-join')?.addEventListener('click', () => {
+    window.dispatchEvent(new CustomEvent('open-signin'));
+  });
+</script>

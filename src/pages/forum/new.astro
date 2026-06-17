@@ -1,0 +1,8 @@
+---
+import MainLayout from '../../layouts/MainLayout.astro';
+import CreateThread from '../../pages-react/CreateThread.jsx';
+---
+
+<MainLayout title="New Thread | Horror Writer" description="Create a new discussion thread in The Crypt.">
+  <CreateThread client:load />
+</MainLayout>

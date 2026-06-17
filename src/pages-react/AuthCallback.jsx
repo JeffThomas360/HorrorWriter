@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
+import { withProviders } from '../components/Providers'
 
-export default function AuthCallback() {
+function AuthCallback() {
   useDocumentTitle('Summoning…')
-  const navigate = useNavigate()
   const [error, setError] = useState(null)
 
   useEffect(() => {
@@ -56,7 +55,7 @@ export default function AuthCallback() {
             window.opener.postMessage({ type: 'AUTH_SUCCESS' }, window.location.origin)
             window.close()
           } else {
-            navigate('/profile', { replace: true })
+            window.location.replace('/profile')
           }
         }
       } catch (err) {
@@ -73,7 +72,7 @@ export default function AuthCallback() {
           window.opener.postMessage({ type: 'AUTH_SUCCESS' }, window.location.origin)
           window.close()
         } else {
-          navigate('/profile', { replace: true })
+          window.location.replace('/profile')
         }
       }
     })
@@ -87,7 +86,7 @@ export default function AuthCallback() {
             window.opener.postMessage({ type: 'AUTH_SUCCESS' }, window.location.origin)
             window.close()
           } else {
-            navigate('/profile', { replace: true })
+            window.location.replace('/profile')
           }
         }
       } else {
@@ -108,7 +107,7 @@ export default function AuthCallback() {
       subscription.unsubscribe()
       clearTimeout(timer)
     }
-  }, [navigate])
+  }, [])
 
   return (
     <section className="surface active" style={{ textAlign: 'center', paddingTop: 120 }}>
@@ -123,3 +122,5 @@ export default function AuthCallback() {
     </section>
   )
 }
+
+export default withProviders(AuthCallback)

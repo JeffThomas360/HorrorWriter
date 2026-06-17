@@ -1,10 +1,9 @@
 import { useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
-import { useDocumentTitle } from '../lib/useDocumentTitle'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../components/AuthContext'
 import ReportModal from '../components/ReportModal'
+import { withProviders } from '../components/Providers'
 import InlineModControls from '../components/mod/InlineModControls'
 import MarkdownEditor from '../components/MarkdownEditor'
 import ReactMarkdown from 'react-markdown'
@@ -37,8 +36,7 @@ function readingTime(text) {
   return mins === 1 ? '~1 min read' : `~${mins} min read`
 }
 
-export default function ReadStory() {
-  const { id } = useParams()
+function ReadStory({ id }) {
   const { session } = useAuth()
   const queryClient = useQueryClient()
 
@@ -86,8 +84,6 @@ export default function ReadStory() {
       
       const res = []
       for (const series of seriesInfo || []) {
-        // We do not have books(title) relation set up via fk in our query easily without testing, 
-        // but we can query them separately or just show "Next Part"
         const { data: booksInSeries } = await supabase.from('series_books').select('book_id, sort_order').eq('series_id', series.id).order('created_at', { ascending: true })
         const currIdx = booksInSeries.findIndex(b => b.book_id === id)
         const nextBook = currIdx >= 0 && currIdx < booksInSeries.length - 1 ? booksInSeries[currIdx + 1] : null
@@ -96,8 +92,6 @@ export default function ReadStory() {
       return res
     }
   })
-
-  useDocumentTitle(book ? book.title : 'Reading…')
 
   const commentMutation = useMutation({
     mutationFn: async (content) => {
@@ -137,102 +131,127 @@ export default function ReadStory() {
   const error = queryError ? 'Story not found in the archives.' : null
 
   if (loading) return (
-    <section className="surface">
-      <div className="status-panel">
-        <p className="loading-pulse">Opening dusty pages…</p>
-      </div>
-    </section>
+    <div className="flex flex-col items-center justify-center min-h-[40vh]">
+      <p className="font-mono text-xs uppercase tracking-widest text-[var(--color-text-secondary)] animate-pulse">Opening dusty pages…</p>
+    </div>
   )
   if (error) return (
-    <section className="surface">
-      <div className="status-panel">
-        <p className="eyebrow error">Not found</p>
-        <p className="status-panel-body">{error}</p>
-        <Link to="/library" className="btn ghost">Back to Library</Link>
-      </div>
-    </section>
+    <div className="vintage-card text-center py-12 border-red-950">
+      <p className="font-mono text-xs uppercase tracking-widest text-[var(--color-accent-crimson)] mb-4">Not found</p>
+      <p className="font-serif italic text-sm text-[var(--color-text-secondary)] mb-6">{error}</p>
+      <a href="/library" className="border border-[#2d2d2a] hover:border-white font-mono text-xs uppercase px-4 py-2 transition-colors">Back to Library</a>
+    </div>
   )
 
   const isSubmitting = commentMutation.isPending
   const rtLabel = readingTime(book?.content)
 
   return (
-    <section className="surface" style={{ width: '100%', margin: '0 auto', maxWidth: 'var(--prose-w)' }}>
+    <div className="mt-8">
       <QuoteSharer title={book?.title} />
-      <div className="section-head" style={{ marginBottom: 40, borderBottom: '1px solid var(--line)', paddingBottom: 24 }}>
-        <p className="eyebrow" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+      
+      {/* Title & Author Info */}
+      <div className="border-b border-[#2d2d2a] pb-8 mb-12 text-center">
+        <div className="flex justify-center items-center gap-4 text-xs font-mono text-[var(--color-text-secondary)] mb-4">
           <span>A story by @{book?.profiles?.handle || 'unknown'}</span>
-          <button onClick={() => setReportTarget({ type: 'story', id: book.id })} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '12px' }}>[Report]</button>
+          <button 
+            onClick={() => setReportTarget({ type: 'story', id: book.id })} 
+            className="text-[10px] uppercase border border-[#2d2d2a] hover:border-red-950 px-2 py-0.5 text-[var(--color-text-secondary)] hover:text-[var(--color-accent-crimson)] cursor-pointer"
+          >
+            Report
+          </button>
           {book && <InlineModControls targetType="story" targetId={book.id} currentStatus={book.mod_status} authorId={book.author_id} />}
-        </p>
-        <h1 className="title" style={{ marginBottom: 18 }}>
+        </div>
+        <h1 className="title text-3xl md:text-5xl font-serif font-black uppercase tracking-tight text-[var(--color-text-primary)] mb-6 max-w-3xl mx-auto leading-tight">
           {book?.title}
         </h1>
         {book?.lede && (
-          <p className="lede" style={{ margin: '0 auto 20px' }}>
+          <p className="text-base font-serif italic text-[var(--color-text-secondary)] max-w-xl mx-auto mb-6 leading-relaxed">
             {book.lede}
           </p>
         )}
-        {rtLabel && <span className="reading-time-chip">{rtLabel}</span>}
+        {rtLabel && (
+          <span className="font-mono text-[9px] uppercase border border-[#2d2d2a] text-[var(--color-text-secondary)] px-2.5 py-1">
+            {rtLabel}
+          </span>
+        )}
       </div>
 
-      <div className="prose">
+      {/* Story Content Block (Restricted Line Width) */}
+      <article className="prose-book prose prose-invert font-serif leading-relaxed text-[var(--color-text-primary)] mb-12">
         <ReactMarkdown remarkPlugins={[remarkGfm]}>{book?.content || ''}</ReactMarkdown>
-      </div>
+      </article>
 
+      {/* Series Navigator */}
       {seriesList.length > 0 && (
-        <div style={{ marginTop: 40, padding: 24, border: '1px solid var(--blood)', borderRadius: 'var(--r-block)', background: 'rgba(255,0,0,0.02)' }}>
+        <div className="vintage-card border-[var(--color-accent-crimson)] bg-neutral-900/10 p-6 my-12 max-w-2xl mx-auto">
           {seriesList.map(s => (
-            <div key={s.series.id} style={{ marginBottom: s === seriesList[seriesList.length-1] ? 0 : 20 }}>
-              <h4 style={{ fontSize: 16, color: 'var(--cyan)', margin: '0 0 12px 0', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                Part of: {s.series.title} <span style={{ color: 'var(--muted)', fontSize: 12 }}>({s.currIdx + 1} of {s.total})</span>
-              </h4>
+            <div key={s.series.id} className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div>
+                <h4 className="font-serif font-bold text-sm text-[var(--color-text-primary)] uppercase tracking-wide">
+                  Part of: {s.series.title}
+                </h4>
+                <span className="font-mono text-[9px] text-[var(--color-text-secondary)] uppercase">
+                  ({s.currIdx + 1} of {s.total} chapters)
+                </span>
+              </div>
               {s.nextBook ? (
-                <Link to={`/library/read/${s.nextBook.book_id}`} className="btn blood">Read Next Part →</Link>
+                <a href={`/library/read/${s.nextBook.book_id}`} className="bg-[var(--color-accent-crimson)] text-white font-mono text-xs uppercase px-4 py-2 hover:bg-red-700 transition-colors">
+                  Read Next Part →
+                </a>
               ) : (
-                <span style={{ color: 'var(--muted)', fontStyle: 'italic' }}>You have reached the end of this series.</span>
+                <span className="font-mono text-[10px] text-[var(--color-text-secondary)] uppercase italic">End of series</span>
               )}
             </div>
           ))}
         </div>
       )}
 
-      <ShareBar title={book?.title} />
+      {/* Share Bar */}
+      <div className="max-w-2xl mx-auto border-t border-[#2d2d2a] pt-8">
+        <ShareBar title={book?.title} />
+      </div>
 
-      <div style={{ borderTop: '1px solid var(--line)', paddingTop: 48, marginTop: 56 }}>
-        <h3 style={{ fontFamily: 'var(--display)', fontWeight: 700, fontSize: 26, color: 'var(--paper)', marginBottom: 24 }}>
-          Critiques &amp; Responses <span style={{ color: 'var(--muted)', fontWeight: 400 }}>({comments.length})</span>
+      {/* Critiques Section */}
+      <div className="max-w-2xl mx-auto border-t border-[#2d2d2a] pt-12 mt-16">
+        <h3 className="font-serif font-black text-xl text-[var(--color-text-primary)] mb-8 uppercase tracking-wide">
+          Critiques &amp; Responses <span className="font-mono text-sm text-[var(--color-text-secondary)] font-normal ml-1">({comments.length})</span>
         </h3>
 
         {commentsLoading ? (
-          <p className="loading-pulse">Summoning critiques…</p>
+          <p className="font-mono text-xs uppercase text-[var(--color-text-secondary)] animate-pulse">Summoning critiques…</p>
         ) : comments.length === 0 ? (
-          <p className="dim" style={{ marginBottom: 32 }}>
+          <p className="font-serif italic text-xs text-[var(--color-text-secondary)] py-8 border border-dashed border-[#2d2d2a] text-center">
             The void is quiet. Leave the first critique below.
           </p>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 18, marginBottom: 40 }}>
+          <div className="flex flex-col gap-6 mb-12">
             {comments.map((c) => {
               const handle = c.profiles?.handle || 'unknown'
               const avColorIndex = (handle.length % 6) + 1
               return (
-                <article key={c.id} className="card">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%', marginBottom: 14 }}>
-                    <div className="author" style={{ marginBottom: 0 }}>
-                      <div className={`avatar ${AV_COLORS[avColorIndex]}`} style={{ width: 36, height: 36, fontSize: 13 }}>
+                <article key={c.id} className="vintage-card flex flex-col gap-4">
+                  <div className="flex justify-between items-start border-b border-[#2d2d2a] pb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-[var(--color-bg-primary)] border border-[#2d2d2a] flex items-center justify-center font-mono text-xs text-[var(--color-text-secondary)]">
                         {initials(handle)}
                       </div>
-                      <div className="who">
-                        <span className="name">@{handle}</span>
-                        <span className="when">{timeAgo(c.created_at)}</span>
+                      <div className="flex flex-col">
+                        <span className="font-mono text-xs font-bold text-[var(--color-accent-crimson)]">@{handle}</span>
+                        <span className="font-mono text-[9px] text-[var(--color-text-secondary)]">{timeAgo(c.created_at)}</span>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <button onClick={() => setReportTarget({ type: 'critique', id: c.id })} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '11px' }}>Report</button>
+                    <div className="flex gap-3 items-center text-[10px] font-mono">
+                      <button 
+                        onClick={() => setReportTarget({ type: 'critique', id: c.id })} 
+                        className="text-[var(--color-text-secondary)] hover:text-[var(--color-accent-crimson)] cursor-pointer"
+                      >
+                        Report
+                      </button>
                       <InlineModControls targetType="critique" targetId={c.id} currentStatus={c.mod_status} authorId={c.author_id} />
                     </div>
                   </div>
-                  <div className="body prose">
+                  <div className="prose prose-invert font-serif text-sm leading-relaxed text-[var(--color-text-primary)]">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{c.content}</ReactMarkdown>
                   </div>
                 </article>
@@ -241,12 +260,13 @@ export default function ReadStory() {
           </div>
         )}
 
+        {/* Comment Form */}
         {session ? (
-          <form onSubmit={handleCommentSubmit} style={{ marginTop: 32 }}>
-            <h4 style={{ fontSize: 18, marginBottom: 12, color: 'var(--paper)', fontFamily: 'var(--display)', fontWeight: 700 }}>
+          <form onSubmit={handleCommentSubmit} className="mt-8 border-t border-[#2d2d2a] pt-8">
+            <h4 className="font-serif font-bold text-sm text-[var(--color-text-primary)] mb-4 uppercase tracking-wide">
               Leave a critique
             </h4>
-            <div className="profile-field-input" style={{ marginBottom: 14 }}>
+            <div className="mb-4">
               <MarkdownEditor
                 value={commentContent}
                 onChange={(e) => setCommentContent(e.target.value)}
@@ -255,23 +275,32 @@ export default function ReadStory() {
                 disabled={isSubmitting}
               />
             </div>
-            <div className="row-flex">
-              <button type="submit" className="btn blood" disabled={isSubmitting}>
+            <div className="flex items-center gap-4">
+              <button 
+                type="submit" 
+                className="bg-[var(--color-accent-crimson)] text-white font-mono text-xs uppercase px-5 py-3 hover:bg-red-700 transition-colors cursor-pointer"
+                disabled={isSubmitting}
+              >
                 {isSubmitting ? 'Summoning…' : 'Post Critique'}
               </button>
-              {commentError && <span className="form-err">{commentError}</span>}
+              {commentError && <span className="form-err font-mono text-xs text-[var(--color-accent-crimson)]">{commentError}</span>}
             </div>
           </form>
         ) : (
-          <div className="empty">
-            <p>You must enter the void to critique.</p>
-            <span className="soon-chip">Sign in to leave a critique</span>
+          <div className="vintage-card text-center py-8">
+            <p className="font-serif italic text-xs text-[var(--color-text-secondary)] mb-4">You must enter the void to critique.</p>
+            <button 
+              className="font-mono text-xs uppercase border border-[#2d2d2a] hover:border-white px-4 py-2 transition-colors cursor-pointer"
+              onClick={() => window.dispatchEvent(new CustomEvent('open-signin'))}
+            >
+              Sign In to Critique
+            </button>
           </div>
         )}
       </div>
 
-      <div style={{ textAlign: 'center', borderTop: '1px solid var(--line)', paddingTop: 32, marginTop: 56 }}>
-        <Link to="/library" className="btn ghost">← Return to the Library</Link>
+      <div className="text-center border-t border-[#2d2d2a] pt-8 mt-16 max-w-2xl mx-auto">
+        <a href="/library" className="font-mono text-xs hover:text-[var(--color-accent-crimson)] transition-colors">← Return to the Library</a>
       </div>
 
       <ReportModal
@@ -280,6 +309,8 @@ export default function ReadStory() {
         targetType={reportTarget?.type}
         targetId={reportTarget?.id}
       />
-    </section>
+    </div>
   )
 }
+
+export default withProviders(ReadStory)

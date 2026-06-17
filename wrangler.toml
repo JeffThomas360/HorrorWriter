@@ -1,6 +1,9 @@
 name = "horrorwriter"
-compatibility_date = "2024-01-01"
-pages_build_output_dir = "./dist"
+compatibility_date = "2024-11-01"
+compatibility_flags = [ "nodejs_compat" ]
+
+[assets]
+directory = "./dist"
 
 # Build/runtime env vars. Cloudflare Pages treats this wrangler config as the source
 # of truth and WIPES dashboard plain-text vars on every deploy (secrets survive). So

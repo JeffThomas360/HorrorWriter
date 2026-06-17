@@ -63,7 +63,7 @@ test.describe('Profile Editor Flows', () => {
     await page.goto('/profile');
 
     // 1. Try to input an invalid website URL (no http/https but valid URL format for HTML5 type="url")
-    const websiteInput = page.locator('label:has-text("Website") input');
+    const websiteInput = page.getByLabel('Website');
     await websiteInput.fill('ftp://invalid-website-format.com');
 
     // Click save
@@ -73,7 +73,7 @@ test.describe('Profile Editor Flows', () => {
     await expect(page.locator('.form-err')).toContainText('Website must start with http:// or https://');
 
     // 2. Try to input an invalid handle (too short)
-    const handleInput = page.locator('label:has-text("Handle") input');
+    const handleInput = page.getByLabel('Handle');
     await handleInput.fill('ab');
 
     // Click save
@@ -177,6 +177,6 @@ test.describe('Profile Editor Flows', () => {
     await page.getByRole('button', { name: /Remove/i }).click();
 
     // Verify the passkey is removed from the UI
-    await expect(page.getByText('No passkeys yet.')).toBeVisible();
+    await expect(page.getByText('No passkeys set up yet.')).toBeVisible();
   });
 });

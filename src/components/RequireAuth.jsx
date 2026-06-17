@@ -1,21 +1,20 @@
 import { useEffect } from 'react'
-import { useOutletContext } from 'react-router-dom'
 import { useAuth } from './AuthContext'
 
 /**
  * Wraps a route that requires the visitor to be signed in. If the auth
  * state is still loading, render a placeholder; if the visitor is not
- * signed in, pop the sign-in modal (via the Layout-supplied
- * `openSignin` outlet context) and show a friendly prompt rather than
- * yanking them away from the URL they meant to visit.
+ * signed in, pop the sign-in modal (via global window custom event)
+ * and show a friendly prompt.
  */
 export default function RequireAuth({ children }) {
   const { user, isLoading } = useAuth()
-  const ctx = useOutletContext()
 
   useEffect(() => {
-    if (!isLoading && !user) ctx?.openSignin?.()
-  }, [isLoading, user, ctx])
+    if (!isLoading && !user) {
+      window.dispatchEvent(new CustomEvent('open-signin'))
+    }
+  }, [isLoading, user])
 
   if (isLoading) {
     return (
@@ -36,8 +35,8 @@ export default function RequireAuth({ children }) {
             You need to be signed in to view this page.
           </p>
           <button
-            className="btn primary"
-            onClick={() => ctx?.openSignin?.()}
+            className="btn primary cursor-pointer"
+            onClick={() => window.dispatchEvent(new CustomEvent('open-signin'))}
           >
             Sign In
           </button>

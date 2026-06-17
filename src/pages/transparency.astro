@@ -1,0 +1,78 @@
+---
+export const prerender = false; // Render server-side at request time
+
+import MainLayout from '../layouts/MainLayout.astro';
+import { supabase } from '../supabaseClient';
+
+let logs = [];
+let error = null;
+
+try {
+  const isTest = typeof process !== 'undefined' && process.env.PLAYWRIGHT_TEST === 'true';
+  if (supabase && !isTest) {
+    const { data, error: err } = await supabase
+      .from('transparency_log')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50);
+      
+    if (err) error = err.message;
+    else logs = data || [];
+  } else if (isTest) {
+    logs = [];
+  } else {
+    error = 'Supabase client is not initialized.';
+  }
+} catch (e) {
+  error = e instanceof Error ? e.message : String(e);
+}
+---
+
+<MainLayout title="Transparency Log | Horror Writer" description="A read-only feed of recent moderator actions to ensure accountability.">
+  <div class="prose-book mt-8">
+    <span class="inline-block font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--color-accent-crimson)] mb-4">
+      ▸ Community
+    </span>
+    <h2 class="text-4xl font-serif font-black mb-6">Transparency <em class="italic text-[var(--color-accent-crimson)] font-serif">log</em></h2>
+    <p class="text-sm text-[var(--color-text-secondary)] font-serif leading-relaxed mb-8">
+      A read-only feed of recent moderator actions to ensure accountability. 
+      Exact user handles and specific content payloads are redacted to prevent amplifying bad behavior.
+    </p>
+
+    {error && (
+      <div class="vintage-card border-red-900 text-[var(--color-accent-crimson)] text-xs font-mono mb-6">
+        Error loading logs: {error}
+      </div>
+    )}
+
+    {logs.length === 0 && !error ? (
+      <p class="font-serif italic text-xs text-[var(--color-text-secondary)] text-center py-12">
+        No recent moderation actions recorded.
+      </p>
+    ) : (
+      <div class="flex flex-col gap-4">
+        {logs.map((log) => (
+          <div class="vintage-card py-4 px-5 text-xs flex flex-col gap-2 font-mono">
+            <div class="flex justify-between items-center text-[10px] text-[var(--color-text-secondary)]">
+              <span class="text-[var(--color-accent-crimson)] font-bold">
+                [{log.actor_role?.toUpperCase() || 'AUTOMOD'}]
+              </span>
+              <span>
+                {new Date(log.created_at).toLocaleString()}
+              </span>
+            </div>
+            <div class="text-[var(--color-text-primary)]">
+              <span class="text-[var(--color-text-secondary)] mr-1 font-bold">Action:</span> 
+              {log.action.toUpperCase()} on {log.target_type.toUpperCase()}
+            </div>
+            {log.reason && (
+              <div class="text-[var(--color-text-secondary)] italic border-l border-[#2d2d2a] pl-3 py-0.5 mt-1">
+                Reason: {log.reason}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+</MainLayout>

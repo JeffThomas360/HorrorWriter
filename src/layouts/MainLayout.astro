@@ -1,0 +1,78 @@
+---
+import '../styles/global.css';
+import { AuthProvider } from '../components/AuthContext.jsx';
+import UserMenu from '../components/UserMenu.jsx';
+import Footer from '../components/Footer.astro';
+import SignInModalWrapper from '../components/SignInModalWrapper.jsx';
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const { title = "Horror Writer", description = "A premium community for dark fiction writers." } = Astro.props;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    
+    <title>{title}</title>
+    <meta name="description" content={description} />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content="/og.png" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+  </head>
+  <body class="bg-primary text-text-primary selection:bg-accent-crimson selection:text-white">
+    <AuthProvider client:load>
+      <header class="border-b border-[#2d2d2a] sticky top-0 bg-primary/95 backdrop-blur-md z-50">
+        <div class="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
+          <a href="/" class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full border border-accent-crimson bg-[#1a0a14] flex items-center justify-center relative" width="32" height="32">
+              <span class="font-serif font-black text-accent-crimson text-sm">H</span>
+            </div>
+            <div class="font-serif font-black tracking-widest text-sm text-text-primary">
+              HORROR WRITER
+              <span class="block text-[8px] tracking-[0.25em] text-text-secondary font-mono mt-0.5">EST. THE WITCHING HOUR</span>
+            </div>
+          </a>
+
+          <nav class="hidden md:flex items-center gap-8 font-mono text-xs uppercase tracking-wider" aria-label="Main navigation">
+            <a href="/" class="hover:text-accent-crimson transition-colors">Home</a>
+            <a href="/forum" class="hover:text-accent-crimson transition-colors">The Crypt</a>
+            <a href="/library" class="hover:text-accent-crimson transition-colors">Library</a>
+          </nav>
+
+          <UserMenu client:load />
+        </div>
+      </header>
+
+      <main class="shell">
+        <slot />
+      </main>
+
+      <Footer />
+
+      <SignInModalWrapper client:load />
+    </AuthProvider>
+  </body>
+</html>
+
+<script>
+  // Simple sign in modal client hydration listener
+  window.addEventListener('open-signin', () => {
+    const el = document.getElementById('signin-modal-portal');
+    if (el) el.dispatchEvent(new CustomEvent('show'));
+  });
+</script>

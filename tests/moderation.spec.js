@@ -38,6 +38,7 @@ test.describe('Moderation — registry', () => {
       route.fulfill({ status: 204, contentType: 'application/json', body: '' })
     })
     await page.goto('/moderation')
+    await page.getByRole('tab', { name: 'Registry' }).click()
     await page.getByLabel('Search users').fill('spooky')
     await page.getByRole('button', { name: /Search/i }).click()
     await expect(page.getByText('@spooky_newbie')).toBeVisible()

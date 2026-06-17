@@ -1,0 +1,142 @@
+---
+import MainLayout from '../layouts/MainLayout.astro';
+---
+
+<MainLayout title="The Codex | Horror Writer" description="The ancient law of our circle. Enter freely, write with power, critique with truth.">
+  <div class="prose-book mt-8">
+    <span class="inline-block font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--color-accent-crimson)] mb-4">
+      ▸ Core Principles
+    </span>
+    <h2 class="title text-4xl font-serif font-black mb-6">The <em class="italic text-[var(--color-accent-crimson)] font-serif">Codex</em></h2>
+    <p class="text-lg font-serif italic text-[var(--color-text-secondary)] mb-12 leading-relaxed">
+      The ancient law of our circle. Enter freely, write with power, critique with truth, and respect the boundaries of the craft.
+    </p>
+
+    <div class="flex flex-col gap-12 text-sm leading-relaxed text-[var(--color-text-secondary)] font-serif">
+      
+      <!-- ── HOUSE RULES ── -->
+      <article id="house-rules" class="border-t border-[#2d2d2a] pt-8">
+        <h3 class="font-serif font-bold text-xl text-[var(--color-text-primary)] mb-6 flex items-center gap-3">
+          <span class="text-[var(--color-accent-crimson)] font-mono text-sm font-bold">I.</span>
+          House Rules
+        </h3>
+        <ul class="flex flex-col gap-4">
+          <li>
+            <strong class="text-[var(--color-text-primary)] block mb-1">1. Absolute Creator Ownership.</strong> 
+            You own 100% of your copyright. By publishing here, you only grant the site a non-exclusive license to format and display your stories to other members.
+          </li>
+          <li>
+            <strong class="text-[var(--color-text-primary)] block mb-1">2. Strictly 18+ Participation.</strong> 
+            This community is exclusively for adults. Stories and critiques may explore intense, unsettling, and mature themes. By using the site, you warrant that you are at least 18 years of age.
+          </li>
+          <li>
+            <strong class="text-[var(--color-text-primary)] block mb-1">3. No Machine Generation.</strong> 
+            Every word published here must come from a human hand. We do not host, tolerate, or critique AI-generated content or machine algorithms.
+          </li>
+          <li>
+            <strong class="text-[var(--color-text-primary)] block mb-1">4. Hidden Circle.</strong> 
+            Do not advertise this domain aggressively. Let the coven grow organically, by word of mouth and whispers in the dark.
+          </li>
+        </ul>
+      </article>
+
+      <!-- ── CRITIQUE CODE ── -->
+      <article id="critique-code" class="border-t border-[#2d2d2a] pt-8">
+        <h3 class="font-serif font-bold text-xl text-[var(--color-text-primary)] mb-6 flex items-center gap-3">
+          <span class="text-[var(--color-accent-crimson)] font-mono text-sm font-bold">II.</span>
+          The Critique Code
+        </h3>
+        <p class="mb-4">
+          Praise is warm, but constructive darkness is how we hone our tools. We operate under a single mandate:
+        </p>
+        <blockquote class="border-l-2 border-[var(--color-accent-crimson)] pl-4 italic text-[var(--color-text-primary)] my-6">
+          "Critique the art, respect the author."
+        </blockquote>
+        <ul class="flex flex-col gap-4">
+          <li>
+            <strong class="text-[var(--color-text-primary)] block mb-1">Uncensored Analysis:</strong> 
+            Critiques can be blunt, direct, and critical of prose, characterization, pacing, or structure. We do not shield text from honest feedback.
+          </li>
+          <li>
+            <strong class="text-[var(--color-text-primary)] block mb-1">The Red Line:</strong> 
+            Critique is directed at the writing, never the writer. Personal harassment, doxxing, hate speech, defamation, and real-world threats will result in immediate exile (account termination) from the circle.
+          </li>
+        </ul>
+      </article>
+
+      <!-- ── CONTENT WARNINGS ── -->
+      <article id="content-warnings" class="border-t border-[#2d2d2a] pt-8">
+        <h3 class="font-serif font-bold text-xl text-[var(--color-text-primary)] mb-6 flex items-center gap-3">
+          <span class="text-[var(--color-accent-crimson)] font-mono text-sm font-bold">III.</span>
+          Content Warnings
+        </h3>
+        <p class="mb-4">
+          We write horror. Fear is our medium. However, respect the reader's right to curate their distress:
+        </p>
+        <ul class="flex flex-col gap-4">
+          <li>
+            <strong class="text-[var(--color-text-primary)] block mb-1">Mandatory Disclaimers:</strong> 
+            If your story contains heavy graphic elements (extreme violence, self-harm, body horror), please add a brief content warning (CW) at the start of your lede or pitch.
+          </li>
+          <li>
+            <strong class="text-[var(--color-text-primary)] block mb-1">Reader Curation:</strong> 
+            Readers are expected to exercise personal autonomy and curate their own reading list. Enter stories with the understanding that horror is meant to provoke, disturb, and unsettle.
+          </li>
+        </ul>
+      </article>
+
+      <!-- ── LEGAL & LIABILITY (DMCA / SECTION 230) ── -->
+      <article id="liability-dmca" class="border-t border-[#2d2d2a] pt-8">
+        <h3 class="font-serif font-bold text-xl text-[var(--color-text-primary)] mb-6 flex items-center gap-3">
+          <span class="text-[var(--color-accent-crimson)] font-mono text-sm font-bold">IV.</span>
+          Legal & Liability Safe Harbors
+        </h3>
+        <ul class="flex flex-col gap-4">
+          <li>
+            <strong class="text-[var(--color-text-primary)] block mb-1">Section 230 Shield:</strong> 
+            As a provider of interactive computer services, the platform is not the publisher or speaker of any information provided by other information content providers. All liability for published content lies solely with the individual user who created it.
+          </li>
+          <li>
+            <strong class="text-[var(--color-text-primary)] block mb-1">DMCA Takedown Agent:</strong> 
+            We respect intellectual property rights. If you believe your copyrighted work has been posted without authorization, please send a formal takedown notice complying with 17 U.S.C. § 512(c)(3) to our designated agent at <a href="mailto:abuse@horrorwriter.org" class="underline hover:text-[var(--color-accent-crimson)]">abuse@horrorwriter.org</a>.
+          </li>
+          <li>
+            <strong class="text-[var(--color-text-primary)] block mb-1">Humorous Psychological Waiver:</strong> 
+            By signing in, you agree that Horror Writer is not liable for sleep deprivation, nightmares, structural paranoia, or the sudden realization that there is someone standing behind you.
+          </li>
+        </ul>
+      </article>
+
+      <!-- ── PRIVACY POLICY ── -->
+      <article id="privacy" class="border-t border-[#2d2d2a] pt-8 pb-12">
+        <h3 class="font-serif font-bold text-xl text-[var(--color-text-primary)] mb-6 flex items-center gap-3">
+          <span class="text-[var(--color-accent-crimson)] font-mono text-sm font-bold">V.</span>
+          Privacy of the Void
+        </h3>
+        <p>
+          We collect only the bare minimum data required to authenticate you: your email address, your display settings, and your public contributions. We do not use trackers, cookies (other than for Supabase auth persistence), or external analytics. Your email is never sold, traded, or shared, unless required by legal subpoena.
+        </p>
+      </article>
+
+    </div>
+  </div>
+</MainLayout>
+
+<script>
+  // Simple check for hash scrolling on load/change
+  const scrollIntoHash = () => {
+    const hash = window.location.hash;
+    if (hash) {
+      const id = hash.replace('#', '');
+      const element = document.getElementById(id);
+      if (element) {
+        setTimeout(() => {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      }
+    }
+  };
+
+  window.addEventListener('load', scrollIntoHash);
+  window.addEventListener('hashchange', scrollIntoHash);
+</script>
