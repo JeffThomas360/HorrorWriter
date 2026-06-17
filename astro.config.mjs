@@ -7,6 +7,12 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   integrations: [react()],
   adapter: cloudflare(),
+  // We don't use Astro sessions (auth is Supabase). Pin a no-op in-memory
+  // session driver so the Cloudflare adapter doesn't auto-require a SESSION
+  // KV namespace binding at deploy time.
+  session: {
+    driver: 'memory',
+  },
   server: {
     port: 5173
   },

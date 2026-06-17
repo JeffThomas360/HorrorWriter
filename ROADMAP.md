@@ -5,6 +5,59 @@
 > is self-contained, independently shippable, and must leave the suite green. We are in
 > **stability mode** — prefer small, verifiable changes over new scope.
 
+---
+
+## ⏸ SAVEPOINT — RESUME HERE (2026-06-17, night)
+
+Mid-migration of the **deploy model from Cloudflare Pages → Workers**. Paused right before the final
+domain cutover. **Production is STABLE.**
+
+> ### ⚠️ DO NOT `git push` to `main` yet
+> The Cloudflare **Pages** Git integration is still connected and rebuilds on every push. The Astro
+> build emits a **Workers**-format output (`dist/client` + `dist/server`) that **Pages serves as
+> 404s** (this is exactly what broke with commit `474b5ff`). Production was manually rolled back.
+> **Any push re-breaks prod** until the Workers cutover is done and the Pages pipeline is retired.
+
+**Live right now:** `horrorwriter.org` serves the **old Vite SPA** — Pages deployment `0838a75`,
+restored via manual rollback. All routes 200. Safe.
+
+**Already deployed (not yet serving the domain):** Worker **`horrorwriter`** = the new Astro build,
+at `https://horrorwriter.orig-beetlebub.workers.dev` (gated by your Cloudflare Access — browser
+login required to view). Deployed with `npx wrangler deploy --config dist/server/wrangler.json`.
+
+### To resume — finish the cutover (the only blocker to going live)
+1. **Verify rendering:** open the `workers.dev` URL, authenticate via Access, confirm the Astro site
+   shows real data. (Passkey/Google won't work there — they're bound to `horrorwriter.org`; test
+   those *after* cutover.)
+2. **Move custom domains** `horrorwriter.org` + `www.horrorwriter.org` from the **Pages project** to
+   the **Worker** — atomic, in the dashboard:
+   - Pages project `horrorwriter` → Custom domains → **remove** both.
+   - Worker `horrorwriter` → Settings → Domains & Routes → **add** both as Custom Domains.
+   - (Doing this via API was auto-denied — the token may lack DNS/domain scope. Dashboard or grant
+     permission.)
+3. **Verify live:** SSR real data + all routes, then passkey / Google / magic-link / transcription.
+4. **Rollback if broken:** re-add the two custom domains to the Pages project (old SPA `0838a75` intact).
+
+### After cutover — make pushes safe again (so the Pages trap is gone)
+- Fix root `wrangler.toml` to a proper **Workers** config: add `main = "./dist/server/entry.mjs"`;
+  change `[assets]` from `directory = "./dist"` → `directory = "./dist/client"` + `binding = "ASSETS"`.
+  *(The Pages-style `directory = "./dist"` is the original bug.)*
+- Set up **Workers Builds** Git integration (build `npm run build`, deploy
+  `npx wrangler deploy --config dist/server/wrangler.json`) and **disconnect the Pages Git
+  integration** so only one pipeline deploys. Then pushing `main` is safe again.
+- Retire the old Pages project once the Worker owns the domain. Update `CLAUDE.md` (it still says
+  "Cloudflare Pages").
+
+### Reference
+- Account `e61bdda6d2e023366f97a9bf015c6334` · zone `horrorwriter.org` = `4bcfe1b0a38bcb9fd9c80efc8fb7bca8`.
+- `CLOUDFLARE_API_TOKEN` has Workers + Pages edit, **not KV**, and not (confirmed) DNS/domain.
+- Astro sessions pinned to an in-memory driver (`session: { driver: 'memory' }`) so the adapter
+  doesn't require a `SESSION` KV namespace. Minor deprecation warning on the string form — migrate to
+  the object form when convenient.
+- Open ROADMAP items P1–P9 below are unchanged; **this cutover supersedes them until done.**
+
+---
+
 ## Context snapshot (for someone arriving cold)
 
 - **What it is:** a horror-writing community at **horrorwriter.org**.
