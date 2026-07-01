@@ -297,39 +297,17 @@ live on real data. **Removed:** Rituals / writing prompts, Turnstile CAPTCHA, an
 
 ## Next priorities
 
-### ⏸ SAVEPOINT — resume here (2026-06-17)
+### ✅ Cutover complete (2026-06-30)
 
-Mid-migration from **Cloudflare Pages → Workers**. Paused right before the final domain cutover.
-**Production is STABLE** — `horrorwriter.org` serves the old Vite SPA (Pages rollback `0838a75`).
+**`horrorwriter.org` now serves the Astro Worker.** Pages → Workers migration is done.
 
-> ### ⚠️ DO NOT `git push` to `main` yet
-> The Pages Git integration is still connected and will rebuild on every push. The Astro build emits
-> a Workers-format output that Pages serves as 404s — this is exactly what broke on `474b5ff`.
-> **Any push re-breaks prod** until the Workers cutover is complete and Pages pipeline is retired.
+- Custom domains moved from Pages to Worker via API (2026-06-30)
+- `wrangler.toml` updated to Workers format (`main`, `[assets] binding = "ASSETS"`)
+- Pages auto-deploy disabled; Workers Builds Git integration configured
+- Build command: `npm run build` · Deploy: `npx wrangler deploy --config dist/server/wrangler.json`
+- Build vars (`VITE_*`) set in Workers Builds → Settings → Build → Variables and secrets
 
-**Already deployed (not yet live):** Worker `horrorwriter` = new Astro build at
-`https://horrorwriter.orig-beetlebub.workers.dev` (gated by Cloudflare Access — browser login
-required). Deployed via `npx wrangler deploy --config dist/server/wrangler.json`.
-
-**To finish the cutover (the only blocker to going live):**
-1. Verify rendering at the `workers.dev` URL (passkey/Google won't work there — bound to
-   `horrorwriter.org`; test after cutover).
-2. Move custom domains `horrorwriter.org` + `www.horrorwriter.org` from the **Pages project** to
-   the **Worker** in the Cloudflare dashboard (API token lacks DNS scope — use dashboard):
-   - Pages project `horrorwriter` → Custom domains → **remove** both.
-   - Worker `horrorwriter` → Settings → Domains & Routes → **add** both as Custom Domains.
-3. Verify live: SSR + all routes, then passkey / Google / magic-link / transcription.
-4. Rollback if broken: re-add the two custom domains to the Pages project.
-
-**After cutover — make pushes safe again:**
-- Fix root `wrangler.toml`: add `main = "./dist/server/entry.mjs"`; change `[assets]` from
-  `directory = "./dist"` → `directory = "./dist/client"` + `binding = "ASSETS"`.
-- Set up **Workers Builds** Git integration and disconnect the Pages Git integration.
-- Update this file to reflect Workers as the deploy target.
-
-**Reference:** Account `e61bdda6d2e023366f97a9bf015c6334` · zone `horrorwriter.org` =
-`4bcfe1b0a38bcb9fd9c80efc8fb7bca8`. Token has Workers + Pages edit, **not** DNS/domain scope.
-Astro sessions use in-memory driver (`session: { driver: 'memory' }`) — no KV namespace needed.
+**Pushing `main` is safe** — Workers Builds handles CI/CD from here.
 
 ---
 
