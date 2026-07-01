@@ -54,9 +54,36 @@ const { title = "Horror Writer", description = "A premium community for dark fic
             <a href="/library" class="hover:text-accent-crimson transition-colors">Library</a>
           </nav>
 
-          <UserMenu client:load />
+          <div class="flex items-center gap-3">
+            <UserMenu client:load />
+            <button
+              id="mobile-menu-btn"
+              class="md:hidden flex flex-col justify-center items-center w-8 h-8 gap-1.5"
+              aria-label="Open navigation menu"
+              aria-expanded="false"
+              aria-controls="mobile-menu"
+            >
+              <span class="block w-5 h-px bg-text-primary transition-all duration-200" aria-hidden="true"></span>
+              <span class="block w-5 h-px bg-text-primary transition-all duration-200" aria-hidden="true"></span>
+              <span class="block w-5 h-px bg-text-primary transition-all duration-200" aria-hidden="true"></span>
+            </button>
+          </div>
         </div>
       </header>
+
+      <!-- Mobile navigation menu -->
+      <div
+        id="mobile-menu"
+        class="md:hidden hidden border-b border-[#2d2d2a] bg-primary/98"
+        role="navigation"
+        aria-label="Mobile navigation"
+      >
+        <nav class="max-w-5xl mx-auto px-6 py-4 flex flex-col gap-1 font-mono text-xs uppercase tracking-wider">
+          <a href="/" class="py-3 border-b border-[#2d2d2a] hover:text-accent-crimson transition-colors">Home</a>
+          <a href="/forum" class="py-3 border-b border-[#2d2d2a] hover:text-accent-crimson transition-colors">The Crypt</a>
+          <a href="/library" class="py-3 hover:text-accent-crimson transition-colors">Library</a>
+        </nav>
+      </div>
 
       <main class="shell">
         <slot />
@@ -70,9 +97,44 @@ const { title = "Horror Writer", description = "A premium community for dark fic
 </html>
 
 <script>
-  // Simple sign in modal client hydration listener
+  // Sign in modal
   window.addEventListener('open-signin', () => {
     const el = document.getElementById('signin-modal-portal');
     if (el) el.dispatchEvent(new CustomEvent('show'));
   });
+
+  // Mobile menu toggle
+  const btn = document.getElementById('mobile-menu-btn');
+  const menu = document.getElementById('mobile-menu');
+  if (btn && menu) {
+    const open = () => {
+      menu.classList.remove('hidden');
+      btn.setAttribute('aria-expanded', 'true');
+      btn.setAttribute('aria-label', 'Close navigation menu');
+    };
+    const close = () => {
+      menu.classList.add('hidden');
+      btn.setAttribute('aria-expanded', 'false');
+      btn.setAttribute('aria-label', 'Open navigation menu');
+    };
+    btn.addEventListener('click', () =>
+      btn.getAttribute('aria-expanded') === 'true' ? close() : open()
+    );
+    // Close when a nav link is clicked
+    menu.querySelectorAll('a').forEach(a => a.addEventListener('click', close));
+    // Close when clicking outside
+    document.addEventListener('click', (e) => {
+      if (btn.getAttribute('aria-expanded') === 'true' &&
+          !btn.contains(e.target) && !menu.contains(e.target)) {
+        close();
+      }
+    });
+    // Close on Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && btn.getAttribute('aria-expanded') === 'true') {
+        close();
+        btn.focus();
+      }
+    });
+  }
 </script>
