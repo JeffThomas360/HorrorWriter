@@ -5,8 +5,10 @@ Cloudflare Pages, Supabase backend.
 
 > **2026-06-16 — migrated off the React+Vite SPA to Astro.** Routing is now file-based Astro
 > pages with React islands; the design system was reskinned from the old VHS/HUD look to a dark
-> "1980s paperback" typographic theme. The full E2E + unit suites pass. See
-> `ANTIGRAVITY-HANDOVER.md` for what the migration changed and the one real bug it surfaced.
+> "1980s paperback" typographic theme. The full E2E + unit suites pass.
+>
+> **2026-06-17 — mid-migration to Cloudflare Workers (paused). ⚠️ DO NOT push to `main` yet — see
+> Next Priorities / SAVEPOINT below.**
 
 ---
 
@@ -22,7 +24,7 @@ Cloudflare Pages, Supabase backend.
 | Database | Supabase Postgres (Row Level Security on all tables) |
 | Storage | Supabase Storage (avatars bucket, per-user RLS) |
 | Edge Functions | Supabase Deno functions (WebAuthn ceremonies) |
-| Deploy | Cloudflare Pages (GitHub auto-deploy on push to `main`) |
+| Deploy | Cloudflare Workers (migration from Pages in progress — see SAVEPOINT) |
 | Node | 22 (pinned in `.nvmrc`; Astro 6 requires ≥22.12) |
 
 **Notes**
@@ -53,7 +55,7 @@ page has **multiple `AuthProvider` instances**. They coordinate through **module
 in `src/components/AuthContext.jsx` (`globalInFlight`, `globalProfileCache`) so the profile is
 fetched once and shared. **Any new shared/loading state in `AuthContext` must resolve correctly
 for every instance** — a coalescing branch that forgot to clear its own `isLoading` is exactly
-what caused the "stuck on ▸ Loading…" bug fixed on 2026-06-16. (See `ANTIGRAVITY-HANDOVER.md`.)
+what caused the "stuck on ▸ Loading…" bug fixed on 2026-06-16.
 
 ### Project structure
 
@@ -287,24 +289,95 @@ live on real data. **Removed:** Rituals / writing prompts, Turnstile CAPTCHA, an
   Cloudflare Pages Edit. The PowerShell/Bash tools read the CURRENT machine value; the MCP
   Cloudflare plugin uses whatever token existed when the Claude Code session STARTED — after
   rotating, restart the session or drive Cloudflare via PowerShell.
-- **Old Worker:** a separate `horrorwriter` Worker (`horrorwriter.orig-beetlebub.workers.dev`) no
-  longer serves any domains and can be deleted.
+- **Workers cutover:** the `horrorwriter` Worker at `horrorwriter.orig-beetlebub.workers.dev` now
+  hosts the new Astro build (deployed 2026-06-17) and is the target for the domain cutover — do
+  NOT delete it.
 
 ---
 
 ## Next priorities
 
-> Done 2026-06-16: completed the Astro migration and got the suites green. Found and fixed a real
-> `AuthContext` race (coalesced `AuthProvider` instance never cleared its own `isLoading`, hanging
-> islands on "▸ Loading…") that the handover had misdiagnosed as JIT-compile latency; also
-> associated form labels with inputs (a11y) and updated stale test selectors. 34/34 E2E + 9/9 unit
-> pass; production build clean. See `ANTIGRAVITY-HANDOVER.md`.
+### ⏸ SAVEPOINT — resume here (2026-06-17)
 
-1. **Confirm in-browser** — hard-refresh and verify passkey/Google login + audio transcription
-   end-to-end on the live Astro site.
-2. **Commit the migration** — the Astro migration is still uncommitted in the working tree.
-3. **Delete orphaned legacy SPA components** — `Layout.jsx`, `Nav.jsx`, `Footer.jsx`,
-   `Atmospherics.jsx`, `MobileBottomNav.jsx`, `OnboardingBanner.jsx`, `FloatingAction.jsx`; then
-   drop `react-router-dom`.
-4. **Pagination on ThreadView** — currently fetches all posts at once.
-5. **Delete old Worker** and **`gh auth login`** so PRs can be opened from the CLI.
+Mid-migration from **Cloudflare Pages → Workers**. Paused right before the final domain cutover.
+**Production is STABLE** — `horrorwriter.org` serves the old Vite SPA (Pages rollback `0838a75`).
+
+> ### ⚠️ DO NOT `git push` to `main` yet
+> The Pages Git integration is still connected and will rebuild on every push. The Astro build emits
+> a Workers-format output that Pages serves as 404s — this is exactly what broke on `474b5ff`.
+> **Any push re-breaks prod** until the Workers cutover is complete and Pages pipeline is retired.
+
+**Already deployed (not yet live):** Worker `horrorwriter` = new Astro build at
+`https://horrorwriter.orig-beetlebub.workers.dev` (gated by Cloudflare Access — browser login
+required). Deployed via `npx wrangler deploy --config dist/server/wrangler.json`.
+
+**To finish the cutover (the only blocker to going live):**
+1. Verify rendering at the `workers.dev` URL (passkey/Google won't work there — bound to
+   `horrorwriter.org`; test after cutover).
+2. Move custom domains `horrorwriter.org` + `www.horrorwriter.org` from the **Pages project** to
+   the **Worker** in the Cloudflare dashboard (API token lacks DNS scope — use dashboard):
+   - Pages project `horrorwriter` → Custom domains → **remove** both.
+   - Worker `horrorwriter` → Settings → Domains & Routes → **add** both as Custom Domains.
+3. Verify live: SSR + all routes, then passkey / Google / magic-link / transcription.
+4. Rollback if broken: re-add the two custom domains to the Pages project.
+
+**After cutover — make pushes safe again:**
+- Fix root `wrangler.toml`: add `main = "./dist/server/entry.mjs"`; change `[assets]` from
+  `directory = "./dist"` → `directory = "./dist/client"` + `binding = "ASSETS"`.
+- Set up **Workers Builds** Git integration and disconnect the Pages Git integration.
+- Update this file to reflect Workers as the deploy target.
+
+**Reference:** Account `e61bdda6d2e023366f97a9bf015c6334` · zone `horrorwriter.org` =
+`4bcfe1b0a38bcb9fd9c80efc8fb7bca8`. Token has Workers + Pages edit, **not** DNS/domain scope.
+Astro sessions use in-memory driver (`session: { driver: 'memory' }`) — no KV namespace needed.
+
+---
+
+### Roadmap (work top-down after cutover, highest impact first)
+
+**Step 0 — Lock in the cleanup** *(~5 min, prerequisite)*
+- [ ] Commit the working-tree dead-code cleanup as its own commit
+- Done when: working tree is clean.
+
+**P1 — Confirm the live site actually works** *(S, highest impact)*
+- [ ] Passkey, Google, magic-link sign-in end-to-end on production
+- [ ] Audio transcription on a real recording
+- [ ] One real write: publish a story; post a thread reply
+- Done when: every flow confirmed against real Supabase, or a bug filed per failure.
+
+**P2 — Lock down RLS authorization** *(M, highest security)*
+- [ ] Audit policies table-by-table; add auth tests proving user A cannot touch user B's content
+- [ ] Verify `mod_can()` / `content_visible()` SQL helpers reject non-mods
+- Done when: an authorization test suite passes.
+
+**P3 — Fix mobile navigation** *(S–M, high UX)*
+- [ ] Hamburger / bottom bar in `MainLayout.astro` — all nav reachable at 375px
+- Done when: mobile-viewport Playwright test passes.
+
+**P4 — Island error boundary** *(S, medium-high stability)*
+- [ ] Add `ErrorBoundary` wrapping children in `Providers.jsx`; on-theme fallback
+- Done when: a deliberately thrown island error renders the fallback, not a blank panel.
+
+**P5 — Wire notifications UI** *(S–M, medium value)*
+- [ ] Header notifications island: unread badge, dropdown, mark-read — backend already live
+- Done when: user with unread notifications sees them and can clear them.
+
+**P6 — Harden CSP** *(M, medium security)*
+- [ ] Drop `'unsafe-eval'`; move to nonces/hashes to drop `'unsafe-inline'` if feasible
+- Done when: CSP nonce/hash-based with no console violations.
+
+**P7 — Improve test coverage** *(M, medium confidence)*
+- [ ] Un-bypass SSR for ≥1 page; explicit multi-island auth-loading regression; replace brittle selectors
+- Done when: suite green with SSR + auth-loading regression covered.
+
+**P8 — Dependency hygiene** *(S, low-medium)*
+- [ ] Resolve `ws` high-severity advisory (via `overrides` pin or `supabase-js` bump)
+- Done when: `npm audit --omit=dev` clean.
+
+**P9 — Final trims** *(S, low)*
+- [ ] Remove vestigial `VITE_TURNSTILE_SITE_KEY` from `wrangler.toml`
+- [ ] Delete `scratch/` debug scripts
+- [ ] `gh auth login` so PRs can be opened from the CLI
+- [ ] Delete orphaned SPA components (`Layout.jsx`, `Nav.jsx`, `Footer.jsx`, `Atmospherics.jsx`,
+      `MobileBottomNav.jsx`, `OnboardingBanner.jsx`, `FloatingAction.jsx`) and drop `react-router-dom`
+- Done when: no dead config/flags remain and docs match reality.

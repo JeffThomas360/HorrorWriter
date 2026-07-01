@@ -1,16 +1,17 @@
 name = "horrorwriter"
+main = "./dist/server/entry.mjs"
 compatibility_date = "2024-11-01"
 compatibility_flags = [ "nodejs_compat" ]
 
 [assets]
-directory = "./dist"
+directory = "./dist/client"
+binding = "ASSETS"
 
-# Build/runtime env vars. Cloudflare Pages treats this wrangler config as the source
-# of truth and WIPES dashboard plain-text vars on every deploy (secrets survive). So
-# every VITE_* var the build needs MUST live here, not in the dashboard. All values
-# below are public by design (Supabase *publishable* key is RLS-protected; Turnstile
-# *site* key is client-side) — safe to commit. The Turnstile SECRET key stays in
-# Supabase Auth, never here. See CLAUDE.md → Infrastructure.
+# Build/runtime env vars. Workers Builds reads this file as the source of truth.
+# VITE_* vars are baked into the bundle at build time by Astro — they must live here
+# so Workers Builds injects them during `npm run build`. All values below are public
+# by design (Supabase *publishable* key is RLS-protected) — safe to commit.
+# See CLAUDE.md → Infrastructure.
 [vars]
 VITE_SUPABASE_URL = "https://bmvvugrfnuedjlucmlbw.supabase.co"
 VITE_SUPABASE_ANON_KEY = "sb_publishable_-Y5K0e8qQrpsybmuQyyqxg_llQOokRY"
