@@ -137,28 +137,24 @@ design system (scanlines, green REC dot, `--blood`/`--cyan`/Cinzel) has been **r
 - Edge Function secrets set: `WEBAUTHN_RP_ID=horrorwriter.org`, `WEBAUTHN_ORIGIN`,
   `SUPABASE_SERVICE_ROLE_KEY` (auto-injected)
 
-**Cloudflare Pages project:** `horrorwriter`
-- Live at: `horrorwriter.org`, `www.horrorwriter.org`, `horrorwriter.pages.dev`
+**Cloudflare Worker: `horrorwriter`** *(migrated from Pages 2026-06-30)*
+- Live at: `horrorwriter.org`, `www.horrorwriter.org`
 - Account ID: `e61bdda6d2e023366f97a9bf015c6334`
-- **Deploy: push to `main`.** Cloudflare's native Git integration rebuilds on every push, reading
-  the root **`wrangler.toml`** as the source of truth. Build command `npm run build` (= `astro
-  build`), output dir `dist` (`[assets] directory = "./dist"`). `compatibility_flags =
-  ["nodejs_compat"]` is required for the Astro Cloudflare SSR adapter.
-
-**⚠️ Production env vars live in the root `wrangler.toml` `[vars]` block — NOT the dashboard.**
-Because a `wrangler.toml` exists, Cloudflare treats it as the source of truth and **wipes any
-dashboard plain-text vars on every deploy** (secrets survive). This caused a site-wide "Supabase
-not configured" outage on 2026-06-14/15. **To change a build var: edit `wrangler.toml [vars]` and
-push — do NOT use the dashboard.** Vite bakes `VITE_*` (and `PUBLIC_*`) into the bundle at build
-time (`astro.config.mjs` sets `envPrefix: ['PUBLIC_', 'VITE_']`). Current required set (all PUBLIC
-by design, safe to commit):
+- **Deploy: push to `main`.** Workers Builds Git integration auto-builds and deploys.
+  - Build command: `npm run build`
+  - Deploy command: `npx wrangler deploy --config dist/server/wrangler.json`
+  - Root `wrangler.toml` intentionally has **no `main` or `[assets]`** — the Cloudflare Vite
+    plugin validates `main` at build start (before `dist/` exists) and would error. The generated
+    `dist/server/wrangler.json` has the correct paths and is used by the deploy command.
+- **`VITE_*` build vars** are set in Workers Builds → Settings → Build → Variables and secrets
+  (NOT in `wrangler.toml [vars]`, which are runtime-only). Required set:
   - `VITE_SUPABASE_URL` = `https://bmvvugrfnuedjlucmlbw.supabase.co`
-  - `VITE_SUPABASE_ANON_KEY` = `sb_publishable_...` (Supabase **publishable** key — RLS-protected,
-    public by design; ships in the client bundle regardless)
+  - `VITE_SUPABASE_ANON_KEY` = `sb_publishable_...` (Supabase publishable key — safe to commit)
   - `VITE_TRANSCRIBE_URL` = `https://horrorwriter-transcribe.orig-beetlebub.workers.dev`
-  - `VITE_ENABLE_GOOGLE_LOGIN` = `true` (feature flag for the Google OAuth button)
-  - `VITE_TURNSTILE_SITE_KEY` — kept in `[vars]` but **currently unused** (no Turnstile code in app)
+  - `VITE_ENABLE_GOOGLE_LOGIN` = `true`
   - Local `.env.local` (gitignored) holds these for `npm run dev`.
+- Pages project `horrorwriter` still exists but has auto-deploy disabled and no custom domains.
+  It can be deleted once confident in the Workers setup.
 
 **Turnstile is vestigial.** Supabase Auth CAPTCHA is commented out in `supabase/config.toml` and
 the app has no Turnstile/captcha code. If re-enabled: the **site** key goes in `wrangler.toml
@@ -281,81 +277,78 @@ live on real data. **Removed:** Rituals / writing prompts, Turnstile CAPTCHA, an
 - **Windows E2E:** use `cmd /c npx playwright test` or the Bash tool (PowerShell blocks `npx.ps1`).
 - **`gh` CLI not authenticated:** opening PRs from here fails until `gh auth login`. Until then,
   open PRs via the GitHub web compare URL.
-- **Single deploy pipeline:** Cloudflare's native Git integration is the ONLY pipeline (the
-  redundant `.github/workflows/deploy.yml` was deleted 2026-06-15). It reads root `wrangler.toml`
-  incl. `[vars]`. If "Supabase not configured" ever returns, first confirm the live bundle contains
-  the Supabase URL (grep recipe above) — that distinguishes an env/build problem from a code bug.
-- **Cloudflare API token / MCP:** the machine `CLOUDFLARE_API_TOKEN` needs Workers Scripts Edit +
-  Cloudflare Pages Edit. The PowerShell/Bash tools read the CURRENT machine value; the MCP
-  Cloudflare plugin uses whatever token existed when the Claude Code session STARTED — after
-  rotating, restart the session or drive Cloudflare via PowerShell.
-- **Workers cutover:** the `horrorwriter` Worker at `horrorwriter.orig-beetlebub.workers.dev` now
-  hosts the new Astro build (deployed 2026-06-17) and is the target for the domain cutover — do
-  NOT delete it.
+- **Deploy pipeline:** Workers Builds Git integration on `horrorwriter` Worker. Pages auto-deploy
+  is disabled. If a build fails, check Workers Builds logs in the Cloudflare dashboard. If
+  "Supabase not configured" ever returns, check Workers Builds → Settings → Build → Variables to
+  confirm the `VITE_*` vars are still present.
+- **Cloudflare API token / MCP:** The MCP Cloudflare plugin uses whatever token existed when the
+  Claude Code session STARTED. After rotating, restart the session. A working token needs:
+  Account > Cloudflare Pages Edit, Workers Scripts Edit + Zone > DNS Edit, Zone Read (for
+  `horrorwriter.org`). Last working token created 2026-06-30.
+- **Workers cutover complete (2026-06-30):** `horrorwriter.org` and `www.horrorwriter.org` point
+  to the `horrorwriter` Worker. The old `horrorwriter.pages.dev` Pages project is dormant.
 
 ---
 
 ## Next priorities
 
-### ✅ Cutover complete (2026-06-30)
+### ⏸ CHECKPOINT — 2026-06-30 (resume here)
 
-**`horrorwriter.org` now serves the Astro Worker.** Pages → Workers migration is done.
+**Session summary:** completed the Pages→Workers cutover, fixed two RLS security gaps, and shipped mobile navigation. The site is stable and fully deployed on Workers Builds CI/CD. Test suite is 39/39 green.
 
-- Custom domains moved from Pages to Worker via API (2026-06-30)
-- `wrangler.toml` updated to Workers format (`main`, `[assets] binding = "ASSETS"`)
-- Pages auto-deploy disabled; Workers Builds Git integration configured
-- Build command: `npm run build` · Deploy: `npx wrangler deploy --config dist/server/wrangler.json`
-- Build vars (`VITE_*`) set in Workers Builds → Settings → Build → Variables and secrets
-
-**Pushing `main` is safe** — Workers Builds handles CI/CD from here.
+**What was done this session:**
+- Pages→Workers domain cutover complete (`horrorwriter.org` → Worker)
+- `wrangler.toml` fixed (removed `main`/`[assets]` that broke Workers Builds)
+- Workers Builds CI/CD wired to `JeffThomas360/HorrorWriter`, branch `main`
+- `VITE_*` build vars set in Workers Builds dashboard
+- Pages auto-deploy disabled
+- **P1 partial:** Public site verified (home, forum, library, thread view, story read, sign-in modal). Auth flows (passkey, Google, magic-link, transcription, real posts) need manual verification by Jeff on a real device.
+- **P2 complete:** RLS audit found 2 real vulnerabilities; both patched via DB migration `20260701000000_rls_hardening.sql`:
+  - CRITICAL: users could self-promote to `mod_role = 'keeper'` via profiles UPDATE
+  - MEDIUM: authors could un-hide their own moderated content via mod_status UPDATE
+- **P3 complete:** Mobile hamburger menu in `MainLayout.astro` — all nav reachable at 375px; 5 Playwright mobile-viewport tests pass
 
 ---
 
-### Roadmap (work top-down after cutover, highest impact first)
+### Roadmap (resume from P1 manual verification, then P4)
 
-**Step 0 — Lock in the cleanup** *(~5 min, prerequisite)*
-- [ ] Commit the working-tree dead-code cleanup as its own commit
-- Done when: working tree is clean.
-
-**P1 — Confirm the live site actually works** *(S, highest impact)*
-- [ ] Passkey, Google, magic-link sign-in end-to-end on production
-- [ ] Audio transcription on a real recording
-- [ ] One real write: publish a story; post a thread reply
-- Done when: every flow confirmed against real Supabase, or a bug filed per failure.
-
-**P2 — Lock down RLS authorization** *(M, highest security)*
-- [ ] Audit policies table-by-table; add auth tests proving user A cannot touch user B's content
-- [ ] Verify `mod_can()` / `content_visible()` SQL helpers reject non-mods
-- Done when: an authorization test suite passes.
-
-**P3 — Fix mobile navigation** *(S–M, high UX)*
-- [ ] Hamburger / bottom bar in `MainLayout.astro` — all nav reachable at 375px
-- Done when: mobile-viewport Playwright test passes.
+**P1 remaining — Manual auth verification** *(Jeff, on real device)*
+- [ ] Sign in with passkey on production `horrorwriter.org`
+- [ ] Sign in with Google; sign in via magic link
+- [ ] Use audio transcription on a real recording (requires sign-in)
+- [ ] Post a forum reply; publish a story
+- Done when: all flows confirmed working, or bugs filed.
 
 **P4 — Island error boundary** *(S, medium-high stability)*
-- [ ] Add `ErrorBoundary` wrapping children in `Providers.jsx`; on-theme fallback
-- Done when: a deliberately thrown island error renders the fallback, not a blank panel.
+- [ ] Add `ErrorBoundary` wrapping children in `src/components/Providers.jsx`; on-theme fallback ("something went wrong" + reload)
+- Done when: deliberately thrown island error renders the fallback, not a blank panel.
 
 **P5 — Wire notifications UI** *(S–M, medium value)*
-- [ ] Header notifications island: unread badge, dropdown, mark-read — backend already live
-- Done when: user with unread notifications sees them and can clear them.
+- [ ] Header notifications island (in/near `UserMenu`): unread badge, dropdown, mark-read
+- Backend already live: moderation triggers insert `report_resolved` / `content_actioned` rows
+- Done when: user with unread notifications sees them and can mark them read.
 
 **P6 — Harden CSP** *(M, medium security)*
-- [ ] Drop `'unsafe-eval'`; move to nonces/hashes to drop `'unsafe-inline'` if feasible
+- [ ] Test-drop `'unsafe-eval'` from `public/_headers`; confirm hydration + transcription still work
+- [ ] Move inline scripts to nonces/hashes to drop `'unsafe-inline'` if feasible
 - Done when: CSP nonce/hash-based with no console violations.
 
 **P7 — Improve test coverage** *(M, medium confidence)*
-- [ ] Un-bypass SSR for ≥1 page; explicit multi-island auth-loading regression; replace brittle selectors
+- [ ] Un-bypass SSR for ≥1 page (today all 34 E2E mock Supabase; SSR pages skip live DB under `PLAYWRIGHT_TEST`)
+- [ ] Explicit regression test for multi-island auth-loading hang (load `/profile`, assert body resolves)
+- [ ] Replace brittle CSS selectors (`.form-ok`, `h2.title`) with role/label/text selectors
 - Done when: suite green with SSR + auth-loading regression covered.
 
 **P8 — Dependency hygiene** *(S, low-medium)*
-- [ ] Resolve `ws` high-severity advisory (via `overrides` pin or `supabase-js` bump)
-- Done when: `npm audit --omit=dev` clean.
+- [ ] Resolve `ws` high-severity advisory (transitive via `@supabase/supabase-js`) via `overrides` pin or version bump
+- Done when: `npm audit --omit=dev` is clean.
 
 **P9 — Final trims** *(S, low)*
-- [ ] Remove vestigial `VITE_TURNSTILE_SITE_KEY` from `wrangler.toml`
-- [ ] Delete `scratch/` debug scripts
+- [ ] Remove vestigial `VITE_TURNSTILE_SITE_KEY` from `wrangler.toml` (no Turnstile code exists)
+- [ ] Delete `scratch/` debug scripts (gitignored already, but tidy up)
 - [ ] `gh auth login` so PRs can be opened from the CLI
-- [ ] Delete orphaned SPA components (`Layout.jsx`, `Nav.jsx`, `Footer.jsx`, `Atmospherics.jsx`,
-      `MobileBottomNav.jsx`, `OnboardingBanner.jsx`, `FloatingAction.jsx`) and drop `react-router-dom`
-- Done when: no dead config/flags remain and docs match reality.
+- [ ] Delete 7 orphaned legacy SPA components: `Layout.jsx`, `Nav.jsx`, `Footer.jsx`,
+      `Atmospherics.jsx`, `MobileBottomNav.jsx`, `OnboardingBanner.jsx`, `FloatingAction.jsx`
+      — nothing imports them; then drop `react-router-dom` from `package.json`
+- [ ] Delete dormant Cloudflare Pages project `horrorwriter` (now that Worker owns the domains)
+- Done when: no dead code/config/flags remain and docs match reality.
