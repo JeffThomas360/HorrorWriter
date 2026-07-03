@@ -22,7 +22,7 @@ test.describe('Authentication Flows', () => {
     const emailInput = page.locator('#email');
     await emailInput.fill('testwriter@horrorwriter.org');
 
-    const magicLinkBtn = page.getByRole('button', { name: /Send Magic Link/i });
+    const magicLinkBtn = page.getByRole('button', { name: /magic link/i });
     await expect(magicLinkBtn).toBeEnabled();
     await magicLinkBtn.click();
 
@@ -99,7 +99,7 @@ test.describe('Authentication Flows', () => {
     const honeypotInput = page.locator('input[name="website_url_hp"]');
     await honeypotInput.fill('http://malicious-bot-url.com');
 
-    const magicLinkBtn = page.getByRole('button', { name: /Send Magic Link/i });
+    const magicLinkBtn = page.getByRole('button', { name: /magic link/i });
     await expect(magicLinkBtn).toBeEnabled();
     await magicLinkBtn.click();
 
@@ -128,7 +128,7 @@ test.describe('Authentication Flows', () => {
     const emailInput = page.locator('#email');
     await emailInput.fill('spamuser@mailinator.com');
 
-    const magicLinkBtn = page.getByRole('button', { name: /Send Magic Link/i });
+    const magicLinkBtn = page.getByRole('button', { name: /magic link/i });
     await expect(magicLinkBtn).toBeEnabled();
     await magicLinkBtn.click();
 

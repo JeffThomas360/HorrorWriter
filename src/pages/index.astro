@@ -48,23 +48,11 @@ const PROMPT = {
   cite: 'Week of May 26 — submit by Sunday',
 };
 
-let stats = { writers: 0, stories: 0, threads: 0 };
 let tiles = FALLBACK_TILES;
 
 try {
   const isTest = typeof process !== 'undefined' && process.env.PLAYWRIGHT_TEST === 'true';
   if (supabase && !isTest) {
-    const [w, s, t] = await Promise.all([
-      supabase.from('profiles').select('id', { count: 'exact', head: true }),
-      supabase.from('books').select('id', { count: 'exact', head: true }),
-      supabase.from('threads').select('id', { count: 'exact', head: true }),
-    ]);
-    stats = {
-      writers: w.count ?? 0,
-      stories: s.count ?? 0,
-      threads: t.count ?? 0,
-    };
-
     const { data } = await supabase
       .from('threads')
       .select('*, categories(name), profiles(handle)')
@@ -115,26 +103,6 @@ const [heroTile, ...restTiles] = tiles;
       <a href="/library" class="border border-[#2d2d2a] text-[var(--color-text-primary)] font-mono text-xs uppercase px-6 py-3.5 hover:border-white transition-colors">
         Read the Library
       </a>
-    </div>
-
-    <!-- Stats Grid -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mt-16 pt-8 border-t border-dashed border-[#2d2d2a]" aria-label="Site stats">
-      <div>
-        <span class="block text-2xl font-serif font-bold text-[var(--color-text-primary)]">{stats.writers ? stats.writers.toLocaleString() : '—'}</span>
-        <span class="block font-mono text-xs uppercase tracking-wider text-[var(--color-text-secondary)] mt-1">Writers</span>
-      </div>
-      <div>
-        <span class="block text-2xl font-serif font-bold text-[var(--color-text-primary)]">{stats.stories ? stats.stories.toLocaleString() : '—'}</span>
-        <span class="block font-mono text-xs uppercase tracking-wider text-[var(--color-text-secondary)] mt-1">Stories Shared</span>
-      </div>
-      <div>
-        <span class="block text-2xl font-serif font-bold text-[var(--color-text-primary)]">{stats.threads ? stats.threads.toLocaleString() : '—'}</span>
-        <span class="block font-mono text-xs uppercase tracking-wider text-[var(--color-text-secondary)] mt-1">Threads in Crypt</span>
-      </div>
-      <div>
-        <span class="block text-2xl font-serif font-bold text-[var(--color-text-primary)]">0</span>
-        <span class="block font-mono text-xs uppercase tracking-wider text-[var(--color-text-secondary)] mt-1">Ads, Ever</span>
-      </div>
     </div>
   </section>
 
