@@ -126,6 +126,33 @@ export const MOCK_REPORTS = [
   }
 ];
 
+export const MOCK_NOTIFICATIONS = [
+  {
+    id: 'notif-1',
+    kind: 'report_resolved',
+    title: 'Your report was resolved',
+    body: 'A moderator reviewed the thread you reported.',
+    read_at: null,
+    created_at: '2026-07-01T12:00:00Z'
+  },
+  {
+    id: 'notif-2',
+    kind: 'content_actioned',
+    title: 'Your post was hidden',
+    body: 'A moderator hid one of your forum replies for violating the rules.',
+    read_at: null,
+    created_at: '2026-06-30T09:00:00Z'
+  },
+  {
+    id: 'notif-3',
+    kind: 'report_resolved',
+    title: 'Your report was resolved',
+    body: null,
+    read_at: '2026-06-28T00:00:00Z',
+    created_at: '2026-06-27T00:00:00Z'
+  }
+];
+
 export const MOCK_PASSKEYS = [
   {
     id: 'pk-1',
@@ -439,6 +466,34 @@ export async function setupSupabaseMocks(page, opts = {}) {
         body: JSON.stringify(MOCK_REPORTS[0])
       });
     } else if (method === 'PATCH' || method === 'PUT') {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ status: 'ok' })
+      });
+    }
+  });
+
+  // Notifications: HEAD request is the unread-count query (count via Content-Range header),
+  // GET is the list, PATCH is mark-read / mark-all-read.
+  await page.route('**/rest/v1/notifications*', async (route) => {
+    const method = route.request().method();
+    const unread = MOCK_NOTIFICATIONS.filter((n) => !n.read_at).length;
+    if (method === 'HEAD') {
+      route.fulfill({
+        status: 200,
+        headers: {
+          'content-range': `0-0/${unread}`,
+          'access-control-expose-headers': 'content-range'
+        }
+      });
+    } else if (method === 'GET') {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(MOCK_NOTIFICATIONS)
+      });
+    } else if (method === 'PATCH') {
       route.fulfill({
         status: 200,
         contentType: 'application/json',

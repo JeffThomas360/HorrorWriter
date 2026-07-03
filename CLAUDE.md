@@ -292,21 +292,14 @@ live on real data. **Removed:** Rituals / writing prompts, Turnstile CAPTCHA, an
 
 ## Next priorities
 
-### ⏸ CHECKPOINT — 2026-06-30 (resume here)
+### ⏸ CHECKPOINT — 2026-07-02 (resume here)
 
-**Session summary:** completed the Pages→Workers cutover, fixed two RLS security gaps, and shipped mobile navigation. The site is stable and fully deployed on Workers Builds CI/CD. Test suite is 39/39 green.
+**Session summary:** shipped the header notifications bell (P5) and made the first cut of CSP hardening (P6 partial). Build, unit tests, and full 39-test E2E suite all green; pushed to `main` (`85b9694`) and deployed via Workers Builds.
 
 **What was done this session:**
-- Pages→Workers domain cutover complete (`horrorwriter.org` → Worker)
-- `wrangler.toml` fixed (removed `main`/`[assets]` that broke Workers Builds)
-- Workers Builds CI/CD wired to `JeffThomas360/HorrorWriter`, branch `main`
-- `VITE_*` build vars set in Workers Builds dashboard
-- Pages auto-deploy disabled
-- **P1 partial:** Public site verified (home, forum, library, thread view, story read, sign-in modal). Auth flows (passkey, Google, magic-link, transcription, real posts) need manual verification by Jeff on a real device.
-- **P2 complete:** RLS audit found 2 real vulnerabilities; both patched via DB migration `20260701000000_rls_hardening.sql`:
-  - CRITICAL: users could self-promote to `mod_role = 'keeper'` via profiles UPDATE
-  - MEDIUM: authors could un-hide their own moderated content via mod_status UPDATE
-- **P3 complete:** Mobile hamburger menu in `MainLayout.astro` — all nav reachable at 375px; 5 Playwright mobile-viewport tests pass
+- **P5 complete:** `NotificationsBell.jsx` island in `MainLayout.astro` header (next to `UserMenu`) — unread badge, dropdown (click-outside/Escape close), mark-read/mark-all-read. Backed by `src/lib/notifications.js` (CRUD against the `notifications` table) + `src/lib/useNotifications.js` (React Query hooks, 60s poll — table isn't on Realtime).
+- **P6 partial:** dropped `'unsafe-eval'` from CSP `script-src` in `public/_headers`; also added the transcribe Worker origin to `connect-src` (was missing, would have blocked transcription under a strict CSP). Inline-script nonce/hash work (dropping `'unsafe-inline'`) not yet done.
+- Found and killed a stale `astro preview` process left running from a prior session that was locking `dist/client` and blocking builds — worth remembering if a build ever fails with `EPERM`/`resource busy` on `dist`.
 
 ---
 
@@ -323,13 +316,9 @@ live on real data. **Removed:** Rituals / writing prompts, Turnstile CAPTCHA, an
 - [ ] Add `ErrorBoundary` wrapping children in `src/components/Providers.jsx`; on-theme fallback ("something went wrong" + reload)
 - Done when: deliberately thrown island error renders the fallback, not a blank panel.
 
-**P5 — Wire notifications UI** *(S–M, medium value)*
-- [ ] Header notifications island (in/near `UserMenu`): unread badge, dropdown, mark-read
-- Backend already live: moderation triggers insert `report_resolved` / `content_actioned` rows
-- Done when: user with unread notifications sees them and can mark them read.
-
-**P6 — Harden CSP** *(M, medium security)*
-- [ ] Test-drop `'unsafe-eval'` from `public/_headers`; confirm hydration + transcription still work
+**P6 remaining — Harden CSP** *(M, medium security)*
+- [x] Test-drop `'unsafe-eval'` from `public/_headers`; confirmed build + hydration + full E2E suite still green
+- [ ] Verify audio transcription still works in production now that `connect-src` includes the transcribe Worker origin (part of P1 manual verification)
 - [ ] Move inline scripts to nonces/hashes to drop `'unsafe-inline'` if feasible
 - Done when: CSP nonce/hash-based with no console violations.
 
