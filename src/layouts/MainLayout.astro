@@ -2,6 +2,7 @@
 import '../styles/global.css';
 import { AuthProvider } from '../components/AuthContext.jsx';
 import UserMenu from '../components/UserMenu.jsx';
+import NotificationsBell from '../components/NotificationsBell.jsx';
 import Footer from '../components/Footer.astro';
 import SignInModalWrapper from '../components/SignInModalWrapper.jsx';
 
@@ -55,6 +56,7 @@ const { title = "Horror Writer", description = "A premium community for dark fic
           </nav>
 
           <div class="flex items-center gap-3">
+            <NotificationsBell client:load />
             <UserMenu client:load />
             <button
               id="mobile-menu-btn"
