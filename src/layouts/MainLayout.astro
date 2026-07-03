@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import { Toaster } from 'sonner';
 import { AuthProvider } from '../components/AuthContext.jsx';
 import UserMenu from '../components/UserMenu.jsx';
 import NotificationsBell from '../components/NotificationsBell.jsx';
@@ -94,6 +95,7 @@ const { title = "Horror Writer", description = "A premium community for dark fic
       <Footer />
 
       <SignInModalWrapper client:load />
+      <Toaster client:load theme="dark" position="bottom-right" richColors />
     </AuthProvider>
   </body>
 </html>

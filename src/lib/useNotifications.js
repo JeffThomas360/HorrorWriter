@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import {
   getNotifications,
   getUnreadCount,
@@ -7,6 +8,11 @@ import {
 } from './notifications'
 
 const POLL_MS = 60_000
+
+function invalidateNotifications(queryClient, userId) {
+  queryClient.invalidateQueries({ queryKey: ['notifications', 'list', userId] })
+  queryClient.invalidateQueries({ queryKey: ['notifications', 'unread-count', userId] })
+}
 
 /** Unread count for the bell badge; polled since notifications aren't on Realtime. */
 export function useUnreadCount(userId) {
@@ -31,10 +37,8 @@ export function useMarkNotificationRead(userId) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: markNotificationRead,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications', 'list', userId] })
-      queryClient.invalidateQueries({ queryKey: ['notifications', 'unread-count', userId] })
-    },
+    onSuccess: () => invalidateNotifications(queryClient, userId),
+    onError: () => toast.error('Could not mark notification as read.'),
   })
 }
 
@@ -42,9 +46,7 @@ export function useMarkAllNotificationsRead(userId) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: () => markAllNotificationsRead(userId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications', 'list', userId] })
-      queryClient.invalidateQueries({ queryKey: ['notifications', 'unread-count', userId] })
-    },
+    onSuccess: () => invalidateNotifications(queryClient, userId),
+    onError: () => toast.error('Could not mark notifications as read.'),
   })
 }
