@@ -156,7 +156,7 @@ function ReadStory({ id }) {
           <span>A story by @{book?.profiles?.handle || 'unknown'}</span>
           <button 
             onClick={() => setReportTarget({ type: 'story', id: book.id })} 
-            className="text-[10px] uppercase border border-[#2d2d2a] hover:border-red-950 px-2 py-0.5 text-[var(--color-text-secondary)] hover:text-[var(--color-accent-crimson)] cursor-pointer"
+            className="text-xs uppercase border border-[#2d2d2a] hover:border-red-950 px-2 py-0.5 text-[var(--color-text-secondary)] hover:text-[var(--color-accent-crimson)] cursor-pointer"
           >
             Report
           </button>
@@ -171,7 +171,7 @@ function ReadStory({ id }) {
           </p>
         )}
         {rtLabel && (
-          <span className="font-mono text-[9px] uppercase border border-[#2d2d2a] text-[var(--color-text-secondary)] px-2.5 py-1">
+          <span className="font-mono text-xs uppercase border border-[#2d2d2a] text-[var(--color-text-secondary)] px-2.5 py-1">
             {rtLabel}
           </span>
         )}
@@ -191,7 +191,7 @@ function ReadStory({ id }) {
                 <h4 className="font-serif font-bold text-sm text-[var(--color-text-primary)] uppercase tracking-wide">
                   Part of: {s.series.title}
                 </h4>
-                <span className="font-mono text-[9px] text-[var(--color-text-secondary)] uppercase">
+                <span className="font-mono text-xs text-[var(--color-text-secondary)] uppercase">
                   ({s.currIdx + 1} of {s.total} chapters)
                 </span>
               </div>
@@ -200,7 +200,7 @@ function ReadStory({ id }) {
                   Read Next Part →
                 </a>
               ) : (
-                <span className="font-mono text-[10px] text-[var(--color-text-secondary)] uppercase italic">End of series</span>
+                <span className="font-mono text-xs text-[var(--color-text-secondary)] uppercase italic">End of series</span>
               )}
             </div>
           ))}
@@ -237,11 +237,11 @@ function ReadStory({ id }) {
                         {initials(handle)}
                       </div>
                       <div className="flex flex-col">
-                        <span className="font-mono text-xs font-bold text-[var(--color-accent-crimson)]">@{handle}</span>
-                        <span className="font-mono text-[9px] text-[var(--color-text-secondary)]">{timeAgo(c.created_at)}</span>
+                        <span className="font-mono text-xs font-bold text-[var(--color-text-primary)]">@{handle}</span>
+                        <span className="font-mono text-xs text-[var(--color-text-secondary)]">{timeAgo(c.created_at)}</span>
                       </div>
                     </div>
-                    <div className="flex gap-3 items-center text-[10px] font-mono">
+                    <div className="flex gap-3 items-center text-xs font-mono">
                       <button 
                         onClick={() => setReportTarget({ type: 'critique', id: c.id })} 
                         className="text-[var(--color-text-secondary)] hover:text-[var(--color-accent-crimson)] cursor-pointer"

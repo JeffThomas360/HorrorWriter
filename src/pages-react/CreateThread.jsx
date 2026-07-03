@@ -77,7 +77,7 @@ function CreateThread() {
 
   return (
     <div className="mt-8 max-w-2xl mx-auto">
-      <span className="block font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--color-accent-crimson)] mb-2">The Crypt</span>
+      <span className="block font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-text-secondary)] mb-2">The Crypt</span>
       <h2 className="text-3xl font-serif font-black mb-8">Summon <em className="italic text-[var(--color-accent-crimson)] font-serif">a thread</em></h2>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">

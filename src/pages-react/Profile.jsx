@@ -180,7 +180,7 @@ function Profile() {
     <div className="mt-8 max-w-2xl mx-auto">
       <div className="flex justify-between items-center mb-8 border-b border-[#2d2d2a] pb-6">
         <div>
-          <span className="block font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--color-accent-crimson)] mb-2">Your Account</span>
+          <span className="block font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-text-secondary)] mb-2">Your Account</span>
           <h2 className="title text-3xl font-serif font-black">Edit <em className="italic text-[var(--color-accent-crimson)] font-serif">profile</em></h2>
         </div>
         <a href="/my-reports" className="font-mono text-xs border border-[#2d2d2a] px-3 py-2 hover:border-white hover:text-[var(--color-accent-crimson)] transition-colors">
@@ -191,7 +191,7 @@ function Profile() {
       <div className="vintage-card p-6 mb-8 flex flex-col sm:flex-row items-center justify-between gap-6">
         <ProfileHead profile={profile} />
         <div className="text-right flex flex-col gap-2 items-center sm:items-end">
-          {joinedFmt && <p className="font-mono text-[10px] text-[var(--color-text-secondary)]">Joined {joinedFmt}</p>}
+          {joinedFmt && <p className="font-mono text-xs text-[var(--color-text-secondary)]">Joined {joinedFmt}</p>}
           <label className="border border-[#2d2d2a] hover:border-white text-[var(--color-text-primary)] font-mono text-xs uppercase px-4 py-2 cursor-pointer transition-colors text-center inline-block">
             {uploading ? 'Uploading…' : 'Change Avatar'}
             <input
@@ -273,7 +273,7 @@ function Profile() {
 
       {/* ── Passkeys ── */}
       <div className="mt-16 border-t border-[#2d2d2a] pt-12">
-        <span className="block font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--color-accent-crimson)] mb-2">Security</span>
+        <span className="block font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-text-secondary)] mb-2">Security</span>
         <h3 className="text-xl font-serif font-black mb-4">Fast <em className="italic text-[var(--color-accent-crimson)] font-serif">sign-in</em></h3>
         <p className="text-sm font-serif text-[var(--color-text-secondary)] leading-relaxed mb-6">
           Passkeys let you sign in with Face ID, Touch ID, your device PIN — or your Bitwarden vault. No email needed.
@@ -291,7 +291,7 @@ function Profile() {
                     <span className="text-xl">{kind.icon}</span>
                     <div className="flex flex-col gap-0.5">
                       <span className="font-serif text-sm font-bold text-[var(--color-text-primary)]">{kind.label}</span>
-                      <span className="font-mono text-[9px] text-[var(--color-text-secondary)]">
+                      <span className="font-mono text-xs text-[var(--color-text-secondary)]">
                         Added {new Date(pk.created_at).toLocaleDateString()}
                         {pk.last_used_at && ` · Last used ${new Date(pk.last_used_at).toLocaleDateString()}`}
                       </span>
@@ -329,7 +329,7 @@ function Profile() {
         </p>
 
         <details className="mt-8 border border-[#2d2d2a] bg-neutral-900/10 p-4 font-serif text-xs leading-relaxed max-w-xl">
-          <summary className="font-bold cursor-pointer hover:text-[var(--color-accent-crimson)] uppercase font-mono tracking-wider text-[10px]">Using a password manager?</summary>
+          <summary className="font-bold cursor-pointer hover:text-[var(--color-accent-crimson)] uppercase font-mono tracking-wider text-xs">Using a password manager?</summary>
           <div className="mt-4 flex flex-col gap-3 text-[var(--color-text-secondary)]">
             <p>
               To save it to a password manager instead of this device:
@@ -363,7 +363,7 @@ function Field({ label, hint, children }) {
     <div className="flex flex-col gap-2">
       <label htmlFor={id} className="text-xs font-mono text-[var(--color-text-secondary)] uppercase">{label}</label>
       {cloneElement(children, { id })}
-      {hint && <span className="font-mono text-[9px] text-[var(--color-text-secondary)] leading-relaxed mt-1">{hint}</span>}
+      {hint && <span className="font-mono text-xs text-[var(--color-text-secondary)] leading-relaxed mt-1">{hint}</span>}
     </div>
   )
 }

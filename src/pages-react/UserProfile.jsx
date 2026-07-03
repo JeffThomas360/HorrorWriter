@@ -35,7 +35,7 @@ function UserProfile({ handle }) {
   if (status === 'notfound') {
     return (
       <div className="vintage-card text-center py-16 border-red-950 mt-8 max-w-2xl mx-auto">
-        <span className="block font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--color-accent-crimson)] mb-2">▸ No such writer</span>
+        <span className="block font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-text-secondary)] mb-2">▸ No such writer</span>
         <h2 className="text-xl font-serif mb-4">@{handle} is not in the coven.</h2>
         <a href="/" className="border border-[#2d2d2a] hover:border-white font-mono text-xs uppercase px-4 py-2 transition-colors inline-block mt-2">
           Back Home
@@ -47,7 +47,7 @@ function UserProfile({ handle }) {
   if (status === 'error') {
     return (
       <div className="vintage-card text-center py-16 border-red-950 mt-8 max-w-2xl mx-auto">
-        <span className="block font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--color-accent-crimson)] mb-2">▸ Error</span>
+        <span className="block font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-text-secondary)] mb-2">▸ Error</span>
         <h2 className="text-xl font-serif mb-2">Something went wrong.</h2>
         <p className="text-xs text-[var(--color-text-secondary)] font-serif">Couldn't load this profile. Try again in a moment.</p>
       </div>
@@ -64,7 +64,7 @@ function UserProfile({ handle }) {
     <div className="mt-8 max-w-2xl mx-auto">
       <div className="border-b border-[#2d2d2a] pb-6 mb-8 flex items-end justify-between">
         <div>
-          <span className="block font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--color-accent-crimson)] mb-2">Member</span>
+          <span className="block font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-text-secondary)] mb-2">Member</span>
           <h2 className="text-3xl font-serif font-black">The <em className="italic text-[var(--color-accent-crimson)] font-serif">Coven</em></h2>
         </div>
       </div>
@@ -74,7 +74,7 @@ function UserProfile({ handle }) {
         
         <div className="mt-6 border-t border-[#2d2d2a] pt-6 flex flex-col gap-4 font-serif text-sm">
           {profile.pronouns && (
-            <div className="font-mono text-[10px] text-[var(--color-text-secondary)] uppercase">
+            <div className="font-mono text-xs text-[var(--color-text-secondary)] uppercase">
               Pronouns: {profile.pronouns}
             </div>
           )}
@@ -91,7 +91,7 @@ function UserProfile({ handle }) {
               <span>·</span>
               <button 
                 onClick={() => setReportTarget({ type: 'user', id: profile.id })} 
-                className="font-mono text-[10px] uppercase text-[var(--color-text-secondary)] hover:text-[var(--color-accent-crimson)] cursor-pointer"
+                className="font-mono text-xs uppercase text-[var(--color-text-secondary)] hover:text-[var(--color-accent-crimson)] cursor-pointer"
               >
                 [Report User]
               </button>

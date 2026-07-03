@@ -64,7 +64,7 @@ function Library() {
     <div className="mt-8">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8 border-b border-[#2d2d2a] pb-6">
         <div>
-          <span className="block font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--color-accent-crimson)] mb-2">The Library</span>
+          <span className="block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-text-secondary)] mb-2">The Library</span>
           <h2 className="text-3xl font-serif font-black">Shared <em className="italic text-[var(--color-accent-crimson)] font-serif">work</em></h2>
           <p class="text-xs text-[var(--color-text-secondary)] font-serif mt-1">Excerpts, shorts, and chapters left in the dark for others to find.</p>
         </div>
@@ -73,7 +73,7 @@ function Library() {
             Publish a Story
           </a>
         ) : (
-          <span className="font-mono text-[10px] border border-[#2d2d2a] text-[var(--color-text-secondary)] px-3 py-1.5 uppercase">Sign in to publish</span>
+          <span className="font-mono text-xs border border-[#2d2d2a] text-[var(--color-text-secondary)] px-3 py-1.5 uppercase">Sign in to publish</span>
         )}
       </div>
 
@@ -121,7 +121,7 @@ function Library() {
               Publish the first story
             </a>
           ) : (
-            <span className="font-mono text-[10px] border border-[#2d2d2a] text-[var(--color-text-secondary)] px-3 py-1.5 uppercase">Sign in to publish</span>
+            <span className="font-mono text-xs border border-[#2d2d2a] text-[var(--color-text-secondary)] px-3 py-1.5 uppercase">Sign in to publish</span>
           )}
         </div>
       )}
@@ -133,7 +133,7 @@ function Library() {
               {/* Cover Card */}
               <div className="relative w-full aspect-[4/5] bg-[#1a0a14] border border-[#2d2d2a] flex items-center justify-center p-8 group-hover:border-[var(--color-accent-crimson)] transition-colors overflow-hidden">
                 {b.badge && (
-                  <div className="absolute top-4 right-4 font-mono text-[9px] uppercase tracking-wider border border-[var(--color-accent-crimson)] text-[var(--color-accent-crimson)] bg-[var(--color-bg-surface)] px-1.5 py-0.5">
+                  <div className="absolute top-4 right-4 font-mono text-xs uppercase tracking-wider bg-[var(--color-accent-crimson)] text-white px-1.5 py-0.5">
                     {b.badge}
                   </div>
                 )}
@@ -142,7 +142,7 @@ function Library() {
                   <div className="font-serif font-black text-lg text-[var(--color-text-primary)] group-hover:text-[var(--color-accent-crimson)] transition-colors line-clamp-3 leading-tight uppercase tracking-tight">
                     {b.title}
                   </div>
-                  <div className="font-mono text-[9px] text-[var(--color-text-secondary)] tracking-widest uppercase">
+                  <div className="font-mono text-xs text-[var(--color-text-secondary)] tracking-widest uppercase">
                     Horror Writer Series
                   </div>
                 </div>
@@ -151,7 +151,7 @@ function Library() {
 
               {/* Book Metadata */}
               <div className="mt-4 flex flex-col gap-1">
-                <span className="font-mono text-[10px] text-[var(--color-accent-crimson)] font-bold">
+                <span className="font-mono text-xs text-[var(--color-text-primary)] font-bold">
                   @{b.profiles?.handle || 'unknown'}
                 </span>
                 <h3 className="font-serif font-black text-lg text-[var(--color-text-primary)] leading-snug line-clamp-2">
@@ -160,7 +160,7 @@ function Library() {
                 <p className="font-serif italic text-xs text-[var(--color-text-secondary)] line-clamp-2 leading-relaxed mt-1">
                   {b.lede}
                 </p>
-                <div className="flex justify-between items-center text-[9px] font-mono text-[var(--color-text-secondary)] border-t border-[#2d2d2a] mt-3 pt-2">
+                <div className="flex justify-between items-center text-xs font-mono text-[var(--color-text-secondary)] border-t border-[#2d2d2a] mt-3 pt-2">
                   <span>{postedAgo(b.created_at)}</span>
                   <span className="uppercase">
                     {b.comments_count || 0} {b.comments_count === 1 ? 'critique' : 'critiques'}

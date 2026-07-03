@@ -120,7 +120,7 @@ function Forum() {
   if (loading) return (
     <div className="mt-8">
       <div className="border-b border-[#2d2d2a] pb-6 mb-8">
-        <span className="block font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--color-accent-crimson)] mb-2">The Forums</span>
+        <span className="block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-text-secondary)] mb-2">The Forums</span>
         <h2 className="text-3xl font-serif font-black">The <em class="italic text-[var(--color-accent-crimson)] font-serif">Crypt</em></h2>
       </div>
       <div className="flex flex-col items-center justify-center min-h-[30vh]">
@@ -138,7 +138,7 @@ function Forum() {
   return (
     <div className="mt-8">
       <div className="border-b border-[#2d2d2a] pb-6 mb-8">
-        <span className="block font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--color-accent-crimson)] mb-2">The Forums</span>
+        <span className="block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-text-secondary)] mb-2">The Forums</span>
         <h2 className="text-3xl font-serif font-black">The <em class="italic text-[var(--color-accent-crimson)] font-serif">Crypt</em></h2>
         <p className="text-xs text-[var(--color-text-secondary)] font-serif mt-1">Where the conversations live. Pick a category, or search the dark.</p>
       </div>
@@ -148,14 +148,14 @@ function Forum() {
         <aside className="flex flex-col gap-6 md:col-span-1">
           {/* Category Filter */}
           <div className="vintage-card p-4">
-            <h4 className="font-mono text-[10px] uppercase tracking-wider text-[var(--color-text-primary)] mb-3 border-b border-[#2d2d2a] pb-2">Categories</h4>
+            <h4 className="font-mono text-xs uppercase tracking-wider text-[var(--color-text-primary)] mb-3 border-b border-[#2d2d2a] pb-2">Categories</h4>
             <ul className="flex flex-col gap-2 font-serif text-xs">
               <li
                 className={`flex justify-between items-center py-1 px-2 cursor-pointer transition-colors ${'all' === activeCat ? 'bg-[var(--color-accent-crimson)] text-white' : 'hover:text-[var(--color-accent-crimson)] text-[var(--color-text-secondary)]'}`}
                 onClick={() => setActiveCat('all')}
               >
                 <span>All Threads</span>
-                <span className="font-mono text-[10px]">{threads.length}</span>
+                <span className="font-mono text-xs">{threads.length}</span>
               </li>
               {categories.map(c => {
                 const count = threads.filter(t => t.category_id === c.id).length
@@ -166,7 +166,7 @@ function Forum() {
                     onClick={() => setActiveCat(c.id)}
                   >
                     <span>{c.name.split('·')[0].trim()}</span>
-                    <span className="font-mono text-[10px]">{count.toLocaleString()}</span>
+                    <span className="font-mono text-xs">{count.toLocaleString()}</span>
                   </li>
                 )
               })}
@@ -175,15 +175,15 @@ function Forum() {
 
           {/* Guidelines Block */}
           <div className="vintage-card p-4">
-            <h4 className="font-mono text-[10px] uppercase tracking-wider text-[var(--color-text-primary)] mb-2 border-b border-[#2d2d2a] pb-2">House Rules</h4>
-            <p className="text-[11px] font-serif leading-relaxed text-[var(--color-text-secondary)]">
+            <h4 className="font-mono text-xs uppercase tracking-wider text-[var(--color-text-primary)] mb-2 border-b border-[#2d2d2a] pb-2">House Rules</h4>
+            <p className="text-xs font-serif leading-relaxed text-[var(--color-text-secondary)]">
               Read before posting. Critique is a gift; cruelty is not. Spoilers warned. No promo without a story attached.
             </p>
           </div>
 
           {/* Users Online */}
           <div className="vintage-card p-4">
-            <h4 className="font-mono text-[10px] uppercase tracking-wider text-[var(--color-text-primary)] mb-3 border-b border-[#2d2d2a] pb-2 flex items-center gap-2">
+            <h4 className="font-mono text-xs uppercase tracking-wider text-[var(--color-text-primary)] mb-3 border-b border-[#2d2d2a] pb-2 flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-red-800 animate-pulse"></span>
               Writers Online ({onlineUsers.length})
             </h4>
@@ -196,7 +196,7 @@ function Forum() {
                   <div
                     key={u.id}
                     title={name}
-                    className="w-8 h-8 rounded-full bg-[var(--color-bg-primary)] border border-[#2d2d2a] flex items-center justify-center font-mono text-[10px] text-[var(--color-text-secondary)] hover:border-white transition-colors"
+                    className="w-8 h-8 rounded-full bg-[var(--color-bg-primary)] border border-[#2d2d2a] flex items-center justify-center font-mono text-xs text-[var(--color-text-secondary)] hover:border-white transition-colors"
                   >
                     {initialsStr}
                   </div>
@@ -228,7 +228,7 @@ function Forum() {
                 New Thread
               </a>
             ) : (
-              <span className="font-mono text-[10px] border border-[#2d2d2a] text-[var(--color-text-secondary)] px-3 py-2 uppercase">Sign in to post</span>
+              <span className="font-mono text-xs border border-[#2d2d2a] text-[var(--color-text-secondary)] px-3 py-2 uppercase">Sign in to post</span>
             )}
           </div>
 
@@ -240,7 +240,7 @@ function Forum() {
                   Start the first thread
                 </a>
               ) : (
-                <span className="font-mono text-[10px] border border-[#2d2d2a] text-[var(--color-text-secondary)] px-3 py-1.5 uppercase">Sign in to post</span>
+                <span className="font-mono text-xs border border-[#2d2d2a] text-[var(--color-text-secondary)] px-3 py-1.5 uppercase">Sign in to post</span>
               )}
             </div>
           )}
@@ -263,15 +263,15 @@ function Forum() {
                         {t.pinned && <span className="text-xs" title="Pinned">📌</span>}
                         {t.title}
                       </h4>
-                      <div className="font-mono text-[10px] text-[var(--color-text-secondary)]">
-                        <span className="text-[var(--color-accent-crimson)] font-bold mr-1">@{handle}</span> 
+                      <div className="font-mono text-xs text-[var(--color-text-secondary)]">
+                        <span className="text-[var(--color-text-primary)] font-bold mr-1">@{handle}</span>
                         · {catLabels[t.category_id] || 'Thread'} · {timeAgo(t.updated_at)}
                       </div>
                     </div>
                   </div>
                   <div className="text-right shrink-0">
                     <span className="block font-mono text-sm font-bold text-[var(--color-text-primary)]">{t.replies_count || 0}</span>
-                    <span className="block font-mono text-[8px] uppercase tracking-wider text-[var(--color-text-secondary)]">replies</span>
+                    <span className="block font-mono text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">replies</span>
                   </div>
                 </a>
               )

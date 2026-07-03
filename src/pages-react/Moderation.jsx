@@ -26,7 +26,7 @@ function Moderation() {
   if (!isMod(profile)) {
     return (
       <div className="vintage-card text-center py-16 border-red-950 mt-8 max-w-2xl mx-auto">
-        <span className="block font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--color-accent-crimson)] mb-2">▸ 404 — page not found</span>
+        <span className="block font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-text-secondary)] mb-2">▸ 404 — page not found</span>
         <h2 className="text-xl font-serif mb-2">The page you’re looking for doesn’t exist.</h2>
         <p className="text-xs text-[var(--color-text-secondary)] font-serif">Ensure you are logged in to the correct credentials.</p>
       </div>
@@ -47,7 +47,7 @@ function Moderation() {
   return (
     <div className="mt-8 max-w-4xl mx-auto">
       <div className="border-b border-[#2d2d2a] pb-6 mb-8">
-        <span className="block font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--color-accent-crimson)] mb-2">Keeper Terminal</span>
+        <span className="block font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-text-secondary)] mb-2">Keeper Terminal</span>
         <h2 className="text-3xl font-serif font-black">The <em className="italic text-[var(--color-accent-crimson)] font-serif">Terminal</em></h2>
         <p className="text-xs text-[var(--color-text-secondary)] font-serif mt-1 font-mono">▸ System status: online · Access Level: {profile?.mod_role?.toUpperCase()}</p>
       </div>

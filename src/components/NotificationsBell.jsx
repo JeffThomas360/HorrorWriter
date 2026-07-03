@@ -57,7 +57,7 @@ function NotificationsBell() {
       >
         🔔
         {unreadCount > 0 && (
-          <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-[var(--color-accent-crimson)] text-white text-[10px] leading-4 text-center font-mono">
+          <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[var(--color-accent-crimson)] text-white text-xs leading-[18px] text-center font-mono">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -69,7 +69,7 @@ function NotificationsBell() {
             <span className="text-xs font-mono uppercase tracking-wider text-text-secondary">Notifications</span>
             {unreadCount > 0 && (
               <button
-                className="text-[11px] font-mono text-text-secondary hover:text-[var(--color-accent-crimson)] cursor-pointer"
+                className="text-xs font-mono text-text-secondary hover:text-[var(--color-accent-crimson)] cursor-pointer"
                 onClick={() => markAllRead.mutate()}
               >
                 Mark all read
@@ -96,7 +96,7 @@ function NotificationsBell() {
                     )}
                   </div>
                   {n.body && <p className="text-xs text-text-secondary mt-0.5">{n.body}</p>}
-                  <p className="text-[10px] text-text-secondary font-mono mt-1">{timeAgo(n.created_at)}</p>
+                  <p className="text-xs text-text-secondary font-mono mt-1">{timeAgo(n.created_at)}</p>
                 </li>
               ))}
             </ul>

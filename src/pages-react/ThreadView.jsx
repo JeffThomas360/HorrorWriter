@@ -173,7 +173,7 @@ function ThreadView({ id }) {
     <div className="mt-8 max-w-2xl mx-auto">
       <a
         href="/forum"
-        className="inline-block font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--color-accent-crimson)] mb-4 hover:underline"
+        className="inline-block font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-text-secondary)] mb-4 hover:text-[var(--color-accent-crimson)] hover:underline transition-colors"
       >
         ← Back to {thread?.categories?.name?.split('·')[0].trim() || 'The Crypt'}
       </a>
@@ -183,7 +183,7 @@ function ThreadView({ id }) {
           <h1 className="title text-2xl md:text-3xl font-serif font-black text-[var(--color-text-primary)] leading-tight mb-2">
             {thread?.title}
           </h1>
-          <span className="inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-wider text-[var(--color-text-secondary)]">
+          <span className="inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
             <span className="w-1 h-1 rounded-full bg-red-800 animate-pulse"></span>
             {activeReadersCount} {activeReadersCount === 1 ? 'writer reading' : 'writers reading'}
           </span>
@@ -210,13 +210,13 @@ function ThreadView({ id }) {
                     {initials(handle)}
                   </div>
                   <div className="flex flex-col">
-                    <span className="font-mono text-xs font-bold text-[var(--color-accent-crimson)]">@{handle}</span>
-                    <span className="font-mono text-[9px] text-[var(--color-text-secondary)]">
+                    <span className="font-mono text-xs font-bold text-[var(--color-text-primary)]">@{handle}</span>
+                    <span className="font-mono text-xs text-[var(--color-text-secondary)]">
                       {index === 0 ? 'Original Post' : `Reply #${index}`} · {timeAgo(p.created_at)}
                     </span>
                   </div>
                 </div>
-                <div className="flex gap-3 items-center text-[10px] font-mono">
+                <div className="flex gap-3 items-center text-xs font-mono">
                   <button 
                     onClick={() => setReportTarget({ type: 'post', id: p.id })} 
                     className="text-[var(--color-text-secondary)] hover:text-[var(--color-accent-crimson)] cursor-pointer"
@@ -226,7 +226,7 @@ function ThreadView({ id }) {
                   <InlineModControls targetType="post" targetId={p.id} currentStatus={p.mod_status} authorId={p.author_id} />
                 </div>
               </div>
-              <div className="prose prose-invert font-serif text-sm leading-relaxed text-[var(--color-text-primary)]">
+              <div className="prose prose-invert font-serif text-lg leading-relaxed text-[var(--color-text-primary)]">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{p.content}</ReactMarkdown>
               </div>
             </article>

@@ -116,7 +116,7 @@ function PublishStory() {
 
   return (
     <div className="mt-8 max-w-2xl mx-auto">
-      <span className="block font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--color-accent-crimson)] mb-2">The Library</span>
+      <span className="block font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-text-secondary)] mb-2">The Library</span>
       <h2 className="title text-3xl font-serif font-black mb-8">Publish <em className="italic text-[var(--color-accent-crimson)] font-serif">a story</em></h2>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
@@ -197,7 +197,7 @@ function PublishStory() {
           <div className="flex justify-between items-baseline mb-1">
             <label className="text-xs font-mono text-[var(--color-text-secondary)] uppercase">Story Content (Markdown)</label>
             {wc > 0 && (
-              <span className="font-mono text-[10px] text-[var(--color-text-secondary)] tracking-wider">
+              <span className="font-mono text-xs text-[var(--color-text-secondary)] tracking-wider">
                 {wc.toLocaleString()} words{readMins ? ` · ~${readMins} min read` : ''}
               </span>
             )}
