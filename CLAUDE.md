@@ -292,14 +292,29 @@ live on real data. **Removed:** Rituals / writing prompts, Turnstile CAPTCHA, an
 
 ## Next priorities
 
-### ⏸ CHECKPOINT — 2026-07-02 (resume here)
+### ⏸ CHECKPOINT — 2026-07-03 (resume here)
 
-**Session summary:** shipped the header notifications bell (P5) and made the first cut of CSP hardening (P6 partial). Build, unit tests, and full 39-test E2E suite all green; pushed to `main` (`85b9694`) and deployed via Workers Builds.
+**Session summary:** ran a full frontend UX/accessibility audit (screenshots + contrast math + source citations, no fabricated findings) and worked through it in phases. Phases 1 and 2 shipped and are live; Phases 3 and 4 are scoped but not started. Two pushes today: `5ddad93` (Phase 1) and `ae66705` (Phase 2), both built and deployed clean via Workers Builds.
 
-**What was done this session:**
-- **P5 complete:** `NotificationsBell.jsx` island in `MainLayout.astro` header (next to `UserMenu`) — unread badge, dropdown (click-outside/Escape close), mark-read/mark-all-read. Backed by `src/lib/notifications.js` (CRUD against the `notifications` table) + `src/lib/useNotifications.js` (React Query hooks, 60s poll — table isn't on Realtime).
-- **P6 partial:** dropped `'unsafe-eval'` from CSP `script-src` in `public/_headers`; also added the transcribe Worker origin to `connect-src` (was missing, would have blocked transcription under a strict CSP). Inline-script nonce/hash work (dropping `'unsafe-inline'`) not yet done.
-- Found and killed a stale `astro preview` process left running from a prior session that was locking `dist/client` and blocking builds — worth remembering if a build ever fails with `EPERM`/`resource busy` on `dist`.
+**Phase 1 — done, live (`5ddad93`):**
+- Swapped crimson-as-text (handles/timestamps/eyebrows/tags) to `text-secondary`/`text-primary` sitewide — crimson at small sizes measured ~2.16:1 contrast, fails WCAG AA (4.5:1). Kept crimson for hovers, borders, and large display type.
+- Raised every `text-[8px]/[9px]/[10px]/[11px]` (~65 instances, 18 files) to a 12px floor; bumped forum post/reply body text from 14px to match the Library's existing `.prose-book` 18px reading size.
+- Fixed the mobile nav hamburger's tap target: 32×32px → 44×44px (`MainLayout.astro`, Apple HIG/Material minimum).
+- "TRENDING" badge converted to solid crimson fill + white text (kept the emphasis, fixed the contrast).
+- **Retracted one finding after the fact:** an "off-palette blue" mobile-nav color report turned out to be ClearType/subpixel rendering fringing in the screenshot, not a real CSS bug — confirmed via pixel-level PNG decode + `getComputedStyle` (both showed the correct bone `#E5E1D8`). Left the retraction in the audit record instead of quietly deleting it.
+
+**Phase 2 — done, live (`ae66705`):**
+- Sign-in modal button hierarchy now matches the documented auth strategy (lead with passkey/Google, magic-link as fallback): Passkey is the solid/primary button, Google is secondary (outlined), magic-link demoted to a plain text link ("Email me a magic link instead") below the email field. Updated `tests/auth.spec.js` to match the new copy.
+- Removed the home page's stat grid (1 writer / 1 story / 2 threads sitting directly under a "Founded 1986" framing, undercutting it) per Jeff's call — hid the numbers rather than reframing them. Also deleted the now-dead Supabase count queries (`profiles`/`books`/`threads` head-counts) that only fed that grid.
+
+**Phase 3 — not started, needs investigation before estimating:**
+- [ ] Thread shows "N replies" but sometimes renders fewer — `handle_new_post` trigger increments `replies_count` unconditionally at insert time, before moderation; a reply later hidden/screened would leave a stale count with no visible post. Confirm via `mod_status` on the row before deciding the fix (e.g. a "(removed)" state).
+- [ ] `ReadStory` fires a real Supabase 400 on `series_books?select=book_id,sort_order&series_id=eq...` — check whether the column/relationship the query expects still matches the deployed schema.
+- [ ] Mobile Forum page (`/forum` at 390px) has a ~400px empty gap between the thread list and the footer — likely a min-height/flex-basis sized for the desktop two-column layout not collapsing on mobile stack.
+
+**Phase 4 — not started, zero-risk hygiene, do anytime:**
+- [ ] De-duplicate `src/styles/fonts.css` — several `@font-face` blocks (e.g. Merriweather 400-italic) are declared identically up to 5×.
+- [ ] Correct this file's own **Design system** section above: it lists Cinzel as removed with the old VHS theme, but `global.css:38-45` still sets it as the active `h1`–`h4` font. It's load-bearing, not a leftover — fix the note so a future cleanup pass doesn't delete it.
 
 ---
 
