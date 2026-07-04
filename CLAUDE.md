@@ -311,7 +311,7 @@ live on real data. **Removed:** Rituals / writing prompts, Turnstile CAPTCHA, an
 
 **Phase 3 — 2 of 3 fixed, 1 remaining:**
 - [x] Thread "N replies" count could go stale when a reply was later hidden/screened — `handle_new_post` incremented `replies_count` unconditionally at insert, with nothing to decrement it on a `mod_status` transition. Fixed via a new `AFTER UPDATE` trigger on `posts` (`supabase/migrations/20260704000000_fix_replies_count_on_mod_status.sql`) that adjusts the counter when a non-OP post's `mod_status` crosses in/out of `live`. **Needs `supabase db push` / migration deploy** — written and build-verified locally but not yet applied to the remote project.
-- [x] `ReadStory` was firing a real Supabase 400 on `series_books`/`series` queries — confirmed dead code: a "series" feature (`supabase/migrations/20260610040000_phase9_features.sql`) was written but never deployed to the remote baseline, and CLAUDE.md's own DB tables list never included it. Deleted the dead queries/UI from `src/pages-react/ReadStory.jsx` (Series Navigator block) and `src/pages-react/PublishStory.jsx` (series dropdown + creation logic). Left the orphaned migration file as historical record. Build + unit tests + full `library.spec.js`/`forum.spec.js` E2E all green. **This was cleanup of an abandoned half-built attempt, not a rejection of the feature — Jeff wants Story Series properly (re)implemented; see P10 in the roadmap below.**
+- [x] `ReadStory` was firing a real Supabase 400 on `series_books`/`series` queries. **Correction (2026-07-04, caught via Supabase MCP before the reply-count migration was pushed): the initial diagnosis that these tables were "never deployed" was WRONG.** `series`/`series_books` are live on the remote project (`bmvvugrfnuedjlucmlbw`) with reasonable RLS and even 1 real row of data (one series linking one book). The actual bug was narrower: the deleted `ReadStory.jsx` query ordered `series_books` by `.order('created_at', ...)`, but `series_books` has no `created_at` column (only `series_id`, `book_id`, `sort_order`) — that's what threw the 400, not a missing table. Decision (Jeff, 2026-07-04): leave the frontend deletion in place rather than patch the one-line bug, since the old UI was an untested prototype anyway — Story Series will be rebuilt properly under **P10** below, reusing the existing schema/data/RLS as a starting point rather than redesigning from scratch. Frontend deletion itself (removed dead queries/UI from `ReadStory.jsx`/`PublishStory.jsx`) still verified clean: build + unit tests + full `library.spec.js`/`forum.spec.js` E2E all green.
 - [ ] Mobile Forum page (`/forum` at 390px) has a ~400px empty gap between the thread list and the footer — likely a min-height/flex-basis sized for the desktop two-column layout not collapsing on mobile stack. An investigation agent flagged a low-confidence hypothesis (`Forum.jsx:215`'s `md:col-span-3` main column lacking a mobile grid reset) but this was **from reading source only, not from rendering the page** — needs visual verification in a live browser before touching the CSS.
 
 **Phase 4 — done:**
@@ -363,19 +363,32 @@ live on real data. **Removed:** Rituals / writing prompts, Turnstile CAPTCHA, an
 - [ ] Delete dormant Cloudflare Pages project `horrorwriter` (now that Worker owns the domains)
 - Done when: no dead code/config/flags remain and docs match reality.
 
-**P10 — Story Series (new feature, real writer request)** *(M/L, not scoped yet)*
+**P10 — Story Series (new feature, real writer request)** *(M, schema+RLS already exist — verified 2026-07-04)*
 - Goal: let writers create and curate their own multi-story series, so readers can find and follow
   a series that runs longer than a single story (e.g. a "next part" link, a series index page).
-- A prior half-built attempt exists but was deleted 2026-07-04 as dead code (see Phase 3 above) —
-  it defined `series`/`series_books` tables in `supabase/migrations/20260610040000_phase9_features.sql`
-  that were never deployed to the remote project, plus matching UI in `ReadStory.jsx`/`PublishStory.jsx`
-  that fired silent 400s. Treat that migration file as reference/scrap, not a starting point to
-  blindly re-apply — re-review the schema (e.g. `series_books.sort_order` ordering, ownership/RLS)
-  before reintroducing it.
-- [ ] Design the schema properly (RLS for `series`/`series_books`, ordering semantics) before writing
-      a new migration
-- [ ] Reimplement series creation/assignment in `PublishStory.jsx`
-- [ ] Reimplement the series navigator UI in `ReadStory.jsx`
+- **The schema is already live on the remote project** (`bmvvugrfnuedjlucmlbw`) from a prior
+  half-built attempt (`supabase/migrations/20260610040000_phase9_features.sql`), confirmed via the
+  Supabase MCP on 2026-07-04 — do NOT recreate these tables, build on top of them:
+  - `series(id, author_id, title, description, created_at)` — RLS: public read, author-only
+    write/update/delete.
+  - `series_books(series_id, book_id, sort_order)` — RLS: public read; write policy checks
+    `auth.uid() = series.author_id` for the target series.
+  - There is 1 real live row today (one series with one book assigned) — don't blow it away with a
+    destructive migration.
+- **Frontend UI for this was deleted 2026-07-04** (see Phase 3 above) because it was firing a
+  Supabase 400 — but the root cause was a single bad query, not a schema problem: it ordered
+  `series_books` by `.order('created_at', ...)`, and `series_books` has **no `created_at` column**
+  (only `series_id`/`book_id`/`sort_order` — order by `sort_order` instead). The deleted UI in
+  `ReadStory.jsx` (Series Navigator block) and `PublishStory.jsx` (series dropdown + creation) is a
+  reasonable starting point to resurrect via `git show 60df9df~1:src/pages-react/ReadStory.jsx` etc.,
+  once the ordering bug is fixed.
+- **Known gap to fix before shipping:** the `series_books` write RLS policy only checks that the
+  caller owns the *series* (`auth.uid() = series.author_id`) — it never checks that the caller also
+  owns the *book* being added. As written, an author could add someone else's story into their own
+  series. Add a `book_id`-ownership check to the policy (or a trigger) before this goes live.
+- [ ] Fix the `series_books` RLS ownership gap above
+- [ ] Resurrect/rebuild series creation+assignment in `PublishStory.jsx` (order by `sort_order`, not `created_at`)
+- [ ] Resurrect/rebuild the series navigator UI in `ReadStory.jsx`
 - [ ] Add a series index/browse view so readers can discover a series, not just navigate next/prev
-- Done when: a writer can create a series, assign stories to it, and a reader can browse and
-  navigate through it end to end.
+- Done when: a writer can create a series, assign stories to it (only their own), and a reader can
+  browse and navigate through it end to end.
