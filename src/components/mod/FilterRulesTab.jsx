@@ -49,12 +49,16 @@ export default function FilterRulesTab() {
     }
   }
 
-  if (loading) return <p className="dim">Loading AutoMod rules...</p>
+  const primaryBtn = 'bg-[var(--color-accent-crimson)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-white transition-colors hover:bg-red-700 cursor-pointer'
+  const ghostBtn = 'border border-[#2d2d2a] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-text-primary)] transition-colors hover:border-white cursor-pointer'
+  const dangerBtn = 'border border-[var(--color-accent-crimson)] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-accent-crimson)] transition-colors hover:bg-[var(--color-accent-crimson)] hover:text-white cursor-pointer'
+
+  if (loading) return <p className="text-[var(--color-text-secondary)]">Loading AutoMod rules...</p>
 
   return (
-    <div className="mod-rules-tab" style={{ maxWidth: 800 }}>
+    <div style={{ maxWidth: 800 }}>
       <h3 style={{ fontSize: 18, marginBottom: 16 }}>AutoModerator Settings</h3>
-      <p className="dim" style={{ marginBottom: 24, fontSize: 14 }}>
+      <p className="text-[var(--color-text-secondary)]" style={{ marginBottom: 24, fontSize: 14 }}>
         Configure filters to automatically block or flag content before it is published.
       </p>
 
@@ -65,24 +69,25 @@ export default function FilterRulesTab() {
           <option value="duplicate">Block Duplicates</option>
           <option value="new_account_flood">New Account Flood Limit</option>
         </select>
-        <input 
-          type="text" 
-          value={newValue} 
-          onChange={e => setNewValue(e.target.value)} 
-          placeholder={newKind === 'phrase' ? 'e.g., \\b(viagra|crypto)\\b' : 'e.g., 3'} 
-          style={{ flex: 1, padding: 8 }} 
+        <input
+          type="text"
+          value={newValue}
+          onChange={e => setNewValue(e.target.value)}
+          placeholder={newKind === 'phrase' ? 'e.g., \\b(viagra|crypto)\\b' : 'e.g., 3'}
+          className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
+          style={{ flex: 1 }}
         />
-        <button type="submit" className="btn primary">Add Rule</button>
+        <button type="submit" className={primaryBtn}>Add Rule</button>
       </form>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {rules.map(r => (
           <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: 12, border: '1px solid #333', borderRadius: 4, opacity: r.enabled ? 1 : 0.5 }}>
             <div style={{ flex: 1 }}>
-              <strong style={{ color: 'var(--cyan)' }}>{r.kind.toUpperCase()}</strong>: <code>{r.value}</code>
+              <strong style={{ color: 'var(--color-accent-crimson)' }}>{r.kind.toUpperCase()}</strong>: <code>{r.value}</code>
             </div>
-            <button className="btn ghost" onClick={() => handleToggle(r.id, r.enabled)}>{r.enabled ? 'Disable' : 'Enable'}</button>
-            <button className="btn blood ghost" onClick={() => handleDelete(r.id)}>Delete</button>
+            <button className={ghostBtn} onClick={() => handleToggle(r.id, r.enabled)}>{r.enabled ? 'Disable' : 'Enable'}</button>
+            <button className={dangerBtn} onClick={() => handleDelete(r.id)}>Delete</button>
           </div>
         ))}
       </div>

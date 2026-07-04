@@ -31,39 +31,41 @@ export default function InlineModControls({ targetType, targetId, currentStatus,
     }
   }
 
+  const linkBtn = (color) => ({ background: 'none', border: 'none', color, cursor: 'pointer', padding: 0 })
+
   return (
-    <div className="inline-mod-controls" style={{ 
-      display: 'inline-flex', gap: '8px', 
-      border: '1px solid var(--blood)', padding: '2px 6px', borderRadius: '4px',
-      marginLeft: '10px', fontSize: '11px', fontFamily: 'var(--mono)'
+    <div className="font-mono" style={{
+      display: 'inline-flex', gap: '8px',
+      border: '1px solid var(--color-accent-crimson)', padding: '2px 6px', borderRadius: '4px',
+      marginLeft: '10px', fontSize: '11px'
     }}>
-      <span style={{ color: '#888', marginRight: '4px' }}>[MOD]</span>
-      
+      <span style={{ color: 'var(--color-text-secondary)', marginRight: '4px' }}>[MOD]</span>
+
       {canHide && currentStatus !== 'hidden' && (
-        <button 
-          onClick={() => handleAction('hidden')} 
+        <button
+          onClick={() => handleAction('hidden')}
           disabled={isBusy}
-          style={{ background: 'none', border: 'none', color: 'var(--blood)', cursor: 'pointer', padding: 0 }}
+          style={linkBtn('var(--color-accent-crimson)')}
         >
           Hide
         </button>
       )}
-      
+
       {canHide && currentStatus === 'hidden' && (
-        <button 
-          onClick={() => handleAction('live')} 
+        <button
+          onClick={() => handleAction('live')}
           disabled={isBusy}
-          style={{ background: 'none', border: 'none', color: 'var(--cyan)', cursor: 'pointer', padding: 0 }}
+          style={linkBtn('var(--color-text-primary)')}
         >
           Unhide
         </button>
       )}
 
       {canScreen && currentStatus === 'live' && (
-        <button 
-          onClick={() => handleAction('screening')} 
+        <button
+          onClick={() => handleAction('screening')}
           disabled={isBusy}
-          style={{ background: 'none', border: 'none', color: 'var(--gold)', cursor: 'pointer', padding: 0 }}
+          style={linkBtn('var(--color-text-secondary)')}
         >
           Screen
         </button>
