@@ -5,6 +5,9 @@ import { useModBadges } from '../../lib/useModBadges'
 const ROLES = ['sentinel', 'moderator', 'warden']
 const SCOPES = ['all', 'forum', 'library']
 
+const FIELD = 'bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none'
+const GHOST_BTN = 'border border-[#2d2d2a] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-text-primary)] transition-colors hover:border-white cursor-pointer disabled:opacity-50'
+
 export default function RegistryTab({ profile }) {
   const [q, setQ] = useState('')
   const [results, setResults] = useState([])
@@ -31,13 +34,13 @@ export default function RegistryTab({ profile }) {
   }
 
   return (
-    <div className="mod-registry">
-      <form onSubmit={onSearch} className="mod-search">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by handle…" aria-label="Search users" />
-        <button type="submit" className="btn ghost" disabled={busy || !q.trim()}>▸ Search</button>
+    <div className="flex flex-col gap-4">
+      <form onSubmit={onSearch} className="flex gap-2">
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by handle…" aria-label="Search users" className={`${FIELD} flex-1`} />
+        <button type="submit" className={GHOST_BTN} disabled={busy || !q.trim()}>▸ Search</button>
       </form>
-      {error && <p className="form-err">{error}</p>}
-      <ul className="mod-user-list">
+      {error && <p className="form-err font-mono text-xs text-[var(--color-accent-crimson)]">{error}</p>}
+      <ul className="flex flex-col">
         {results.map((u) => (
           <RegistryRow key={u.id} user={u} self={u.id === profile.id} badges={badges} onApply={apply} busy={busy} />
         ))}
@@ -52,24 +55,24 @@ function RegistryRow({ user, self, badges, onApply, busy }) {
   const badge = badges?.find((b) => b.role === user.mod_role)
   const scoped = role === 'sentinel' || role === 'moderator'
   return (
-    <li className="mod-user-row">
-      <span className="mod-user-handle">
+    <li className="mod-user-row flex items-center justify-between gap-3 border-b border-[#2d2d2a] py-3">
+      <span className="font-mono text-sm text-[var(--color-text-primary)]">
         @{user.handle} {badge && <span title={badge.label}>{badge.emoji}</span>}
       </span>
       {self ? (
-        <span className="mod-user-self">you (Keeper)</span>
+        <span className="font-mono text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">you (Keeper)</span>
       ) : (
-        <span className="mod-user-controls">
-          <select value={role} onChange={(e) => setRole(e.target.value)} aria-label={`Role for ${user.handle}`}>
+        <span className="flex items-center gap-2">
+          <select value={role} onChange={(e) => setRole(e.target.value)} aria-label={`Role for ${user.handle}`} className={FIELD}>
             <option value="">— none —</option>
             {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
           {scoped && (
-            <select value={scope} onChange={(e) => setScope(e.target.value)} aria-label={`Scope for ${user.handle}`}>
+            <select value={scope} onChange={(e) => setScope(e.target.value)} aria-label={`Scope for ${user.handle}`} className={FIELD}>
               {SCOPES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           )}
-          <button type="button" className="btn ghost" disabled={busy} onClick={() => onApply(user.id, role, scope)}>Save</button>
+          <button type="button" className={GHOST_BTN} disabled={busy} onClick={() => onApply(user.id, role, scope)}>Save</button>
         </span>
       )}
     </li>
