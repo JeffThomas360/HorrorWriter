@@ -56,30 +56,49 @@ export default function ReportModal({ isOpen, onClose, targetType, targetId }) {
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose} aria-label="Close modal">×</button>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#000]/80 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="modal-content vintage-border relative w-full max-w-md bg-[var(--color-bg-surface)] p-8"
+        onClick={e => e.stopPropagation()}
+      >
+        <button
+          className="absolute right-4 top-4 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] cursor-pointer"
+          onClick={onClose}
+          aria-label="Close modal"
+        >
+          ×
+        </button>
 
-        <div className="modal-header">
-          <h2>Report <em>Issue</em></h2>
-          <p>
-            {targetType === 'site' 
-              ? 'Report a bug or contact support.' 
+        <div className="mb-6">
+          <h2 className="font-serif text-xl font-black text-[var(--color-text-primary)]">
+            Report <em className="italic text-[var(--color-accent-crimson)]">Issue</em>
+          </h2>
+          <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+            {targetType === 'site'
+              ? 'Report a bug or contact support.'
               : 'Report content that violates our community guidelines.'}
           </p>
         </div>
 
         {success ? (
-          <div style={{ textAlign: 'center', color: 'var(--cyan)', padding: '20px 0' }}>
+          <div className="py-5 text-center text-[var(--color-text-secondary)]">
             <p>Report received. A Keeper will review it shortly.</p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="modal-form">
-            {error && <div style={{ color:'var(--blood)', fontSize:14, marginBottom:16 }}>{error}</div>}
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            {error && <div className="text-sm text-[var(--color-accent-crimson)]">{error}</div>}
 
-            <div className="input-group">
-              <label>Category</label>
-              <select value={category} onChange={e => setCategory(e.target.value)} required>
+            <div className="flex flex-col gap-2">
+              <label className="font-mono text-xs uppercase text-[var(--color-text-secondary)]">Category</label>
+              <select
+                value={category}
+                onChange={e => setCategory(e.target.value)}
+                required
+                className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
+              >
                 <option value="" disabled>Select a reason...</option>
                 {targetType === 'site' ? (
                   <>
@@ -97,17 +116,22 @@ export default function ReportModal({ isOpen, onClose, targetType, targetId }) {
               </select>
             </div>
 
-            <div className="input-group">
-              <label>Additional Details (Optional)</label>
-              <textarea 
-                value={details} 
-                onChange={e => setDetails(e.target.value)} 
+            <div className="flex flex-col gap-2">
+              <label className="font-mono text-xs uppercase text-[var(--color-text-secondary)]">Additional Details (Optional)</label>
+              <textarea
+                value={details}
+                onChange={e => setDetails(e.target.value)}
                 placeholder="Provide any helpful context..."
                 rows={4}
+                className="resize-y bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
               />
             </div>
 
-            <button type="submit" className="btn primary full-width" disabled={isSubmitting}>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full bg-[var(--color-accent-crimson)] px-5 py-3 font-mono text-xs uppercase tracking-wider text-white transition-colors hover:bg-red-700 cursor-pointer disabled:opacity-50"
+            >
               {isSubmitting ? 'Submitting...' : 'Submit Report'}
             </button>
           </form>
