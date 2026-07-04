@@ -122,10 +122,12 @@ bone text, serif body (Merriweather). Tokens are Tailwind v4 `@theme` variables 
 | `--color-text-secondary` | `#A3A39C` |
 | `--color-accent-crimson` | `#991B1B` |
 | body font | Merriweather (serif) |
+| heading font (`h1`–`h4`) | Cinzel (serif) |
 
 Use Tailwind utilities + the CSS-variable tokens (e.g. `text-[var(--color-accent-crimson)]`,
 `.vintage-card`, `.prose-book`, `main.shell`). No CSS modules. The old VHS/Stranger-Things HUD
-design system (scanlines, green REC dot, `--blood`/`--cyan`/Cinzel) has been **removed**.
+design system (scanlines, green REC dot, `--blood`/`--cyan`) has been **removed** — but Cinzel
+survived the reskin and is still the active heading font (`global.css:38-45`), not a leftover.
 
 ---
 
@@ -312,9 +314,9 @@ live on real data. **Removed:** Rituals / writing prompts, Turnstile CAPTCHA, an
 - [ ] `ReadStory` fires a real Supabase 400 on `series_books?select=book_id,sort_order&series_id=eq...` — check whether the column/relationship the query expects still matches the deployed schema.
 - [ ] Mobile Forum page (`/forum` at 390px) has a ~400px empty gap between the thread list and the footer — likely a min-height/flex-basis sized for the desktop two-column layout not collapsing on mobile stack.
 
-**Phase 4 — not started, zero-risk hygiene, do anytime:**
-- [ ] De-duplicate `src/styles/fonts.css` — several `@font-face` blocks (e.g. Merriweather 400-italic) are declared identically up to 5×.
-- [ ] Correct this file's own **Design system** section above: it lists Cinzel as removed with the old VHS theme, but `global.css:38-45` still sets it as the active `h1`–`h4` font. It's load-bearing, not a leftover — fix the note so a future cleanup pass doesn't delete it.
+**Phase 4 — done:**
+- [x] De-duplicated `src/styles/fonts.css` — collapsed repeated identical `@font-face` blocks (Cinzel 400/700, Merriweather 300/400/700 normal + italic) down to one declaration each.
+- [x] Corrected this file's **Design system** section above — it wrongly listed Cinzel as removed with the old VHS theme; it's still the active `h1`–`h4` heading font (`global.css:38-45`), now documented as such.
 
 **GitHub hardened (same session):** branch protection on `main` (blocks force-push/deletion, direct pushes still work — no required PR review), Dependabot alerts + security updates enabled. No leaked secrets anywhere in tracked files or git history.
 
