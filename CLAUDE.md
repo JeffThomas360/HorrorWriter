@@ -311,7 +311,7 @@ live on real data. **Removed:** Rituals / writing prompts, Turnstile CAPTCHA, an
 
 **Phase 3 — 2 of 3 fixed, 1 remaining:**
 - [x] Thread "N replies" count could go stale when a reply was later hidden/screened — `handle_new_post` incremented `replies_count` unconditionally at insert, with nothing to decrement it on a `mod_status` transition. Fixed via a new `AFTER UPDATE` trigger on `posts` (`supabase/migrations/20260704000000_fix_replies_count_on_mod_status.sql`) that adjusts the counter when a non-OP post's `mod_status` crosses in/out of `live`. **Needs `supabase db push` / migration deploy** — written and build-verified locally but not yet applied to the remote project.
-- [x] `ReadStory` was firing a real Supabase 400 on `series_books`/`series` queries — confirmed dead code: a "series" feature (`supabase/migrations/20260610040000_phase9_features.sql`) was written but never deployed to the remote baseline, and CLAUDE.md's own DB tables list never included it. Deleted the dead queries/UI from `src/pages-react/ReadStory.jsx` (Series Navigator block) and `src/pages-react/PublishStory.jsx` (series dropdown + creation logic). Left the orphaned migration file as historical record. Build + unit tests + full `library.spec.js`/`forum.spec.js` E2E all green.
+- [x] `ReadStory` was firing a real Supabase 400 on `series_books`/`series` queries — confirmed dead code: a "series" feature (`supabase/migrations/20260610040000_phase9_features.sql`) was written but never deployed to the remote baseline, and CLAUDE.md's own DB tables list never included it. Deleted the dead queries/UI from `src/pages-react/ReadStory.jsx` (Series Navigator block) and `src/pages-react/PublishStory.jsx` (series dropdown + creation logic). Left the orphaned migration file as historical record. Build + unit tests + full `library.spec.js`/`forum.spec.js` E2E all green. **This was cleanup of an abandoned half-built attempt, not a rejection of the feature — Jeff wants Story Series properly (re)implemented; see P10 in the roadmap below.**
 - [ ] Mobile Forum page (`/forum` at 390px) has a ~400px empty gap between the thread list and the footer — likely a min-height/flex-basis sized for the desktop two-column layout not collapsing on mobile stack. An investigation agent flagged a low-confidence hypothesis (`Forum.jsx:215`'s `md:col-span-3` main column lacking a mobile grid reset) but this was **from reading source only, not from rendering the page** — needs visual verification in a live browser before touching the CSS.
 
 **Phase 4 — done:**
@@ -362,3 +362,20 @@ live on real data. **Removed:** Rituals / writing prompts, Turnstile CAPTCHA, an
       — nothing imports them; then drop `react-router-dom` from `package.json`
 - [ ] Delete dormant Cloudflare Pages project `horrorwriter` (now that Worker owns the domains)
 - Done when: no dead code/config/flags remain and docs match reality.
+
+**P10 — Story Series (new feature, real writer request)** *(M/L, not scoped yet)*
+- Goal: let writers create and curate their own multi-story series, so readers can find and follow
+  a series that runs longer than a single story (e.g. a "next part" link, a series index page).
+- A prior half-built attempt exists but was deleted 2026-07-04 as dead code (see Phase 3 above) —
+  it defined `series`/`series_books` tables in `supabase/migrations/20260610040000_phase9_features.sql`
+  that were never deployed to the remote project, plus matching UI in `ReadStory.jsx`/`PublishStory.jsx`
+  that fired silent 400s. Treat that migration file as reference/scrap, not a starting point to
+  blindly re-apply — re-review the schema (e.g. `series_books.sort_order` ordering, ownership/RLS)
+  before reintroducing it.
+- [ ] Design the schema properly (RLS for `series`/`series_books`, ordering semantics) before writing
+      a new migration
+- [ ] Reimplement series creation/assignment in `PublishStory.jsx`
+- [ ] Reimplement the series navigator UI in `ReadStory.jsx`
+- [ ] Add a series index/browse view so readers can discover a series, not just navigate next/prev
+- Done when: a writer can create a series, assign stories to it, and a reader can browse and
+  navigate through it end to end.
