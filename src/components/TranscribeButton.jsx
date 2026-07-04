@@ -8,9 +8,8 @@ export default function TranscribeButton({ onTranscribed }) {
     <>
       <button
         type="button"
-        className="btn ghost transcribe-btn"
         onClick={() => setOpen(true)}
-        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, padding: '8px 14px' }}
+        className="transcribe-btn inline-flex items-center gap-2 border border-[#2d2d2a] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-accent-crimson)] hover:text-[var(--color-accent-crimson)] cursor-pointer"
       >
         <svg
           viewBox="0 0 24 24" width="15" height="15"
@@ -23,7 +22,7 @@ export default function TranscribeButton({ onTranscribed }) {
           <line x1="12" y1="19" x2="12" y2="23"/>
           <line x1="8" y1="23" x2="16" y2="23"/>
         </svg>
-        Transcribe Audio
+        Dictate
       </button>
       {open && (
         <TranscribeModal
