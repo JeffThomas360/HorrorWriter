@@ -30,6 +30,25 @@ test.describe('Authentication Flows', () => {
     await expect(page.getByText('Check your email for the magic link.')).toBeVisible();
   });
 
+  test('Sign-in request fired before the modal island hydrates still opens the modal', async ({ page }) => {
+    await setupSupabaseMocks(page);
+    // Reproduce the cross-island hydration race deterministically: the Sign In
+    // button lives in the UserMenu island while the modal lives in the separate
+    // SignInModalWrapper island. If an `open-signin` request is dispatched before
+    // the wrapper has hydrated and attached its window listener, the transient
+    // event is lost and the modal never opens. Dispatching at DOMContentLoaded
+    // (after MainLayout's early inline script runs, before React islands hydrate)
+    // forces that ordering. The request must not be lost.
+    await page.addInitScript(() => {
+      window.addEventListener('DOMContentLoaded', () => {
+        window.dispatchEvent(new CustomEvent('open-signin'));
+      });
+    });
+
+    await page.goto('/');
+    await expect(page.locator('#email')).toBeVisible();
+  });
+
   test('Passkey E2E Registration and Sign-in Flow', async ({ page, context }) => {
     // 1. Enable virtual authenticator (usb transport)
     const cdpSession = await context.newCDPSession(page);

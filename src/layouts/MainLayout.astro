@@ -101,10 +101,14 @@ const { title = "Horror Writer", description = "A premium community for dark fic
 </html>
 
 <script>
-  // Sign in modal
+  // Sign in modal. This inline module script runs (deferred) before the React
+  // islands hydrate, so its listener reliably catches `open-signin` even when
+  // the SignInModalWrapper island hasn't attached its own listener yet. Record
+  // the request on a global flag that the wrapper replays on mount — otherwise a
+  // request that arrives during the cross-island hydration gap is lost and the
+  // modal never opens.
   window.addEventListener('open-signin', () => {
-    const el = document.getElementById('signin-modal-portal');
-    if (el) el.dispatchEvent(new CustomEvent('show'));
+    window.__signinPending = true;
   });
 
   // Mobile menu toggle

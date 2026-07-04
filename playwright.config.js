@@ -57,6 +57,10 @@ export default defineConfig({
     env: {
       VITE_TRANSCRIBE_URL: 'http://localhost:5173',
       PLAYWRIGHT_TEST: 'true',
+      // Astro 7 auto-backgrounds `astro dev` when it detects an AI-agent terminal,
+      // which detaches the process and breaks Playwright's webServer readiness wait.
+      // Force foreground so the webServer stays attached.
+      ASTRO_DEV_BACKGROUND: '0',
     },
   },
 });
