@@ -1,14 +1,20 @@
 # HorrorWriter — CLAUDE.md
 
-A horror writing community at **horrorwriter.org**. **Astro 6** site (React islands) on
-Cloudflare Pages, Supabase backend.
+A horror writing community at **horrorwriter.org**. **Astro 7** site (React islands) on
+Cloudflare Workers, Supabase backend.
 
 > **2026-06-16 — migrated off the React+Vite SPA to Astro.** Routing is now file-based Astro
 > pages with React islands; the design system was reskinned from the old VHS/HUD look to a dark
 > "1980s paperback" typographic theme. The full E2E + unit suites pass.
 >
-> **2026-06-17 — mid-migration to Cloudflare Workers (paused). ⚠️ DO NOT push to `main` yet — see
-> Next Priorities / SAVEPOINT below.**
+> **2026-06-30 — Cloudflare Workers cutover complete.** `horrorwriter.org` + `www` serve from the
+> `horrorwriter` Worker; deploy is push-to-`main` (Workers Builds). The old Pages project is dormant.
+>
+> **2026-07-04 — upgraded Astro 6 → 7 (Vite 7 → 8, adapter 13 → 14, react-integration 5 → 6).**
+> Motivated by `npm audit`: Astro 6 could not reach 0 vulnerabilities without breaking (`--force`)
+> changes; Astro 7 + a non-breaking `npm audit fix` gets there. The bump surfaced a latent
+> cross-island sign-in-modal hydration race, fixed in the same change (see the constraint note under
+> Known constraints). Full E2E 46/46, unit 9/9, `npm audit` 0.
 
 ---
 
@@ -16,16 +22,16 @@ Cloudflare Pages, Supabase backend.
 
 | Layer | Tech |
 |---|---|
-| Framework | **Astro 6** (`@astrojs/cloudflare` adapter — static prerender + SSR) |
-| UI | **React 19 islands** (`@astrojs/react`, `client:load`) |
+| Framework | **Astro 7** (`@astrojs/cloudflare` adapter v14 — static prerender + SSR) |
+| UI | **React 19 islands** (`@astrojs/react` v6, `client:load`) |
 | Styling | **Tailwind CSS v4** (`@tailwindcss/vite`, `@theme` tokens in `src/styles/global.css`) |
 | Data fetching | `@tanstack/react-query` (in islands) |
 | Auth | Supabase magic-link + WebAuthn passkeys + Google OAuth (flagged) |
 | Database | Supabase Postgres (Row Level Security on all tables) |
 | Storage | Supabase Storage (avatars bucket, per-user RLS) |
 | Edge Functions | Supabase Deno functions (WebAuthn ceremonies) |
-| Deploy | Cloudflare Workers (migration from Pages in progress — see SAVEPOINT) |
-| Node | 22 (pinned in `.nvmrc`; Astro 6 requires ≥22.12) |
+| Deploy | Cloudflare Workers (push-to-`main` via Workers Builds) |
+| Node | 22 (pinned in `.nvmrc`; Astro 7 requires ≥20.19 / ≥22.12) |
 
 **Notes**
 - `react-router-dom` is still a dependency and imported by a few **orphaned** legacy SPA
@@ -274,9 +280,20 @@ live on real data. **Removed:** Rituals / writing prompts, Turnstile CAPTCHA, an
 - **Astro islands don't share React context** — see the ⚠️ under Architecture. Coordinate
   cross-island state through the module-scoped globals in `AuthContext.jsx`, and make sure every
   `AuthProvider` instance resolves its own loading/error state.
-- **Astro 6 ↔ Vite 7:** Astro 6 uses Vite 7. The root `package.json` `overrides` pins
-  `vite ^7` — do not let npm hoist Vite 8.
+- **Cross-island event coordination must survive the hydration gap.** Independent islands hydrate
+  in an unguaranteed order, so a *transient* `window` CustomEvent dispatched by one island can be
+  missed by another that hasn't attached its listener yet. This bit the sign-in modal on the Astro 7
+  upgrade: the Sign In button (`UserMenu`) dispatches `open-signin`, the modal (`SignInModalWrapper`)
+  listens for it — under Astro 7's timing the event fired first and the modal never opened. Fix:
+  `MainLayout.astro`'s early inline `<script>` (runs before islands hydrate) records the request on
+  `window.__signinPending`, and the wrapper *replays* that flag on mount (clearing on close). Any new
+  cross-island signal must do the same — persist a flag, don't rely on catching a live event.
+- **Astro 7 ↔ Vite 8:** Astro 7 uses Vite 8. The root `package.json` `overrides` pins
+  `vite ^8` — do not let npm downgrade it.
 - **Windows E2E:** use `cmd /c npx playwright test` or the Bash tool (PowerShell blocks `npx.ps1`).
+- **Astro 7 backgrounds `astro dev` for AI-agent terminals**, which detaches the process from
+  Playwright's `webServer`. `playwright.config.js` sets `ASTRO_DEV_BACKGROUND=0` in `webServer.env`
+  to force foreground — keep it.
 - **`gh` CLI not authenticated:** opening PRs from here fails until `gh auth login`. Until then,
   open PRs via the GitHub web compare URL.
 - **Deploy pipeline:** Workers Builds Git integration on `horrorwriter` Worker. Pages auto-deploy
@@ -320,7 +337,17 @@ live on real data. **Removed:** Rituals / writing prompts, Turnstile CAPTCHA, an
 
 **GitHub hardened (same session):** branch protection on `main` (blocks force-push/deletion, direct pushes still work — no required PR review), Dependabot alerts + security updates enabled. No leaked secrets anywhere in tracked files or git history.
 
-**Astro 6→7 migration attempted, NOT merged — parked in a worktree:** `npm audit` (full, not `--omit=dev`) actually shows 8 vulnerabilities via `miniflare`/`wrangler` (ws + undici), not just the 1 tracked below in P8. Fixing needs Astro 7 (peer dep of `@astrojs/cloudflare@14.1.1`). Did the bump in `.claude/worktrees/astro-7-migration` (branch `worktree-astro-7-migration`, commit `dd091e9`) — it fixes the audit cleanly (0 vulnerabilities) and builds fine, but **33/45 E2E tests fail on a real auth-session regression**: injecting a mock session into `localStorage` no longer gets picked up (reproduced manually, outside Playwright). Ruled out `@supabase/supabase-js` drift (identical `2.90.0` both sides). Root cause not yet found — next step is bisecting which single bump (astro/cloudflare-adapter/react-integration/vite) breaks `AuthContext`. Also worth keeping regardless of outcome: Astro 7 auto-backgrounds `astro dev` for AI-agent terminals, which breaks Playwright's `webServer`; fixed with `ASTRO_DEV_BACKGROUND=0` in `playwright.config.js`, already on that branch. Don't merge this branch until the auth regression is fixed — the vulnerabilities it closes are dev/build-tooling only (not code shipped in the deployed Worker), so there's no urgency pressure.
+**Astro 6→7 migration — DONE and landed on `main` (2026-07-04, commit `7333933`).** The earlier
+"33/45 fail, session not picked up, root cause unknown" note was **stale** — it came from a first
+worktree cut off an *older* `main`. Redone as a fresh bump on current `main`: the real failure was
+only **3 tests, all the sign-in modal** (mock-session detection works fine). Root cause was a
+**cross-island hydration race**, not an auth bug — see the constraint note under Known constraints.
+Fixed via the `window.__signinPending` replay pattern + a deterministic regression test. Path to 0
+vulns is **Astro 7 THEN a non-breaking `npm audit fix`** (Astro 6 needed `--force`/breaking to get
+there, which is why the migration was worth doing). Verified before landing: full E2E 46/46 (run 4×,
+no flakiness), unit 9/9, build clean, `npm audit` 0, `dist/server/wrangler.json` emits correctly
+under adapter 14. The stale first worktree (`astro-7-migration` / branch `worktree-astro-7-migration`)
+is superseded and can be deleted.
 
 ---
 
@@ -349,9 +376,10 @@ live on real data. **Removed:** Rituals / writing prompts, Turnstile CAPTCHA, an
 - [ ] Replace brittle CSS selectors (`.form-ok`, `h2.title`) with role/label/text selectors
 - Done when: suite green with SSR + auth-loading regression covered.
 
-**P8 — Dependency hygiene** *(S, low-medium)*
-- [ ] Resolve `ws` high-severity advisory (transitive via `@supabase/supabase-js`) via `overrides` pin or version bump
-- Done when: `npm audit --omit=dev` is clean.
+**P8 — Dependency hygiene** *(DONE 2026-07-04)*
+- [x] Resolved via the Astro 6→7 migration + a non-breaking `npm audit fix` (see the migration note
+      above). `npm audit` is now **0 vulnerabilities** (full, not just `--omit=dev`). Astro 6 could
+      not reach 0 without `--force`/breaking changes, which is what forced the migration.
 
 **P9 — Final trims** *(S, low)*
 - [ ] Remove vestigial `VITE_TURNSTILE_SITE_KEY` from `wrangler.toml` (no Turnstile code exists)
