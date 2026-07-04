@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../components/AuthContext'
 import MarkdownEditor from '../components/MarkdownEditor'
-import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import TranscribeButton from '../components/TranscribeButton'
 import { withProviders } from '../components/Providers'
 import RequireAuth from '../components/RequireAuth'
@@ -28,23 +28,6 @@ function PublishStory() {
   const [content, setContent] = useState('')
   const [error,   setError]   = useState(null)
 
-  const [seriesId, setSeriesId] = useState('none')
-  const [newSeriesTitle, setNewSeriesTitle] = useState('')
-
-  const { data: mySeries = [] } = useQuery({
-    queryKey: ['mySeries', session?.user?.id],
-    queryFn: async () => {
-      if (!session) return []
-      const { data } = await supabase
-        .from('series')
-        .select('*')
-        .eq('author_id', session.user.id)
-        .order('created_at', { ascending: false })
-      return data || []
-    },
-    enabled: !!session
-  })
-
   useEffect(() => {
     if (!authLoading && !session) {
       window.location.replace('/library')
@@ -52,7 +35,7 @@ function PublishStory() {
   }, [session, authLoading])
 
   const mutation = useMutation({
-    mutationFn: async ({ title, lede, cover, content, seriesId, newSeriesTitle }) => {
+    mutationFn: async ({ title, lede, cover, content }) => {
       const { data, error: bookError } = await supabase
         .from('books')
         .insert({
@@ -65,19 +48,6 @@ function PublishStory() {
         .select('id')
         .single()
       if (bookError) throw bookError
-
-      if (seriesId === 'new' && newSeriesTitle.trim()) {
-        const { data: createdSeries, error: sErr } = await supabase
-          .from('series')
-          .insert({ title: newSeriesTitle.trim(), author_id: session.user.id })
-          .select('id')
-          .single()
-        if (!sErr && createdSeries) {
-          await supabase.from('series_books').insert({ series_id: createdSeries.id, book_id: data.id })
-        }
-      } else if (seriesId && seriesId !== 'none') {
-        await supabase.from('series_books').insert({ series_id: seriesId, book_id: data.id })
-      }
 
       return data
     },
@@ -97,11 +67,7 @@ function PublishStory() {
       setError('Title, lede, and content are required.')
       return
     }
-    if (seriesId === 'new' && !newSeriesTitle.trim()) {
-      setError('Please provide a title for the new series.')
-      return
-    }
-    mutation.mutate({ title, lede, cover, content, seriesId, newSeriesTitle })
+    mutation.mutate({ title, lede, cover, content })
   }
 
   const isSubmitting = mutation.isPending
@@ -141,31 +107,6 @@ function PublishStory() {
             className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
           />
         </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-mono text-[var(--color-text-secondary)] uppercase">Series / Anthology</label>
-          <select
-            value={seriesId}
-            onChange={(e) => setSeriesId(e.target.value)}
-            className="bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
-          >
-            <option value="none">Standalone Story</option>
-            {mySeries.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
-            <option value="new">+ Create New Series</option>
-          </select>
-        </div>
-
-        {seriesId === 'new' && (
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-mono text-[var(--color-text-secondary)] uppercase">New Series Title</label>
-            <input
-              value={newSeriesTitle}
-              onChange={(e) => setNewSeriesTitle(e.target.value)}
-              placeholder="e.g. The Haunted Trilogy"
-              className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
-            />
-          </div>
-        )}
 
         <div className="flex flex-col gap-2">
           <label className="text-xs font-mono text-[var(--color-text-secondary)] uppercase">Cover Style</label>

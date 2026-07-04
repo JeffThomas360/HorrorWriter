@@ -72,27 +72,6 @@ function ReadStory({ id }) {
     }
   })
 
-  const { data: seriesList = [] } = useQuery({
-    queryKey: ['book_series', id],
-    queryFn: async () => {
-      if (!supabase) return []
-      const { data: sbData } = await supabase.from('series_books').select('series_id').eq('book_id', id)
-      if (!sbData?.length) return []
-      
-      const seriesIds = sbData.map(s => s.series_id)
-      const { data: seriesInfo } = await supabase.from('series').select('*').in('id', seriesIds)
-      
-      const res = []
-      for (const series of seriesInfo || []) {
-        const { data: booksInSeries } = await supabase.from('series_books').select('book_id, sort_order').eq('series_id', series.id).order('created_at', { ascending: true })
-        const currIdx = booksInSeries.findIndex(b => b.book_id === id)
-        const nextBook = currIdx >= 0 && currIdx < booksInSeries.length - 1 ? booksInSeries[currIdx + 1] : null
-        res.push({ series, nextBook, currIdx, total: booksInSeries.length })
-      }
-      return res
-    }
-  })
-
   const commentMutation = useMutation({
     mutationFn: async (content) => {
       const { data, error } = await supabase
@@ -181,31 +160,6 @@ function ReadStory({ id }) {
       <article className="prose-book prose prose-invert font-serif leading-relaxed text-[var(--color-text-primary)] mb-12">
         <ReactMarkdown remarkPlugins={[remarkGfm]}>{book?.content || ''}</ReactMarkdown>
       </article>
-
-      {/* Series Navigator */}
-      {seriesList.length > 0 && (
-        <div className="vintage-card border-[var(--color-accent-crimson)] bg-neutral-900/10 p-6 my-12 max-w-2xl mx-auto">
-          {seriesList.map(s => (
-            <div key={s.series.id} className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div>
-                <h4 className="font-serif font-bold text-sm text-[var(--color-text-primary)] uppercase tracking-wide">
-                  Part of: {s.series.title}
-                </h4>
-                <span className="font-mono text-xs text-[var(--color-text-secondary)] uppercase">
-                  ({s.currIdx + 1} of {s.total} chapters)
-                </span>
-              </div>
-              {s.nextBook ? (
-                <a href={`/library/read/${s.nextBook.book_id}`} className="bg-[var(--color-accent-crimson)] text-white font-mono text-xs uppercase px-4 py-2 hover:bg-red-700 transition-colors">
-                  Read Next Part →
-                </a>
-              ) : (
-                <span className="font-mono text-xs text-[var(--color-text-secondary)] uppercase italic">End of series</span>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Share Bar */}
       <div className="max-w-2xl mx-auto border-t border-[#2d2d2a] pt-8">
