@@ -36,7 +36,8 @@ working or what step they're on. Two root causes:
   and callers (`PublishStory`, the new-thread form) keep appending that text as they do
   today.
 - Not touching the other components still on the dead design system (`ReportModal`,
-  `ShareBar`, the `mod/` tabs). Same rot, separate cleanup pass.
+  `ShareBar`, the `mod/` tabs). Same rot, **tracked as its own separate cleanup pass**
+  (see the "Related work" note below) — deliberately excluded here to keep this focused.
 
 ## Design
 
@@ -44,7 +45,7 @@ working or what step they're on. Two root causes:
 
 - Reskinned to the current theme (Tailwind utilities + `--color-*` tokens); all dead
   classes/inline VHS styles removed.
-- Relabeled **"🎙 Record audio"** (was "Transcribe Audio").
+- Relabeled **"Dictate"** (was "Transcribe Audio"), keeping the mic icon.
 - Unchanged placement and props (`onTranscribed`).
 
 ### Modal shell (`TranscribeModal.jsx`)
@@ -95,12 +96,20 @@ not lose the user's place.
 Update `tests/transcribe.spec.js` (currently 6 tests) to the new copy and flow, keeping
 the mocked transcribe endpoint:
 
-- Button label "Record audio" appears on the story editor and the new-thread form.
+- Button label "Dictate" appears on the story editor and the new-thread form.
 - Modal opens showing the Record step + step indicator + helper line.
 - Upload path: choose file → Review shows editable transcript → "Add to post" injects
   text into the editor.
 - **New:** success shows the confirmation toast and the transcript lands in the editor.
 - A file over 4 MB shows the size error and disables submission.
+
+## Related work (separate pass)
+
+A wider set of components are still on the removed VHS design system and render with the
+same dead classes/vars: `ReportModal.jsx`, `ShareBar.jsx`, and the `mod/` tab components
+(`BadgesTab`, `FilterRulesTab`, `RegistryTab`, `ReportsTab`, `SanctionsTab`, `SupportTab`,
+`UserModProfile`). This redesign converts `TranscribeButton`/`TranscribeModal` only; the
+rest are handled as a dedicated reskin pass, tracked separately so this change stays scoped.
 
 ## Rollout
 
