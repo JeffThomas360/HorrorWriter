@@ -316,6 +316,10 @@ live on real data. **Removed:** Rituals / writing prompts, Turnstile CAPTCHA, an
 - [ ] De-duplicate `src/styles/fonts.css` — several `@font-face` blocks (e.g. Merriweather 400-italic) are declared identically up to 5×.
 - [ ] Correct this file's own **Design system** section above: it lists Cinzel as removed with the old VHS theme, but `global.css:38-45` still sets it as the active `h1`–`h4` font. It's load-bearing, not a leftover — fix the note so a future cleanup pass doesn't delete it.
 
+**GitHub hardened (same session):** branch protection on `main` (blocks force-push/deletion, direct pushes still work — no required PR review), Dependabot alerts + security updates enabled. No leaked secrets anywhere in tracked files or git history.
+
+**Astro 6→7 migration attempted, NOT merged — parked in a worktree:** `npm audit` (full, not `--omit=dev`) actually shows 8 vulnerabilities via `miniflare`/`wrangler` (ws + undici), not just the 1 tracked below in P8. Fixing needs Astro 7 (peer dep of `@astrojs/cloudflare@14.1.1`). Did the bump in `.claude/worktrees/astro-7-migration` (branch `worktree-astro-7-migration`, commit `dd091e9`) — it fixes the audit cleanly (0 vulnerabilities) and builds fine, but **33/45 E2E tests fail on a real auth-session regression**: injecting a mock session into `localStorage` no longer gets picked up (reproduced manually, outside Playwright). Ruled out `@supabase/supabase-js` drift (identical `2.90.0` both sides). Root cause not yet found — next step is bisecting which single bump (astro/cloudflare-adapter/react-integration/vite) breaks `AuthContext`. Also worth keeping regardless of outcome: Astro 7 auto-backgrounds `astro dev` for AI-agent terminals, which breaks Playwright's `webServer`; fixed with `ASTRO_DEV_BACKGROUND=0` in `playwright.config.js`, already on that branch. Don't merge this branch until the auth regression is fixed — the vulnerabilities it closes are dev/build-tooling only (not code shipped in the deployed Worker), so there's no urgency pressure.
+
 ---
 
 ### Roadmap (resume from P1 manual verification, then P4)
