@@ -34,7 +34,14 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        launchOptions: {
+          // Auto-grant the mic and feed a synthetic audio stream so the
+          // MediaRecorder record path runs headlessly without a real device.
+          args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
+        },
+      },
     },
     // For now, we'll just test in Chromium to save time/resources locally.
     // Uncomment these if you want cross-browser testing later:
