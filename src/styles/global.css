@@ -24,7 +24,7 @@ body {
 main.shell {
   max-width: 64rem; /* max-w-5xl for outer shell */
   margin: 0 auto;
-  padding: 2rem 1.5rem 6rem;
+  padding: 2rem 1.5rem;
 }
 
 /* Content block constraints (65-75 chars per line) */
