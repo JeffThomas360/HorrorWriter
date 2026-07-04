@@ -90,17 +90,17 @@ test.describe('Audio Transcription', () => {
     await expect(page.locator('textarea.md-textarea')).toHaveValue('Darkness fell upon the ancient house.')
   })
 
-  test('File over 4 MB shows size error and disables Transcribe button', async ({ page }) => {
+  test('A file over 4 MB shows the size error and does not transcribe', async ({ page }) => {
     await page.goto('/library/publish')
-    await page.locator('button.transcribe-btn').click()
+    await page.getByRole('button', { name: /^Dictate$/ }).click()
+    const dialog = page.getByRole('dialog', { name: /Dictate a post/i })
 
-    await page.locator('input[accept*="audio"]').setInputFiles({
-      name: 'big.mp3',
-      mimeType: 'audio/mpeg',
-      buffer: Buffer.alloc(5 * 1024 * 1024, 0),
+    await dialog.getByText(/upload an audio file instead/i).click()
+    await dialog.locator('input[accept*="audio"]').setInputFiles({
+      name: 'big.mp3', mimeType: 'audio/mpeg', buffer: Buffer.alloc(5 * 1024 * 1024, 0),
     })
 
-    await expect(page.locator('.modal-content')).toContainText('File exceeds the 4 MB limit.')
-    await expect(page.getByRole('button', { name: /^Transcribe$/ })).toBeDisabled()
+    await expect(dialog).toContainText('over the 4 MB limit')
+    await expect(dialog.getByRole('textbox', { name: /Transcript/i })).toHaveCount(0)
   })
 })
