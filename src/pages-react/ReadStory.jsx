@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../components/AuthContext'
@@ -10,6 +10,9 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import ShareBar from '../components/ShareBar'
 import QuoteSharer from '../components/QuoteSharer'
+import { fetchStorySeriesContext } from '../lib/series'
+import SeriesContextBar from '../components/SeriesContextBar'
+import SeriesSidebar from '../components/SeriesSidebar'
 
 const AV_COLORS = ['', 'av-1', 'av-2', 'av-3', 'av-4', 'av-5', 'av-6']
 
@@ -125,12 +128,58 @@ function ReadStory({ id }) {
   const isSubmitting = commentMutation.isPending
   const rtLabel = readingTime(book?.content)
 
+  // ADD: Series context state
+  const [seriesContext, setSeriesContext] = useState(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+
+  // ADD: Load series context on mount
+  useEffect(() => {
+    async function loadSeriesContext() {
+      const context = await fetchStorySeriesContext(id)
+      setSeriesContext(context)
+
+      // Set global for cross-island coordination
+      if (context) {
+        window.__seriesContext = context
+      }
+    }
+    loadSeriesContext()
+  }, [id])
+
+  // ADD: Detect mobile
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024)
+    }
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
   return (
-    <div className="mt-8">
-      <QuoteSharer title={book?.title} />
-      
-      {/* Title & Author Info */}
-      <div className="border-b border-[#2d2d2a] pb-8 mb-12 text-center">
+    <>
+      {seriesContext && (
+        <>
+          <SeriesContextBar
+            seriesContext={seriesContext}
+            onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+          />
+          {!isMobile && <SeriesSidebar seriesContext={seriesContext} isOpen={true} onClose={() => {}} isMobile={false} />}
+          {isMobile && <SeriesSidebar seriesContext={seriesContext} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} isMobile={true} />}
+        </>
+      )}
+
+      <main style={{
+        marginTop: seriesContext ? '60px' : '0',
+        marginRight: seriesContext && !isMobile ? '280px' : '0',
+        padding: '2rem'
+      }}>
+        <div className="mt-8">
+          <QuoteSharer title={book?.title} />
+
+          {/* Title & Author Info */}
+          <div className="border-b border-[#2d2d2a] pb-8 mb-12 text-center">
         <div className="flex justify-center items-center gap-4 text-xs font-mono text-[var(--color-text-secondary)] mb-4">
           <span>A story by @{book?.profiles?.handle || 'unknown'}</span>
           <button 
@@ -257,13 +306,15 @@ function ReadStory({ id }) {
         <a href="/library" className="font-mono text-xs hover:text-[var(--color-accent-crimson)] transition-colors">← Return to the Library</a>
       </div>
 
-      <ReportModal
-        isOpen={!!reportTarget}
-        onClose={() => setReportTarget(null)}
-        targetType={reportTarget?.type}
-        targetId={reportTarget?.id}
-      />
-    </div>
+          <ReportModal
+            isOpen={!!reportTarget}
+            onClose={() => setReportTarget(null)}
+            targetType={reportTarget?.type}
+            targetId={reportTarget?.id}
+          />
+        </div>
+      </main>
+    </>
   )
 }
 
