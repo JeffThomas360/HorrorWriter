@@ -1,0 +1,23 @@
+---
+import MainLayout from '../../../layouts/MainLayout.astro'
+import SeriesHub from '../../../pages-react/SeriesHub'
+
+const { id } = Astro.params
+
+// Pre-fetch series data server-side (optional optimization for SSR)
+// If not fetching here, SeriesHub will fetch client-side
+---
+
+<MainLayout title="Series">
+  <main class="shell">
+    <SeriesHub client:load seriesId={id} />
+  </main>
+</MainLayout>
+
+<style>
+  main.shell {
+    max-width: 64rem;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+  }
+</style>
