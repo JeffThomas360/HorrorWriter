@@ -79,7 +79,8 @@ export default function SeriesSidebar({ seriesContext, isOpen, onClose, isMobile
                 </a>
                 <div style={{ fontSize: '12px', color: '#A3A39C', marginTop: '0.25rem' }}>
                   {isCurrentPart && '(You are here)'}
-                  {isBeforeCurrent && '(You haven\'t read this)'}
+                  {isBeforeCurrent && '(Completed)'}
+                  {!isCurrentPart && !isBeforeCurrent && '(Not yet read)'}
                 </div>
               </li>
             )
@@ -234,7 +235,8 @@ export default function SeriesSidebar({ seriesContext, isOpen, onClose, isMobile
                   </a>
                   <div style={{ fontSize: '12px', color: '#A3A39C', marginTop: '0.25rem' }}>
                     {isCurrentPart && '(You are here)'}
-                    {isBeforeCurrent && '(You haven\'t read this)'}
+                    {isBeforeCurrent && '(Completed)'}
+                    {!isCurrentPart && !isBeforeCurrent && '(Not yet read)'}
                   </div>
                 </li>
               )
