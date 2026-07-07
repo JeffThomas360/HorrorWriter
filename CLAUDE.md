@@ -311,7 +311,41 @@ live on real data. **Removed:** Rituals / writing prompts, Turnstile CAPTCHA, an
 
 ## Next priorities
 
-### ⏸ CHECKPOINT — 2026-07-03 (resume here)
+### ⏸ CHECKPOINT — 2026-07-04 (resume here)
+
+**Where the session stopped (pin):** mid-execution of the **transcribe "Dictate" redesign** plan
+(`docs/superpowers/plans/2026-07-04-transcribe-flow-redesign.md`, spec in
+`docs/superpowers/specs/2026-07-04-transcribe-flow-redesign-design.md`), being run
+subagent-driven with a progress ledger at `.superpowers/sdd/progress.md` — **read that ledger
+first when resuming.**
+
+- **Task 1 (Dictate button)** — done, reviewed clean (`129eaf6`).
+- **Task 2 (modal rebuild)** — committed (`2ccce4f`, `ba85961`) but **NOT green and NOT reviewed**:
+  the implementer agent was stopped at session end; controller-verified state is
+  `tests/transcribe.spec.js` **6 passed / 1 FAILED** — "Record path: record, review the transcript,
+  add to the story" (line 38). Diagnose (fake-media flags in `playwright.config.js` vs the
+  record→transcribe wiring in `TranscribeModal.jsx`), fix to green, run the task-review gate, then
+  Task 3.
+- **Task 3 (error hardening + sweep)** — not started.
+
+**Also done this session (2026-07-04), all committed on `main` but UNPUSHED (deliberate hold —
+push ships everything via Workers Build):**
+- **Dead-CSS reskin (complete):** `ReportModal`, `ShareBar`, and all 8 `mod/` components (incl.
+  `InlineModControls`, found beyond the original list) rebuilt from the removed VHS design system
+  to the paperback theme (`6e7d506`, `6cdad57`, `6bcb7cc`). Full suite green at that point;
+  mod-terminal tabs screenshot-verified. Test-hook classes (`form-err`, `form-ok`, `mod-user-row`,
+  `mod-badge`, `modal-content`) deliberately preserved.
+- Transcribe spec + plan docs (`50da994`, `72e3318`, `a1e7fd9`).
+
+**Earlier same day, already live in production:** Astro 7 migration (see the migration note below),
+Phase 3/4 audit fixes, reply-count DB trigger (applied to remote Supabase), footer-gap fix.
+
+**P1 manual auth verification remains open** (needs Jeff on a real device) — it was started this
+session and got as far as the transcribe UX complaint that spawned the Dictate redesign.
+
+---
+
+### Previous checkpoint — 2026-07-03
 
 **Session summary:** ran a full frontend UX/accessibility audit (screenshots + contrast math + source citations, no fabricated findings) and worked through it in phases. Phases 1 and 2 shipped and are live; Phases 3 and 4 are scoped but not started. Two pushes today: `5ddad93` (Phase 1) and `ae66705` (Phase 2), both built and deployed clean via Workers Builds.
 
