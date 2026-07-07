@@ -57,3 +57,13 @@ test-results/
 # Agent configurations
 .agents/
 skills-lock.json
+
+*storybook.log
+storybook-static
+
+# Design sync temporary files
+.design-sync/
+ds-bundle/
+
+# Storybook build output
+storybook-static/
