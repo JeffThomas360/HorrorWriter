@@ -18,6 +18,16 @@ Cloudflare Workers, Supabase backend.
 
 ---
 
+## 📚 Project Documentation Link
+
+**Primary documentation, planning, and task tracking for this project are maintained in your Obsidian vault.**
+
+- **Vault path:** `D:\CLAUDECODE\Vault\02_Projects\horrorwriter\project-overview.md`
+- **Contents:** Project setup, tech stack, main files, development goals (P1–P10 roadmap), known constraints, and resume checklist
+- **When to use:** Check the vault note for architecture overview, current checkpoint (2026-07-04), and upcoming priorities before starting work
+
+---
+
 ## Stack
 
 | Layer | Tech |
