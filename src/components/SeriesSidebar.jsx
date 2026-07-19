@@ -41,9 +41,11 @@ export default function SeriesSidebar({ seriesContext, isOpen, onClose, isMobile
         <h3 style={{ margin: '0 0 0.25rem 0', fontSize: '16px', fontWeight: 'bold' }}>
           {series.title}
         </h3>
-        <p style={{ margin: '0 0 1.5rem 0', color: '#A3A39C', fontSize: '12px' }}>
-          by [Author Name]
-        </p>
+        {series.profiles?.handle && (
+          <p style={{ margin: '0 0 1.5rem 0', color: '#A3A39C', fontSize: '12px' }}>
+            by @{series.profiles.handle}
+          </p>
+        )}
         <hr style={{ border: 'none', borderTop: '1px solid #2d2d2a', margin: '0 0 1rem 0' }} />
 
         {/* Parts List */}

@@ -47,14 +47,16 @@ function SeriesHub({ seriesId }) {
         <h1 style={{ fontFamily: 'Georgia', fontSize: '48px', margin: '0 0 0.5rem 0' }}>
           {series.title}
         </h1>
-        <p style={{ color: '#A3A39C', margin: '0 0 1rem 0' }}>
-          A series by [Author Name]
-        </p>
+        {series.profiles?.handle && (
+          <p style={{ color: '#A3A39C', margin: '0 0 1rem 0' }}>
+            A series by @{series.profiles.handle}
+          </p>
+        )}
         <p style={{ fontSize: '18px', lineHeight: '1.6', marginBottom: '1.5rem', maxWidth: '600px' }}>
           {series.description}
         </p>
         <p style={{ color: '#A3A39C', fontSize: '14px' }}>
-          {books.length} Stories | Complete
+          {books.length} {books.length === 1 ? 'Story' : 'Stories'}
         </p>
       </section>
 

@@ -46,6 +46,32 @@ function ReadStory({ id }) {
   const [commentContent, setCommentContent] = useState('')
   const [commentError, setCommentError] = useState(null)
   const [reportTarget, setReportTarget] = useState(null)
+  const [seriesContext, setSeriesContext] = useState(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadSeriesContext() {
+      try {
+        const context = await fetchStorySeriesContext(id)
+        if (cancelled) return
+        setSeriesContext(context)
+        if (context) window.__seriesContext = context
+      } catch {
+        // Story simply renders without series chrome
+      }
+    }
+    loadSeriesContext()
+    return () => { cancelled = true }
+  }, [id])
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 1024)
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   const { data: book, isLoading: loading, error: queryError } = useQuery({
     queryKey: ['book', id],
@@ -128,35 +154,6 @@ function ReadStory({ id }) {
   const isSubmitting = commentMutation.isPending
   const rtLabel = readingTime(book?.content)
 
-  // ADD: Series context state
-  const [seriesContext, setSeriesContext] = useState(null)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
-
-  // ADD: Load series context on mount
-  useEffect(() => {
-    async function loadSeriesContext() {
-      const context = await fetchStorySeriesContext(id)
-      setSeriesContext(context)
-
-      // Set global for cross-island coordination
-      if (context) {
-        window.__seriesContext = context
-      }
-    }
-    loadSeriesContext()
-  }, [id])
-
-  // ADD: Detect mobile
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 1024)
-    }
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
-
   return (
     <>
       {seriesContext && (
@@ -170,10 +167,9 @@ function ReadStory({ id }) {
         </>
       )}
 
-      <main style={{
+      <div style={{
         marginTop: seriesContext ? '60px' : '0',
-        marginRight: seriesContext && !isMobile ? '280px' : '0',
-        padding: '2rem'
+        marginRight: seriesContext && !isMobile ? '280px' : '0'
       }}>
         <div className="mt-8">
           <QuoteSharer title={book?.title} />
@@ -313,7 +309,7 @@ function ReadStory({ id }) {
             targetId={reportTarget?.id}
           />
         </div>
-      </main>
+      </div>
     </>
   )
 }

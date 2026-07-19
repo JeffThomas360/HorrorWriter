@@ -5,10 +5,12 @@ import { supabase } from '../supabaseClient'
  * Returns { series, books } or null if not found.
  */
 export async function fetchSeriesWithBooks(seriesId) {
+  if (!supabase) return null
+
   // Fetch series
   const { data: seriesData, error: seriesError } = await supabase
     .from('series')
-    .select('id, author_id, title, description, created_at')
+    .select('id, author_id, title, description, created_at, profiles(handle)')
     .eq('id', seriesId)
     .single()
 
@@ -51,6 +53,8 @@ export async function fetchSeriesWithBooks(seriesId) {
  * Returns { series, allBooks, currentIndex } or null.
  */
 export async function fetchStorySeriesContext(bookId) {
+  if (!supabase) return null
+
   // Find which series this book belongs to
   const { data: seriesBooksData, error } = await supabase
     .from('series_books')
