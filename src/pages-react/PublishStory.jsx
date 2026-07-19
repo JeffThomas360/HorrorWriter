@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { toast } from 'sonner'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../components/AuthContext'
 import MarkdownEditor from '../components/MarkdownEditor'
@@ -63,14 +64,22 @@ function PublishStory() {
     },
     onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['books'] })
+      let seriesAttachFailed = false
       if (seriesId && data?.id) {
         try {
           await addBookToSeries({ seriesId, bookId: data.id })
         } catch (err) {
           console.error('Failed to attach story to series:', err)
+          seriesAttachFailed = true
+          toast.error('Story published, but attaching it to the series failed. Attach it manually from My Stories.')
         }
       }
-      window.location.replace(data?.id ? `/library/read/${data.id}` : '/library')
+      const destination = data?.id ? `/library/read/${data.id}` : '/library'
+      if (seriesAttachFailed) {
+        setTimeout(() => window.location.replace(destination), 1800)
+      } else {
+        window.location.replace(destination)
+      }
     },
     onError: (err) => {
       setError(err.message || 'Failed to publish story.')
