@@ -7,20 +7,19 @@ const FALLBACK_TILES = [
     tag: '▸ CRITIQUE',
     title: 'How do you write quiet horror?',
     body: 'A discussion on dread without a body count — the slow architecture of unease.',
-    meta: '12 replies · 2h',
-    hot: true,
+    meta: 'Start the conversation',
   },
   {
     tag: '▸ WORKSHOP',
     title: 'First page, no mercy',
     body: 'Drop the first 250 words. We tell you whether we kept reading. And why we stopped.',
-    meta: '34 replies · today',
+    meta: 'Be the first to post',
   },
   {
     tag: '▸ LIBRARY',
     title: 'New shorts this week',
     body: 'Fresh pieces from the coven — left in the dark for others to find.',
-    meta: '6 stories',
+    meta: 'Read the library',
   },
 ];
 
@@ -38,15 +37,9 @@ const WHY = [
   {
     ic: 'III.',
     label: 'No ads. Ever.',
-    body: 'Member-supported. Your attention is not for sale. Your work is not the product.',
+    body: 'Run by hand, not by advertisers. Your attention is not for sale. Your work is not the product.',
   },
 ];
-
-const PROMPT = {
-  label: '▸ Prompt of the Week',
-  quote: 'Write 500 words about a house that remembers you, even though you have never been inside.',
-  cite: 'Week of May 26 — submit by Sunday',
-};
 
 let tiles = FALLBACK_TILES;
 
@@ -77,19 +70,19 @@ try {
 const [heroTile, ...restTiles] = tiles;
 ---
 
-<MainLayout title="Horror Writer" description="A circle for serious horror writers — forums, critique, weekly prompts, and craft.">
-  
+<MainLayout title="Horror Writer" description="A circle for serious horror writers — forums, critique, and craft.">
+
   <!-- Hero Section -->
   <section class="border-b border-[#2d2d2a] pb-12 mb-16 pt-8">
     <span class="inline-block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-text-secondary)] mb-4">
-      Members · Writers Only · Founded 1986
+      Members · Writers Only
     </span>
     <h1 class="text-4xl md:text-6xl font-serif font-black leading-tight tracking-tight text-[var(--color-text-primary)] max-w-4xl mb-6">
       Write the things <br />
       <span class="text-[var(--color-accent-crimson)] italic">that keep them up.</span>
     </h1>
     <p class="text-base md:text-lg font-serif italic text-[var(--color-text-secondary)] max-w-2xl mb-8 leading-relaxed">
-      A circle for serious horror writers — forums, critique, weekly prompts,
+      A circle for serious horror writers — forums, critique,
       and a coven that takes the craft as seriously as you do.
     </p>
 
@@ -144,17 +137,6 @@ const [heroTile, ...restTiles] = tiles;
       </div>
     </div>
   </section>
-
-  <!-- Pull Quote (Prompt of the Week) -->
-  <aside class="vintage-card bg-neutral-900/40 relative py-12 px-8 mb-20 text-center flex flex-col items-center justify-center max-w-4xl mx-auto" aria-label="Prompt of the week">
-    <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-[var(--color-bg-primary)] px-4 py-0.5 border border-[#2d2d2a] font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-text-secondary)]">
-      {PROMPT.label}
-    </div>
-    <blockquote class="text-lg md:text-xl font-serif italic text-[var(--color-text-primary)] max-w-2xl mb-6 leading-relaxed">
-      “{PROMPT.quote}”
-    </blockquote>
-    <cite class="not-italic font-mono text-xs uppercase tracking-widest text-[var(--color-text-secondary)]">{PROMPT.cite}</cite>
-  </aside>
 
   <!-- Why Section -->
   <section class="max-w-4xl mx-auto mb-12">
