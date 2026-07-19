@@ -15,5 +15,4 @@ compatibility_flags = [ "nodejs_compat" ]
 VITE_SUPABASE_URL = "https://bmvvugrfnuedjlucmlbw.supabase.co"
 VITE_SUPABASE_ANON_KEY = "sb_publishable_-Y5K0e8qQrpsybmuQyyqxg_llQOokRY"
 VITE_TRANSCRIBE_URL = "https://horrorwriter-transcribe.orig-beetlebub.workers.dev"
-VITE_TURNSTILE_SITE_KEY = "0x4AAAAAADVOj70TqBIdnJER"
 VITE_ENABLE_GOOGLE_LOGIN = "true"
