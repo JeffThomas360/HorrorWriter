@@ -74,7 +74,11 @@ test.describe('My Stories', () => {
     await positionInput.fill('3');
     await positionInput.blur();
 
-    await requestPromise;
+    const request = await requestPromise;
+
+    // Assert the request payload contains the correct sort_order value
+    const postData = JSON.parse(request.postData() || '{}');
+    expect(postData.sort_order).toBe(3);
   });
 
   test('deletes a series after confirmation', async ({ page }) => {
