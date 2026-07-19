@@ -2,8 +2,16 @@
 
 **Date:** 2026-07-19
 **Feature:** Writer-facing series creation, story assignment, ordering, and deletion
-**Scope:** New `/my-stories` page, `PublishStory.jsx` series dropdown, `series` soft-delete
+**Scope:** New `/my-stories` page, `PublishStory.jsx` series dropdown, series deletion
 **Status:** Design spec (ready for implementation)
+**Revision (2026-07-19):** the delete-series design was changed from soft-delete + restore to a
+real hard-delete, after a site-wide deletion-policy correction (see repo `CLAUDE.md` and the
+vault project note) — the site no longer defaults to retaining user content on the assumption it
+might need to come back; it deletes for real when the user's intent to delete is clear, with
+exceptions only for genuine external obligations (open abuse report under review, legal hold,
+CSAM-reporting duty). Deleting your own series with no other claim on it doesn't hit any of
+those. The "Data model changes" and "Deleted Series" sections below reflect the revision, not
+the original design.
 
 ---
 
@@ -27,32 +35,16 @@ vault roadmap) — that is a distinct, larger feature requiring its own brainsto
 
 ## Data model changes
 
-### `series.deleted_at` (soft delete)
+### Series deletion — no schema change needed
 
-Per site philosophy ("nothing should be fully deleted from user posts, with exceptions due to law"),
-deleting a series must not `DELETE` the row. New migration:
-
-```sql
-ALTER TABLE public.series ADD COLUMN deleted_at timestamptz;
-
-DROP POLICY IF EXISTS "Series are readable by everyone" ON public.series;
-CREATE POLICY "Series are readable by everyone or their own author"
-  ON public.series FOR SELECT
-  USING (deleted_at IS NULL OR auth.uid() = author_id);
-```
-
-- No new UPDATE policy needed — soft-delete (`SET deleted_at = now()`) and restore
-  (`SET deleted_at = null`) both go through the existing "Authors can update their series" UPDATE
-  policy.
-- The existing hard-DELETE policy (`"Authors can delete their series"`) is left in place but the
-  client never calls `.delete()` on `series` anymore.
-- `fetchSeriesWithBooks` (`src/lib/series.js`) gets `.is('deleted_at', null)` added to its series
-  query, as defense-in-depth alongside RLS (keeps reader-facing SeriesHub/ReadStory correct even if
-  a query is ever run with elevated privileges).
-- `books.series_teaser` and `series_books` rows are untouched by a series soft-delete — reader-facing
-  pages simply stop resolving the series (RLS hides it), and `fetchStorySeriesContext` returning
-  `null` for a book whose series is soft-deleted is the existing/expected "no series" behavior,
-  requiring no new code path.
+Deleting a series is a real `DELETE` on the `series` row. The existing hard-DELETE RLS policy
+(`"Authors can delete their series"`, from `20260610040000_phase9_features.sql`) already covers
+this — no new migration, no new column, no RLS change. `series_books` rows for that series
+cascade-delete automatically (`series_id uuid references public.series(id) on delete cascade`,
+same migration). The stories themselves are untouched; they just become unassigned and reappear
+as assignable in "Your Stories" below. No new columns on `series`, and no change to
+`fetchSeriesWithBooks` (`src/lib/series.js`) — a deleted series simply no longer exists to query,
+same as any other deleted row.
 
 No schema changes needed for `series_books` (ordering already has `sort_order`; ownership RLS
 already fixed in `20260706000000_series_prerequisites.sql`).
@@ -79,18 +71,18 @@ already fixed in `20260706000000_series_prerequisites.sql`).
   creation and first-story assignment happen in the same action, via a single insert into `series`
   followed by one insert into `series_books` (`sort_order = 0`). This removes "empty series" as a
   state the UI ever has to render.
-- Each active series (`deleted_at IS NULL`) renders as a card:
+- Each series renders as a card:
   - Title, description.
   - List of member stories, each with a numeric input bound to `sort_order` (plain number field,
     not drag-and-drop — avoids adding a drag-and-drop dependency) and a "Remove from series" action
     (deletes the `series_books` row; the story itself is untouched).
   - "Delete Series" button → browser `confirm()` (matching the existing pattern used for handle
-    changes and passkey removal in `Profile.jsx`) → sets `deleted_at = now()`. The card disappears
-    from this list and its stories become unassigned (still visible under "Your Stories" below,
-    now assignable to a different series).
-- **"Deleted Series"**: a collapsed section, rendered only when the writer has at least one
-  soft-deleted series. Lists title + delete date, each with an "Undelete" button
-  (`deleted_at = null`). Uses the author-visibility carve-out in the new RLS policy above.
+    changes and passkey removal in `Profile.jsx`) — the wording should say plainly that this is
+    permanent (e.g. "Delete this series? This can't be undone. Your stories won't be deleted —
+    they'll just no longer be part of a series.") → `DELETE` on the `series` row. The card
+    disappears from this list and its stories become unassigned (still visible under "Your
+    Stories" below, now assignable to a different series). No restore/undelete — this is a real
+    delete, not a hide.
 
 #### 2. Your Stories
 
@@ -124,9 +116,8 @@ the writer's own active series (fetched the same way `/my-stories` does), defaul
 
 - Unit: extend `src/lib/series.js` (or a new `src/lib/mySeries.js` if the writer-mutation helpers
   are split out) with mocked-client tests for create-with-initial-story, add/remove story,
-  reorder, soft-delete, and restore — following the existing mocked-client pattern in
-  `series.test.js`.
-- E2E: new `tests/mySeries.spec.js` covering create → assign → reorder → delete → restore, plus
+  reorder, and delete — following the existing mocked-client pattern in `series.test.js`.
+- E2E: new `tests/mySeries.spec.js` covering create → assign → reorder → delete, plus
   `series`/`series_books` mock handlers added to `tests/mocks.js` (these don't exist yet — this
   spec's E2E work and the still-open Tasks 7–8 from the 2026-07-06 plan should share those mocks
   rather than duplicating them).
