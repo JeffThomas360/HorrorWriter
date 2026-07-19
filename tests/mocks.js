@@ -129,7 +129,13 @@ export const MOCK_SERIES_BOOKS = [
   {
     series_id: 'series-1',
     sort_order: 0,
-    books: { id: 'book-1', title: 'The Shadow over Innsmouth', series_teaser: 'It was during the winter...', created_at: '2026-05-26T10:00:00Z', author_id: MOCK_USER_ID }
+    // Shaped to satisfy both series.js query variants that hit this route:
+    // fetchSeriesWithBooks/fetchMySeriesWithBooks select `books:book_id(...)` (nested "books"),
+    // while fetchMyBooks selects `book_id, series:series_id(...)` (flat "book_id" + nested "series").
+    // The mock doesn't branch on the `select=` param, so both shapes are included here.
+    book_id: 'book-1',
+    books: { id: 'book-1', title: 'The Shadow over Innsmouth', series_teaser: 'It was during the winter...', created_at: '2026-05-26T10:00:00Z', author_id: MOCK_USER_ID },
+    series: { id: 'series-1', title: 'The Hollow Chronicles' }
   }
 ];
 
@@ -316,7 +322,7 @@ export async function setupSupabaseMocks(page, opts = {}) {
     const method = route.request().method();
     if (method === 'GET') {
       const url = route.request().url();
-      if (url.includes('id=eq.')) {
+      if (/[?&]id=eq\./.test(url)) {
         route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -348,7 +354,7 @@ export async function setupSupabaseMocks(page, opts = {}) {
     const method = route.request().method();
     const url = route.request().url();
     if (method === 'GET') {
-      if (url.includes('id=eq.')) {
+      if (/[?&]id=eq\./.test(url)) {
         route.fulfill({
           status: 200,
           contentType: 'application/json',

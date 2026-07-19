@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { setupMockAuth, setupSupabaseMocks, MOCK_BOOKS, MOCK_BOOK_COMMENTS } from './mocks';
+import { setupMockAuth, setupSupabaseMocks, MOCK_BOOKS, MOCK_BOOK_COMMENTS, MOCK_SERIES } from './mocks';
 
 test.describe('Library Flows', () => {
   test.beforeEach(async ({ page }) => {
@@ -125,5 +125,26 @@ test.describe('Library Flows', () => {
 
     // Verify it got submitted (text area cleared)
     await expect(textSelector).toHaveValue('');
+  });
+
+  test('Publish a story with a series selected attaches it', async ({ page }) => {
+    await setupMockAuth(page);
+    await page.goto('/library/publish');
+
+    await expect(page.getByText('Part of a series?')).toBeVisible();
+    await page.locator('form select').selectOption({ label: MOCK_SERIES[0].title });
+
+    await page.locator('input[placeholder="The Tell-Tale Heart"]').fill('A Sequel');
+    await page.locator('input[placeholder="A short hook to draw readers in…"]').fill('Continuing the descent.');
+    await page.locator('textarea[placeholder^="True!—nervous—"]').fill('The house remembered.');
+
+    const seriesRequestPromise = page.waitForRequest(req =>
+      req.url().includes('/rest/v1/series_books') && req.method() === 'POST'
+    );
+
+    await page.getByRole('button', { name: /Publish Story/i }).click();
+    await seriesRequestPromise;
+
+    await page.waitForURL('**/library/read/**');
   });
 });
