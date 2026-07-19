@@ -66,7 +66,7 @@ function Library() {
         <div>
           <span className="block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-text-secondary)] mb-2">The Library</span>
           <h2 className="text-3xl font-serif font-black">Shared <em className="italic text-[var(--color-accent-crimson)] font-serif">work</em></h2>
-          <p class="text-xs text-[var(--color-text-secondary)] font-serif mt-1">Excerpts, shorts, and chapters left in the dark for others to find.</p>
+          <p className="text-xs text-[var(--color-text-secondary)] font-serif mt-1">Excerpts, shorts, and chapters left in the dark for others to find.</p>
         </div>
         {session ? (
           <div className="flex items-center gap-3">
