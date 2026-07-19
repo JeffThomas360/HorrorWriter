@@ -197,7 +197,20 @@ export async function createSeriesWithInitialStory({ authorId, title, descriptio
     .from('series_books')
     .insert({ series_id: series.id, book_id: initialBookId, sort_order: 0 })
 
-  if (linkError) throw linkError
+  if (linkError) {
+    // Compensate: delete the just-created series row before re-throwing the original error
+    const { error: deleteError } = await supabase
+      .from('series')
+      .delete()
+      .eq('id', series.id)
+
+    if (deleteError) {
+      console.error('Failed to clean up series after failed series_books insert:', deleteError)
+    }
+
+    // Throw the original error, not the delete error
+    throw linkError
+  }
 
   return series
 }

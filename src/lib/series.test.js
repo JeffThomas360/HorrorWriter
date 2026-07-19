@@ -189,6 +189,24 @@ describe('createSeriesWithInitialStory', () => {
       authorId: 'author-1', title: 'New Series', description: '', initialBookId: 'book-1'
     })).rejects.toBeTruthy()
   })
+
+  it('deletes the series if the series_books insert fails', async () => {
+    const linkError = { message: 'series_books insert failed' }
+    mockSupabase.from
+      .mockReturnValueOnce(makeMutationQuery({ data: { id: 'series-new' }, error: null }))
+      .mockReturnValueOnce(makeMutationQuery({ data: null, error: linkError }))
+      .mockReturnValueOnce(makeMutationQuery({ data: null, error: null }))
+
+    await expect(createSeriesWithInitialStory({
+      authorId: 'author-1', title: 'New Series', description: '', initialBookId: 'book-1'
+    })).rejects.toMatchObject({ message: 'series_books insert failed' })
+
+    // Verify that from was called 3 times: insert series, insert series_books, delete series
+    expect(mockSupabase.from).toHaveBeenCalledTimes(3)
+    expect(mockSupabase.from).toHaveBeenNthCalledWith(1, 'series')
+    expect(mockSupabase.from).toHaveBeenNthCalledWith(2, 'series_books')
+    expect(mockSupabase.from).toHaveBeenNthCalledWith(3, 'series')
+  })
 })
 
 describe('addBookToSeries', () => {
