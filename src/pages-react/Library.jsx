@@ -69,9 +69,14 @@ function Library() {
           <p class="text-xs text-[var(--color-text-secondary)] font-serif mt-1">Excerpts, shorts, and chapters left in the dark for others to find.</p>
         </div>
         {session ? (
-          <a href="/library/publish" className="bg-[var(--color-accent-crimson)] text-white font-mono text-xs uppercase px-5 py-3 hover:bg-red-700 transition-colors inline-block text-center">
-            Publish a Story
-          </a>
+          <div className="flex items-center gap-3">
+            <a href="/my-stories" className="border border-[#2d2d2a] text-[var(--color-text-primary)] font-mono text-xs uppercase px-5 py-3 hover:border-white transition-colors inline-block text-center">
+              My Stories
+            </a>
+            <a href="/library/publish" className="bg-[var(--color-accent-crimson)] text-white font-mono text-xs uppercase px-5 py-3 hover:bg-red-700 transition-colors inline-block text-center">
+              Publish a Story
+            </a>
+          </div>
         ) : (
           <span className="font-mono text-xs border border-[#2d2d2a] text-[var(--color-text-secondary)] px-3 py-1.5 uppercase">Sign in to publish</span>
         )}

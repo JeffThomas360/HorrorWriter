@@ -1,0 +1,8 @@
+---
+import MainLayout from '../layouts/MainLayout.astro';
+import MyStories from '../pages-react/MyStories.jsx';
+---
+
+<MainLayout title="My Stories | Horror Writer" description="Manage your published stories and story series.">
+  <MyStories client:load />
+</MainLayout>

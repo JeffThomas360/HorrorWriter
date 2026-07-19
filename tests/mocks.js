@@ -98,6 +98,44 @@ export const MOCK_BOOKS = [
     badge: 'COMPLETE',
     created_at: '2026-05-26T10:00:00Z',
     profiles: { handle: 'testwriter' }
+  },
+  {
+    id: 'book-2',
+    title: 'A Standalone Tale',
+    lede: 'A story that has never belonged to any series.',
+    cover: 'bone',
+    content: 'It stood alone, as it always had.',
+    author_id: MOCK_USER_ID,
+    chapters_info: null,
+    comments_count: 0,
+    badge: null,
+    created_at: '2026-06-01T09:00:00Z',
+    profiles: { handle: 'testwriter' }
+  }
+];
+
+export const MOCK_SERIES = [
+  {
+    id: 'series-1',
+    author_id: MOCK_USER_ID,
+    title: 'The Hollow Chronicles',
+    description: 'A three-part descent into the house that remembers.',
+    created_at: '2026-05-20T00:00:00Z',
+    profiles: { handle: 'testwriter' }
+  }
+];
+
+export const MOCK_SERIES_BOOKS = [
+  {
+    series_id: 'series-1',
+    sort_order: 0,
+    // Shaped to satisfy both series.js query variants that hit this route:
+    // fetchSeriesWithBooks/fetchMySeriesWithBooks select `books:book_id(...)` (nested "books"),
+    // while fetchMyBooks selects `book_id, series:series_id(...)` (flat "book_id" + nested "series").
+    // The mock doesn't branch on the `select=` param, so both shapes are included here.
+    book_id: 'book-1',
+    books: { id: 'book-1', title: 'The Shadow over Innsmouth', series_teaser: 'It was during the winter...', created_at: '2026-05-26T10:00:00Z', author_id: MOCK_USER_ID },
+    series: { id: 'series-1', title: 'The Hollow Chronicles' }
   }
 ];
 
@@ -284,7 +322,7 @@ export async function setupSupabaseMocks(page, opts = {}) {
     const method = route.request().method();
     if (method === 'GET') {
       const url = route.request().url();
-      if (url.includes('id=eq.')) {
+      if (/[?&]id=eq\./.test(url)) {
         route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -309,6 +347,51 @@ export async function setupSupabaseMocks(page, opts = {}) {
         contentType: 'application/json',
         body: JSON.stringify({ status: 'ok' })
       });
+    }
+  });
+
+  await page.route('**/rest/v1/series*', async (route) => {
+    const method = route.request().method();
+    const url = route.request().url();
+    if (method === 'GET') {
+      if (/[?&]id=eq\./.test(url)) {
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(MOCK_SERIES[0])
+        });
+      } else {
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(MOCK_SERIES)
+        });
+      }
+    } else if (method === 'POST') {
+      route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({ id: 'series-new' })
+      });
+    } else if (method === 'DELETE') {
+      route.fulfill({ status: 204, body: '' });
+    }
+  });
+
+  await page.route('**/rest/v1/series_books*', async (route) => {
+    const method = route.request().method();
+    if (method === 'GET') {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(MOCK_SERIES_BOOKS)
+      });
+    } else if (method === 'POST') {
+      route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({}) });
+    } else if (method === 'PATCH' || method === 'PUT') {
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'ok' }) });
+    } else if (method === 'DELETE') {
+      route.fulfill({ status: 204, body: '' });
     }
   });
 

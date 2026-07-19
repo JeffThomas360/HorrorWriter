@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../components/AuthContext'
 import MarkdownEditor from '../components/MarkdownEditor'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
+import { fetchAuthorSeriesOptions, addBookToSeries } from '../lib/series'
 import TranscribeButton from '../components/TranscribeButton'
 import { withProviders } from '../components/Providers'
 import RequireAuth from '../components/RequireAuth'
@@ -28,6 +29,15 @@ function PublishStory() {
   const [content, setContent] = useState('')
   const [error,   setError]   = useState(null)
 
+  const [seriesId, setSeriesId] = useState('')
+
+  const seriesOptionsQuery = useQuery({
+    queryKey: ['my-series-options', session?.user?.id],
+    queryFn: () => fetchAuthorSeriesOptions(session.user.id),
+    enabled: !!session?.user?.id,
+  })
+  const seriesOptions = seriesOptionsQuery.data || []
+
   useEffect(() => {
     if (!authLoading && !session) {
       window.location.replace('/library')
@@ -51,8 +61,15 @@ function PublishStory() {
 
       return data
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['books'] })
+      if (seriesId && data?.id) {
+        try {
+          await addBookToSeries({ seriesId, bookId: data.id })
+        } catch (err) {
+          console.error('Failed to attach story to series:', err)
+        }
+      }
       window.location.replace(data?.id ? `/library/read/${data.id}` : '/library')
     },
     onError: (err) => {
@@ -132,6 +149,23 @@ function PublishStory() {
               </label>
             ))}
           </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-mono text-[var(--color-text-secondary)] uppercase">Part of a series?</label>
+          <select
+            value={seriesId}
+            onChange={(e) => setSeriesId(e.target.value)}
+            className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
+          >
+            <option value="">None</option>
+            {seriesOptions.map(s => (
+              <option key={s.id} value={s.id}>{s.title}</option>
+            ))}
+          </select>
+          <span className="font-mono text-xs text-[var(--color-text-secondary)] leading-relaxed">
+            Manage series from <a href="/my-stories" className="underline hover:text-[var(--color-accent-crimson)]">My Stories</a>.
+          </span>
         </div>
 
         <div className="flex flex-col gap-2">
