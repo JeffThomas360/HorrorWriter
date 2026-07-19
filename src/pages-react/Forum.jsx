@@ -213,8 +213,8 @@ function Forum() {
 
         {/* Main Content Area */}
         <div className="md:col-span-3">
-          <div className="flex items-center justify-between gap-4 mb-6">
-            <div className="flex-1">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <div className="flex-1 min-w-0">
               <input
                 placeholder="Search threads, authors, tags…"
                 value={query}
@@ -224,11 +224,11 @@ function Forum() {
               />
             </div>
             {session ? (
-              <a href="/forum/new" className="bg-[var(--color-accent-crimson)] text-white font-mono text-xs uppercase px-4 py-2 hover:bg-red-700 transition-colors">
+              <a href="/forum/new" className="shrink-0 text-center bg-[var(--color-accent-crimson)] text-white font-mono text-xs uppercase px-4 py-2 hover:bg-red-700 transition-colors">
                 New Thread
               </a>
             ) : (
-              <span className="font-mono text-xs border border-[#2d2d2a] text-[var(--color-text-secondary)] px-3 py-2 uppercase">Sign in to post</span>
+              <span className="shrink-0 text-center font-mono text-xs border border-[#2d2d2a] text-[var(--color-text-secondary)] px-3 py-2 uppercase">Sign in to post</span>
             )}
           </div>
 
