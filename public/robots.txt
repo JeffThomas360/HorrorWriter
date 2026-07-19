@@ -1,0 +1,9 @@
+User-agent: *
+Disallow: /moderation
+Disallow: /my-reports
+Disallow: /profile
+Disallow: /library/publish
+Disallow: /forum/new
+Disallow: /auth/callback
+
+Sitemap: https://horrorwriter.org/sitemap-index.xml

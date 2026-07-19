@@ -1,23 +1,39 @@
 ---
-export const prerender = false; // Render server-side at request time
+export const prerender = false; // Render server-side at request time to support metadata insertion
 
 import MainLayout from '../../../layouts/MainLayout.astro'
 import SeriesHub from '../../../pages-react/SeriesHub'
+import { supabase } from '../../../supabaseClient'
 
 const { id } = Astro.params
 
-// Pre-fetch series data server-side (optional optimization for SSR)
-// If not fetching here, SeriesHub will fetch client-side
+let series = null
+try {
+  const isTest = typeof process !== 'undefined' && process.env.PLAYWRIGHT_TEST === 'true'
+  if (supabase && !isTest) {
+    const { data } = await supabase
+      .from('series')
+      .select('title, description')
+      .eq('id', id)
+      .single()
+    series = data
+  }
+} catch (e) {
+  console.error('Error fetching series details for SEO:', e)
+}
+
+const title = series ? `${series.title} | Series | Horror Writer` : 'Series | Horror Writer'
+const description = series?.description || 'A multi-story series on Horror Writer.'
 ---
 
-<MainLayout title="Series">
-  <main class="shell">
+<MainLayout title={title} description={description}>
+  <div class="series-shell">
     <SeriesHub client:load seriesId={id} />
-  </main>
+  </div>
 </MainLayout>
 
 <style>
-  main.shell {
+  .series-shell {
     max-width: 64rem;
     margin: 0 auto;
     padding: 2rem 1.5rem;
