@@ -67,3 +67,6 @@ ds-bundle/
 
 # Storybook build output
 storybook-static/
+
+# Scratch dirs for superpowers skills (SDD progress ledgers, brainstorm sessions)
+.superpowers/
