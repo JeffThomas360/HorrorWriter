@@ -10,12 +10,13 @@ import SignInModalWrapper from '../components/SignInModalWrapper.jsx';
 interface Props {
   title?: string;
   description?: string;
+  ogImage?: string;
 }
 
-const { title = "Horror Writer", description = "A premium community for dark fiction writers." } = Astro.props;
+const { title = "Horror Writer", description = "A premium community for dark fiction writers.", ogImage } = Astro.props;
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
-const ogImageURL = new URL('/og.png', Astro.site);
+const ogImageURL = ogImage ? new URL(ogImage, Astro.site) : new URL('/og.png', Astro.site);
 ---
 
 <html lang="en">

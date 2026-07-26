@@ -26,6 +26,7 @@ try {
 
 const title = book ? `${book.title} | Library` : 'Reading Story';
 const description = book?.lede || 'Read this chilling story on Horror Writer.';
+const ogImage = `/og/story/${id}.png`;
 const pageUrl = new URL(Astro.url.pathname, Astro.site).toString();
 const creativeWorkSchema = book ? buildCreativeWorkSchema({
   url: pageUrl,
@@ -36,7 +37,7 @@ const creativeWorkSchema = book ? buildCreativeWorkSchema({
 }) : null;
 ---
 
-<MainLayout title={title} description={description}>
+<MainLayout title={title} description={description} ogImage={ogImage}>
   {creativeWorkSchema && <StructuredData data={creativeWorkSchema} />}
   <ReadStory id={id} client:load />
 </MainLayout>
