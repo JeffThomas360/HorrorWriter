@@ -1,9 +1,11 @@
 ---
-export const prerender = false; // Render server-side at request time to support metadata insertion
+export const prerender = false;
 
 import MainLayout from '../../../layouts/MainLayout.astro';
+import StructuredData from '../../../components/StructuredData.astro';
 import ReadStory from '../../../pages-react/ReadStory.jsx';
 import { supabase } from '../../../supabaseClient';
+import { buildCreativeWorkSchema } from '../../../lib/seo';
 
 const { id } = Astro.params;
 
@@ -13,7 +15,7 @@ try {
   if (supabase && !isTest) {
     const { data } = await supabase
       .from('books')
-      .select('title, lede')
+      .select('title, lede, created_at, profiles(handle)')
       .eq('id', id)
       .single();
     book = data;
@@ -24,8 +26,18 @@ try {
 
 const title = book ? `${book.title} | Library` : 'Reading Story';
 const description = book?.lede || 'Read this chilling story on Horror Writer.';
+const ogImage = `/og/story/${id}.png`;
+const pageUrl = new URL(Astro.url.pathname, Astro.site).toString();
+const creativeWorkSchema = book ? buildCreativeWorkSchema({
+  url: pageUrl,
+  title: book.title,
+  description: book.lede,
+  authorName: book.profiles?.handle || 'Unknown',
+  datePublished: book.created_at
+}) : null;
 ---
 
-<MainLayout title={title} description={description}>
+<MainLayout title={title} description={description} ogImage={ogImage}>
+  {creativeWorkSchema && <StructuredData data={creativeWorkSchema} />}
   <ReadStory id={id} client:load />
 </MainLayout>

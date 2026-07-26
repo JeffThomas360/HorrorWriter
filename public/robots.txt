@@ -2,8 +2,12 @@ User-agent: *
 Disallow: /moderation
 Disallow: /my-reports
 Disallow: /profile
+Disallow: /my-stories
 Disallow: /library/publish
 Disallow: /forum/new
 Disallow: /auth/callback
 
 Sitemap: https://horrorwriter.org/sitemap-index.xml
+Sitemap: https://horrorwriter.org/sitemap-stories.xml
+Sitemap: https://horrorwriter.org/sitemap-threads.xml
+Sitemap: https://horrorwriter.org/sitemap-profiles.xml

@@ -1,6 +1,14 @@
 ---
 import MainLayout from '../layouts/MainLayout.astro';
+import StructuredData from '../components/StructuredData.astro';
 import { supabase } from '../supabaseClient';
+import { buildWebSiteSchema } from '../lib/seo';
+
+const websiteSchema = buildWebSiteSchema({
+  url: 'https://horrorwriter.org',
+  name: 'Horror Writer',
+  description: 'A circle for serious horror writers — forums, critique, and craft.'
+});
 
 const FALLBACK_TILES = [
   {
@@ -71,6 +79,7 @@ const [heroTile, ...restTiles] = tiles;
 ---
 
 <MainLayout title="Horror Writer" description="A circle for serious horror writers — forums, critique, and craft.">
+  <StructuredData data={websiteSchema} />
 
   <!-- Hero Section -->
   <section class="border-b border-[#2d2d2a] pb-12 mb-16 pt-8">
