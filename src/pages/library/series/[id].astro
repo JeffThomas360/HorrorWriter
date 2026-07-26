@@ -1,9 +1,10 @@
 ---
-export const prerender = false; // Render server-side at request time to support metadata insertion
-
+export const prerender = false
 import MainLayout from '../../../layouts/MainLayout.astro'
+import StructuredData from '../../../components/StructuredData.astro'
 import SeriesHub from '../../../pages-react/SeriesHub'
 import { supabase } from '../../../supabaseClient'
+import { buildCreativeWorkSeriesSchema } from '../../../lib/seo'
 
 const { id } = Astro.params
 
@@ -24,9 +25,12 @@ try {
 
 const title = series ? `${series.title} | Series | Horror Writer` : 'Series | Horror Writer'
 const description = series?.description || 'A multi-story series on Horror Writer.'
+const pageUrl = new URL(Astro.url.pathname, Astro.site).toString()
+const seriesSchema = series ? buildCreativeWorkSeriesSchema({ url: pageUrl, name: series.title, description: series.description }) : null
 ---
 
 <MainLayout title={title} description={description}>
+  {seriesSchema && <StructuredData data={seriesSchema} />}
   <div class="series-shell">
     <SeriesHub client:load seriesId={id} />
   </div>

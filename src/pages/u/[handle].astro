@@ -1,9 +1,11 @@
 ---
-export const prerender = false; // Render server-side at request time to support metadata insertion
+export const prerender = false;
 
 import MainLayout from '../../layouts/MainLayout.astro';
+import StructuredData from '../../components/StructuredData.astro';
 import UserProfile from '../../pages-react/UserProfile.jsx';
 import { supabase } from '../../supabaseClient';
+import { buildProfilePageSchema } from '../../lib/seo';
 
 const { handle } = Astro.params;
 
@@ -25,8 +27,11 @@ try {
 const displayName = profile?.display_name || `@${handle}`;
 const title = `${displayName} | Horror Writer`;
 const description = profile?.bio || `Read ${displayName}'s stories and critiques on Horror Writer.`;
+const pageUrl = new URL(Astro.url.pathname, Astro.site).toString();
+const profileSchema = buildProfilePageSchema({ url: pageUrl, name: displayName });
 ---
 
 <MainLayout title={title} description={description}>
+  <StructuredData data={profileSchema} />
   <UserProfile handle={handle} client:load />
 </MainLayout>

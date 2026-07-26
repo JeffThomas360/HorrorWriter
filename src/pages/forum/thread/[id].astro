@@ -1,9 +1,11 @@
 ---
-export const prerender = false; // Render server-side at request time to support metadata insertion
+export const prerender = false;
 
 import MainLayout from '../../../layouts/MainLayout.astro';
+import StructuredData from '../../../components/StructuredData.astro';
 import ThreadView from '../../../pages-react/ThreadView.jsx';
 import { supabase } from '../../../supabaseClient';
+import { buildDiscussionForumPostingSchema } from '../../../lib/seo';
 
 const { id } = Astro.params;
 
@@ -13,7 +15,7 @@ try {
   if (supabase && !isTest) {
     const { data } = await supabase
       .from('threads')
-      .select('title')
+      .select('title, created_at, profiles(handle)')
       .eq('id', id)
       .single();
     thread = data;
@@ -24,8 +26,16 @@ try {
 
 const title = thread ? `${thread.title} | Forum` : 'Forum Thread';
 const description = 'Join the discussion on Horror Writer.';
+const pageUrl = new URL(Astro.url.pathname, Astro.site).toString();
+const postingSchema = thread ? buildDiscussionForumPostingSchema({
+  url: pageUrl,
+  headline: thread.title,
+  authorName: thread.profiles?.handle || 'Unknown',
+  datePublished: thread.created_at
+}) : null;
 ---
 
 <MainLayout title={title} description={description}>
+  {postingSchema && <StructuredData data={postingSchema} />}
   <ThreadView id={id} client:load />
 </MainLayout>
