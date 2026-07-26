@@ -10,21 +10,33 @@ const COVER_COLORS = {
   bone: '#E5E1D8'
 }
 
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
 export async function GET({ params }) {
   const { id } = params
 
   let book = null
-  if (supabase) {
-    const { data } = await supabase
-      .from('books')
-      .select('title, cover, profiles(handle)')
-      .eq('id', id)
-      .single()
-    book = data
+  try {
+    if (supabase) {
+      const { data } = await supabase
+        .from('books')
+        .select('title, cover, profiles(handle)')
+        .eq('id', id)
+        .single()
+      book = data
+    }
+  } catch (e) {
+    console.error('Error fetching book details for OG image:', e)
   }
 
-  const title = book?.title || 'A story on Horror Writer'
-  const author = book?.profiles?.handle ? `@${book.profiles.handle}` : 'Horror Writer'
+  const title = escapeHtml(book?.title || 'A story on Horror Writer')
+  const author = escapeHtml(book?.profiles?.handle ? `@${book.profiles.handle}` : 'Horror Writer')
   const accent = COVER_COLORS[book?.cover] || COVER_COLORS.blood
 
   const html = `
