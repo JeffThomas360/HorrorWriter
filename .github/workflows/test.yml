@@ -1,0 +1,59 @@
+# Unit test gate.
+#
+# Why this exists: `main` auto-deploys via Workers Builds, Workers Builds runs
+# `npm run build` and nothing else, and Dependabot merges to `main` unattended.
+# Before this file, dependency bumps reached production with the whole test
+# suite sitting unused on disk.
+#
+# Scope is deliberately small (see work/ci-test-gate.md):
+#
+#   - Unit tests only. Playwright needs a browser download, which makes the job
+#     slower and more fragile, and it has to run on Jeff's machine anyway.
+#     E2E stays a local step.
+#
+#   - No `npm run build` step. Workers Builds already builds on push to main,
+#     and a green build is not the signal we want here — the SeriesHub SSR 500
+#     (0759d5a) built perfectly fine while returning 500 on every request.
+#     Tests are the guard; the build is not.
+#
+# Resist growing this into a pipeline. One job, about a minute, no maintenance.
+
+name: Tests
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# A new push to the same PR cancels the previous run rather than queueing.
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    name: vitest
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # package.json engines requires >=22.12.0
+          node-version: 22
+          cache: npm
+
+      # `npm ci` not `npm install` — installs exactly what package-lock.json
+      # pins, and fails loudly if the lockfile and package.json disagree.
+      # That check matters most on Dependabot PRs, which is the whole point.
+      - name: Install
+        run: npm ci
+
+      - name: Unit tests
+        run: npm run test:unit
