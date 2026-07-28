@@ -3,6 +3,31 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { parseFileToMarkdown } from '../lib/fileParser'
 
+const TOOL_BTN =
+  'relative flex h-8 w-8 items-center justify-center border border-transparent text-sm text-[var(--color-text-secondary)] transition-colors hover:border-[#2d2d2a] hover:text-[var(--color-text-primary)] disabled:pointer-events-none disabled:opacity-30'
+
+function ToolButton({ label, onClick, disabled, children, className = '' }) {
+  return (
+    <span className="group/tip relative inline-flex">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={label}
+        className={`${TOOL_BTN} ${className}`}
+      >
+        {children}
+      </button>
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute -top-8 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap border border-[#2d2d2a] bg-[var(--color-bg-surface)] px-2 py-1 font-mono text-[10px] uppercase tracking-wide text-[var(--color-text-secondary)] opacity-0 transition-opacity duration-100 group-hover/tip:opacity-100"
+      >
+        {label}
+      </span>
+    </span>
+  )
+}
+
 export default function MarkdownEditor({
   value,
   onChange,
@@ -54,67 +79,91 @@ export default function MarkdownEditor({
   }
 
   return (
-    <div className="md-editor">
-      <div className="md-toolbar">
-        <div className="md-tools">
-          <button type="button" onClick={() => insertText('**', '**')} title="Bold" disabled={disabled || isPreview}>B</button>
-          <button type="button" onClick={() => insertText('*', '*')} title="Italic" disabled={disabled || isPreview}>I</button>
-          <button type="button" onClick={() => insertText('`', '`')} title="Code" disabled={disabled || isPreview}>{'</>'}</button>
-          <button type="button" onClick={() => insertText('> ')} title="Quote" disabled={disabled || isPreview}>&quot;</button>
-          <button type="button" onClick={() => insertText('[', '](https://)')} title="Link" disabled={disabled || isPreview}>🔗</button>
-          
-          <div className="md-divider" />
-          
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            onChange={handleFileChange} 
-            accept=".txt,.md,.markdown,.docx" 
-            style={{ display: 'none' }} 
+    <div
+      className={`md-editor w-full border border-[#2d2d2a] bg-[var(--color-bg-primary)] transition-colors focus-within:border-[var(--color-accent-crimson)] ${disabled ? 'opacity-60' : ''}`}
+    >
+      <div className="md-toolbar flex flex-wrap items-center justify-between gap-2 border-b border-[#2d2d2a] bg-[var(--color-bg-surface)] px-2 py-1.5">
+        <div className="md-tools flex items-center gap-0.5">
+          <ToolButton label="Bold" onClick={() => insertText('**', '**')} disabled={disabled || isPreview}>
+            <span className="font-bold">B</span>
+          </ToolButton>
+          <ToolButton label="Italic" onClick={() => insertText('*', '*')} disabled={disabled || isPreview}>
+            <span className="italic">I</span>
+          </ToolButton>
+          <ToolButton label="Code" onClick={() => insertText('`', '`')} disabled={disabled || isPreview}>
+            <span className="font-mono text-xs">{'</>'}</span>
+          </ToolButton>
+          <ToolButton label="Quote" onClick={() => insertText('> ')} disabled={disabled || isPreview}>
+            <span className="text-base leading-none">&quot;</span>
+          </ToolButton>
+          <ToolButton label="Link" onClick={() => insertText('[', '](https://)')} disabled={disabled || isPreview}>
+            <span aria-hidden="true">🔗</span>
+          </ToolButton>
+
+          <div className="md-divider mx-1 h-5 w-px bg-[#2d2d2a]" />
+
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept=".txt,.md,.markdown,.docx"
+            className="hidden"
           />
-          <button 
-            type="button" 
-            className="md-upload-btn"
-            onClick={() => fileInputRef.current?.click()} 
+          <ToolButton
+            label="Import .txt or .docx"
+            onClick={() => fileInputRef.current?.click()}
             disabled={disabled || isPreview || isUploading}
-            title="Import .txt or .docx"
+            className="w-auto gap-1.5 px-2 font-mono text-[11px] uppercase tracking-wide"
           >
-            {isUploading ? 'Parsing…' : '📁 Import File'}
-          </button>
+            <span aria-hidden="true">{isUploading ? '⏳' : '📁'}</span>
+            <span>{isUploading ? 'Parsing…' : 'Import File'}</span>
+          </ToolButton>
         </div>
 
-        <div className="md-modes">
-          <button 
-            type="button" 
-            className={!isPreview ? 'active' : ''} 
+        <div className="md-modes flex border border-[#2d2d2a]">
+          <button
+            type="button"
             onClick={() => setIsPreview(false)}
+            aria-pressed={!isPreview}
+            className={`px-3 py-1 font-mono text-[11px] uppercase tracking-wide transition-colors ${
+              !isPreview
+                ? 'bg-[var(--color-accent-crimson)] text-white'
+                : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
+            }`}
           >
             Write
           </button>
-          <button 
-            type="button" 
-            className={isPreview ? 'active' : ''} 
+          <button
+            type="button"
             onClick={() => setIsPreview(true)}
+            aria-pressed={isPreview}
+            className={`border-l border-[#2d2d2a] px-3 py-1 font-mono text-[11px] uppercase tracking-wide transition-colors ${
+              isPreview
+                ? 'bg-[var(--color-accent-crimson)] text-white'
+                : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
+            }`}
           >
             Preview
           </button>
         </div>
       </div>
-      
+
       {uploadError && (
-        <div className="md-error" style={{ padding: '8px 12px', background: 'rgba(255,42,109,0.1)', color: 'var(--blood)', fontSize: 13 }}>
+        <div className="md-error border-b border-[#2d2d2a] bg-[var(--color-accent-crimson)]/10 px-3 py-2 font-mono text-xs text-[var(--color-accent-crimson)]">
           {uploadError}
         </div>
       )}
 
       {isPreview ? (
-        <div className="md-preview prose">
+        <div
+          className={`md-preview prose overflow-y-auto px-3 py-3 ${rows >= 10 ? 'min-h-[16rem]' : 'min-h-[8rem]'}`}
+        >
           {value ? (
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {value}
             </ReactMarkdown>
           ) : (
-            <span className="muted" style={{ fontStyle: 'italic' }}>Nothing to preview...</span>
+            <span className="italic text-[var(--color-text-secondary)]">Nothing to preview yet…</span>
           )}
         </div>
       ) : (
@@ -125,7 +174,8 @@ export default function MarkdownEditor({
           placeholder={placeholder}
           rows={rows}
           disabled={disabled}
-          className="md-textarea"
+          aria-label={placeholder}
+          className="md-textarea block w-full resize-y bg-transparent px-3 py-3 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)]/70 focus:outline-none disabled:cursor-not-allowed"
         />
       )}
     </div>
