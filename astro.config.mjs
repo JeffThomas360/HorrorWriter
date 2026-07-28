@@ -1,4 +1,4 @@
-import { defineConfig } from 'astro/config';
+import { defineConfig, sessionDrivers } from 'astro/config';
 import react from '@astrojs/react';
 import cloudflare from '@astrojs/cloudflare';
 import sitemap from '@astrojs/sitemap';
@@ -20,8 +20,12 @@ export default defineConfig({
   // We don't use Astro sessions (auth is Supabase). Pin a no-op in-memory
   // session driver so the Cloudflare adapter doesn't auto-require a SESSION
   // KV namespace binding at deploy time.
+  //
+  // `driver: 'memory'` (a bare string) is deprecated as of Astro 6 in favor of
+  // the sessionDrivers factory object shape:
+  // https://docs.astro.build/en/guides/upgrade-to/v6/#deprecated-session-driver-string-signature
   session: {
-    driver: 'memory',
+    driver: sessionDrivers.memory(),
   },
   server: {
     port: 5173
