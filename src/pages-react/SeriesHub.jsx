@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchSeriesWithBooks } from '../lib/series'
-import withProviders from '../components/Providers'
+import { withProviders } from '../components/Providers'
 
 function SeriesHub({ seriesId }) {
   const [series, setSeries] = useState(null)
