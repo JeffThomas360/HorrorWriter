@@ -139,6 +139,126 @@ export const MOCK_SERIES_BOOKS = [
   }
 ];
 
+// Reader-side fixture: a full three-part series, matching MOCK_SERIES[0]'s
+// description ("A three-part descent into the house that remembers").
+//
+// This is DELIBERATELY separate from MOCK_SERIES_BOOKS rather than an extension
+// of it. Two existing tests depend on that fixture having exactly one row:
+//   - mySeries.spec.js "reorders a story within a series" uses
+//     page.getByLabel('Position') with no .first(); a second row makes the
+//     locator ambiguous and Playwright strict mode fails it.
+//   - mySeries.spec.js "assigns an unassigned story" needs book-2 to stay
+//     unassigned, so book-2 must never appear here either.
+// Reader specs opt in by overriding the series_books route locally.
+export const MOCK_SERIES_PARTS = [
+  {
+    series_id: 'series-1',
+    sort_order: 0,
+    book_id: 'book-1',
+    books: { id: 'book-1', title: 'The Shadow over Innsmouth', series_teaser: 'It was during the winter...', created_at: '2026-05-26T10:00:00Z', author_id: MOCK_USER_ID },
+    series: { id: 'series-1', title: 'The Hollow Chronicles' }
+  },
+  {
+    series_id: 'series-1',
+    sort_order: 1,
+    book_id: 'book-3',
+    books: { id: 'book-3', title: 'The Doorway in the Cellar', series_teaser: 'Something had been counting the stairs.', created_at: '2026-05-27T10:00:00Z', author_id: MOCK_USER_ID },
+    series: { id: 'series-1', title: 'The Hollow Chronicles' }
+  },
+  {
+    series_id: 'series-1',
+    sort_order: 2,
+    book_id: 'book-4',
+    books: { id: 'book-4', title: 'What the House Remembered', series_teaser: 'It knew our names before we arrived.', created_at: '2026-05-28T10:00:00Z', author_id: MOCK_USER_ID },
+    series: { id: 'series-1', title: 'The Hollow Chronicles' }
+  }
+];
+
+// Opt-in override: serve the three-part series on the series_books read path.
+// Call AFTER setupSupabaseMocks(page) — the last matching route wins in Playwright.
+export async function setupSeriesPartsMock(page, parts = MOCK_SERIES_PARTS) {
+  await page.route('**/rest/v1/series_books*', async (route) => {
+    if (route.request().method() === 'GET') {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(parts)
+      });
+    } else {
+      route.fallback();
+    }
+  });
+}
+
+// Opt-in override for IN-STORY navigation tests (ReadStory.jsx via
+// fetchStorySeriesContext). Use this INSTEAD OF setupSeriesPartsMock, not
+// alongside it — this supersedes the same route with a shape-aware handler.
+//
+// Why the plain array from setupSeriesPartsMock isn't enough:
+// fetchStorySeriesContext (src/lib/series.js) fires two different queries
+// against series_books:
+//   1. .eq('book_id', bookId).single()   -> "which series is this book in"
+//      PostgREST's .single() expects ONE row back, not an array.
+//   2. .eq('series_id', seriesId)        -> the full ordered part list
+// A single unconditional array response satisfies query 2 but silently
+// breaks query 1's .single() semantics.
+//
+// It also fixes the books route, which otherwise always returns MOCK_BOOKS[0]
+// regardless of which id was requested — meaning every part in a series would
+// render the same title/content, and prev/next navigation couldn't be told
+// apart in a test even though the URL changed correctly.
+export async function setupSeriesReaderMocks(page, parts = MOCK_SERIES_PARTS) {
+  await page.route('**/rest/v1/series_books*', async (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+
+    const url = route.request().url();
+    const bookIdMatch = url.match(/[?&]book_id=eq\.([^&]+)/);
+
+    if (bookIdMatch) {
+      const bookId = decodeURIComponent(bookIdMatch[1]);
+      const row = parts.find((p) => p.book_id === bookId);
+      if (!row) {
+        // Real PostgREST: .single() with zero matching rows is a 406.
+        route.fulfill({
+          status: 406,
+          contentType: 'application/json',
+          body: JSON.stringify({ message: 'JSON object requested, multiple (or no) rows returned' })
+        });
+        return;
+      }
+      // .single() shape: a bare object, not an array.
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ series_id: row.series_id })
+      });
+      return;
+    }
+
+    // series_id=eq. (or anything else GET): full ordered list, array shape.
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(parts) });
+  });
+
+  await page.route('**/rest/v1/books*', async (route) => {
+    const url = route.request().url();
+    if (route.request().method() !== 'GET' || !/[?&]id=eq\./.test(url)) return route.fallback();
+
+    const bookId = decodeURIComponent(url.match(/[?&]id=eq\.([^&]+)/)[1]);
+    const part = parts.find((p) => p.book_id === bookId);
+    const book = part
+      ? {
+          ...part.books,
+          lede: 'A story in this series.',
+          content: `Chapter content for "${part.books.title}."`,
+          comments_count: 0,
+          profiles: { handle: 'testwriter' }
+        }
+      : MOCK_BOOKS[0];
+
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(book) });
+  });
+}
+
 export const MOCK_BOOK_COMMENTS = [
   {
     id: 'comment-1',
