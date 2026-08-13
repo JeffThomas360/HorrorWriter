@@ -44,3 +44,46 @@ describe('self-hosted fonts', () => {
     expect(css()).toMatch(/font-weight:\s*400\s+900/)
   })
 })
+
+const GLOBAL_CSS = join(__dirname, 'global.css')
+
+const PALETTE = {
+  '--color-void': '#08090C',
+  '--color-surface': '#0F1116',
+  '--color-raised': '#161922',
+  '--color-line': '#232733',
+  '--color-line-hi': '#333A4A',
+  '--color-bone': '#E8E4DA',
+  '--color-ash': '#8B8F98',
+  '--color-blood': '#C8102E',
+  '--color-ember': '#FF3B2F',
+  '--color-upside': '#19A5B8',
+}
+
+describe('VHS palette tokens', () => {
+  const css = () => readFileSync(GLOBAL_CSS, 'utf8')
+
+  it.each(Object.entries(PALETTE))('defines %s as %s', (name, value) => {
+    expect(css()).toMatch(new RegExp(`${name}\\s*:\\s*${value}\\s*;`, 'i'))
+  })
+
+  it('keeps the legacy aliases so existing Tailwind utilities keep resolving', () => {
+    const src = css()
+    for (const alias of [
+      '--color-bg-primary',
+      '--color-bg-surface',
+      '--color-text-primary',
+      '--color-text-secondary',
+      '--color-accent-crimson',
+    ]) {
+      expect(src).toMatch(new RegExp(`${alias}\\s*:`))
+    }
+  })
+
+  it('sets Fraunces on headings and Merriweather on body', () => {
+    const src = css()
+    expect(src).toMatch(/font-family:\s*'Fraunces'/)
+    expect(src).toMatch(/font-family:\s*'Merriweather'/)
+    expect(src).not.toMatch(/Cinzel/i)
+  })
+})
