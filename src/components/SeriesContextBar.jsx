@@ -1,4 +1,4 @@
-export default function SeriesContextBar({ seriesContext, onToggleSidebar }) {
+export default function SeriesContextBar({ seriesContext, onToggleSidebar, isMobile }) {
   if (!seriesContext) return null
 
   const { series, allBooks, currentIndex } = seriesContext
@@ -24,7 +24,7 @@ export default function SeriesContextBar({ seriesContext, onToggleSidebar }) {
         fontSize: '14px'
       }}
     >
-      <div style={{ flex: 1 }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
         <a
           href={`/library/series/${series.id}`}
           style={{
@@ -43,27 +43,30 @@ export default function SeriesContextBar({ seriesContext, onToggleSidebar }) {
           Part {partNumber} of {totalParts}: {currentBook.title}
         </span>
       </div>
-      <button
-        onClick={onToggleSidebar}
-        style={{
-          background: 'transparent',
-          border: '1px solid #991B1B',
-          color: '#991B1B',
-          padding: '0.5rem 1rem',
-          cursor: 'pointer',
-          transition: 'all 0.2s'
-        }}
-        onMouseEnter={(e) => {
-          e.target.style.background = '#991B1B'
-          e.target.style.color = '#E5E1D8'
-        }}
-        onMouseLeave={(e) => {
-          e.target.style.background = 'transparent'
-          e.target.style.color = '#991B1B'
-        }}
-      >
-        ⊕ expand series
-      </button>
+      {isMobile && (
+        <button
+          onClick={onToggleSidebar}
+          style={{
+            background: 'transparent',
+            border: '1px solid #991B1B',
+            color: '#991B1B',
+            padding: '0.5rem 1rem',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            whiteSpace: 'nowrap'
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.background = '#991B1B'
+            e.target.style.color = '#E5E1D8'
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.background = 'transparent'
+            e.target.style.color = '#991B1B'
+          }}
+        >
+          ⊕ expand series
+        </button>
+      )}
     </div>
   )
 }

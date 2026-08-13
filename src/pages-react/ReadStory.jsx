@@ -161,6 +161,7 @@ function ReadStory({ id }) {
           <SeriesContextBar
             seriesContext={seriesContext}
             onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+            isMobile={isMobile}
           />
           {!isMobile && <SeriesSidebar seriesContext={seriesContext} isOpen={true} onClose={() => {}} isMobile={false} />}
           {isMobile && <SeriesSidebar seriesContext={seriesContext} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} isMobile={true} />}
@@ -169,7 +170,11 @@ function ReadStory({ id }) {
 
       <div style={{
         marginTop: seriesContext ? '60px' : '0',
-        marginRight: seriesContext && !isMobile ? '280px' : '0'
+        marginRight: seriesContext && !isMobile ? '280px' : '0',
+        maxWidth: '100%',
+        boxSizing: 'border-box',
+        paddingLeft: '1rem',
+        paddingRight: '1rem'
       }}>
         <div className="mt-8">
           <QuoteSharer title={book?.title} />
