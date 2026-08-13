@@ -1,17 +1,25 @@
 @font-face {
-  font-family: 'Cinzel';
+  font-family: 'Fraunces';
   font-style: normal;
-  font-weight: 400;
+  font-weight: 400 900;
   font-display: swap;
-  src: url('/fonts/cinzel-400-normal.woff2') format('woff2');
+  src: url('/fonts/fraunces-variable-normal.woff2') format('woff2-variations');
 }
 
 @font-face {
-  font-family: 'Cinzel';
+  font-family: 'IBM Plex Mono';
   font-style: normal;
-  font-weight: 700;
+  font-weight: 400;
   font-display: swap;
-  src: url('/fonts/cinzel-700-normal.woff2') format('woff2');
+  src: url('/fonts/ibm-plex-mono-400-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-mono-500-normal.woff2') format('woff2');
 }
 
 @font-face {
