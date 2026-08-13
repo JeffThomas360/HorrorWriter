@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { readFileSync, existsSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+import { readFileSync, existsSync, readdirSync } from 'node:fs'
+import { join, dirname, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -85,5 +85,92 @@ describe('VHS palette tokens', () => {
     expect(src).toMatch(/font-family:\s*'Fraunces'/)
     expect(src).toMatch(/font-family:\s*'Merriweather'/)
     expect(src).not.toMatch(/Cinzel/i)
+  })
+})
+
+const SRC = join(__dirname, '..')
+const EXTS = ['.jsx', '.js', '.astro', '.css']
+
+function walk(dir, out = []) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name)
+    if (entry.isDirectory()) walk(full, out)
+    else if (EXTS.some((e) => entry.name.endsWith(e)) && !entry.name.includes('.test.')) {
+      out.push(full)
+    }
+  }
+  return out
+}
+
+const BANNED = [
+  { hex: '#2d2d2a', replacement: 'var(--color-line)' },
+  { hex: '#991B1B', replacement: 'var(--color-blood)' },
+]
+
+// Files still carrying legacy hex values. Tasks 4-7 empty this list.
+// Paths are relative to src/, with forward slashes.
+const NOT_YET_MIGRATED = [
+  'components/SeriesSidebar.jsx',
+  'components/SeriesContextBar.jsx',
+  'pages-react/SeriesHub.jsx',
+  'pages-react/Profile.jsx',
+  'pages-react/ReadStory.jsx',
+  'pages-react/MyStories.jsx',
+  'pages-react/Forum.jsx',
+  'pages-react/Library.jsx',
+  'pages-react/ThreadView.jsx',
+  'pages-react/PublishStory.jsx',
+  'pages-react/UserProfile.jsx',
+  'pages-react/MyReports.jsx',
+  'pages-react/CreateThread.jsx',
+  'pages-react/Moderation.jsx',
+  'components/MarkdownEditor.jsx',
+  'components/SignInModal.jsx',
+  'components/UserMenu.jsx',
+  'components/NotificationsBell.jsx',
+  'components/TranscribeModal.jsx',
+  'components/TranscribeButton.jsx',
+  'components/ShareBar.jsx',
+  'components/ReportModal.jsx',
+  'components/Footer.astro',
+  'components/mod/RegistryTab.jsx',
+  'components/mod/BadgesTab.jsx',
+  'components/mod/UserModProfile.jsx',
+  'components/mod/SanctionsTab.jsx',
+  'components/mod/FilterRulesTab.jsx',
+  'components/mod/SupportTab.jsx',
+  'components/mod/ReportsTab.jsx',
+  'layouts/MainLayout.astro',
+  'pages/index.astro',
+  'pages/rules.astro',
+  'pages/transparency.astro',
+  'pages/og/story/[id].png.js',
+]
+
+function offenders() {
+  const found = new Map()
+  for (const file of walk(SRC)) {
+    const rel = relative(SRC, file).split('\\').join('/')
+    const text = readFileSync(file, 'utf8')
+    const hits = BANNED.filter((b) => new RegExp(b.hex, 'i').test(text)).map((b) => b.hex)
+    if (hits.length) found.set(rel, hits)
+  }
+  return found
+}
+
+describe('legacy hex migration', () => {
+  it('finds source files to scan', () => {
+    expect(walk(SRC).length).toBeGreaterThan(20)
+  })
+
+  it('has no hardcoded legacy hex outside the allowlist', () => {
+    const unexpected = [...offenders().keys()].filter((f) => !NOT_YET_MIGRATED.includes(f))
+    expect(unexpected).toEqual([])
+  })
+
+  it('has no stale allowlist entries', () => {
+    const dirty = offenders()
+    const stale = NOT_YET_MIGRATED.filter((f) => !dirty.has(f))
+    expect(stale).toEqual([])
   })
 })
