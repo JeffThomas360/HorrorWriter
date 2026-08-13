@@ -78,15 +78,23 @@ create trigger trg_stamp_book_comment_version
 
 ## 3. Critique version badges
 
-Each critique renders with a background shade keyed to how far behind the story's current version
-it was written at (`books.version - book_comments.book_version`):
+> **⚠️ Superseded 2026-08-12 — see `2026-08-12-vhs-aesthetic-design.md` §7.**
+> The traffic-light scale below was the original decision. It was replaced with a
+> **signal-strength** treatment (teal, degrading into scanline static) after the VHS aesthetic pass
+> settled the palette at red + teal on blue-black — four traffic-light colours would have been four
+> foreign accents. Jeff chose the replacement after seeing both side by side. **The data model,
+> the four-step scale, and the never-hide rule below are all unchanged** — only the visual encoding
+> of each step differs. Build against the aesthetic spec.
 
-| Delta | Shade |
-|---|---|
-| 0 (same version) | Green |
-| 1 | Yellow |
-| 2 | Orange |
-| 3+ | Red |
+Each critique renders with a treatment keyed to how far behind the story's current version it was
+written at (`books.version - book_comments.book_version`):
+
+| Delta | Original shade *(superseded)* | Current treatment |
+|---|---|---|
+| 0 (same version) | Green | 4 bars, full teal, glow |
+| 1 | Yellow | 3 bars, desaturated teal, 30% scanline |
+| 2 | Orange | 2 bars, grey-teal, 62% scanline |
+| 3+ | Red | 1 bar, grey, 100% scanline |
 
 Critiques are **never removed or hidden** regardless of drift — the badge is informational only,
 telling a reader "this feedback was written against an earlier version of the text."
