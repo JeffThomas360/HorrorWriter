@@ -49,8 +49,13 @@ function CreateThread() {
       if (error) throw error
       return { id: data }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['threads'] })
+      if (data?.id) {
+        supabase.functions.invoke('moderate-content', {
+          body: { targetType: 'thread', targetId: data.id },
+        }).catch(console.error)
+      }
       window.location.replace('/forum')
     },
     onError: (err) => {

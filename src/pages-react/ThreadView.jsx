@@ -135,10 +135,15 @@ function ThreadView({ id }) {
       if (error) throw error
       return data
     },
-    onSuccess: () => {
+    onSuccess: (newPost) => {
       setReplyContent('')
       queryClient.invalidateQueries({ queryKey: ['posts', id] })
       queryClient.invalidateQueries({ queryKey: ['threads'] })
+      if (newPost?.id) {
+        supabase.functions.invoke('moderate-content', {
+          body: { targetType: 'post', targetId: newPost.id },
+        }).catch(console.error)
+      }
     },
     onError: (err) => {
       setReplyError(err.message || 'Failed to post reply.')

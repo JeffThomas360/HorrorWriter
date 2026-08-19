@@ -117,11 +117,16 @@ function ReadStory({ id }) {
       if (error) throw error
       return data
     },
-    onSuccess: () => {
+    onSuccess: (newComment) => {
       setCommentContent('')
       queryClient.invalidateQueries({ queryKey: ['book_comments', id] })
       queryClient.invalidateQueries({ queryKey: ['book', id] })
       queryClient.invalidateQueries({ queryKey: ['books'] })
+      if (newComment?.id) {
+        supabase.functions.invoke('moderate-content', {
+          body: { targetType: 'critique', targetId: newComment.id },
+        }).catch(console.error)
+      }
     },
     onError: (err) => {
       setCommentError(err.message || 'Failed to post critique.')
