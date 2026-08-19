@@ -89,3 +89,13 @@ export async function setContentModStatus(targetType, targetId, status, reason) 
   })
   if (error) throw new Error(error.message)
 }
+
+export async function resolveStorm(stormId, confirmed, note) {
+  if (!supabase) throw new Error('Supabase not configured')
+  const { error } = await supabase.rpc('resolve_storm', {
+    p_storm_id: stormId,
+    p_confirmed: confirmed,
+    p_note: note,
+  })
+  if (error) throw new Error(error.message)
+}
