@@ -29,33 +29,33 @@ function SeriesHub({ seriesId }) {
   }, [seriesId])
 
   if (loading) {
-    return <div style={{ color: '#E5E1D8', padding: '2rem' }}>Loading series...</div>
+    return <div style={{ color: 'var(--color-bone)', padding: '2rem' }}>Loading series...</div>
   }
 
   if (error) {
-    return <div style={{ color: '#991B1B', padding: '2rem' }}>Error: {error}</div>
+    return <div style={{ color: 'var(--color-blood)', padding: '2rem' }}>Error: {error}</div>
   }
 
   if (!series) {
-    return <div style={{ color: '#E5E1D8', padding: '2rem' }}>Series not found</div>
+    return <div style={{ color: 'var(--color-bone)', padding: '2rem' }}>Series not found</div>
   }
 
   return (
-    <div style={{ color: '#E5E1D8' }}>
+    <div style={{ color: 'var(--color-bone)' }}>
       {/* Header Section */}
-      <section style={{ marginBottom: '3rem', paddingBottom: '3rem', borderBottom: '1px solid #2d2d2a' }}>
-        <h1 style={{ fontFamily: 'Georgia', fontSize: '48px', margin: '0 0 0.5rem 0' }}>
+      <section style={{ marginBottom: '3rem', paddingBottom: '3rem', borderBottom: '1px solid var(--color-line)' }}>
+        <h1 style={{ fontFamily: 'Fraunces, Georgia, serif', fontSize: '48px', margin: '0 0 0.5rem 0' }}>
           {series.title}
         </h1>
         {series.profiles?.handle && (
-          <p style={{ color: '#A3A39C', margin: '0 0 1rem 0' }}>
+          <p style={{ color: 'var(--color-ash)', margin: '0 0 1rem 0' }}>
             A series by @{series.profiles.handle}
           </p>
         )}
         <p style={{ fontSize: '18px', lineHeight: '1.6', marginBottom: '1.5rem', maxWidth: '600px' }}>
           {series.description}
         </p>
-        <p style={{ color: '#A3A39C', fontSize: '14px' }}>
+        <p style={{ color: 'var(--color-ash)', fontSize: '14px' }}>
           {books.length} {books.length === 1 ? 'Story' : 'Stories'}
         </p>
       </section>
@@ -68,24 +68,24 @@ function SeriesHub({ seriesId }) {
             style={{
               marginBottom: '3rem',
               padding: '1.5rem',
-              border: '1px solid #2d2d2a',
-              background: '#1a1a1a'
+              border: '1px solid var(--color-line)',
+              background: 'var(--color-surface)'
             }}
           >
-            <div style={{ color: '#991B1B', fontSize: '36px', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+            <div style={{ color: 'var(--color-blood)', fontSize: '36px', fontWeight: 'bold', marginBottom: '0.5rem' }}>
               ▶ {idx + 1}
             </div>
-            <h2 style={{ fontFamily: 'Georgia', fontSize: '24px', margin: '0 0 0.5rem 0' }}>
+            <h2 style={{ fontFamily: 'Fraunces, Georgia, serif', fontSize: '24px', margin: '0 0 0.5rem 0' }}>
               {book.title}
             </h2>
-            <p style={{ fontSize: '16px', margin: '0 0 1rem 0', color: '#E5E1D8' }}>
+            <p style={{ fontSize: '16px', margin: '0 0 1rem 0', color: 'var(--color-bone)' }}>
               {/* Note: summary would come from books table; placeholder for now */}
               A story in this series.
             </p>
-            <p style={{ fontSize: '14px', fontStyle: 'italic', color: '#A3A39C', margin: '0 0 1rem 0' }}>
+            <p style={{ fontSize: '14px', fontStyle: 'italic', color: 'var(--color-ash)', margin: '0 0 1rem 0' }}>
               ✦ "{book.series_teaser || 'Read to discover...'}"
             </p>
-            <div style={{ fontSize: '12px', color: '#A3A39C', marginBottom: '1rem' }}>
+            <div style={{ fontSize: '12px', color: 'var(--color-ash)', marginBottom: '1rem' }}>
               Published
             </div>
             <a
@@ -93,19 +93,19 @@ function SeriesHub({ seriesId }) {
               style={{
                 display: 'inline-block',
                 padding: '0.5rem 1rem',
-                border: '1px solid #991B1B',
-                color: '#991B1B',
+                border: '1px solid var(--color-blood)',
+                color: 'var(--color-blood)',
                 textDecoration: 'none',
                 cursor: 'pointer',
                 transition: 'all 0.2s'
               }}
               onMouseEnter={(e) => {
-                e.target.style.background = '#991B1B'
-                e.target.style.color = '#E5E1D8'
+                e.target.style.background = 'var(--color-blood)'
+                e.target.style.color = 'var(--color-bone)'
               }}
               onMouseLeave={(e) => {
                 e.target.style.background = 'transparent'
-                e.target.style.color = '#991B1B'
+                e.target.style.color = 'var(--color-blood)'
               }}
             >
               START READING →

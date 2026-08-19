@@ -37,7 +37,7 @@ function UserProfile({ handle }) {
       <div className="vintage-card text-center py-16 border-red-950 mt-8 max-w-2xl mx-auto">
         <span className="block font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-text-secondary)] mb-2">▸ No such writer</span>
         <h2 className="text-xl font-serif mb-4">@{handle} is not in the coven.</h2>
-        <a href="/" className="border border-[#2d2d2a] hover:border-white font-mono text-xs uppercase px-4 py-2 transition-colors inline-block mt-2">
+        <a href="/" className="border border-[var(--color-line)] hover:border-white font-mono text-xs uppercase px-4 py-2 transition-colors inline-block mt-2">
           Back Home
         </a>
       </div>
@@ -62,7 +62,7 @@ function UserProfile({ handle }) {
 
   return (
     <div className="mt-8 max-w-2xl mx-auto">
-      <div className="border-b border-[#2d2d2a] pb-6 mb-8 flex items-end justify-between">
+      <div className="border-b border-[var(--color-line)] pb-6 mb-8 flex items-end justify-between">
         <div>
           <span className="block font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-text-secondary)] mb-2">Member</span>
           <h2 className="text-3xl font-serif font-black">The <em className="italic text-[var(--color-accent-crimson)] font-serif">Coven</em></h2>
@@ -72,7 +72,7 @@ function UserProfile({ handle }) {
       <div className="vintage-card p-6">
         <ProfileHead profile={profile} />
         
-        <div className="mt-6 border-t border-[#2d2d2a] pt-6 flex flex-col gap-4 font-serif text-sm">
+        <div className="mt-6 border-t border-[var(--color-line)] pt-6 flex flex-col gap-4 font-serif text-sm">
           {profile.pronouns && (
             <div className="font-mono text-xs text-[var(--color-text-secondary)] uppercase">
               Pronouns: {profile.pronouns}
@@ -99,7 +99,7 @@ function UserProfile({ handle }) {
           )}
 
           {profile.website_url && (
-            <div className="text-xs font-mono mt-2 pt-2 border-t border-[#2d2d2a]/50">
+            <div className="text-xs font-mono mt-2 pt-2 border-t border-[var(--color-line)]/50">
               {profile.website_url.trim().startsWith('http://') || profile.website_url.trim().startsWith('https://') ? (
                 <a 
                   href={profile.website_url.trim()} 
@@ -115,7 +115,7 @@ function UserProfile({ handle }) {
             </div>
           )}
           
-          <div className="mt-4 pt-4 border-t border-[#2d2d2a] flex justify-end">
+          <div className="mt-4 pt-4 border-t border-[var(--color-line)] flex justify-end">
             <FollowButton targetProfileId={profile.id} />
           </div>
         </div>

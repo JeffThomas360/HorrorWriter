@@ -50,7 +50,7 @@ export default function FilterRulesTab() {
   }
 
   const primaryBtn = 'bg-[var(--color-accent-crimson)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-white transition-colors hover:bg-red-700 cursor-pointer'
-  const ghostBtn = 'border border-[#2d2d2a] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-text-primary)] transition-colors hover:border-white cursor-pointer'
+  const ghostBtn = 'border border-[var(--color-line)] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-text-primary)] transition-colors hover:border-white cursor-pointer'
   const dangerBtn = 'border border-[var(--color-accent-crimson)] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-accent-crimson)] transition-colors hover:bg-[var(--color-accent-crimson)] hover:text-white cursor-pointer'
 
   if (loading) return <p className="text-[var(--color-text-secondary)]">Loading AutoMod rules...</p>
@@ -74,7 +74,7 @@ export default function FilterRulesTab() {
           value={newValue}
           onChange={e => setNewValue(e.target.value)}
           placeholder={newKind === 'phrase' ? 'e.g., \\b(viagra|crypto)\\b' : 'e.g., 3'}
-          className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
+          className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
           style={{ flex: 1 }}
         />
         <button type="submit" className={primaryBtn}>Add Rule</button>

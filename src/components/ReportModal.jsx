@@ -97,7 +97,7 @@ export default function ReportModal({ isOpen, onClose, targetType, targetId }) {
                 value={category}
                 onChange={e => setCategory(e.target.value)}
                 required
-                className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
+                className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
               >
                 <option value="" disabled>Select a reason...</option>
                 {targetType === 'site' ? (
@@ -123,7 +123,7 @@ export default function ReportModal({ isOpen, onClose, targetType, targetId }) {
                 onChange={e => setDetails(e.target.value)}
                 placeholder="Provide any helpful context..."
                 rows={4}
-                className="resize-y bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
+                className="resize-y bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
               />
             </div>
 

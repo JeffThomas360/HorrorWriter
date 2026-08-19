@@ -38,7 +38,7 @@ export default function SupportTab() {
     }
   }
 
-  const smallGhost = 'border border-[#2d2d2a] px-2 py-1 text-xs text-[var(--color-text-primary)] transition-colors hover:border-white cursor-pointer'
+  const smallGhost = 'border border-[var(--color-line)] px-2 py-1 text-xs text-[var(--color-text-primary)] transition-colors hover:border-white cursor-pointer'
 
   if (loading) return <p className="text-[var(--color-text-secondary)]">Loading support tickets...</p>
   if (error) return <p className="form-err font-mono text-xs text-[var(--color-accent-crimson)]">{error}</p>

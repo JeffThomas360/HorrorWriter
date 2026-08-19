@@ -178,16 +178,16 @@ function Profile() {
 
   return (
     <div className="mt-8 max-w-2xl mx-auto">
-      <div className="flex justify-between items-center mb-8 border-b border-[#2d2d2a] pb-6">
+      <div className="flex justify-between items-center mb-8 border-b border-[var(--color-line)] pb-6">
         <div>
           <span className="block font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-text-secondary)] mb-2">Your Account</span>
           <h2 className="title text-3xl font-serif font-black">Edit <em className="italic text-[var(--color-accent-crimson)] font-serif">profile</em></h2>
         </div>
         <div className="flex items-center gap-3">
-          <a href="/my-stories" className="font-mono text-xs border border-[#2d2d2a] px-3 py-2 hover:border-white hover:text-[var(--color-accent-crimson)] transition-colors">
+          <a href="/my-stories" className="font-mono text-xs border border-[var(--color-line)] px-3 py-2 hover:border-white hover:text-[var(--color-accent-crimson)] transition-colors">
             My Stories
           </a>
-          <a href="/my-reports" className="font-mono text-xs border border-[#2d2d2a] px-3 py-2 hover:border-white hover:text-[var(--color-accent-crimson)] transition-colors">
+          <a href="/my-reports" className="font-mono text-xs border border-[var(--color-line)] px-3 py-2 hover:border-white hover:text-[var(--color-accent-crimson)] transition-colors">
             View My Reports
           </a>
         </div>
@@ -197,7 +197,7 @@ function Profile() {
         <ProfileHead profile={profile} />
         <div className="text-right flex flex-col gap-2 items-center sm:items-end">
           {joinedFmt && <p className="font-mono text-xs text-[var(--color-text-secondary)]">Joined {joinedFmt}</p>}
-          <label className="border border-[#2d2d2a] hover:border-white text-[var(--color-text-primary)] font-mono text-xs uppercase px-4 py-2 cursor-pointer transition-colors text-center inline-block">
+          <label className="border border-[var(--color-line)] hover:border-white text-[var(--color-text-primary)] font-mono text-xs uppercase px-4 py-2 cursor-pointer transition-colors text-center inline-block">
             {uploading ? 'Uploading…' : 'Change Avatar'}
             <input
               type="file"
@@ -216,7 +216,7 @@ function Profile() {
             value={form.handle} 
             onChange={onChange('handle')} 
             required 
-            className="w-full bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
+            className="w-full bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
           />
         </Field>
         <Field label="Display name">
@@ -224,7 +224,7 @@ function Profile() {
             value={form.display_name} 
             onChange={onChange('display_name')} 
             placeholder="What you'd like to be called" 
-            className="w-full bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
+            className="w-full bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
           />
         </Field>
         <Field label="Bio">
@@ -233,7 +233,7 @@ function Profile() {
             onChange={onChange('bio')} 
             rows={4} 
             placeholder="What you write. What you read. What gets stuck in the bath drain." 
-            className="w-full bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none font-serif"
+            className="w-full bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none font-serif"
           />
         </Field>
         <Field label="Location">
@@ -241,7 +241,7 @@ function Profile() {
             value={form.location} 
             onChange={onChange('location')} 
             placeholder="Ohio" 
-            className="w-full bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
+            className="w-full bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
           />
         </Field>
         <Field label="Pronouns">
@@ -249,7 +249,7 @@ function Profile() {
             value={form.pronouns} 
             onChange={onChange('pronouns')} 
             placeholder="she/her, they/them, …" 
-            className="w-full bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
+            className="w-full bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
           />
         </Field>
         <Field label="Website">
@@ -258,11 +258,11 @@ function Profile() {
             onChange={onChange('website_url')} 
             placeholder="https://…" 
             type="url" 
-            className="w-full bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
+            className="w-full bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
           />
         </Field>
 
-        <div className="flex items-center gap-4 mt-4 border-t border-[#2d2d2a] pt-6">
+        <div className="flex items-center gap-4 mt-4 border-t border-[var(--color-line)] pt-6">
           <button 
             type="submit" 
             className="bg-[var(--color-accent-crimson)] text-white font-mono text-xs uppercase px-5 py-3 hover:bg-red-700 transition-colors cursor-pointer"
@@ -277,7 +277,7 @@ function Profile() {
       </form>
 
       {/* ── Passkeys ── */}
-      <div className="mt-16 border-t border-[#2d2d2a] pt-12">
+      <div className="mt-16 border-t border-[var(--color-line)] pt-12">
         <span className="block font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-text-secondary)] mb-2">Security</span>
         <h3 className="text-xl font-serif font-black mb-4">Fast <em className="italic text-[var(--color-accent-crimson)] font-serif">sign-in</em></h3>
         <p className="text-sm font-serif text-[var(--color-text-secondary)] leading-relaxed mb-6">
@@ -287,11 +287,11 @@ function Profile() {
         {loadingPasskeys ? (
           <p className="font-mono text-xs text-[var(--color-text-secondary)]">Loading passkeys…</p>
         ) : passkeys.length > 0 ? (
-          <ul className="flex flex-col gap-4 mb-6 border-b border-[#2d2d2a] pb-6">
+          <ul className="flex flex-col gap-4 mb-6 border-b border-[var(--color-line)] pb-6">
             {passkeys.map((pk) => {
               const kind = PASSKEY_KIND[pk.attachment] ?? PASSKEY_KIND.null
               return (
-                <li key={pk.id} className="flex items-center justify-between border border-[#2d2d2a] p-4 bg-[var(--color-bg-surface)]">
+                <li key={pk.id} className="flex items-center justify-between border border-[var(--color-line)] p-4 bg-[var(--color-bg-surface)]">
                   <div className="flex items-center gap-3">
                     <span className="text-xl">{kind.icon}</span>
                     <div className="flex flex-col gap-0.5">
@@ -304,7 +304,7 @@ function Profile() {
                   </div>
                   <button
                     type="button"
-                    className="border border-[#2d2d2a] hover:border-[var(--color-accent-crimson)] text-xs font-mono px-3 py-1.5 hover:text-[var(--color-accent-crimson)] cursor-pointer"
+                    className="border border-[var(--color-line)] hover:border-[var(--color-accent-crimson)] text-xs font-mono px-3 py-1.5 hover:text-[var(--color-accent-crimson)] cursor-pointer"
                     disabled={deletingPasskeyId === pk.id}
                     onClick={() => onDeletePasskey(pk.id)}
                   >
@@ -322,7 +322,7 @@ function Profile() {
 
         <button
           type="button"
-          className="border border-[#2d2d2a] hover:border-white font-mono text-xs uppercase px-4 py-2 cursor-pointer transition-colors mb-6"
+          className="border border-[var(--color-line)] hover:border-white font-mono text-xs uppercase px-4 py-2 cursor-pointer transition-colors mb-6"
           disabled={enrollingPasskey}
           onClick={onAddPasskey}
         >
@@ -333,7 +333,7 @@ function Profile() {
           your phone, a security key, or a password manager like Bitwarden or 1Password.
         </p>
 
-        <details className="mt-8 border border-[#2d2d2a] bg-neutral-900/10 p-4 font-serif text-xs leading-relaxed max-w-xl">
+        <details className="mt-8 border border-[var(--color-line)] bg-neutral-900/10 p-4 font-serif text-xs leading-relaxed max-w-xl">
           <summary className="font-bold cursor-pointer hover:text-[var(--color-accent-crimson)] uppercase font-mono tracking-wider text-xs">Using a password manager?</summary>
           <div className="mt-4 flex flex-col gap-3 text-[var(--color-text-secondary)]">
             <p>

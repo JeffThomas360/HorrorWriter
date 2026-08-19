@@ -46,20 +46,20 @@ function Moderation() {
 
   return (
     <div className="mt-8 max-w-4xl mx-auto">
-      <div className="border-b border-[#2d2d2a] pb-6 mb-8">
+      <div className="border-b border-[var(--color-line)] pb-6 mb-8">
         <span className="block font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-text-secondary)] mb-2">Keeper Terminal</span>
         <h2 className="text-3xl font-serif font-black">The <em className="italic text-[var(--color-accent-crimson)] font-serif">Terminal</em></h2>
         <p className="text-xs text-[var(--color-text-secondary)] font-serif mt-1 font-mono">▸ System status: online · Access Level: {profile?.mod_role?.toUpperCase()}</p>
       </div>
 
       {/* Navigation tabs */}
-      <div className="flex flex-wrap gap-2 mb-8 border-b border-[#2d2d2a] pb-4" role="tablist">
+      <div className="flex flex-wrap gap-2 mb-8 border-b border-[var(--color-line)] pb-4" role="tablist">
         {tabs.map((t) => (
           <button
             key={t.id}
             role="tab"
             aria-selected={activeId === t.id}
-            className={`font-mono text-xs uppercase px-4 py-2 border cursor-pointer transition-all ${activeId === t.id ? 'bg-[var(--color-accent-crimson)] text-white border-[var(--color-accent-crimson)]' : 'border-[#2d2d2a] text-[var(--color-text-secondary)] hover:text-white'}`}
+            className={`font-mono text-xs uppercase px-4 py-2 border cursor-pointer transition-all ${activeId === t.id ? 'bg-[var(--color-accent-crimson)] text-white border-[var(--color-accent-crimson)]' : 'border-[var(--color-line)] text-[var(--color-text-secondary)] hover:text-white'}`}
             onClick={() => setTab(t.id)}
           >
             {t.label}

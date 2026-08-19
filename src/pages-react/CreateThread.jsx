@@ -86,7 +86,7 @@ function CreateThread() {
           <select
             value={categoryId}
             onChange={(e) => setCategoryId(e.target.value)}
-            className="bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
+            className="bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
           >
             {categories.map(c => (
               <option key={c.id} value={c.id}>{c.name}</option>
@@ -101,7 +101,7 @@ function CreateThread() {
             onChange={(e) => setTitle(e.target.value)}
             required
             placeholder="A chilling subject…"
-            className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
+            className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
           />
         </div>
 
@@ -121,7 +121,7 @@ function CreateThread() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4 mt-4 border-t border-[#2d2d2a] pt-6">
+        <div className="flex items-center gap-4 mt-4 border-t border-[var(--color-line)] pt-6">
           <button 
             type="submit" 
             className="bg-[var(--color-accent-crimson)] text-white font-mono text-xs uppercase px-5 py-3 hover:bg-red-700 transition-colors cursor-pointer"
@@ -131,7 +131,7 @@ function CreateThread() {
           </button>
           <button 
             type="button" 
-            className="border border-[#2d2d2a] hover:border-white text-[var(--color-text-primary)] font-mono text-xs uppercase px-4 py-3 transition-colors cursor-pointer"
+            className="border border-[var(--color-line)] hover:border-white text-[var(--color-text-primary)] font-mono text-xs uppercase px-4 py-3 transition-colors cursor-pointer"
             onClick={() => window.location.replace('/forum')} 
             disabled={isSubmitting}
           >

@@ -62,7 +62,7 @@ function Library() {
 
   return (
     <div className="mt-8">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8 border-b border-[#2d2d2a] pb-6">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8 border-b border-[var(--color-line)] pb-6">
         <div>
           <span className="block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-text-secondary)] mb-2">The Library</span>
           <h2 className="text-3xl font-serif font-black">Shared <em className="italic text-[var(--color-accent-crimson)] font-serif">work</em></h2>
@@ -70,7 +70,7 @@ function Library() {
         </div>
         {session ? (
           <div className="flex items-center gap-3">
-            <a href="/my-stories" className="border border-[#2d2d2a] text-[var(--color-text-primary)] font-mono text-xs uppercase px-5 py-3 hover:border-white transition-colors inline-block text-center">
+            <a href="/my-stories" className="border border-[var(--color-line)] text-[var(--color-text-primary)] font-mono text-xs uppercase px-5 py-3 hover:border-white transition-colors inline-block text-center">
               My Stories
             </a>
             <a href="/library/publish" className="bg-[var(--color-accent-crimson)] text-white font-mono text-xs uppercase px-5 py-3 hover:bg-red-700 transition-colors inline-block text-center">
@@ -78,20 +78,20 @@ function Library() {
             </a>
           </div>
         ) : (
-          <span className="font-mono text-xs border border-[#2d2d2a] text-[var(--color-text-secondary)] px-3 py-1.5 uppercase">Sign in to publish</span>
+          <span className="font-mono text-xs border border-[var(--color-line)] text-[var(--color-text-secondary)] px-3 py-1.5 uppercase">Sign in to publish</span>
         )}
       </div>
 
       {session && (
         <div className="flex gap-4 mb-8">
           <button 
-            className={`font-mono text-xs uppercase px-4 py-2 border cursor-pointer ${feedMode === 'all' ? 'bg-[var(--color-text-primary)] text-[var(--color-bg-primary)] border-[var(--color-text-primary)]' : 'border-[#2d2d2a] text-[var(--color-text-primary)] hover:border-white'}`} 
+            className={`font-mono text-xs uppercase px-4 py-2 border cursor-pointer ${feedMode === 'all' ? 'bg-[var(--color-text-primary)] text-[var(--color-bg-primary)] border-[var(--color-text-primary)]' : 'border-[var(--color-line)] text-[var(--color-text-primary)] hover:border-white'}`} 
             onClick={() => setFeedMode('all')}
           >
             All Stories
           </button>
           <button 
-            className={`font-mono text-xs uppercase px-4 py-2 border cursor-pointer ${feedMode === 'following' ? 'bg-[var(--color-text-primary)] text-[var(--color-bg-primary)] border-[var(--color-text-primary)]' : 'border-[#2d2d2a] text-[var(--color-text-primary)] hover:border-white'}`} 
+            className={`font-mono text-xs uppercase px-4 py-2 border cursor-pointer ${feedMode === 'following' ? 'bg-[var(--color-text-primary)] text-[var(--color-bg-primary)] border-[var(--color-text-primary)]' : 'border-[var(--color-line)] text-[var(--color-text-primary)] hover:border-white'}`} 
             onClick={() => setFeedMode('following')}
           >
             My Feed
@@ -103,7 +103,7 @@ function Library() {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
           {[1, 2, 3, 4, 5, 6].map(i => (
             <div key={i} className="animate-pulse flex flex-col gap-4">
-              <div className="w-full aspect-[4/5] bg-neutral-900 border border-[#2d2d2a]" />
+              <div className="w-full aspect-[4/5] bg-neutral-900 border border-[var(--color-line)]" />
               <div className="w-1/3 h-3 bg-neutral-900 mt-2" />
               <div className="w-3/4 h-5 bg-neutral-900" />
               <div className="w-full h-12 bg-neutral-900" />
@@ -122,11 +122,11 @@ function Library() {
         <div className="vintage-card py-16 text-center">
           <p className="font-serif italic text-sm text-[var(--color-text-secondary)] mb-6">The library is currently empty.</p>
           {session ? (
-            <a href="/library/publish" className="border border-[#2d2d2a] hover:border-white font-mono text-xs uppercase px-4 py-2 transition-colors">
+            <a href="/library/publish" className="border border-[var(--color-line)] hover:border-white font-mono text-xs uppercase px-4 py-2 transition-colors">
               Publish the first story
             </a>
           ) : (
-            <span className="font-mono text-xs border border-[#2d2d2a] text-[var(--color-text-secondary)] px-3 py-1.5 uppercase">Sign in to publish</span>
+            <span className="font-mono text-xs border border-[var(--color-line)] text-[var(--color-text-secondary)] px-3 py-1.5 uppercase">Sign in to publish</span>
           )}
         </div>
       )}
@@ -136,7 +136,7 @@ function Library() {
           {books.map((b) => (
             <a key={b.id} href={`/library/read/${b.id}`} className="group flex flex-col hover:border-white transition-all">
               {/* Cover Card */}
-              <div className="relative w-full aspect-[4/5] bg-[#1a0a14] border border-[#2d2d2a] flex items-center justify-center p-8 group-hover:border-[var(--color-accent-crimson)] transition-colors overflow-hidden">
+              <div className="relative w-full aspect-[4/5] bg-[#1a0a14] border border-[var(--color-line)] flex items-center justify-center p-8 group-hover:border-[var(--color-accent-crimson)] transition-colors overflow-hidden">
                 {b.badge && (
                   <div className="absolute top-4 right-4 font-mono text-xs uppercase tracking-wider bg-[var(--color-accent-crimson)] text-white px-1.5 py-0.5">
                     {b.badge}
@@ -165,7 +165,7 @@ function Library() {
                 <p className="font-serif italic text-xs text-[var(--color-text-secondary)] line-clamp-2 leading-relaxed mt-1">
                   {b.lede}
                 </p>
-                <div className="flex justify-between items-center text-xs font-mono text-[var(--color-text-secondary)] border-t border-[#2d2d2a] mt-3 pt-2">
+                <div className="flex justify-between items-center text-xs font-mono text-[var(--color-text-secondary)] border-t border-[var(--color-line)] mt-3 pt-2">
                   <span>{postedAgo(b.created_at)}</span>
                   <span className="uppercase">
                     {b.comments_count || 0} {b.comments_count === 1 ? 'critique' : 'critiques'}

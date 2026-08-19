@@ -9,7 +9,7 @@ export default function TranscribeButton({ onTranscribed }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="transcribe-btn inline-flex items-center gap-2 border border-[#2d2d2a] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-accent-crimson)] hover:text-[var(--color-accent-crimson)] cursor-pointer"
+        className="transcribe-btn inline-flex items-center gap-2 border border-[var(--color-line)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-accent-crimson)] hover:text-[var(--color-accent-crimson)] cursor-pointer"
       >
         <svg
           viewBox="0 0 24 24" width="15" height="15"

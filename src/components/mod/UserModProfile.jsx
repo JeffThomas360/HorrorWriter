@@ -40,7 +40,7 @@ export default function UserModProfile({ userId, onClose }) {
     }
   }
 
-  const ghostBtn = 'border border-[#2d2d2a] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-text-primary)] transition-colors hover:border-white cursor-pointer'
+  const ghostBtn = 'border border-[var(--color-line)] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-text-primary)] transition-colors hover:border-white cursor-pointer'
 
   if (loading) return <div style={{ padding: 24 }}><p className="text-[var(--color-text-secondary)]">Loading context...</p></div>
   if (!profile) return <div style={{ padding: 24 }}><p className="form-err font-mono text-xs text-[var(--color-accent-crimson)]">User not found.</p>{onClose && <button onClick={onClose} className={ghostBtn}>Close</button>}</div>
@@ -71,7 +71,7 @@ export default function UserModProfile({ userId, onClose }) {
           ))}
         </div>
         <form onSubmit={handleAddNote} style={{ display: 'flex', gap: 8 }}>
-          <input type="text" value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Leave a behavioral note..." className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none" style={{ flex: 1, fontSize: 13 }} />
+          <input type="text" value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Leave a behavioral note..." className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none" style={{ flex: 1, fontSize: 13 }} />
           <button type="submit" className={ghostBtn} style={{ fontSize: 13 }}>Add</button>
         </form>
       </div>

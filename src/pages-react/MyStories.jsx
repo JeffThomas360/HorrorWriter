@@ -119,7 +119,7 @@ function MyStories() {
 
   return (
     <div className="mt-8 max-w-3xl mx-auto">
-      <div className="border-b border-[#2d2d2a] pb-6 mb-12">
+      <div className="border-b border-[var(--color-line)] pb-6 mb-12">
         <span className="block font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-text-secondary)] mb-2">The Library</span>
         <h2 className="text-3xl font-serif font-black">My <em className="italic text-[var(--color-accent-crimson)] font-serif">stories</em></h2>
         <p className="text-xs text-[var(--color-text-secondary)] font-serif mt-1">Manage your published stories and the series they belong to.</p>
@@ -132,7 +132,7 @@ function MyStories() {
         {!newSeriesOpen ? (
           <button
             type="button"
-            className="border border-[#2d2d2a] hover:border-white font-mono text-xs uppercase px-4 py-2 transition-colors mb-8 cursor-pointer"
+            className="border border-[var(--color-line)] hover:border-white font-mono text-xs uppercase px-4 py-2 transition-colors mb-8 cursor-pointer"
             onClick={() => setNewSeriesOpen(true)}
           >
             + New Series
@@ -146,7 +146,7 @@ function MyStories() {
                 onChange={(e) => setNewTitle(e.target.value)}
                 required
                 placeholder="The Hollow Chronicles"
-                className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
+                className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -155,7 +155,7 @@ function MyStories() {
                 value={newDescription}
                 onChange={(e) => setNewDescription(e.target.value)}
                 placeholder="A three-part descent into the house that remembers."
-                className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
+                className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -164,7 +164,7 @@ function MyStories() {
                 value={newInitialBookId}
                 onChange={(e) => setNewInitialBookId(e.target.value)}
                 required
-                className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
+                className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
               >
                 <option value="">Choose a story…</option>
                 {unassignedBooks.map(b => (
@@ -187,7 +187,7 @@ function MyStories() {
               </button>
               <button
                 type="button"
-                className="border border-[#2d2d2a] hover:border-white font-mono text-xs uppercase px-4 py-2.5 transition-colors cursor-pointer"
+                className="border border-[var(--color-line)] hover:border-white font-mono text-xs uppercase px-4 py-2.5 transition-colors cursor-pointer"
                 onClick={() => setNewSeriesOpen(false)}
               >
                 Cancel
@@ -211,7 +211,7 @@ function MyStories() {
                   </div>
                   <button
                     type="button"
-                    className="shrink-0 border border-[#2d2d2a] hover:border-[var(--color-accent-crimson)] hover:text-[var(--color-accent-crimson)] font-mono text-xs uppercase px-3 py-1.5 transition-colors cursor-pointer"
+                    className="shrink-0 border border-[var(--color-line)] hover:border-[var(--color-accent-crimson)] hover:text-[var(--color-accent-crimson)] font-mono text-xs uppercase px-3 py-1.5 transition-colors cursor-pointer"
                     onClick={() => handleDeleteSeries(s)}
                     disabled={deleteMutation.isPending}
                   >
@@ -222,7 +222,7 @@ function MyStories() {
                 {s.books.length === 0 ? (
                   <p className="font-serif italic text-xs text-[var(--color-text-secondary)]">No stories in this series yet.</p>
                 ) : (
-                  <ul className="flex flex-col gap-2 border-t border-[#2d2d2a] pt-4">
+                  <ul className="flex flex-col gap-2 border-t border-[var(--color-line)] pt-4">
                     {s.books.map(b => (
                       <li key={b.id} className="flex items-center justify-between gap-3 text-sm">
                         <span className="text-[var(--color-text-primary)] font-serif">{b.title}</span>
@@ -233,7 +233,7 @@ function MyStories() {
                               type="number"
                               defaultValue={b.sort_order}
                               min={0}
-                              className="w-14 bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-2 py-1 text-xs focus:border-[var(--color-accent-crimson)] focus:outline-none"
+                              className="w-14 bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-2 py-1 text-xs focus:border-[var(--color-accent-crimson)] focus:outline-none"
                               onBlur={(e) => {
                                 const value = Number(e.target.value)
                                 if (!Number.isNaN(value) && value !== b.sort_order) {
@@ -318,7 +318,7 @@ function AddToSeriesControl({ seriesOptions, onAdd, isPending }) {
       <select
         value={selected}
         onChange={(e) => setSelected(e.target.value)}
-        className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-2 py-1.5 text-xs font-mono focus:border-[var(--color-accent-crimson)] focus:outline-none"
+        className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-2 py-1.5 text-xs font-mono focus:border-[var(--color-accent-crimson)] focus:outline-none"
       >
         <option value="">Add to series…</option>
         {seriesOptions.map(s => (
@@ -327,7 +327,7 @@ function AddToSeriesControl({ seriesOptions, onAdd, isPending }) {
       </select>
       <button
         type="button"
-        className="font-mono text-xs uppercase border border-[#2d2d2a] hover:border-white px-2 py-1.5 transition-colors cursor-pointer disabled:opacity-50"
+        className="font-mono text-xs uppercase border border-[var(--color-line)] hover:border-white px-2 py-1.5 transition-colors cursor-pointer disabled:opacity-50"
         disabled={!selected || isPending}
         onClick={() => { onAdd(selected); setSelected('') }}
       >

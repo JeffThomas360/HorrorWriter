@@ -46,22 +46,24 @@ const ogImageURL = ogImage ? new URL(ogImage, Astro.site) : new URL('/og.png', A
   </head>
   <body class="bg-primary text-text-primary selection:bg-accent-crimson selection:text-white">
     <AuthProvider client:load>
-      <header class="border-b border-[#2d2d2a] sticky top-0 bg-primary/95 backdrop-blur-md z-50">
+      <header class="vhs-header sticky top-0 backdrop-blur-md z-50">
         <div class="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
-          <a href="/" class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded-full border border-accent-crimson bg-[#1a0a14] flex items-center justify-center relative" width="32" height="32">
-              <span class="font-serif font-black text-accent-crimson text-sm">H</span>
+          <a href="/" class="flex items-center gap-3 group">
+            <div class="w-8 h-8 rounded-full border border-[var(--color-blood)] bg-[var(--color-surface)] flex items-center justify-center relative shadow-[0_0_8px_rgba(200,16,46,0.3)] group-hover:border-[var(--color-ember)] transition-colors">
+              <span class="font-['Fraunces'] font-black text-[var(--color-blood)] group-hover:text-[var(--color-ember)] text-sm">H</span>
             </div>
-            <div class="font-serif font-black tracking-widest text-sm text-text-primary">
-              HORROR WRITER
-              <span class="hidden sm:block text-xs tracking-[0.25em] text-text-secondary font-mono mt-0.5">EST. THE WITCHING HOUR</span>
+            <div>
+              <div class="font-['Fraunces'] font-bold tracking-wider text-base text-[var(--color-bone)] group-hover:text-[var(--color-blood)] transition-colors leading-none">
+                HORROR WRITER
+              </div>
+              <span class="hidden sm:block text-[10px] tracking-[0.25em] text-[var(--color-ash)] font-['IBM_Plex_Mono'] mt-1">EST. THE WITCHING HOUR</span>
             </div>
           </a>
 
-          <nav class="hidden md:flex items-center gap-8 font-mono text-xs uppercase tracking-wider" aria-label="Main navigation">
-            <a href="/" class="hover:text-accent-crimson transition-colors">Home</a>
-            <a href="/forum" class="hover:text-accent-crimson transition-colors">The Crypt</a>
-            <a href="/library" class="hover:text-accent-crimson transition-colors">Library</a>
+          <nav class="hidden md:flex items-center gap-8 font-['IBM_Plex_Mono'] text-xs uppercase tracking-wider" aria-label="Main navigation">
+            <a href="/" class="text-[var(--color-bone)] hover:text-[var(--color-blood)] transition-colors">Home</a>
+            <a href="/forum" class="text-[var(--color-bone)] hover:text-[var(--color-blood)] transition-colors">The Crypt</a>
+            <a href="/library" class="text-[var(--color-bone)] hover:text-[var(--color-blood)] transition-colors">Library</a>
           </nav>
 
           <div class="flex items-center gap-3">
@@ -69,14 +71,14 @@ const ogImageURL = ogImage ? new URL(ogImage, Astro.site) : new URL('/og.png', A
             <UserMenu client:load />
             <button
               id="mobile-menu-btn"
-              class="md:hidden flex flex-col justify-center items-center w-11 h-11 gap-1.5"
+              class="md:hidden flex flex-col justify-center items-center w-11 h-11 gap-1.5 focus-visible:outline-none"
               aria-label="Open navigation menu"
               aria-expanded="false"
               aria-controls="mobile-menu"
             >
-              <span class="block w-5 h-px bg-text-primary transition-all duration-200" aria-hidden="true"></span>
-              <span class="block w-5 h-px bg-text-primary transition-all duration-200" aria-hidden="true"></span>
-              <span class="block w-5 h-px bg-text-primary transition-all duration-200" aria-hidden="true"></span>
+              <span class="block w-5 h-px bg-[var(--color-bone)] transition-all duration-200" aria-hidden="true"></span>
+              <span class="block w-5 h-px bg-[var(--color-bone)] transition-all duration-200" aria-hidden="true"></span>
+              <span class="block w-5 h-px bg-[var(--color-bone)] transition-all duration-200" aria-hidden="true"></span>
             </button>
           </div>
         </div>
@@ -85,13 +87,13 @@ const ogImageURL = ogImage ? new URL(ogImage, Astro.site) : new URL('/og.png', A
       <!-- Mobile navigation menu -->
       <div
         id="mobile-menu"
-        class="md:hidden hidden border-b border-[#2d2d2a] bg-primary/98"
+        class="md:hidden hidden border-b border-[var(--color-line)] bg-primary/98"
         role="navigation"
         aria-label="Mobile navigation"
       >
         <nav class="max-w-5xl mx-auto px-6 py-4 flex flex-col gap-1 font-mono text-xs uppercase tracking-wider text-text-primary">
-          <a href="/" class="py-3 border-b border-[#2d2d2a] hover:text-accent-crimson transition-colors">Home</a>
-          <a href="/forum" class="py-3 border-b border-[#2d2d2a] hover:text-accent-crimson transition-colors">The Crypt</a>
+          <a href="/" class="py-3 border-b border-[var(--color-line)] hover:text-accent-crimson transition-colors">Home</a>
+          <a href="/forum" class="py-3 border-b border-[var(--color-line)] hover:text-accent-crimson transition-colors">The Crypt</a>
           <a href="/library" class="py-3 hover:text-accent-crimson transition-colors">Library</a>
         </nav>
       </div>

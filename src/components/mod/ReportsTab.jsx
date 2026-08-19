@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 
 const MOD_MACROS = ["Spam", "House Rules Violation", "Plagiarism", "False Flag"]
 
-const SMALL_GHOST = 'border border-[#2d2d2a] px-2 py-1 text-xs text-[var(--color-text-primary)] transition-colors hover:border-white cursor-pointer'
+const SMALL_GHOST = 'border border-[var(--color-line)] px-2 py-1 text-xs text-[var(--color-text-primary)] transition-colors hover:border-white cursor-pointer'
 const SMALL_BLOOD = 'bg-[var(--color-accent-crimson)] px-2 py-1 text-xs text-white transition-colors hover:bg-red-700 cursor-pointer'
 
 export default function ReportsTab() {

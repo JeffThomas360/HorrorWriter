@@ -14,13 +14,13 @@ export default function SeriesContextBar({ seriesContext, onToggleSidebar, isMob
         left: 0,
         right: 0,
         zIndex: 999,
-        background: '#1a1a1a',
-        borderBottom: '1px solid #2d2d2a',
+        background: 'var(--color-surface)',
+        borderBottom: '1px solid var(--color-line)',
         padding: '1rem',
         display: 'flex',
         alignItems: 'center',
         gap: '1rem',
-        color: '#E5E1D8',
+        color: 'var(--color-bone)',
         fontSize: '14px'
       }}
     >
@@ -28,17 +28,17 @@ export default function SeriesContextBar({ seriesContext, onToggleSidebar, isMob
         <a
           href={`/library/series/${series.id}`}
           style={{
-            color: '#E5E1D8',
+            color: 'var(--color-bone)',
             textDecoration: 'none',
             cursor: 'pointer',
             marginRight: '1rem'
           }}
-          onMouseEnter={(e) => (e.target.style.color = '#991B1B')}
-          onMouseLeave={(e) => (e.target.style.color = '#E5E1D8')}
+          onMouseEnter={(e) => (e.target.style.color = 'var(--color-blood)')}
+          onMouseLeave={(e) => (e.target.style.color = 'var(--color-bone)')}
         >
           ◀ {series.title}
         </a>
-        <span style={{ color: '#A3A39C' }}>|</span>
+        <span style={{ color: 'var(--color-ash)' }}>|</span>
         <span style={{ marginLeft: '1rem', marginRight: '1rem' }}>
           Part {partNumber} of {totalParts}: {currentBook.title}
         </span>
@@ -48,20 +48,20 @@ export default function SeriesContextBar({ seriesContext, onToggleSidebar, isMob
           onClick={onToggleSidebar}
           style={{
             background: 'transparent',
-            border: '1px solid #991B1B',
-            color: '#991B1B',
+            border: '1px solid var(--color-blood)',
+            color: 'var(--color-blood)',
             padding: '0.5rem 1rem',
             cursor: 'pointer',
             transition: 'all 0.2s',
             whiteSpace: 'nowrap'
           }}
           onMouseEnter={(e) => {
-            e.target.style.background = '#991B1B'
-            e.target.style.color = '#E5E1D8'
+            e.target.style.background = 'var(--color-blood)'
+            e.target.style.color = 'var(--color-bone)'
           }}
           onMouseLeave={(e) => {
             e.target.style.background = 'transparent'
-            e.target.style.color = '#991B1B'
+            e.target.style.color = 'var(--color-blood)'
           }}
         >
           ⊕ expand series

@@ -14,8 +14,8 @@ export default function BadgesTab() {
 
   const valueFor = (b) => draft[b.role] ?? { emoji: b.emoji, label: b.label }
 
-  const inputClass = 'bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-2 py-1.5 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none'
-  const btnClass = 'border border-[#2d2d2a] px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-[var(--color-text-primary)] transition-colors hover:border-white cursor-pointer disabled:opacity-50'
+  const inputClass = 'bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-2 py-1.5 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none'
+  const btnClass = 'border border-[var(--color-line)] px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-[var(--color-text-primary)] transition-colors hover:border-white cursor-pointer disabled:opacity-50'
 
   const save = async (role) => {
     const v = draft[role]; if (!v) return
@@ -36,7 +36,7 @@ export default function BadgesTab() {
           const v = valueFor(b)
           const set = (patch) => setDraft((d) => ({ ...d, [b.role]: { ...v, ...patch } }))
           return (
-            <li key={b.role} className="mod-user-row flex items-center justify-between gap-3 border-b border-[#2d2d2a] py-3">
+            <li key={b.role} className="mod-user-row flex items-center justify-between gap-3 border-b border-[var(--color-line)] py-3">
               <span className="font-mono text-sm text-[var(--color-text-primary)]">{b.role}</span>
               <span className="flex items-center gap-2">
                 <input value={v.emoji} onChange={(e) => set({ emoji: e.target.value })} aria-label={`Emoji for ${b.role}`} className={`${inputClass} w-14 text-center`} />

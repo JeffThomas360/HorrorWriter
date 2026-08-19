@@ -28,12 +28,12 @@ export default function SeriesSidebar({ seriesContext, isOpen, onClose, isMobile
           right: 0,
           width: '280px',
           height: '100vh',
-          background: '#1a1a1a',
-          borderLeft: '1px solid #2d2d2a',
+          background: 'var(--color-surface)',
+          borderLeft: '1px solid var(--color-line)',
           padding: '1.5rem',
           overflowY: 'auto',
-          color: '#E5E1D8',
-          fontFamily: 'Georgia, serif',
+          color: 'var(--color-bone)',
+          fontFamily: 'Merriweather, Georgia, serif',
           fontSize: '14px',
           zIndex: 998
         }}
@@ -42,11 +42,11 @@ export default function SeriesSidebar({ seriesContext, isOpen, onClose, isMobile
           {series.title}
         </h3>
         {series.profiles?.handle && (
-          <p style={{ margin: '0 0 1.5rem 0', color: '#A3A39C', fontSize: '12px' }}>
+          <p style={{ margin: '0 0 1.5rem 0', color: 'var(--color-ash)', fontSize: '12px' }}>
             by @{series.profiles.handle}
           </p>
         )}
-        <hr style={{ border: 'none', borderTop: '1px solid #2d2d2a', margin: '0 0 1rem 0' }} />
+        <hr style={{ border: 'none', borderTop: '1px solid var(--color-line)', margin: '0 0 1rem 0' }} />
 
         {/* Parts List */}
         <ul style={{ listStyle: 'none', padding: '0', margin: '0 0 1.5rem 0' }}>
@@ -61,16 +61,16 @@ export default function SeriesSidebar({ seriesContext, isOpen, onClose, isMobile
                 style={{
                   marginBottom: '1rem',
                   opacity: opacityStyle,
-                  borderLeft: isBeforeCurrent ? '2px solid #991B1B' : 'none',
+                  borderLeft: isBeforeCurrent ? '2px solid var(--color-blood)' : 'none',
                   paddingLeft: isBeforeCurrent ? '0.5rem' : '0',
-                  background: isCurrentPart ? '#2d2d2a' : 'transparent',
+                  background: isCurrentPart ? 'var(--color-line)' : 'transparent',
                   padding: '0.5rem'
                 }}
               >
                 <a
                   href={`/library/read/${book.id}`}
                   style={{
-                    color: isCurrentPart ? '#991B1B' : '#E5E1D8',
+                    color: isCurrentPart ? 'var(--color-blood)' : 'var(--color-bone)',
                     textDecoration: 'none',
                     cursor: 'pointer',
                     fontWeight: isCurrentPart ? 'bold' : 'normal',
@@ -79,7 +79,7 @@ export default function SeriesSidebar({ seriesContext, isOpen, onClose, isMobile
                 >
                   {isCurrentPart ? '●' : isBeforeCurrent ? '✓' : '□'} {idx + 1}. {book.title}
                 </a>
-                <div style={{ fontSize: '12px', color: '#A3A39C', marginTop: '0.25rem' }}>
+                <div style={{ fontSize: '12px', color: 'var(--color-ash)', marginTop: '0.25rem' }}>
                   {isCurrentPart && '(You are here)'}
                   {isBeforeCurrent && '(Completed)'}
                   {!isCurrentPart && !isBeforeCurrent && '(Not yet read)'}
@@ -97,20 +97,20 @@ export default function SeriesSidebar({ seriesContext, isOpen, onClose, isMobile
               style={{
                 flex: 1,
                 padding: '0.5rem',
-                border: '1px solid #991B1B',
-                color: '#991B1B',
+                border: '1px solid var(--color-blood)',
+                color: 'var(--color-blood)',
                 textDecoration: 'none',
                 textAlign: 'center',
                 cursor: 'pointer',
                 transition: 'all 0.2s'
               }}
               onMouseEnter={(e) => {
-                e.target.style.background = '#991B1B'
-                e.target.style.color = '#E5E1D8'
+                e.target.style.background = 'var(--color-blood)'
+                e.target.style.color = 'var(--color-bone)'
               }}
               onMouseLeave={(e) => {
                 e.target.style.background = 'transparent'
-                e.target.style.color = '#991B1B'
+                e.target.style.color = 'var(--color-blood)'
               }}
             >
               ← Prev
@@ -122,20 +122,20 @@ export default function SeriesSidebar({ seriesContext, isOpen, onClose, isMobile
               style={{
                 flex: 1,
                 padding: '0.5rem',
-                border: '1px solid #991B1B',
-                color: '#991B1B',
+                border: '1px solid var(--color-blood)',
+                color: 'var(--color-blood)',
                 textDecoration: 'none',
                 textAlign: 'center',
                 cursor: 'pointer',
                 transition: 'all 0.2s'
               }}
               onMouseEnter={(e) => {
-                e.target.style.background = '#991B1B'
-                e.target.style.color = '#E5E1D8'
+                e.target.style.background = 'var(--color-blood)'
+                e.target.style.color = 'var(--color-bone)'
               }}
               onMouseLeave={(e) => {
                 e.target.style.background = 'transparent'
-                e.target.style.color = '#991B1B'
+                e.target.style.color = 'var(--color-blood)'
               }}
             >
               Next →
@@ -174,12 +174,12 @@ export default function SeriesSidebar({ seriesContext, isOpen, onClose, isMobile
             left: 0,
             right: 0,
             maxHeight: '80vh',
-            background: '#1a1a1a',
-            borderTop: '1px solid #2d2d2a',
+            background: 'var(--color-surface)',
+            borderTop: '1px solid var(--color-line)',
             padding: '1.5rem',
             overflowY: 'auto',
-            color: '#E5E1D8',
-            fontFamily: 'Georgia, serif',
+            color: 'var(--color-bone)',
+            fontFamily: 'Merriweather, Georgia, serif',
             fontSize: '14px',
             zIndex: 998
           }}
@@ -194,7 +194,7 @@ export default function SeriesSidebar({ seriesContext, isOpen, onClose, isMobile
               style={{
                 background: 'transparent',
                 border: 'none',
-                color: '#E5E1D8',
+                color: 'var(--color-bone)',
                 fontSize: '24px',
                 cursor: 'pointer'
               }}
@@ -216,9 +216,9 @@ export default function SeriesSidebar({ seriesContext, isOpen, onClose, isMobile
                   style={{
                     marginBottom: '1rem',
                     opacity: opacityStyle,
-                    borderLeft: isBeforeCurrent ? '2px solid #991B1B' : 'none',
+                    borderLeft: isBeforeCurrent ? '2px solid var(--color-blood)' : 'none',
                     paddingLeft: isBeforeCurrent ? '0.5rem' : '0',
-                    background: isCurrentPart ? '#2d2d2a' : 'transparent',
+                    background: isCurrentPart ? 'var(--color-line)' : 'transparent',
                     padding: '0.5rem'
                   }}
                 >
@@ -226,7 +226,7 @@ export default function SeriesSidebar({ seriesContext, isOpen, onClose, isMobile
                     href={`/library/read/${book.id}`}
                     onClick={onClose}
                     style={{
-                      color: isCurrentPart ? '#991B1B' : '#E5E1D8',
+                      color: isCurrentPart ? 'var(--color-blood)' : 'var(--color-bone)',
                       textDecoration: 'none',
                       cursor: 'pointer',
                       fontWeight: isCurrentPart ? 'bold' : 'normal',
@@ -235,13 +235,13 @@ export default function SeriesSidebar({ seriesContext, isOpen, onClose, isMobile
                   >
                     {isCurrentPart ? '●' : isBeforeCurrent ? '✓' : '□'} {idx + 1}. {book.title}
                   </a>
-                  <div style={{ fontSize: '12px', color: '#A3A39C', marginTop: '0.25rem' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--color-ash)', marginTop: '0.25rem' }}>
                     {isCurrentPart && '(You are here)'}
                     {isBeforeCurrent && '(Completed)'}
                     {!isCurrentPart && !isBeforeCurrent && '(Not yet read)'}
                   </div>
                 </li>
-              )
+              );
             })}
           </ul>
 
@@ -254,8 +254,8 @@ export default function SeriesSidebar({ seriesContext, isOpen, onClose, isMobile
                 style={{
                   flex: 1,
                   padding: '0.5rem',
-                  border: '1px solid #991B1B',
-                  color: '#991B1B',
+                  border: '1px solid var(--color-blood)',
+                  color: 'var(--color-blood)',
                   textDecoration: 'none',
                   textAlign: 'center',
                   cursor: 'pointer',
@@ -272,8 +272,8 @@ export default function SeriesSidebar({ seriesContext, isOpen, onClose, isMobile
                 style={{
                   flex: 1,
                   padding: '0.5rem',
-                  border: '1px solid #991B1B',
-                  color: '#991B1B',
+                  border: '1px solid var(--color-blood)',
+                  color: 'var(--color-blood)',
                   textDecoration: 'none',
                   textAlign: 'center',
                   cursor: 'pointer',

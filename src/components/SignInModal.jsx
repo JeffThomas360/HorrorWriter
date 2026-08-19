@@ -171,7 +171,7 @@ export default function SignInModal({ isOpen, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-[#000]/80 flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="modal-content w-full max-w-md bg-[var(--color-bg-surface)] border border-[#2d2d2a] p-8 relative vintage-border" onClick={e => e.stopPropagation()}>
+      <div className="modal-content w-full max-w-md bg-[var(--color-bg-surface)] border border-[var(--color-line)] p-8 relative vintage-border" onClick={e => e.stopPropagation()}>
         <button className="absolute top-4 right-4 text-2xl text-[var(--color-text-secondary)] hover:text-white cursor-pointer" onClick={onClose} aria-label="Close modal">×</button>
 
         <div className="mb-6 text-center">
@@ -209,7 +209,7 @@ export default function SignInModal({ isOpen, onClose }) {
             {enableGoogle && (
               <button
                 type="button"
-                className="w-full border border-[#2d2d2a] text-[var(--color-text-primary)] font-mono text-xs uppercase py-3 flex items-center justify-center gap-2 cursor-pointer hover:border-white"
+                className="w-full border border-[var(--color-line)] text-[var(--color-text-primary)] font-mono text-xs uppercase py-3 flex items-center justify-center gap-2 cursor-pointer hover:border-white"
                 onClick={handleGoogleSignIn}
                 disabled={anyBusy}
               >
@@ -222,9 +222,9 @@ export default function SignInModal({ isOpen, onClose }) {
           </div>
 
           <div className="flex items-center gap-3 my-1" aria-hidden="true">
-            <div className="flex-1 border-t border-[#2d2d2a]"></div>
+            <div className="flex-1 border-t border-[var(--color-line)]"></div>
             <span className="font-mono text-xs text-[var(--color-text-secondary)] uppercase">or</span>
-            <div className="flex-1 border-t border-[#2d2d2a]"></div>
+            <div className="flex-1 border-t border-[var(--color-line)]"></div>
           </div>
 
           <div className="flex flex-col gap-2">
@@ -236,7 +236,7 @@ export default function SignInModal({ isOpen, onClose }) {
               onChange={e => setEmail(e.target.value)}
               placeholder="writer@thedark.com"
               required
-              className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
+              className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
             />
           </div>
 

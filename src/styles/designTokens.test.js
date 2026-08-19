@@ -109,43 +109,7 @@ const BANNED = [
 
 // Files still carrying legacy hex values. Tasks 4-7 empty this list.
 // Paths are relative to src/, with forward slashes.
-const NOT_YET_MIGRATED = [
-  'components/SeriesSidebar.jsx',
-  'components/SeriesContextBar.jsx',
-  'pages-react/SeriesHub.jsx',
-  'pages-react/Profile.jsx',
-  'pages-react/ReadStory.jsx',
-  'pages-react/MyStories.jsx',
-  'pages-react/Forum.jsx',
-  'pages-react/Library.jsx',
-  'pages-react/ThreadView.jsx',
-  'pages-react/PublishStory.jsx',
-  'pages-react/UserProfile.jsx',
-  'pages-react/MyReports.jsx',
-  'pages-react/CreateThread.jsx',
-  'pages-react/Moderation.jsx',
-  'components/MarkdownEditor.jsx',
-  'components/SignInModal.jsx',
-  'components/UserMenu.jsx',
-  'components/NotificationsBell.jsx',
-  'components/TranscribeModal.jsx',
-  'components/TranscribeButton.jsx',
-  'components/ShareBar.jsx',
-  'components/ReportModal.jsx',
-  'components/Footer.astro',
-  'components/mod/RegistryTab.jsx',
-  'components/mod/BadgesTab.jsx',
-  'components/mod/UserModProfile.jsx',
-  'components/mod/SanctionsTab.jsx',
-  'components/mod/FilterRulesTab.jsx',
-  'components/mod/SupportTab.jsx',
-  'components/mod/ReportsTab.jsx',
-  'layouts/MainLayout.astro',
-  'pages/index.astro',
-  'pages/rules.astro',
-  'pages/transparency.astro',
-  'pages/og/story/[id].png.js',
-]
+const NOT_YET_MIGRATED = []
 
 function offenders() {
   const found = new Map()

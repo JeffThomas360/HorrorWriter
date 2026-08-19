@@ -19,10 +19,10 @@ export default function ShareBar({ title, text, url }) {
   const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`
 
   const btnClass =
-    'inline-flex items-center gap-1.5 border border-[#2d2d2a] px-3 py-1.5 text-[13px] text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-accent-crimson)] hover:text-[var(--color-accent-crimson)] cursor-pointer'
+    'inline-flex items-center gap-1.5 border border-[var(--color-line)] px-3 py-1.5 text-[13px] text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-accent-crimson)] hover:text-[var(--color-accent-crimson)] cursor-pointer'
 
   return (
-    <div className="mt-8 flex items-center gap-3 border border-[#2d2d2a] bg-[#ffffff]/[0.03] p-4">
+    <div className="mt-8 flex items-center gap-3 border border-[var(--color-line)] bg-[#ffffff]/[0.03] p-4">
       <span className="text-[13px] uppercase tracking-wide text-[var(--color-text-secondary)]">
         Spread the fear
       </span>

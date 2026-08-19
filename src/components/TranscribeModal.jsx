@@ -211,7 +211,7 @@ export default function TranscribeModal({ onTranscribed, onClose }) {
                 <button
                   type="button"
                   onClick={stopRec}
-                  className="w-full border border-[#2d2d2a] px-5 py-3 font-mono text-xs uppercase tracking-wider text-[var(--color-text-primary)] transition-colors hover:border-white cursor-pointer"
+                  className="w-full border border-[var(--color-line)] px-5 py-3 font-mono text-xs uppercase tracking-wider text-[var(--color-text-primary)] transition-colors hover:border-white cursor-pointer"
                 >
                   ■ Stop &amp; review
                 </button>
@@ -235,7 +235,7 @@ export default function TranscribeModal({ onTranscribed, onClose }) {
               value={text}
               onChange={(e) => setText(e.target.value)}
               rows={6}
-              className="w-full resize-y border border-[#2d2d2a] bg-[var(--color-bg-primary)] p-3 font-serif text-sm text-[var(--color-text-primary)] focus:border-[var(--color-accent-crimson)] focus:outline-none"
+              className="w-full resize-y border border-[var(--color-line)] bg-[var(--color-bg-primary)] p-3 font-serif text-sm text-[var(--color-text-primary)] focus:border-[var(--color-accent-crimson)] focus:outline-none"
             />
             <p className="mb-4 mt-1 font-mono text-xs text-[var(--color-text-secondary)]">
               ~{wordCount(text)} {wordCount(text) === 1 ? 'word' : 'words'} transcribed
@@ -250,7 +250,7 @@ export default function TranscribeModal({ onTranscribed, onClose }) {
             <button
               type="button"
               onClick={reset}
-              className="mt-2 w-full border border-[#2d2d2a] px-5 py-3 font-mono text-xs uppercase tracking-wider text-[var(--color-text-primary)] transition-colors hover:border-white cursor-pointer"
+              className="mt-2 w-full border border-[var(--color-line)] px-5 py-3 font-mono text-xs uppercase tracking-wider text-[var(--color-text-primary)] transition-colors hover:border-white cursor-pointer"
             >
               {source === 'upload' ? 'Choose another file' : 'Re-record'}
             </button>

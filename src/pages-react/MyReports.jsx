@@ -31,21 +31,21 @@ function MyReports() {
 
   return (
     <div className="mt-8 max-w-2xl mx-auto">
-      <div className="border-b border-[#2d2d2a] pb-6 mb-8">
+      <div className="border-b border-[var(--color-line)] pb-6 mb-8">
         <span className="block font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-text-secondary)] mb-2">Transparency</span>
         <h2 className="text-3xl font-serif font-black">My <em className="italic text-[var(--color-accent-crimson)] font-serif">reports</em></h2>
         <p className="text-xs text-[var(--color-text-secondary)] font-serif mt-1">Track the status of content you have flagged for review.</p>
       </div>
 
       {reports.length === 0 ? (
-        <p className="font-serif italic text-xs text-[var(--color-text-secondary)] py-12 border border-dashed border-[#2d2d2a] text-center">
+        <p className="font-serif italic text-xs text-[var(--color-text-secondary)] py-12 border border-dashed border-[var(--color-line)] text-center">
           You have not submitted any reports.
         </p>
       ) : (
         <div className="flex flex-col gap-6">
           {reports.map(r => (
             <div key={r.id} className="vintage-card flex flex-col gap-3 font-mono text-xs">
-              <div className="flex justify-between items-start border-b border-[#2d2d2a] pb-3 text-xs text-[var(--color-text-secondary)]">
+              <div className="flex justify-between items-start border-b border-[var(--color-line)] pb-3 text-xs text-[var(--color-text-secondary)]">
                 <strong className="text-[var(--color-text-primary)]">{r.target_type.toUpperCase()} - {r.category}</strong>
                 <span>{new Date(r.created_at).toLocaleString()}</span>
               </div>
@@ -54,7 +54,7 @@ function MyReports() {
                 <span className={r.status === 'open' ? 'text-blue-500 font-bold' : (r.status === 'actioned' ? 'text-[var(--color-accent-crimson)] font-bold' : 'text-[var(--color-text-secondary)]')}>{r.status.toUpperCase()}</span>
               </p>
               {r.status !== 'open' && r.resolution && (
-                <div className="text-[var(--color-text-secondary)] italic border-l border-[#2d2d2a] pl-3 py-1 mt-2">
+                <div className="text-[var(--color-text-secondary)] italic border-l border-[var(--color-line)] pl-3 py-1 mt-2">
                   <span className="block font-bold text-xs uppercase text-[var(--color-text-primary)] mb-1 not-italic">Moderator Note</span>
                   {r.resolution}
                 </div>

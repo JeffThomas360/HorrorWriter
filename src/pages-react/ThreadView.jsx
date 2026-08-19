@@ -165,7 +165,7 @@ function ThreadView({ id }) {
     <div className="vintage-card text-center py-12 border-red-950 mt-8 max-w-2xl mx-auto">
       <p className="font-mono text-xs uppercase tracking-widest text-[var(--color-accent-crimson)] mb-4">Error</p>
       <p className="font-serif italic text-sm text-[var(--color-text-secondary)] mb-6">{error}</p>
-      <a href="/forum" className="border border-[#2d2d2a] hover:border-white font-mono text-xs uppercase px-4 py-2 transition-colors">Back to the Crypt</a>
+      <a href="/forum" className="border border-[var(--color-line)] hover:border-white font-mono text-xs uppercase px-4 py-2 transition-colors">Back to the Crypt</a>
     </div>
   )
 
@@ -178,7 +178,7 @@ function ThreadView({ id }) {
         ← Back to {thread?.categories?.name?.split('·')[0].trim() || 'The Crypt'}
       </a>
 
-      <div className="border-b border-[#2d2d2a] pb-6 mb-8 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+      <div className="border-b border-[var(--color-line)] pb-6 mb-8 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
           <h1 className="title text-2xl md:text-3xl font-serif font-black text-[var(--color-text-primary)] leading-tight mb-2">
             {thread?.title}
@@ -191,7 +191,7 @@ function ThreadView({ id }) {
         <div className="flex items-center gap-3 text-xs font-mono">
           <button 
             onClick={() => setReportTarget({ type: 'thread', id: thread?.id })} 
-            className="text-[var(--color-text-secondary)] hover:text-[var(--color-accent-crimson)] border border-[#2d2d2a] px-2 py-0.5 hover:border-red-950 cursor-pointer"
+            className="text-[var(--color-text-secondary)] hover:text-[var(--color-accent-crimson)] border border-[var(--color-line)] px-2 py-0.5 hover:border-red-950 cursor-pointer"
           >
             Report
           </button>
@@ -204,9 +204,9 @@ function ThreadView({ id }) {
           const handle = p.profiles?.handle || 'unknown'
           return (
             <article key={p.id} className="vintage-card flex flex-col gap-4">
-              <div className="flex justify-between items-start border-b border-[#2d2d2a] pb-3">
+              <div className="flex justify-between items-start border-b border-[var(--color-line)] pb-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[var(--color-bg-primary)] border border-[#2d2d2a] flex items-center justify-center font-mono text-xs text-[var(--color-text-secondary)]">
+                  <div className="w-8 h-8 rounded-full bg-[var(--color-bg-primary)] border border-[var(--color-line)] flex items-center justify-center font-mono text-xs text-[var(--color-text-secondary)]">
                     {initials(handle)}
                   </div>
                   <div className="flex flex-col">
@@ -236,7 +236,7 @@ function ThreadView({ id }) {
         {hasNextPage && (
           <div className="text-center mt-6">
             <button
-              className="border border-[#2d2d2a] hover:border-white text-[var(--color-text-primary)] font-mono text-xs uppercase px-4 py-2 transition-colors cursor-pointer"
+              className="border border-[var(--color-line)] hover:border-white text-[var(--color-text-primary)] font-mono text-xs uppercase px-4 py-2 transition-colors cursor-pointer"
               onClick={fetchNextPage}
               disabled={isFetchingNextPage}
             >
@@ -247,7 +247,7 @@ function ThreadView({ id }) {
       </div>
 
       {session ? (
-        <div className="mt-12 border-t border-[#2d2d2a] pt-8">
+        <div className="mt-12 border-t border-[var(--color-line)] pt-8">
           <h3 className="font-serif font-bold text-sm text-[var(--color-text-primary)] mb-4 uppercase tracking-wide">
             Leave a reply
           </h3>
@@ -277,7 +277,7 @@ function ThreadView({ id }) {
         <div className="vintage-card text-center py-8 mt-12">
           <p className="font-serif italic text-xs text-[var(--color-text-secondary)] mb-4">You must enter the void to reply.</p>
           <button 
-            className="font-mono text-xs uppercase border border-[#2d2d2a] hover:border-white px-4 py-2 transition-colors cursor-pointer"
+            className="font-mono text-xs uppercase border border-[var(--color-line)] hover:border-white px-4 py-2 transition-colors cursor-pointer"
             onClick={() => window.dispatchEvent(new CustomEvent('open-signin'))}
           >
             Sign In to Reply

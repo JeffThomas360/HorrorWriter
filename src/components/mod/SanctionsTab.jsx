@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../../supabaseClient'
 import { toast } from 'sonner'
 
-const BTN = 'border border-[#2d2d2a] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-text-primary)] transition-colors hover:border-white cursor-pointer disabled:opacity-50'
+const BTN = 'border border-[var(--color-line)] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-text-primary)] transition-colors hover:border-white cursor-pointer disabled:opacity-50'
 const BTN_BLOOD = 'bg-[var(--color-accent-crimson)] px-3 py-2 font-mono text-xs uppercase tracking-wider text-white transition-colors hover:bg-red-700 cursor-pointer'
 
 export default function SanctionsTab() {
@@ -60,7 +60,7 @@ export default function SanctionsTab() {
           value={handle}
           onChange={e => setHandle(e.target.value)}
           placeholder="Enter exact handle (e.g., spooky_writer)"
-          className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
+          className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
           style={{ flex: 1 }}
         />
         <button type="submit" className={BTN} disabled={loading}>{loading ? 'Searching...' : 'Search'}</button>

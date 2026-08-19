@@ -50,7 +50,7 @@ function NotificationsBell() {
   return (
     <div className="relative" ref={ref}>
       <button
-        className="relative text-xs font-mono border border-[#2d2d2a] px-2.5 py-1.5 hover:border-[var(--color-accent-crimson)] hover:text-[var(--color-accent-crimson)] cursor-pointer"
+        className="relative text-xs font-mono border border-[var(--color-line)] px-2.5 py-1.5 hover:border-[var(--color-accent-crimson)] hover:text-[var(--color-accent-crimson)] cursor-pointer"
         aria-label={unreadCount > 0 ? `Notifications (${unreadCount} unread)` : 'Notifications'}
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
@@ -64,8 +64,8 @@ function NotificationsBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-[var(--color-bg-surface)] border border-[#2d2d2a] shadow-lg z-50">
-          <div className="flex items-center justify-between px-3 py-2 border-b border-[#2d2d2a]">
+        <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-[var(--color-bg-surface)] border border-[var(--color-line)] shadow-lg z-50">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--color-line)]">
             <span className="text-xs font-mono uppercase tracking-wider text-text-secondary">Notifications</span>
             {unreadCount > 0 && (
               <button
@@ -84,7 +84,7 @@ function NotificationsBell() {
               {notifications.map((n) => (
                 <li
                   key={n.id}
-                  className={`px-3 py-2.5 border-b border-[#2d2d2a] last:border-b-0 text-sm ${
+                  className={`px-3 py-2.5 border-b border-[var(--color-line)] last:border-b-0 text-sm ${
                     n.read_at ? 'opacity-60' : 'cursor-pointer hover:bg-black/20'
                   }`}
                   onClick={() => !n.read_at && markRead.mutate(n.id)}

@@ -4,7 +4,7 @@ import remarkGfm from 'remark-gfm'
 import { parseFileToMarkdown } from '../lib/fileParser'
 
 const TOOL_BTN =
-  'relative flex h-8 w-8 items-center justify-center border border-transparent text-sm text-[var(--color-text-secondary)] transition-colors hover:border-[#2d2d2a] hover:text-[var(--color-text-primary)] disabled:pointer-events-none disabled:opacity-30'
+  'relative flex h-8 w-8 items-center justify-center border border-transparent text-sm text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-line)] hover:text-[var(--color-text-primary)] disabled:pointer-events-none disabled:opacity-30'
 
 function ToolButton({ label, onClick, disabled, children, className = '' }) {
   return (
@@ -20,7 +20,7 @@ function ToolButton({ label, onClick, disabled, children, className = '' }) {
       </button>
       <span
         role="tooltip"
-        className="pointer-events-none absolute -top-8 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap border border-[#2d2d2a] bg-[var(--color-bg-surface)] px-2 py-1 font-mono text-[10px] uppercase tracking-wide text-[var(--color-text-secondary)] opacity-0 transition-opacity duration-100 group-hover/tip:opacity-100"
+        className="pointer-events-none absolute -top-8 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap border border-[var(--color-line)] bg-[var(--color-bg-surface)] px-2 py-1 font-mono text-[10px] uppercase tracking-wide text-[var(--color-text-secondary)] opacity-0 transition-opacity duration-100 group-hover/tip:opacity-100"
       >
         {label}
       </span>
@@ -80,9 +80,9 @@ export default function MarkdownEditor({
 
   return (
     <div
-      className={`md-editor w-full border border-[#2d2d2a] bg-[var(--color-bg-primary)] transition-colors focus-within:border-[var(--color-accent-crimson)] ${disabled ? 'opacity-60' : ''}`}
+      className={`md-editor w-full border border-[var(--color-line)] bg-[var(--color-bg-primary)] transition-colors focus-within:border-[var(--color-accent-crimson)] ${disabled ? 'opacity-60' : ''}`}
     >
-      <div className="md-toolbar flex flex-wrap items-center justify-between gap-2 border-b border-[#2d2d2a] bg-[var(--color-bg-surface)] px-2 py-1.5">
+      <div className="md-toolbar flex flex-wrap items-center justify-between gap-2 border-b border-[var(--color-line)] bg-[var(--color-bg-surface)] px-2 py-1.5">
         <div className="md-tools flex items-center gap-0.5">
           <ToolButton label="Bold" onClick={() => insertText('**', '**')} disabled={disabled || isPreview}>
             <span className="font-bold">B</span>
@@ -100,7 +100,7 @@ export default function MarkdownEditor({
             <span aria-hidden="true">🔗</span>
           </ToolButton>
 
-          <div className="md-divider mx-1 h-5 w-px bg-[#2d2d2a]" />
+          <div className="md-divider mx-1 h-5 w-px bg-[var(--color-line)]" />
 
           <input
             type="file"
@@ -120,7 +120,7 @@ export default function MarkdownEditor({
           </ToolButton>
         </div>
 
-        <div className="md-modes flex border border-[#2d2d2a]">
+        <div className="md-modes flex border border-[var(--color-line)]">
           <button
             type="button"
             onClick={() => setIsPreview(false)}
@@ -137,7 +137,7 @@ export default function MarkdownEditor({
             type="button"
             onClick={() => setIsPreview(true)}
             aria-pressed={isPreview}
-            className={`border-l border-[#2d2d2a] px-3 py-1 font-mono text-[11px] uppercase tracking-wide transition-colors ${
+            className={`border-l border-[var(--color-line)] px-3 py-1 font-mono text-[11px] uppercase tracking-wide transition-colors ${
               isPreview
                 ? 'bg-[var(--color-accent-crimson)] text-white'
                 : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
@@ -149,7 +149,7 @@ export default function MarkdownEditor({
       </div>
 
       {uploadError && (
-        <div className="md-error border-b border-[#2d2d2a] bg-[var(--color-accent-crimson)]/10 px-3 py-2 font-mono text-xs text-[var(--color-accent-crimson)]">
+        <div className="md-error border-b border-[var(--color-line)] bg-[var(--color-accent-crimson)]/10 px-3 py-2 font-mono text-xs text-[var(--color-accent-crimson)]">
           {uploadError}
         </div>
       )}

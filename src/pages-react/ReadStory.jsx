@@ -147,7 +147,7 @@ function ReadStory({ id }) {
     <div className="vintage-card text-center py-12 border-red-950">
       <p className="font-mono text-xs uppercase tracking-widest text-[var(--color-accent-crimson)] mb-4">Not found</p>
       <p className="font-serif italic text-sm text-[var(--color-text-secondary)] mb-6">{error}</p>
-      <a href="/library" className="border border-[#2d2d2a] hover:border-white font-mono text-xs uppercase px-4 py-2 transition-colors">Back to Library</a>
+      <a href="/library" className="border border-[var(--color-line)] hover:border-white font-mono text-xs uppercase px-4 py-2 transition-colors">Back to Library</a>
     </div>
   )
 
@@ -180,12 +180,12 @@ function ReadStory({ id }) {
           <QuoteSharer title={book?.title} />
 
           {/* Title & Author Info */}
-          <div className="border-b border-[#2d2d2a] pb-8 mb-12 text-center">
+          <div className="border-b border-[var(--color-line)] pb-8 mb-12 text-center">
         <div className="flex justify-center items-center gap-4 text-xs font-mono text-[var(--color-text-secondary)] mb-4">
           <span>A story by @{book?.profiles?.handle || 'unknown'}</span>
           <button 
             onClick={() => setReportTarget({ type: 'story', id: book.id })} 
-            className="text-xs uppercase border border-[#2d2d2a] hover:border-red-950 px-2 py-0.5 text-[var(--color-text-secondary)] hover:text-[var(--color-accent-crimson)] cursor-pointer"
+            className="text-xs uppercase border border-[var(--color-line)] hover:border-red-950 px-2 py-0.5 text-[var(--color-text-secondary)] hover:text-[var(--color-accent-crimson)] cursor-pointer"
           >
             Report
           </button>
@@ -200,7 +200,7 @@ function ReadStory({ id }) {
           </p>
         )}
         {rtLabel && (
-          <span className="font-mono text-xs uppercase border border-[#2d2d2a] text-[var(--color-text-secondary)] px-2.5 py-1">
+          <span className="font-mono text-xs uppercase border border-[var(--color-line)] text-[var(--color-text-secondary)] px-2.5 py-1">
             {rtLabel}
           </span>
         )}
@@ -212,12 +212,12 @@ function ReadStory({ id }) {
       </article>
 
       {/* Share Bar */}
-      <div className="max-w-2xl mx-auto border-t border-[#2d2d2a] pt-8">
+      <div className="max-w-2xl mx-auto border-t border-[var(--color-line)] pt-8">
         <ShareBar title={book?.title} />
       </div>
 
       {/* Critiques Section */}
-      <div className="max-w-2xl mx-auto border-t border-[#2d2d2a] pt-12 mt-16">
+      <div className="max-w-2xl mx-auto border-t border-[var(--color-line)] pt-12 mt-16">
         <h3 className="font-serif font-black text-xl text-[var(--color-text-primary)] mb-8 uppercase tracking-wide">
           Critiques &amp; Responses <span className="font-mono text-sm text-[var(--color-text-secondary)] font-normal ml-1">({comments.length})</span>
         </h3>
@@ -225,7 +225,7 @@ function ReadStory({ id }) {
         {commentsLoading ? (
           <p className="font-mono text-xs uppercase text-[var(--color-text-secondary)] animate-pulse">Summoning critiques…</p>
         ) : comments.length === 0 ? (
-          <p className="font-serif italic text-xs text-[var(--color-text-secondary)] py-8 border border-dashed border-[#2d2d2a] text-center">
+          <p className="font-serif italic text-xs text-[var(--color-text-secondary)] py-8 border border-dashed border-[var(--color-line)] text-center">
             The void is quiet. Leave the first critique below.
           </p>
         ) : (
@@ -235,9 +235,9 @@ function ReadStory({ id }) {
               const avColorIndex = (handle.length % 6) + 1
               return (
                 <article key={c.id} className="vintage-card flex flex-col gap-4">
-                  <div className="flex justify-between items-start border-b border-[#2d2d2a] pb-3">
+                  <div className="flex justify-between items-start border-b border-[var(--color-line)] pb-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-[var(--color-bg-primary)] border border-[#2d2d2a] flex items-center justify-center font-mono text-xs text-[var(--color-text-secondary)]">
+                      <div className="w-8 h-8 rounded-full bg-[var(--color-bg-primary)] border border-[var(--color-line)] flex items-center justify-center font-mono text-xs text-[var(--color-text-secondary)]">
                         {initials(handle)}
                       </div>
                       <div className="flex flex-col">
@@ -266,7 +266,7 @@ function ReadStory({ id }) {
 
         {/* Comment Form */}
         {session ? (
-          <form onSubmit={handleCommentSubmit} className="mt-8 border-t border-[#2d2d2a] pt-8">
+          <form onSubmit={handleCommentSubmit} className="mt-8 border-t border-[var(--color-line)] pt-8">
             <h4 className="font-serif font-bold text-sm text-[var(--color-text-primary)] mb-4 uppercase tracking-wide">
               Leave a critique
             </h4>
@@ -294,7 +294,7 @@ function ReadStory({ id }) {
           <div className="vintage-card text-center py-8">
             <p className="font-serif italic text-xs text-[var(--color-text-secondary)] mb-4">You must enter the void to critique.</p>
             <button 
-              className="font-mono text-xs uppercase border border-[#2d2d2a] hover:border-white px-4 py-2 transition-colors cursor-pointer"
+              className="font-mono text-xs uppercase border border-[var(--color-line)] hover:border-white px-4 py-2 transition-colors cursor-pointer"
               onClick={() => window.dispatchEvent(new CustomEvent('open-signin'))}
             >
               Sign In to Critique
@@ -303,7 +303,7 @@ function ReadStory({ id }) {
         )}
       </div>
 
-      <div className="text-center border-t border-[#2d2d2a] pt-8 mt-16 max-w-2xl mx-auto">
+      <div className="text-center border-t border-[var(--color-line)] pt-8 mt-16 max-w-2xl mx-auto">
         <a href="/library" className="font-mono text-xs hover:text-[var(--color-accent-crimson)] transition-colors">← Return to the Library</a>
       </div>
 

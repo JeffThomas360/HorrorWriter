@@ -5,8 +5,8 @@ import { useModBadges } from '../../lib/useModBadges'
 const ROLES = ['sentinel', 'moderator', 'warden']
 const SCOPES = ['all', 'forum', 'library']
 
-const FIELD = 'bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none'
-const GHOST_BTN = 'border border-[#2d2d2a] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-text-primary)] transition-colors hover:border-white cursor-pointer disabled:opacity-50'
+const FIELD = 'bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none'
+const GHOST_BTN = 'border border-[var(--color-line)] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-text-primary)] transition-colors hover:border-white cursor-pointer disabled:opacity-50'
 
 export default function RegistryTab({ profile }) {
   const [q, setQ] = useState('')
@@ -55,7 +55,7 @@ function RegistryRow({ user, self, badges, onApply, busy }) {
   const badge = badges?.find((b) => b.role === user.mod_role)
   const scoped = role === 'sentinel' || role === 'moderator'
   return (
-    <li className="mod-user-row flex items-center justify-between gap-3 border-b border-[#2d2d2a] py-3">
+    <li className="mod-user-row flex items-center justify-between gap-3 border-b border-[var(--color-line)] py-3">
       <span className="font-mono text-sm text-[var(--color-text-primary)]">
         @{user.handle} {badge && <span title={badge.label}>{badge.emoji}</span>}
       </span>

@@ -15,8 +15,8 @@ function wordCount(text) {
 }
 
 const COVER_OPTIONS = [
-  { value: 'blood', label: 'Blood', color: '#991B1B' },
-  { value: 'cyan',  label: 'Phantom', color: '#312e81' },
+  { value: 'blood', label: 'Blood', color: 'var(--color-blood)' },
+  { value: 'cyan',  label: 'Phantom', color: 'var(--color-upside)' },
   { value: 'bone',  label: 'Bone',  color: '#E5E1D8' },
 ]
 
@@ -119,7 +119,7 @@ function PublishStory() {
             onChange={(e) => setTitle(e.target.value)}
             required
             placeholder="The Tell-Tale Heart"
-            className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
+            className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
           />
         </div>
 
@@ -130,7 +130,7 @@ function PublishStory() {
             onChange={(e) => setLede(e.target.value)}
             required
             placeholder="A short hook to draw readers in…"
-            className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
+            className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
           />
         </div>
 
@@ -140,7 +140,7 @@ function PublishStory() {
             {COVER_OPTIONS.map(opt => (
               <label
                 key={opt.value}
-                className={`flex items-center gap-3 cursor-pointer px-4 py-2 border transition-all ${cover === opt.value ? 'border-white bg-[#ffffff]/5' : 'border-[#2d2d2a]'}`}
+                className={`flex items-center gap-3 cursor-pointer px-4 py-2 border transition-all ${cover === opt.value ? 'border-white bg-[#ffffff]/5' : 'border-[var(--color-line)]'}`}
               >
                 <input
                   type="radio"
@@ -165,7 +165,7 @@ function PublishStory() {
           <select
             value={seriesId}
             onChange={(e) => setSeriesId(e.target.value)}
-            className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[#2d2d2a] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
+            className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
           >
             <option value="">None</option>
             {seriesOptions.map(s => (
@@ -198,7 +198,7 @@ function PublishStory() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4 mt-4 border-t border-[#2d2d2a] pt-6">
+        <div className="flex items-center gap-4 mt-4 border-t border-[var(--color-line)] pt-6">
           <button 
             type="submit" 
             className="bg-[var(--color-accent-crimson)] text-white font-mono text-xs uppercase px-5 py-3 hover:bg-red-700 transition-colors cursor-pointer"
@@ -208,7 +208,7 @@ function PublishStory() {
           </button>
           <button 
             type="button" 
-            className="border border-[#2d2d2a] hover:border-white text-[var(--color-text-primary)] font-mono text-xs uppercase px-4 py-3 transition-colors cursor-pointer"
+            className="border border-[var(--color-line)] hover:border-white text-[var(--color-text-primary)] font-mono text-xs uppercase px-4 py-3 transition-colors cursor-pointer"
             onClick={() => window.location.replace('/library')} 
             disabled={isSubmitting}
           >
