@@ -10,7 +10,7 @@ cross-signal storm detector, and appeals — before the site has its first real 
 (`mod_status`, `mod_can()`, `content_visible()`, `reports`/`mod_actions`/`notifications`) rather
 than introducing parallel systems. Two new Supabase Edge Functions (Deno, raw `fetch`, matching the
 existing `urgent-report-email` pattern) call OpenAI's free Moderation endpoint, Claude Haiku 4.5,
-and Twilio. React components follow existing conventions: Tailwind `var(--color-*)` tokens,
+and Pushover. React components follow existing conventions: Tailwind `var(--color-*)` tokens,
 `sonner` toasts, TanStack Query mutations, `src/lib/*.js` as the client-side RPC boundary.
 
 **Tech Stack:** Astro 7 + React islands, Supabase (Postgres + Edge Functions), TanStack Query,
@@ -25,9 +25,10 @@ Tailwind v4, vitest.
   computation — the underlying row is never touched.
 - **Solo maintainer, low-maintenance.** No new always-on infrastructure (no cron workers, no queues)
   unless a task says otherwise. Prefer triggers/RPCs invoked by existing insert paths over polling.
-- **Free/cheap tiers only, except where explicitly named.** SMS (Twilio, Task 10) is a deliberate,
-  named exception approved by Jeff — every other new dependency (OpenAI Moderation endpoint,
-  Claude Haiku 4.5) stays free or near-free (~$0.0005/call).
+- **Free/cheap tiers only, except where explicitly named.** The mobile push alert (Pushover, Task
+  10) is a deliberate, named exception approved by Jeff — a $5 one-time per-platform cost, not a
+  subscription. Every other new dependency (OpenAI Moderation endpoint, Claude Haiku 4.5) stays
+  free or near-free (~$0.0005/call).
 - **`SECURITY DEFINER` functions set `search_path` explicitly** (`SET search_path = public` or
   `SET search_path = ''` with fully-qualified names), matching every existing function in
   `00000000000000_baseline.sql`. Never omit this — it's the standard Postgres search-path-injection
@@ -42,6 +43,12 @@ Tailwind v4, vitest.
 ---
 
 ## Known deviations from the spec, decided during planning
+
+**PR5's alert channel is Pushover, not Twilio/SMS.** The spec named Twilio/SMS as an illustrative
+example of the deliberate paid-dependency exception, not a requirement. Jeff chose Pushover instead
+during planning: a $5 one-time per-platform cost rather than per-message SMS billing, with a
+simpler single-POST API (Task 10). Functionally equivalent — immediate mobile alert, bypasses quiet
+hours at high priority — just a different vendor and pricing model.
 
 **Vote-velocity is deferred from PR5.** The spec named "reports + replies + vote-velocity" as PR5's
 three input signals. There is no votes/critique-score table anywhere in this schema — `book_comments`
@@ -1383,7 +1390,7 @@ git add supabase/migrations/20260819030000_storm_detection.sql
 git commit -m "feat(safety): add cross-signal storm detection (reports + replies)"
 ```
 
-### Task 10: `send-storm-alert` Edge Function — Email + SMS
+### Task 10: `send-storm-alert` Edge Function — Email + mobile push
 
 **Files:**
 - Create: `supabase/functions/send-storm-alert/index.ts`
@@ -1392,7 +1399,7 @@ git commit -m "feat(safety): add cross-signal storm detection (reports + replies
 
 **Interfaces:**
 - Consumes: `RESEND_API_KEY` (already provisioned, reused from `urgent-report-email`),
-  `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`, `JEFF_PHONE_NUMBER` (new secrets)
+  `PUSHOVER_APP_TOKEN`, `PUSHOVER_USER_KEY` (new secrets)
 
 **On the polling approach:** rather than a cron worker (ruled out by the low-maintenance
 constraint), this task has `check_for_storm()` call the edge function directly via `pg_net` — the
@@ -1509,27 +1516,26 @@ serve(async (req) => {
       console.error('[send-storm-alert] RESEND_API_KEY not set — email alert skipped')
     }
 
-    const twilioSid = Deno.env.get('TWILIO_ACCOUNT_SID')
-    const twilioToken = Deno.env.get('TWILIO_AUTH_TOKEN')
-    const twilioFrom = Deno.env.get('TWILIO_FROM_NUMBER')
-    const jeffPhone = Deno.env.get('JEFF_PHONE_NUMBER')
-    if (twilioSid && twilioToken && twilioFrom && jeffPhone) {
+    const pushoverToken = Deno.env.get('PUSHOVER_APP_TOKEN')
+    const pushoverUser = Deno.env.get('PUSHOVER_USER_KEY')
+    if (pushoverToken && pushoverUser) {
       const body = new URLSearchParams({
-        To: jeffPhone,
-        From: twilioFrom,
-        Body: `${summary}. Review: https://horrorwriter.org/moderation`,
+        token: pushoverToken,
+        user: pushoverUser,
+        title: '⚠️ Storm detected',
+        message: `${summary}. Review: https://horrorwriter.org/moderation`,
+        priority: '1', // high priority — bypasses quiet hours, still requires acknowledgement of receipt on device
+        url: 'https://horrorwriter.org/moderation',
+        url_title: 'Open Moderation Terminal',
       })
-      const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`, {
+      const res = await fetch('https://api.pushover.net/1/messages.json', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': `Basic ${btoa(`${twilioSid}:${twilioToken}`)}`,
-        },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body,
       })
-      if (!res.ok) console.error('[send-storm-alert] Twilio failed', await res.text())
+      if (!res.ok) console.error('[send-storm-alert] Pushover failed', await res.text())
     } else {
-      console.error('[send-storm-alert] Twilio secrets not fully set — SMS alert skipped')
+      console.error('[send-storm-alert] Pushover secrets not fully set — push alert skipped')
     }
 
     return new Response(JSON.stringify({ sent: true }), { headers: corsHeaders })
@@ -1543,15 +1549,16 @@ serve(async (req) => {
 - [ ] **Step 3: Provision secrets**
 
 ```bash
-npx supabase secrets set TWILIO_ACCOUNT_SID=<jeff's Twilio SID>
-npx supabase secrets set TWILIO_AUTH_TOKEN=<jeff's Twilio auth token>
-npx supabase secrets set TWILIO_FROM_NUMBER=<Twilio-provisioned number>
-npx supabase secrets set JEFF_PHONE_NUMBER=<Jeff's own phone number>
+npx supabase secrets set PUSHOVER_APP_TOKEN=<jeff's Pushover application token>
+npx supabase secrets set PUSHOVER_USER_KEY=<jeff's Pushover user key>
 ```
 
-Jeff needs a Twilio account and a provisioned sending number before this step — this is the "new
-paid third-party dependency" named explicitly in the spec, not a blocker to writing this task, but
-a real prerequisite before it can run in production.
+Jeff needs a Pushover account, the Pushover app installed on his phone ($5 one-time per platform),
+and an application registered at pushover.net/apps/build (yields `PUSHOVER_APP_TOKEN`) before this
+step — Pushover is the "new paid third-party dependency" named in the spec (the spec's original
+example was Twilio; Jeff chose Pushover instead during planning — see this plan's "Known
+deviations" section), not a blocker to writing this task, but a real prerequisite before it can run
+in production.
 
 - [ ] **Step 4: Deploy and apply**
 
@@ -1563,8 +1570,9 @@ npx supabase db push
 - [ ] **Step 5: Manual end-to-end verification**
 
 Trigger 8 reports against a test story within 15 minutes and confirm: a `storm_alerts` row appears,
-an email arrives, and an SMS arrives. Confirm a **second** batch of reports against the same target
-in the same 15-minute window does **not** send a second alert (the `v_already_alerted` guard).
+an email arrives, and a Pushover push notification arrives on Jeff's phone. Confirm a **second**
+batch of reports against the same target in the same 15-minute window does **not** send a second
+alert (the `v_already_alerted` guard).
 
 - [ ] **Step 6: Commit**
 
@@ -2232,7 +2240,7 @@ Two execution options:
 
 **1. Subagent-Driven (recommended)** — I dispatch a fresh subagent per task, review between tasks,
 fast iteration. Given this plan spans schema, edge functions, and UI across six PRs with real
-external dependencies (OpenAI, Anthropic, Twilio, Resend), this is the safer default — each task
+external dependencies (OpenAI, Anthropic, Pushover, Resend), this is the safer default — each task
 gets an independent review before the next one builds on it.
 
 **2. Inline Execution** — Execute tasks in this session using executing-plans, batch execution with
