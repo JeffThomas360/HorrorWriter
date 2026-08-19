@@ -3,6 +3,7 @@ import { supabase } from '../supabaseClient'
 import { useAuth } from '../components/AuthContext'
 import { useQuery } from '@tanstack/react-query'
 import { withProviders } from '../components/Providers'
+import VhsSleeveCard from '../components/VhsSleeveCard'
 
 const COVER_SVG = (
   <svg viewBox="0 0 260 320" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" className="w-full h-full text-white/20">
@@ -37,7 +38,7 @@ function Library() {
       
       let query = supabase
         .from('books')
-        .select('*, profiles(handle)')
+        .select('*, profiles(handle), series_books(sort_order, series(id, title))')
         .order('created_at', { ascending: false })
 
       if (feedMode === 'following' && session) {
@@ -132,47 +133,9 @@ function Library() {
       )}
 
       {!loading && !error && books.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {books.map((b) => (
-            <a key={b.id} href={`/library/read/${b.id}`} className="group flex flex-col hover:border-white transition-all">
-              {/* Cover Card */}
-              <div className="relative w-full aspect-[4/5] bg-[#1a0a14] border border-[var(--color-line)] flex items-center justify-center p-8 group-hover:border-[var(--color-accent-crimson)] transition-colors overflow-hidden">
-                {b.badge && (
-                  <div className="absolute top-4 right-4 font-mono text-xs uppercase tracking-wider bg-[var(--color-accent-crimson)] text-white px-1.5 py-0.5">
-                    {b.badge}
-                  </div>
-                )}
-                {/* Book Graphic */}
-                <div className="absolute inset-0 p-6 flex flex-col justify-between z-10">
-                  <div className="font-serif font-black text-lg text-[var(--color-text-primary)] group-hover:text-[var(--color-accent-crimson)] transition-colors line-clamp-3 leading-tight uppercase tracking-tight">
-                    {b.title}
-                  </div>
-                  <div className="font-mono text-xs text-[var(--color-text-secondary)] tracking-widest uppercase">
-                    Horror Writer Series
-                  </div>
-                </div>
-                {COVER_SVG}
-              </div>
-
-              {/* Book Metadata */}
-              <div className="mt-4 flex flex-col gap-1">
-                <span className="font-mono text-xs text-[var(--color-text-primary)] font-bold">
-                  @{b.profiles?.handle || 'unknown'}
-                </span>
-                <h3 className="font-serif font-black text-lg text-[var(--color-text-primary)] leading-snug line-clamp-2">
-                  {b.title}
-                </h3>
-                <p className="font-serif italic text-xs text-[var(--color-text-secondary)] line-clamp-2 leading-relaxed mt-1">
-                  {b.lede}
-                </p>
-                <div className="flex justify-between items-center text-xs font-mono text-[var(--color-text-secondary)] border-t border-[var(--color-line)] mt-3 pt-2">
-                  <span>{postedAgo(b.created_at)}</span>
-                  <span className="uppercase">
-                    {b.comments_count || 0} {b.comments_count === 1 ? 'critique' : 'critiques'}
-                  </span>
-                </div>
-              </div>
-            </a>
+            <VhsSleeveCard key={b.id} story={b} />
           ))}
         </div>
       )}
