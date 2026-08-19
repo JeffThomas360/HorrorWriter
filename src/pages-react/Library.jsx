@@ -4,6 +4,7 @@ import { useAuth } from '../components/AuthContext'
 import { useQuery } from '@tanstack/react-query'
 import { withProviders } from '../components/Providers'
 import VhsSleeveCard from '../components/VhsSleeveCard'
+import { filterOneExamplePerGroup } from '../lib/storyHelpers'
 
 const COVER_SVG = (
   <svg viewBox="0 0 260 320" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" className="w-full h-full text-white/20">
@@ -55,7 +56,7 @@ function Library() {
 
       const { data, error } = await query
       if (error) throw error
-      return data || []
+      return filterOneExamplePerGroup(data || [])
     }
   })
 
