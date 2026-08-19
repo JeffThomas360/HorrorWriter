@@ -90,6 +90,15 @@ export default function MarkdownEditor({
           <ToolButton label="Italic" onClick={() => insertText('*', '*')} disabled={disabled || isPreview}>
             <span className="italic">I</span>
           </ToolButton>
+          <ToolButton label="Heading" onClick={() => insertText('### ')} disabled={disabled || isPreview}>
+            <span className="font-mono font-bold text-xs">H</span>
+          </ToolButton>
+          <ToolButton label="Strikethrough" onClick={() => insertText('~~', '~~')} disabled={disabled || isPreview}>
+            <span className="line-through">S</span>
+          </ToolButton>
+          <ToolButton label="List" onClick={() => insertText('- ')} disabled={disabled || isPreview}>
+            <span className="font-mono text-xs">•</span>
+          </ToolButton>
           <ToolButton label="Code" onClick={() => insertText('`', '`')} disabled={disabled || isPreview}>
             <span className="font-mono text-xs">{'</>'}</span>
           </ToolButton>
