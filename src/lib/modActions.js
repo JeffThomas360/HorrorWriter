@@ -99,3 +99,31 @@ export async function resolveStorm(stormId, confirmed, note) {
   })
   if (error) throw new Error(error.message)
 }
+
+export async function submitAppeal({ modActionId, targetType, explanation }) {
+  if (!supabase) throw new Error('Supabase not configured')
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('You must be signed in to submit an appeal.')
+
+  const { error } = await supabase
+    .from('reports')
+    .insert([{
+      reporter_id: user.id,
+      target_type: 'appeal',
+      target_id: modActionId,
+      category: 'other',
+      details: explanation,
+      source: 'user',
+    }])
+  if (error) throw new Error(error.message)
+}
+
+export async function resolveAppeal(reportId, upheld, reason) {
+  if (!supabase) throw new Error('Supabase not configured')
+  const { error } = await supabase.rpc('resolve_appeal', {
+    p_report_id: reportId,
+    p_upheld: upheld,
+    p_reason: reason,
+  })
+  if (error) throw new Error(error.message)
+}

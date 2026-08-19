@@ -5,6 +5,7 @@ import { useAuth } from '../components/AuthContext'
 import ReportModal from '../components/ReportModal'
 import CommunityGuidelines from '../components/CommunityGuidelines'
 import BlockButton from '../components/BlockButton'
+import AppealButton from '../components/AppealButton'
 import { withProviders } from '../components/Providers'
 import InlineModControls from '../components/mod/InlineModControls'
 import MarkdownEditor from '../components/MarkdownEditor'
@@ -198,6 +199,9 @@ function ReadStory({ id }) {
           </button>
           {book && session?.user?.id !== book.author_id && (
             <BlockButton targetUserId={book.author_id} targetHandle={book?.profiles?.handle} />
+          )}
+          {book && session?.user?.id === book.author_id && book.mod_status !== 'live' && (
+            <AppealButton modActionId={book.id} targetType="story" />
           )}
           {book && <InlineModControls targetType="story" targetId={book.id} currentStatus={book.mod_status} authorId={book.author_id} />}
         </div>
