@@ -23,6 +23,7 @@ export default function VhsSleeveCard({ story }) {
 
   const handle = story.profiles?.handle || 'unknown'
   const critiqueCount = story.comments_count || 0
+  const isExample = Boolean(story.badge || story.is_example)
 
   return (
     <a
@@ -45,15 +46,22 @@ export default function VhsSleeveCard({ story }) {
       <div className="flex-1 flex flex-col justify-between p-4 bg-[var(--color-raised)] relative overflow-hidden">
         {/* Top Header Row */}
         <div>
-          {/* Corner Sticker */}
-          <div
-            className={`absolute top-3 right-3 font-mono text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 ${
-              isSeries
-                ? 'bg-[var(--color-upside)] text-[var(--color-void)]'
-                : 'bg-[var(--color-blood)] text-white'
-            }`}
-          >
-            {isSeries ? 'SERIES' : `${critiqueCount} CRITIQUES`}
+          {/* Corner Sticker Group */}
+          <div className="absolute top-3 right-3 flex flex-col items-end gap-1 z-10">
+            {isExample && (
+              <span className="font-mono text-[8px] font-bold uppercase tracking-widest bg-[var(--color-ember)] text-white px-1.5 py-0.5 shadow-sm">
+                {story.badge || 'EXAMPLE'}
+              </span>
+            )}
+            <span
+              className={`font-mono text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 ${
+                isSeries
+                  ? 'bg-[var(--color-upside)] text-[var(--color-void)]'
+                  : 'bg-[var(--color-blood)] text-white'
+              }`}
+            >
+              {isSeries ? 'SERIES' : `${critiqueCount} CRITIQUES`}
+            </span>
           </div>
 
           {/* Title */}

@@ -222,11 +222,18 @@ function ReadStory({ id }) {
             {book.lede}
           </p>
         )}
-        {rtLabel && (
-          <span className="font-mono text-xs uppercase border border-[var(--color-line)] text-[var(--color-text-secondary)] px-2.5 py-1">
-            {rtLabel}
-          </span>
-        )}
+        <div className="flex gap-2 justify-center items-center flex-wrap mt-4">
+          {(book?.badge || book?.is_example) && (
+            <span className="font-mono text-xs uppercase font-bold bg-[var(--color-ember)] text-white px-2.5 py-1 shadow-sm">
+              {book.badge || 'EXAMPLE STORY'}
+            </span>
+          )}
+          {rtLabel && (
+            <span className="font-mono text-xs uppercase border border-[var(--color-line)] text-[var(--color-text-secondary)] px-2.5 py-1">
+              {rtLabel}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Story Content Block (Restricted Line Width) */}
