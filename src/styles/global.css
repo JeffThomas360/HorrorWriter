@@ -138,3 +138,65 @@ a:hover {
   box-shadow: 0 0 12px rgba(200, 16, 46, 0.4);
 }
 
+/* VHS Motion Set Piece — Signal Lock (Phase 5) */
+.vhs-signal-lock {
+  pointer-events: none;
+  animation: vhsSignalBloom 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.vhs-signal-sweep {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(25, 165, 184, 0.8) 20%,
+    rgba(200, 16, 46, 0.9) 50%,
+    rgba(255, 59, 47, 0.8) 80%,
+    transparent 100%
+  );
+  box-shadow: 0 0 15px rgba(200, 16, 46, 0.8), 0 0 30px rgba(25, 165, 184, 0.5);
+  animation: vhsSweepDown 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes vhsSignalBloom {
+  0% {
+    opacity: 0;
+    filter: contrast(1.4) saturate(1.8) hue-rotate(-15deg);
+  }
+  30% {
+    opacity: 1;
+    filter: contrast(1.2) saturate(1.4);
+  }
+  100% {
+    opacity: 0;
+    filter: contrast(1) saturate(1) hue-rotate(0deg);
+  }
+}
+
+@keyframes vhsSweepDown {
+  0% {
+    top: -10px;
+    opacity: 1;
+  }
+  90% {
+    opacity: 0.8;
+  }
+  100% {
+    top: 100vh;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vhs-signal-lock,
+  .vhs-signal-sweep {
+    animation: none !important;
+    display: none !important;
+    opacity: 0 !important;
+  }
+}
+
+

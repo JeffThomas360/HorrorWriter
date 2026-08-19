@@ -45,6 +45,11 @@ const ogImageURL = ogImage ? new URL(ogImage, Astro.site) : new URL('/og.png', A
     <meta name="twitter:image" content={ogImageURL} />
   </head>
   <body class="bg-primary text-text-primary selection:bg-accent-crimson selection:text-white">
+    <!-- VHS Signal Lock Set Piece (Phase 5) -->
+    <div class="vhs-signal-lock pointer-events-none fixed inset-0 z-[100]" aria-hidden="true">
+      <div class="vhs-signal-sweep"></div>
+    </div>
+
     <AuthProvider client:load>
       <header class="vhs-header sticky top-0 backdrop-blur-md z-50">
         <div class="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
