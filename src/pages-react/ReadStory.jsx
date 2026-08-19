@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../components/AuthContext'
 import ReportModal from '../components/ReportModal'
 import CommunityGuidelines from '../components/CommunityGuidelines'
+import BlockButton from '../components/BlockButton'
 import { withProviders } from '../components/Providers'
 import InlineModControls from '../components/mod/InlineModControls'
 import MarkdownEditor from '../components/MarkdownEditor'
@@ -186,10 +187,13 @@ function ReadStory({ id }) {
           <span>A story by @{book?.profiles?.handle || 'unknown'}</span>
           <button 
             onClick={() => setReportTarget({ type: 'story', id: book.id })} 
-            className="text-xs uppercase border border-[#2d2d2a] hover:border-red-950 px-2 py-0.5 text-[var(--color-text-secondary)] hover:text-[var(--color-accent-crimson)] cursor-pointer"
+            className="text-xs uppercase border border-[var(--color-line)] hover:border-[var(--color-blood)] px-2 py-0.5 text-[var(--color-ash)] hover:text-[var(--color-blood)] cursor-pointer"
           >
             Report
           </button>
+          {book && session?.user?.id !== book.author_id && (
+            <BlockButton targetUserId={book.author_id} targetHandle={book?.profiles?.handle} />
+          )}
           {book && <InlineModControls targetType="story" targetId={book.id} currentStatus={book.mod_status} authorId={book.author_id} />}
         </div>
         <h1 className="title text-3xl md:text-5xl font-serif font-black uppercase tracking-tight text-[var(--color-text-primary)] mb-6 max-w-3xl mx-auto leading-tight">
