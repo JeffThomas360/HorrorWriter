@@ -4,7 +4,7 @@ const GUIDELINES_LINES = GUIDELINES_TEXT.split('\n')
 
 export default function CommunityGuidelines() {
   return (
-    <div className="mb-4 border border-[#2d2d2a] bg-[var(--color-bg-primary)] px-4 py-3">
+    <div className="mb-4 border border-[var(--color-line)] bg-[var(--color-surface)] px-4 py-3">
       <p className="font-mono text-xs uppercase tracking-wider text-[var(--color-text-secondary)] mb-2">
         Before you post
       </p>
