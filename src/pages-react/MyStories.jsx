@@ -280,19 +280,26 @@ function MyStories() {
                   </p>
                 </div>
 
-                {b.seriesId ? (
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className="font-mono text-xs text-[var(--color-text-secondary)] uppercase">In: {b.seriesTitle}</span>
-                    <button
-                      type="button"
-                      className="font-mono text-xs uppercase text-[var(--color-text-secondary)] hover:text-[var(--color-accent-crimson)] cursor-pointer"
-                      onClick={() => removeMutation.mutate({ seriesId: b.seriesId, bookId: b.id })}
-                      disabled={removeMutation.isPending}
-                    >
-                      Remove from series
-                    </button>
-                  </div>
-                ) : series.length > 0 ? (
+                <div className="flex items-center gap-3 shrink-0">
+                  <a
+                    href={`/library/edit/${b.id}`}
+                    className="font-mono text-xs uppercase border border-[var(--color-line)] hover:border-white px-3 py-1 text-[var(--color-bone)] transition-colors"
+                  >
+                    Edit
+                  </a>
+                  {b.seriesId ? (
+                    <>
+                      <span className="font-mono text-xs text-[var(--color-text-secondary)] uppercase">In: {b.seriesTitle}</span>
+                      <button
+                        type="button"
+                        className="font-mono text-xs uppercase text-[var(--color-text-secondary)] hover:text-[var(--color-accent-crimson)] cursor-pointer"
+                        onClick={() => removeMutation.mutate({ seriesId: b.seriesId, bookId: b.id })}
+                        disabled={removeMutation.isPending}
+                      >
+                        Remove from series
+                      </button>
+                    </>
+                  ) : series.length > 0 ? (
                   <AddToSeriesControl
                     book={b}
                     seriesOptions={series}
@@ -302,6 +309,7 @@ function MyStories() {
                 ) : (
                   <span className="shrink-0 font-mono text-xs text-[var(--color-text-secondary)] uppercase">Not in a series</span>
                 )}
+                </div>
               </li>
             ))}
           </ul>

@@ -1,0 +1,12 @@
+---
+export const prerender = false;
+
+import MainLayout from '../../../layouts/MainLayout.astro';
+import PublishStory from '../../../pages-react/PublishStory.jsx';
+
+const { id } = Astro.params;
+---
+
+<MainLayout title="Edit Story | Horror Writer" description="Revise your published story and update its archives.">
+  <PublishStory client:load bookId={id} />
+</MainLayout>

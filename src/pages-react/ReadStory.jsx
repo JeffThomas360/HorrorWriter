@@ -6,6 +6,7 @@ import ReportModal from '../components/ReportModal'
 import CommunityGuidelines from '../components/CommunityGuidelines'
 import BlockButton from '../components/BlockButton'
 import AppealButton from '../components/AppealButton'
+import CritiqueSignalBadge from '../components/CritiqueSignalBadge'
 import { withProviders } from '../components/Providers'
 import InlineModControls from '../components/mod/InlineModControls'
 import MarkdownEditor from '../components/MarkdownEditor'
@@ -197,6 +198,14 @@ function ReadStory({ id }) {
           >
             Report
           </button>
+          {book && session?.user?.id === book.author_id && (
+            <a 
+              href={`/library/edit/${book.id}`}
+              className="text-xs uppercase border border-[var(--color-line)] hover:border-[var(--color-bone)] px-2 py-0.5 text-[var(--color-ash)] hover:text-[var(--color-bone)] transition-colors"
+            >
+              Edit Story
+            </a>
+          )}
           {book && session?.user?.id !== book.author_id && (
             <BlockButton targetUserId={book.author_id} targetHandle={book?.profiles?.handle} />
           )}
@@ -260,6 +269,7 @@ function ReadStory({ id }) {
                       </div>
                     </div>
                     <div className="flex gap-3 items-center text-xs font-mono">
+                      <CritiqueSignalBadge currentBookVersion={book?.version || 1} commentBookVersion={c.book_version || 1} />
                       <button 
                         onClick={() => setReportTarget({ type: 'critique', id: c.id })} 
                         className="text-[var(--color-text-secondary)] hover:text-[var(--color-accent-crimson)] cursor-pointer"
