@@ -3,6 +3,7 @@ import { supabase } from '../supabaseClient'
 import { useAuth } from '../components/AuthContext'
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import ReportModal from '../components/ReportModal'
+import CommunityGuidelines from '../components/CommunityGuidelines'
 import InlineModControls from '../components/mod/InlineModControls'
 import MarkdownEditor from '../components/MarkdownEditor'
 import ReactMarkdown from 'react-markdown'
@@ -252,6 +253,7 @@ function ThreadView({ id }) {
             Leave a reply
           </h3>
           <form onSubmit={handleReply}>
+            <CommunityGuidelines />
             <div className="mb-4">
               <MarkdownEditor
                 value={replyContent}

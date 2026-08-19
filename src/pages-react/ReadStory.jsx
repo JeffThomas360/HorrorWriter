@@ -3,6 +3,7 @@ import { supabase } from '../supabaseClient'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../components/AuthContext'
 import ReportModal from '../components/ReportModal'
+import CommunityGuidelines from '../components/CommunityGuidelines'
 import { withProviders } from '../components/Providers'
 import InlineModControls from '../components/mod/InlineModControls'
 import MarkdownEditor from '../components/MarkdownEditor'
@@ -270,6 +271,7 @@ function ReadStory({ id }) {
             <h4 className="font-serif font-bold text-sm text-[var(--color-text-primary)] mb-4 uppercase tracking-wide">
               Leave a critique
             </h4>
+            <CommunityGuidelines />
             <div className="mb-4">
               <MarkdownEditor
                 value={commentContent}
