@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../components/AuthContext'
 import MarkdownEditor from '../components/MarkdownEditor'
+import CommunityGuidelines from '../components/CommunityGuidelines'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import TranscribeButton from '../components/TranscribeButton'
 import { withProviders } from '../components/Providers'
@@ -48,8 +49,13 @@ function CreateThread() {
       if (error) throw error
       return { id: data }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['threads'] })
+      if (data?.id) {
+        supabase.functions.invoke('moderate-content', {
+          body: { targetType: 'thread', targetId: data.id },
+        }).catch(console.error)
+      }
       window.location.replace('/forum')
     },
     onError: (err) => {
@@ -107,6 +113,7 @@ function CreateThread() {
 
         <div className="flex flex-col gap-2">
           <label className="text-xs font-mono text-[var(--color-text-secondary)] uppercase">Initial Post</label>
+          <CommunityGuidelines />
           <MarkdownEditor
             value={content}
             onChange={(e) => setContent(e.target.value)}

@@ -3,6 +3,7 @@ import { getProfileByHandle } from '../lib/profile'
 import ProfileHead from '../components/ProfileHead'
 import ReportModal from '../components/ReportModal'
 import FollowButton from '../components/FollowButton'
+import BlockButton from '../components/BlockButton'
 import { withProviders } from '../components/Providers'
 
 function UserProfile({ handle }) {
@@ -115,8 +116,9 @@ function UserProfile({ handle }) {
             </div>
           )}
           
-          <div className="mt-4 pt-4 border-t border-[var(--color-line)] flex justify-end">
+          <div className="mt-4 pt-4 border-t border-[var(--color-line)] flex justify-end gap-2">
             <FollowButton targetProfileId={profile.id} />
+            <BlockButton targetUserId={profile.id} targetHandle={profile.handle} />
           </div>
         </div>
       </div>

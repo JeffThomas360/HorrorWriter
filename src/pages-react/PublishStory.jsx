@@ -64,6 +64,11 @@ function PublishStory() {
     },
     onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['books'] })
+      if (data?.id) {
+        supabase.functions.invoke('moderate-content', {
+          body: { targetType: 'story', targetId: data.id },
+        }).catch(console.error)
+      }
       let seriesAttachFailed = false
       if (seriesId && data?.id) {
         try {

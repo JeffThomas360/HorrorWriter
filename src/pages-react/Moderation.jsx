@@ -7,12 +7,14 @@ import ReportsTab from '../components/mod/ReportsTab'
 import SupportTab from '../components/mod/SupportTab'
 import FilterRulesTab from '../components/mod/FilterRulesTab'
 import SanctionsTab from '../components/mod/SanctionsTab'
+import StormAlertsTab from '../components/mod/StormAlertsTab'
+import AppealsTab from '../components/mod/AppealsTab'
 import { withProviders } from '../components/Providers'
 import RequireAuth from '../components/RequireAuth'
 
 function Moderation() {
   const { profile, isLoading } = useAuth()
-  const [tab, setTab] = useState('reports')
+  const [tab, setTab] = useState('appeals')
 
   if (isLoading) {
     return (
@@ -34,7 +36,9 @@ function Moderation() {
   }
 
   const tabs = [
+    modCan(profile, 'handle_report', 'all') && { id: 'appeals', label: 'Appeals' },
     modCan(profile, 'handle_report', 'all') && { id: 'reports', label: 'Reports' },
+    modCan(profile, 'handle_report', 'all') && { id: 'storms', label: 'Storms' },
     modCan(profile, 'handle_report', 'all') && { id: 'support', label: 'Support' },
     modCan(profile, 'configure', 'all') && { id: 'filters', label: 'AutoMod' },
     modCan(profile, 'assign_role', 'all') && { id: 'sanctions', label: 'Sanctions' },
@@ -69,7 +73,9 @@ function Moderation() {
 
       {/* Tab panel */}
       <div className="vintage-card min-h-[300px]">
+        {activeId === 'appeals' && <AppealsTab />}
         {activeId === 'reports' && <ReportsTab />}
+        {activeId === 'storms' && <StormAlertsTab />}
         {activeId === 'support' && <SupportTab />}
         {activeId === 'filters' && <FilterRulesTab />}
         {activeId === 'sanctions' && <SanctionsTab />}
