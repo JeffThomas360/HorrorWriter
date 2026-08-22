@@ -1,12 +1,17 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../supabaseClient'
 import { resolveReport } from '../../lib/modActions'
+import ConfirmDialog from './ConfirmDialog'
 import { toast } from 'sonner'
+
+const GHOST = 'border border-[var(--color-line-hi)] px-2 py-1 text-xs text-[var(--color-bone)] transition-colors hover:border-[var(--color-bone)] cursor-pointer'
 
 export default function SupportTab() {
   const [reports, setReports] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [pending, setPending] = useState(null) // { id, actionTaken }
+  const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     fetchReports()
@@ -26,42 +31,54 @@ export default function SupportTab() {
     setLoading(false)
   }
 
-  const handleResolve = async (id, actionTaken) => {
-    const note = window.prompt(`Resolution note to send to the user? (Optional)`)
-    if (note === null) return // cancelled
+  const confirmResolve = async (note) => {
+    if (!pending) return
+    setBusy(true)
     try {
-      await resolveReport(id, actionTaken, note)
-      setReports(prev => prev.filter(r => r.id !== id))
-      toast.success(`Support ticket ${actionTaken}`)
+      await resolveReport(pending.id, pending.actionTaken, note || null)
+      setReports((prev) => prev.filter((r) => r.id !== pending.id))
+      toast.success(`Support ticket ${pending.actionTaken}`)
     } catch (err) {
       toast.error(err.message)
+    } finally {
+      setBusy(false)
+      setPending(null)
     }
   }
 
-  const smallGhost = 'border border-[var(--color-line)] px-2 py-1 text-xs text-[var(--color-text-primary)] transition-colors hover:border-white cursor-pointer'
-
-  if (loading) return <p className="text-[var(--color-text-secondary)]">Loading support tickets...</p>
-  if (error) return <p className="form-err font-mono text-xs text-[var(--color-accent-crimson)]">{error}</p>
-
-  if (reports.length === 0) return <p className="text-[var(--color-text-secondary)]">No open support tickets.</p>
+  if (loading) return <p className="font-mono text-xs uppercase tracking-widest text-[var(--color-ash)] animate-pulse">Loading support tickets…</p>
+  if (error) return <p className="text-sm text-[var(--color-blood)]">{error}</p>
+  if (reports.length === 0) return <p className="text-sm text-[var(--color-ash)] italic font-serif">No open support tickets.</p>
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {reports.map(r => (
-        <div key={r.id} style={{ border: '1px solid #333', padding: 16, borderRadius: 4 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-            <strong>SITE ISSUE - {r.category}</strong>
-            <span className="text-[var(--color-text-secondary)]">{new Date(r.created_at).toLocaleString()}</span>
+    <div className="flex flex-col gap-4">
+      <ConfirmDialog
+        open={!!pending}
+        title={pending?.actionTaken === 'dismissed' ? 'Dismiss this ticket?' : 'Mark this ticket resolved?'}
+        description="An optional note is sent to the person who filed it."
+        withReason
+        reasonLabel="Note to the user (optional)"
+        reasonPlaceholder="Leave blank to send no note…"
+        confirmLabel={pending?.actionTaken === 'dismissed' ? 'Dismiss' : 'Resolve'}
+        busy={busy}
+        onCancel={() => setPending(null)}
+        onConfirm={confirmResolve}
+      />
+      {reports.map((r) => (
+        <div key={r.id} className="card-surface p-4">
+          <div className="flex justify-between mb-2">
+            <strong className="font-mono text-sm text-[var(--color-bone)]">SITE ISSUE — {r.category}</strong>
+            <span className="font-mono text-xs text-[var(--color-ash)]">{new Date(r.created_at).toLocaleString()}</span>
           </div>
-          <p style={{ margin: '8px 0', fontSize: '14px' }}>
+          <p className="text-sm text-[var(--color-bone)] my-2">
             <strong>Reporter:</strong> {r.profiles?.handle ? `@${r.profiles.handle}` : 'Unknown'}
           </p>
-          <p style={{ margin: '8px 0', fontSize: '14px' }}>
+          <p className="text-sm text-[var(--color-bone)] my-2">
             <strong>Details:</strong> {r.details || 'None provided'}
           </p>
-          <div style={{ marginTop: 12, display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-            <button className={smallGhost} onClick={() => handleResolve(r.id, 'dismissed')}>Dismiss</button>
-            <button className={smallGhost} onClick={() => handleResolve(r.id, 'actioned')}>Resolved</button>
+          <div className="flex gap-2 justify-end mt-3">
+            <button className={GHOST} onClick={() => setPending({ id: r.id, actionTaken: 'dismissed' })}>Dismiss</button>
+            <button className={GHOST} onClick={() => setPending({ id: r.id, actionTaken: 'actioned' })}>Resolved</button>
           </div>
         </div>
       ))}

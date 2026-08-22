@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { searchUsers, assignRole, revokeRole } from '../../lib/modActions'
 import { useModBadges } from '../../lib/useModBadges'
+import ConfirmDialog from './ConfirmDialog'
 
 const ROLES = ['sentinel', 'moderator', 'warden']
 const SCOPES = ['all', 'forum', 'library']
 
-const FIELD = 'bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none'
-const GHOST_BTN = 'border border-[var(--color-line)] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-text-primary)] transition-colors hover:border-white cursor-pointer disabled:opacity-50'
+const FIELD = 'bg-[var(--color-void)] text-[var(--color-bone)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-ember)] outline-none'
+const GHOST_BTN = 'border border-[var(--color-line-hi)] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-bone)] transition-colors hover:border-[var(--color-bone)] cursor-pointer disabled:opacity-50'
 
 export default function RegistryTab({ profile }) {
   const [q, setQ] = useState('')
@@ -39,7 +40,7 @@ export default function RegistryTab({ profile }) {
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by handle…" aria-label="Search users" className={`${FIELD} flex-1`} />
         <button type="submit" className={GHOST_BTN} disabled={busy || !q.trim()}>▸ Search</button>
       </form>
-      {error && <p className="form-err font-mono text-xs text-[var(--color-accent-crimson)]">{error}</p>}
+      {error && <p className="text-sm text-[var(--color-blood)]">{error}</p>}
       <ul className="flex flex-col">
         {results.map((u) => (
           <RegistryRow key={u.id} user={u} self={u.id === profile.id} badges={badges} onApply={apply} busy={busy} />
@@ -52,15 +53,32 @@ export default function RegistryTab({ profile }) {
 function RegistryRow({ user, self, badges, onApply, busy }) {
   const [role, setRole] = useState(user.mod_role ?? '')
   const [scope, setScope] = useState(user.mod_scope ?? 'all')
+  const [pendingApply, setPendingApply] = useState(false)
   const badge = badges?.find((b) => b.role === user.mod_role)
   const scoped = role === 'sentinel' || role === 'moderator'
+  const isDemotion = user.mod_role && role !== user.mod_role
+
+  const doApply = () => {
+    setPendingApply(false)
+    onApply(user.id, role, scope)
+  }
+
   return (
     <li className="mod-user-row flex items-center justify-between gap-3 border-b border-[var(--color-line)] py-3">
-      <span className="font-mono text-sm text-[var(--color-text-primary)]">
+      <ConfirmDialog
+        open={pendingApply}
+        title={role === '' ? `Revoke @${user.handle}'s moderation role?` : `Set @${user.handle} to ${role} (${scope})?`}
+        danger={role === ''}
+        confirmLabel={role === '' ? 'Revoke' : 'Save'}
+        busy={busy}
+        onCancel={() => setPendingApply(false)}
+        onConfirm={doApply}
+      />
+      <span className="font-mono text-sm text-[var(--color-bone)]">
         @{user.handle} {badge && <span title={badge.label}>{badge.emoji}</span>}
       </span>
       {self ? (
-        <span className="font-mono text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">you (Keeper)</span>
+        <span className="font-mono text-xs uppercase tracking-wider text-[var(--color-ash)]">you (Keeper)</span>
       ) : (
         <span className="flex items-center gap-2">
           <select value={role} onChange={(e) => setRole(e.target.value)} aria-label={`Role for ${user.handle}`} className={FIELD}>
@@ -72,7 +90,14 @@ function RegistryRow({ user, self, badges, onApply, busy }) {
               {SCOPES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           )}
-          <button type="button" className={GHOST_BTN} disabled={busy} onClick={() => onApply(user.id, role, scope)}>Save</button>
+          <button
+            type="button"
+            className={GHOST_BTN}
+            disabled={busy}
+            onClick={() => (isDemotion || role === '' ? setPendingApply(true) : onApply(user.id, role, scope))}
+          >
+            Save
+          </button>
         </span>
       )}
     </li>

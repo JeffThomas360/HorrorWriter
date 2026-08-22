@@ -3,6 +3,7 @@ import '../styles/global.css';
 import { Toaster } from 'sonner';
 import { AuthProvider } from '../components/AuthContext.jsx';
 import UserMenu from '../components/UserMenu.jsx';
+import NavModLinks from '../components/NavModLinks.jsx';
 import NotificationsBell from '../components/NotificationsBell.jsx';
 import Footer from '../components/Footer.astro';
 import SignInModalWrapper from '../components/SignInModalWrapper.jsx';
@@ -69,6 +70,7 @@ const ogImageURL = ogImage ? new URL(ogImage, Astro.site) : new URL('/og.png', A
             <a href="/" class="text-[var(--color-bone)] hover:text-[var(--color-blood)] transition-colors">Home</a>
             <a href="/forum" class="text-[var(--color-bone)] hover:text-[var(--color-blood)] transition-colors">The Crypt</a>
             <a href="/library" class="text-[var(--color-bone)] hover:text-[var(--color-blood)] transition-colors">Library</a>
+            <NavModLinks client:load variant="desktop" />
           </nav>
 
           <div class="flex items-center gap-3">
@@ -99,7 +101,8 @@ const ogImageURL = ogImage ? new URL(ogImage, Astro.site) : new URL('/og.png', A
         <nav class="max-w-5xl mx-auto px-6 py-4 flex flex-col gap-1 font-mono text-xs uppercase tracking-wider text-text-primary">
           <a href="/" class="py-3 border-b border-[var(--color-line)] hover:text-accent-crimson transition-colors">Home</a>
           <a href="/forum" class="py-3 border-b border-[var(--color-line)] hover:text-accent-crimson transition-colors">The Crypt</a>
-          <a href="/library" class="py-3 hover:text-accent-crimson transition-colors">Library</a>
+          <a href="/library" class="py-3 border-b border-[var(--color-line)] hover:text-accent-crimson transition-colors">Library</a>
+          <NavModLinks client:load variant="mobile" />
         </nav>
       </div>
 

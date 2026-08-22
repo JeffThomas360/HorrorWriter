@@ -1,11 +1,14 @@
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { useAuth } from '../AuthContext'
 import { modCan } from '../../lib/moderation'
 import { setContentModStatus } from '../../lib/modActions'
+import ConfirmDialog from './ConfirmDialog'
 
 export default function InlineModControls({ targetType, targetId, currentStatus, authorId }) {
   const { profile } = useAuth()
   const [isBusy, setIsBusy] = useState(false)
+  const [pendingStatus, setPendingStatus] = useState(null) // 'hidden' | 'live' | 'screening'
 
   // Map targetType to area
   const area = ['story', 'critique'].includes(targetType) ? 'library' : 'forum'
@@ -15,58 +18,59 @@ export default function InlineModControls({ targetType, targetId, currentStatus,
 
   if (!canHide && !canScreen) return null
 
-  const handleAction = async (status) => {
-    const reason = window.prompt(`Reason for changing status to ${status}? (Optional)`)
-    if (reason === null) return // Cancelled
-
+  const confirmAction = async (reason) => {
     setIsBusy(true)
     try {
-      await setContentModStatus(targetType, targetId, status, reason || null)
-      // Note: Ideally we'd trigger a re-fetch here, or rely on Realtime if the page is subscribed.
-      // For now, an alert or relying on the user to refresh works, or just let React Query handle it if integrated.
-      window.location.reload() 
+      await setContentModStatus(targetType, targetId, pendingStatus, reason || null)
+      setPendingStatus(null)
+      window.location.reload()
     } catch (err) {
-      alert(`Error: ${err.message}`)
+      toast.error(err.message)
       setIsBusy(false)
+      setPendingStatus(null)
     }
   }
 
-  const linkBtn = (color) => ({ background: 'none', border: 'none', color, cursor: 'pointer', padding: 0 })
+  const STATUS_COPY = {
+    hidden: { title: 'Hide this content?', confirmLabel: 'Hide', danger: true },
+    live: { title: 'Unhide this content?', confirmLabel: 'Unhide', danger: false },
+    screening: { title: 'Send this content to screening?', confirmLabel: 'Screen', danger: false },
+  }
+  const dialogCopy = pendingStatus ? STATUS_COPY[pendingStatus] : null
+
+  const linkBtn = 'bg-transparent border-0 cursor-pointer p-0 disabled:opacity-50'
 
   return (
-    <div className="font-mono" style={{
-      display: 'inline-flex', gap: '8px',
-      border: '1px solid var(--color-accent-crimson)', padding: '2px 6px', borderRadius: '4px',
-      marginLeft: '10px', fontSize: '11px'
-    }}>
-      <span style={{ color: 'var(--color-text-secondary)', marginRight: '4px' }}>[MOD]</span>
+    <div className="inline-flex items-center gap-2 border border-[var(--color-blood)] px-2 py-0.5 rounded ml-2 font-mono text-[11px]">
+      {dialogCopy && (
+        <ConfirmDialog
+          open={!!pendingStatus}
+          title={dialogCopy.title}
+          danger={dialogCopy.danger}
+          withReason
+          reasonLabel="Reason (optional)"
+          confirmLabel={dialogCopy.confirmLabel}
+          busy={isBusy}
+          onCancel={() => setPendingStatus(null)}
+          onConfirm={confirmAction}
+        />
+      )}
+      <span className="text-[var(--color-ash)] mr-1">[MOD]</span>
 
       {canHide && currentStatus !== 'hidden' && (
-        <button
-          onClick={() => handleAction('hidden')}
-          disabled={isBusy}
-          style={linkBtn('var(--color-accent-crimson)')}
-        >
+        <button onClick={() => setPendingStatus('hidden')} disabled={isBusy} className={`${linkBtn} text-[var(--color-blood)]`}>
           Hide
         </button>
       )}
 
       {canHide && currentStatus === 'hidden' && (
-        <button
-          onClick={() => handleAction('live')}
-          disabled={isBusy}
-          style={linkBtn('var(--color-text-primary)')}
-        >
+        <button onClick={() => setPendingStatus('live')} disabled={isBusy} className={`${linkBtn} text-[var(--color-bone)]`}>
           Unhide
         </button>
       )}
 
       {canScreen && currentStatus === 'live' && (
-        <button
-          onClick={() => handleAction('screening')}
-          disabled={isBusy}
-          style={linkBtn('var(--color-text-secondary)')}
-        >
+        <button onClick={() => setPendingStatus('screening')} disabled={isBusy} className={`${linkBtn} text-[var(--color-ash)]`}>
           Screen
         </button>
       )}
