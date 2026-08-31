@@ -4,4 +4,4 @@
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(), camera=(), microphone=(self)
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' https://bmvvugrfnuedjlucmlbw.supabase.co wss://bmvvugrfnuedjlucmlbw.supabase.co https://horrorwriter-transcribe.orig-beetlebub.workers.dev; img-src 'self' data: https://bmvvugrfnuedjlucmlbw.supabase.co;
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' https://bmvvugrfnuedjlucmlbw.supabase.co wss://bmvvugrfnuedjlucmlbw.supabase.co https://horrorwriter-transcribe.orig-beetlebub.workers.dev; img-src 'self' data: https://bmvvugrfnuedjlucmlbw.supabase.co;

@@ -4,6 +4,7 @@ import { Toaster } from 'sonner';
 import { AuthProvider } from '../components/AuthContext.jsx';
 import UserMenu from '../components/UserMenu.jsx';
 import NavModLinks from '../components/NavModLinks.jsx';
+import SiteBanner from '../components/SiteBanner.jsx';
 import NotificationsBell from '../components/NotificationsBell.jsx';
 import Footer from '../components/Footer.astro';
 import SignInModalWrapper from '../components/SignInModalWrapper.jsx';
@@ -52,6 +53,8 @@ const ogImageURL = ogImage ? new URL(ogImage, Astro.site) : new URL('/og.png', A
     </div>
 
     <AuthProvider client:load>
+      <SiteBanner client:load />
+
       <header class="vhs-header sticky top-0 backdrop-blur-md z-50">
         <div class="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
           <a href="/" class="flex items-center gap-3 group">

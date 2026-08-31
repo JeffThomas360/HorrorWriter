@@ -1,48 +1,70 @@
-import { useQuery } from '@tanstack/react-query'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from '../components/AuthContext'
-import { fetchSiteStats } from '../lib/modActions'
+import { modCan } from '../lib/moderation'
 import { withProviders } from '../components/Providers'
+import IslandErrorBoundary from '../components/IslandErrorBoundary'
 import RequireAuth from '../components/RequireAuth'
+import AdminOverviewTab from '../components/admin/AdminOverviewTab'
+import UsersTab from '../components/admin/UsersTab'
+import SiteTab from '../components/admin/SiteTab'
+import AuditTab from '../components/admin/AuditTab'
 
-const STAT_TILES = [
-  { key: 'totalUsers', label: 'Registered users' },
-  { key: 'liveStories', label: 'Live stories' },
-  { key: 'liveThreads', label: 'Live threads' },
-  { key: 'liveCritiques', label: 'Live critiques' },
-  { key: 'reportsHandled', label: 'Reports handled (all-time)' },
-  { key: 'activeSanctions', label: 'Active sanctions' },
-]
+/**
+ * Site administration. Distinct from /moderation by design: the Terminal
+ * handles *incoming* work (reports, appeals, storms, tickets), this handles
+ * *configuration and oversight*. Where both need the same view — a user's
+ * case file — this links into the moderation component rather than
+ * duplicating it.
+ *
+ * Tab state lives in the URL rather than useState so a tab can be linked,
+ * refreshed, and reached with the back button — the user directory deep-links
+ * into a specific user, which needs it.
+ */
 
-// Generic dashboard homes, not deep-linked to a specific project — this repo
-// has no project ref/repo URL recorded anywhere in the codebase to link to
-// directly, so these just get the Keeper to the right front door in one click.
-const EXTERNAL_LINKS = [
-  { label: 'Supabase dashboard', href: 'https://supabase.com/dashboard/projects', hint: 'Database, auth, RLS, migrations, leaked-password protection toggle' },
-  { label: 'Cloudflare dashboard', href: 'https://dash.cloudflare.com/', hint: 'Workers deploys, Pages projects (including the dormant one still pending cleanup)' },
-  { label: 'GitHub', href: 'https://github.com/', hint: 'Source, commit history, Actions' },
-]
+const TAB_PARAM = 'tab'
 
-function StatTile({ label, value, tone = 'default' }) {
-  const toneClass = tone === 'alert' && value > 0
-    ? 'border-[var(--color-blood)] text-[var(--color-ember)]'
-    : 'border-[var(--color-line-hi)] text-[var(--color-bone)]'
-  return (
-    <div className={`card-surface flex flex-col items-start gap-1 p-4 border ${toneClass}`}>
-      <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-ash)]">{label}</span>
-      <span className="font-['Fraunces'] font-black text-3xl leading-none">{value}</span>
-    </div>
-  )
+function useUrlTab(validIds, fallback) {
+  const read = () => {
+    if (typeof window === 'undefined') return fallback
+    const t = new URLSearchParams(window.location.search).get(TAB_PARAM)
+    return validIds.includes(t) ? t : fallback
+  }
+
+  const [tab, setTabState] = useState(read)
+
+  // Keep in step with back/forward navigation.
+  useEffect(() => {
+    const onPop = () => setTabState(read())
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const setTab = useCallback((next) => {
+    setTabState(next)
+    const url = new URL(window.location.href)
+    url.searchParams.set(TAB_PARAM, next)
+    window.history.pushState({}, '', url)
+  }, [])
+
+  return [tab, setTab]
 }
 
 function Admin() {
   const { profile, isLoading } = useAuth()
+  const tabRefs = useRef({})
 
-  const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ['admin', 'site-stats'],
-    queryFn: fetchSiteStats,
-    enabled: !isLoading && profile?.mod_role === 'keeper',
-    refetchInterval: 60_000,
-  })
+  const isKeeper = profile?.mod_role === 'keeper'
+  const canReadAudit = modCan(profile, 'read_audit', 'all')
+
+  const tabs = [
+    { id: 'overview', label: 'Overview', show: isKeeper },
+    { id: 'users',    label: 'Users',    show: isKeeper },
+    { id: 'site',     label: 'Site',     show: isKeeper },
+    { id: 'audit',    label: 'Audit',    show: canReadAudit },
+  ].filter((t) => t.show)
+
+  const [tab, setTab] = useUrlTab(tabs.map((t) => t.id), 'overview')
 
   if (isLoading) {
     return (
@@ -52,9 +74,8 @@ function Admin() {
     )
   }
 
-  // Disguised 404 — this page exists for the Keeper only, everyone else (including
-  // other mod roles) gets the same "doesn't exist" treatment as /moderation does.
-  if (profile?.mod_role !== 'keeper') {
+  // Disguised 404 — same treatment as /moderation for anyone without access.
+  if (!isKeeper && !canReadAudit) {
     return (
       <div className="vintage-card text-center py-16 border-red-950 mt-8 max-w-2xl mx-auto">
         <span className="block font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-ash)] mb-2">▸ 404 — page not found</span>
@@ -64,68 +85,69 @@ function Admin() {
     )
   }
 
-  const s = stats ?? { totalUsers: 0, liveStories: 0, liveThreads: 0, liveCritiques: 0, reportsHandled: 0, activeSanctions: 0 }
+  const activeId = tabs.some((t) => t.id === tab) ? tab : tabs[0]?.id
+
+  const focusTab = (index) => {
+    const t = tabs[(index + tabs.length) % tabs.length]
+    if (!t) return
+    setTab(t.id)
+    tabRefs.current[t.id]?.focus()
+  }
+
+  const onTabKeyDown = (e, index) => {
+    if (e.key === 'ArrowRight') { e.preventDefault(); focusTab(index + 1) }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); focusTab(index - 1) }
+    else if (e.key === 'Home') { e.preventDefault(); focusTab(0) }
+    else if (e.key === 'End') { e.preventDefault(); focusTab(tabs.length - 1) }
+  }
 
   return (
-    <div className="mt-8 max-w-5xl mx-auto flex flex-col gap-10">
-      <div className="border-b border-[var(--color-line)] pb-6">
+    <div className="mt-8 max-w-5xl mx-auto">
+      <div className="border-b border-[var(--color-line)] pb-6 mb-8">
         <span className="block font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-ash)] mb-2">Keeper Only</span>
         <h2 className="text-3xl font-serif font-black">Site <em className="italic text-[var(--color-blood)] font-serif">Admin</em></h2>
         <p className="text-xs text-[var(--color-ash)] font-serif mt-1 font-mono">
-          ▸ Site-wide stats and the tools this doesn't try to duplicate. Day-to-day moderation lives at{' '}
+          ▸ Configuration and oversight. Day-to-day moderation lives at{' '}
           <a href="/moderation" className="underline hover:text-[var(--color-blood)]">/moderation</a>.
         </p>
       </div>
 
-      <div>
-        <h3 className="font-mono text-xs uppercase tracking-widest text-[var(--color-ash)] mb-3">Site stats</h3>
-        {statsLoading ? (
-          <p className="font-mono text-xs uppercase tracking-widest text-[var(--color-ash)] animate-pulse">Reading the ledger…</p>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {STAT_TILES.map((t) => (
-              <StatTile key={t.key} label={t.label} value={s[t.key]} tone={t.key === 'activeSanctions' ? 'alert' : 'default'} />
-            ))}
-          </div>
-        )}
+      <div className="flex flex-wrap gap-2 mb-8 border-b border-[var(--color-line)] pb-4" role="tablist" aria-label="Admin sections">
+        {tabs.map((t, i) => (
+          <button
+            key={t.id}
+            ref={(el) => { tabRefs.current[t.id] = el }}
+            role="tab"
+            id={`admin-tab-${t.id}`}
+            aria-selected={activeId === t.id}
+            aria-controls={`admin-panel-${t.id}`}
+            tabIndex={activeId === t.id ? 0 : -1}
+            onKeyDown={(e) => onTabKeyDown(e, i)}
+            className={`font-mono text-xs uppercase px-4 py-2 border cursor-pointer transition-all ${activeId === t.id ? 'bg-[var(--color-blood)] text-[var(--color-bone)] border-[var(--color-blood)]' : 'border-[var(--color-line-hi)] text-[var(--color-ash)] hover:text-[var(--color-bone)] hover:border-[var(--color-bone)]'}`}
+            onClick={() => setTab(t.id)}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      <div className="card-surface border border-[var(--color-blood)] p-5 flex flex-col gap-2">
-        <h3 className="font-mono text-xs uppercase tracking-widest text-[var(--color-ember)]">▸ Sanctions enforcement — needs a migration run</h3>
-        <p className="text-sm text-[var(--color-bone)] font-serif">
-          The Sanctions tab has always written a suspension or ban to <code className="text-xs font-mono">profiles.banned_until</code>,
-          but nothing else in the schema ever read that column — a suspended or permanently banned user could still post normally, and
-          their content stayed fully visible to everyone. A migration fixing this is sitting at{' '}
-          <code className="text-xs font-mono">supabase/migrations/20260822000000_enforce_sanctions.sql</code>: it adds an{' '}
-          <code className="text-xs font-mono">is_banned()</code> helper, extends <code className="text-xs font-mono">content_visible()</code> to
-          hide a banned author's content, and extends every content insert policy to reject a banned author's new posts.
-        </p>
-        <p className="text-sm text-[var(--color-ash)] font-serif">
-          I can't apply this myself — it needs to be run against the live database from your Supabase project (SQL editor, or your usual
-          migration push). Until it's run, any active suspension or ban shown in Sanctions is cosmetic only.
-        </p>
-      </div>
-
-      <div>
-        <h3 className="font-mono text-xs uppercase tracking-widest text-[var(--color-ash)] mb-3">Infrastructure</h3>
-        <div className="grid sm:grid-cols-3 gap-3">
-          {EXTERNAL_LINKS.map((l) => (
-            <a
-              key={l.label}
-              href={l.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="card-surface p-4 flex flex-col gap-1 border border-[var(--color-line-hi)] hover:border-[var(--color-bone)] transition-colors"
-            >
-              <span className="font-mono text-xs uppercase tracking-wider text-[var(--color-bone)]">{l.label} ↗</span>
-              <span className="text-xs text-[var(--color-ash)] font-serif">{l.hint}</span>
-            </a>
-          ))}
-        </div>
-        <p className="mt-3 text-xs text-[var(--color-ash)] font-serif italic">
-          These are general dashboard links, not deep links into this project specifically — nothing in the codebase records a
-          project ref or repo URL to link to directly.
-        </p>
+      {/*
+        Each panel gets its own boundary: a tab that throws must not take down
+        the panel you would use to fix it.
+      */}
+      <div
+        className="vintage-card min-h-[300px]"
+        role="tabpanel"
+        id={`admin-panel-${activeId}`}
+        aria-labelledby={`admin-tab-${activeId}`}
+        tabIndex={0}
+      >
+        <IslandErrorBoundary key={activeId}>
+          {activeId === 'overview' && <AdminOverviewTab profile={profile} onNavigate={setTab} />}
+          {activeId === 'users' && <UsersTab />}
+          {activeId === 'site' && <SiteTab />}
+          {activeId === 'audit' && <AuditTab />}
+        </IslandErrorBoundary>
       </div>
     </div>
   )
