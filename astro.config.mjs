@@ -13,7 +13,7 @@ export default defineConfig({
       // Exclude auth-gated / private / technical routes — they have no SEO value
       // and shouldn't be advertised as crawlable public content.
       filter: (page) =>
-        !/\/(moderation|my-reports|profile|library\/publish|forum\/new|auth\/callback)\/?$/.test(page),
+        !/\/(admin|moderation|my-reports|my-stories|profile|library\/publish|forum\/new|auth\/callback)\/?$/.test(page),
     }),
   ],
   adapter: cloudflare(),
