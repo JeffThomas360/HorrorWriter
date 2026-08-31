@@ -58,7 +58,7 @@ export default function InlineModControls({ targetType, targetId, currentStatus,
       <span className="text-[var(--color-ash)] mr-1">[MOD]</span>
 
       {canHide && currentStatus !== 'hidden' && (
-        <button onClick={() => setPendingStatus('hidden')} disabled={isBusy} className={`${linkBtn} text-[var(--color-blood)]`}>
+        <button onClick={() => setPendingStatus('hidden')} disabled={isBusy} className={`${linkBtn} text-[var(--color-ember)]`}>
           Hide
         </button>
       )}

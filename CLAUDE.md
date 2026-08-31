@@ -44,8 +44,16 @@ These have each cost a production bug or a debugging session.
 - **`wrangler.toml` has no `main` or `[assets]` on purpose** — the Cloudflare Vite plugin validates
   `main` at build start, before `dist/` exists, and would error.
 - **Astro 7 ↔ Vite 8:** `package.json` `overrides` pins `vite ^8`. Don't let npm downgrade it.
-- **Crimson `#991B1B` fails WCAG contrast at small sizes** — hovers, borders and large display type
-  only, never body copy.
+- **Two reds, and they are not interchangeable.** `--color-blood` `#C8102E` measures **3.38:1** on
+  `--color-void` (3.21:1 on `--color-surface`) — it clears WCAG AA for *large* text only (≥24px, or
+  ≥18.66px at weight 700+). `--color-ember` `#FF3B2F` measures **5.61:1** / **5.32:1** and clears AA
+  at any size. Use blood for display type and for fills (white or bone *on* blood is fine, 5.88:1 /
+  4.63:1); use **ember for anything interactive or small**. ~83% of this site's text renders at
+  12px, so "small" is the default case, not the exception. Blood as a *border* is decorative and
+  exempt. The header/footer `H` monogram is 3.21:1 but is a logotype, exempt under WCAG 1.4.3.
+  <br>An earlier version of this note named `#991B1B` and allowed blood on "hovers". Both were
+  wrong: `#991B1B` was migrated out (`designTokens.test.js` bans its return), and hover text is
+  usually *small*, which is precisely where blood fails.
 
 ## Commands
 

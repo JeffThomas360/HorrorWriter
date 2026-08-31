@@ -169,7 +169,7 @@ function ThreadView({ id }) {
   )
   if (error) return (
     <div className="vintage-card text-center py-12 border-red-950 mt-8 max-w-2xl mx-auto">
-      <p className="font-mono text-xs uppercase tracking-widest text-[var(--color-accent-crimson)] mb-4">Error</p>
+      <p className="font-mono text-xs uppercase tracking-widest text-[var(--color-ember)] mb-4">Error</p>
       <p className="font-serif italic text-sm text-[var(--color-text-secondary)] mb-6">{error}</p>
       <a href="/forum" className="border border-[var(--color-line)] hover:border-white font-mono text-xs uppercase px-4 py-2 transition-colors">Back to the Crypt</a>
     </div>
@@ -276,7 +276,7 @@ function ThreadView({ id }) {
               >
                 {isSubmitting ? 'Summoning…' : 'Post Reply'}
               </button>
-              {replyError && <span className="form-err font-mono text-xs text-[var(--color-accent-crimson)]">{replyError}</span>}
+              {replyError && <span className="form-err font-mono text-xs text-[var(--color-ember)]">{replyError}</span>}
             </div>
           </form>
         </div>
