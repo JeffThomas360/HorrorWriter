@@ -41,7 +41,7 @@ export default function AppealButton({ modActionId, targetType }) {
 
   return (
     <div className="mt-2 flex flex-col gap-2">
-      {error && <p className="text-xs text-[var(--color-blood)]">{error}</p>}
+      {error && <p className="text-xs text-[var(--color-ember)]">{error}</p>}
       <textarea
         value={explanation}
         onChange={(e) => setExplanation(e.target.value)}

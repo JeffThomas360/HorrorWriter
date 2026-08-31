@@ -158,7 +158,7 @@ export default function MarkdownEditor({
       </div>
 
       {uploadError && (
-        <div className="md-error border-b border-[var(--color-line)] bg-[var(--color-accent-crimson)]/10 px-3 py-2 font-mono text-xs text-[var(--color-accent-crimson)]">
+        <div className="md-error border-b border-[var(--color-line)] bg-[var(--color-accent-crimson)]/10 px-3 py-2 font-mono text-xs text-[var(--color-ember)]">
           {uploadError}
         </div>
       )}

@@ -177,7 +177,7 @@ export default function SignInModal({ isOpen, onClose }) {
         <div className="mb-6 text-center">
           <h2 className="text-2xl font-serif mb-2">Summon <em className="text-[var(--color-accent-crimson)] not-italic">Yourself</em></h2>
           <p className="text-xs text-[var(--color-text-secondary)] font-serif">Enter the void using your passkey or email credentials.</p>
-          {error   && <div className="text-[var(--color-accent-crimson)] text-xs mt-3 font-mono">{error}</div>}
+          {error   && <div className="text-[var(--color-ember)] text-xs mt-3 font-mono">{error}</div>}
           {message && <div className="text-[var(--color-text-primary)] text-xs mt-3 font-mono">{message}</div>}
         </div>
 
