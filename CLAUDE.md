@@ -41,6 +41,18 @@ These have each cost a production bug or a debugging session.
 - **`supabase` may be null** (unconfigured env) — guard before querying.
 - **`Permissions-Policy` microphone must stay `(self)`** in `public/_headers`. `microphone=()`
   silently kills Dictate in production with no error anywhere.
+- **CSP `script-src` must keep `'unsafe-inline'`** in `public/_headers`. Astro hydrates every
+  `client:load` island via an *inline* `<script type="module">`; `script-src 'self'` blocks all of
+  them, so **no island ever hydrates** while the page still looks normal (the SSR'd HTML renders
+  fine). Sign-in modal, notifications bell, mobile menu all dead, and `UserMenu` frozen on its
+  server-rendered `▸ Reading coven...`. Deliberate trade — see `standing-decisions.md`, don't
+  "harden" it back.
+- **`public/_headers` is invisible to `npm run dev`** — it's a Cloudflare static-hosting file, so a
+  header change that passes locally can be totally broken in production. Verify on the PR's Workers
+  Builds preview. **Tell for dead hydration:** network panel shows CSS and fonts only, zero JS.
+- **Read the browser console before reading component source.** The CSP outage above was first
+  misdiagnosed as an `AuthContext` loading-state bug from source alone; the console named the real
+  cause in one look. Cost a wasted PR and deploy cycle.
 - **`wrangler.toml` has no `main` or `[assets]` on purpose** — the Cloudflare Vite plugin validates
   `main` at build start, before `dist/` exists, and would error.
 - **Astro 7 ↔ Vite 8:** `package.json` `overrides` pins `vite ^8`. Don't let npm downgrade it.
