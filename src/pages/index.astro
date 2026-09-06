@@ -96,12 +96,22 @@ const [heroTile, ...restTiles] = tiles;
     </p>
 
     <div class="flex flex-wrap gap-4 items-center">
+      <!--
+        The signed-out CTA is the DEFAULT rendered state and must work with no
+        JavaScript at all. `cta-enter` is swapped in by the script below only
+        once a session is actually confirmed.
+
+        Do NOT mark both of these `hidden` by default. Any JS failure then
+        leaves the landing page with no primary call to action at all — which
+        is precisely what the 2026-09-06 CSP outage produced: every visitor got
+        a hero with only the outline "Read the Library" button.
+      -->
+      <button id="cta-join" class="bg-[var(--color-accent-crimson)] text-white font-mono text-xs uppercase px-6 py-3.5 hover:bg-red-700 transition-colors cursor-pointer">
+        Join the Coven
+      </button>
       <a id="cta-enter" href="/forum" class="hidden bg-[var(--color-accent-crimson)] text-white font-mono text-xs uppercase px-6 py-3.5 hover:bg-red-700 transition-colors">
         Enter the Crypt
       </a>
-      <button id="cta-join" class="hidden bg-[var(--color-accent-crimson)] text-white font-mono text-xs uppercase px-6 py-3.5 hover:bg-red-700 transition-colors cursor-pointer">
-        Join the Coven
-      </button>
       <a href="/library" class="border border-[var(--color-line)] text-[var(--color-text-primary)] font-mono text-xs uppercase px-6 py-3.5 hover:border-white transition-colors">
         Read the Library
       </a>
@@ -166,27 +176,27 @@ const [heroTile, ...restTiles] = tiles;
 </MainLayout>
 
 <script>
-  const checkSession = () => {
+  // Progressive enhancement only. "Join the Coven" is rendered visible from the
+  // server and is the correct CTA for the signed-out majority of landings; this
+  // merely *upgrades* it to "Enter the Crypt" once a Supabase session is
+  // confirmed. Every failure path — missing env var, unavailable localStorage,
+  // a thrown error, or this script never executing at all — must leave the
+  // signed-out CTA standing. Never make the visible CTA depend on JS running.
+  const upgradeCtaForSession = () => {
     try {
       const url = import.meta.env.PUBLIC_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
       if (!url) return;
       const storageKey = 'sb-' + url.split('//')[1].split('.')[0] + '-auth-token';
-      const sessionData = localStorage.getItem(storageKey);
-      const enterBtn = document.getElementById('cta-enter');
-      const joinBtn = document.getElementById('cta-join');
-      
-      if (sessionData) {
-        enterBtn?.classList.remove('hidden');
-      } else {
-        joinBtn?.classList.remove('hidden');
-      }
+      if (!localStorage.getItem(storageKey)) return;
+
+      document.getElementById('cta-join')?.classList.add('hidden');
+      document.getElementById('cta-enter')?.classList.remove('hidden');
     } catch (e) {
-      document.getElementById('cta-join')?.classList.remove('hidden');
+      // Deliberately silent: the signed-out CTA is already visible.
     }
   };
 
-  // Run on mount
-  checkSession();
+  upgradeCtaForSession();
 
   // Listen to custom signin clicks
   document.getElementById('cta-join')?.addEventListener('click', () => {
