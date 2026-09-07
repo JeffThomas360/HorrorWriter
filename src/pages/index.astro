@@ -76,26 +76,42 @@ try {
 }
 
 const [heroTile, ...restTiles] = tiles;
+const isFallback = tiles === FALLBACK_TILES;
 ---
 
 <MainLayout title="Horror Writer" description="A circle for serious horror writers — forums, critique, and craft.">
   <StructuredData data={websiteSchema} />
 
-  <!-- Hero Section -->
-  <section class="border-b border-[var(--color-line)] pb-12 mb-16 pt-8">
-    <span class="inline-block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-text-secondary)] mb-4">
-      Members · Writers Only
-    </span>
-    <h1 class="text-4xl md:text-6xl font-serif font-black leading-tight tracking-tight text-[var(--color-text-primary)] max-w-4xl mb-6">
+  <!-- Hero Section — "Late Signal": public-access-TV register, teal + red CRT double-image title -->
+  <section
+    class="relative border-b border-[var(--color-line)] pb-16 mb-16 pt-10 px-6 -mx-6 overflow-hidden"
+    style="background:
+      radial-gradient(ellipse 900px 500px at 85% -10%, rgba(25,165,184,0.14), transparent 60%),
+      radial-gradient(ellipse 700px 450px at 0% 110%, rgba(200,16,46,0.12), transparent 60%);"
+  >
+    <div class="flex justify-between items-center mb-10">
+      <span class="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--color-text-secondary)]">
+        <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-ember)] shadow-[0_0_8px_var(--color-ember)]" aria-hidden="true"></span>
+        On Air — Members Only
+      </span>
+      <span class="font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--color-upside)] border border-[var(--color-upside)] px-3 py-1">
+        Ch. 13
+      </span>
+    </div>
+
+    <h1
+      class="text-4xl md:text-6xl font-serif font-black leading-none tracking-tight text-[var(--color-text-primary)] max-w-4xl mb-6"
+      style="text-shadow: -3px 0 0 rgba(25,165,184,0.55), 3px 0 0 rgba(200,16,46,0.5);"
+    >
       Write the things <br />
-      <span class="text-[var(--color-accent-crimson)] italic">that keep them up.</span>
+      <span class="italic">that keep them up.</span>
     </h1>
     <p class="text-base md:text-lg font-serif italic text-[var(--color-text-secondary)] max-w-2xl mb-8 leading-relaxed">
       A circle for serious horror writers — forums, critique,
       and a coven that takes the craft as seriously as you do.
     </p>
 
-    <div class="flex flex-wrap gap-4 items-center">
+    <div class="flex flex-wrap gap-6 items-center">
       <!--
         The signed-out CTA is the DEFAULT rendered state and must work with no
         JavaScript at all. `cta-enter` is swapped in by the script below only
@@ -106,14 +122,14 @@ const [heroTile, ...restTiles] = tiles;
         is precisely what the 2026-09-06 CSP outage produced: every visitor got
         a hero with only the outline "Read the Library" button.
       -->
-      <button id="cta-join" class="bg-[var(--color-accent-crimson)] text-white font-mono text-xs uppercase px-6 py-3.5 hover:bg-red-700 transition-colors cursor-pointer">
+      <button id="cta-join" class="border border-[var(--color-upside)] text-[var(--color-upside)] font-mono text-xs uppercase px-6 py-3.5 tracking-wider shadow-[0_0_20px_rgba(25,165,184,0.25)] hover:bg-[var(--color-upside)] hover:text-[var(--color-void)] transition-colors cursor-pointer">
         Join the Coven
       </button>
-      <a id="cta-enter" href="/forum" class="hidden bg-[var(--color-accent-crimson)] text-white font-mono text-xs uppercase px-6 py-3.5 hover:bg-red-700 transition-colors">
+      <a id="cta-enter" href="/forum" class="hidden border border-[var(--color-upside)] text-[var(--color-upside)] font-mono text-xs uppercase px-6 py-3.5 tracking-wider shadow-[0_0_20px_rgba(25,165,184,0.25)] hover:bg-[var(--color-upside)] hover:text-[var(--color-void)] transition-colors">
         Enter the Crypt
       </a>
-      <a href="/library" class="border border-[var(--color-line)] text-[var(--color-text-primary)] font-mono text-xs uppercase px-6 py-3.5 hover:border-white transition-colors">
-        Read the Library
+      <a href="/library" class="font-mono text-xs uppercase tracking-wider text-[var(--color-text-secondary)] hover:text-[var(--color-ember)] transition-colors">
+        Read the Library →
       </a>
     </div>
   </section>
@@ -122,8 +138,20 @@ const [heroTile, ...restTiles] = tiles;
   <section class="mb-20">
     <div class="flex justify-between items-end mb-8">
       <div>
-        <span class="block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-text-secondary)] mb-2">In the Crypt right now</span>
-        <h2 class="text-2xl md:text-3xl font-serif font-black">The <em class="italic text-[var(--color-accent-crimson)] font-serif">conversations</em> tonight</h2>
+        {isFallback ? (
+          <>
+            <span class="block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-upside)] mb-2">The Crypt · Founded this year</span>
+            <h2 class="text-2xl md:text-3xl font-serif font-black">Nothing here yet. <em class="italic text-[var(--color-ember)] font-serif">That's the point.</em></h2>
+            <p class="font-serif text-sm text-[var(--color-text-secondary)] max-w-lg mt-3 leading-relaxed">
+              Every long-running forum you love was empty once. The threads you start tonight are the ones new members find in a year — with your name on them.
+            </p>
+          </>
+        ) : (
+          <>
+            <span class="block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-text-secondary)] mb-2">In the Crypt right now</span>
+            <h2 class="text-2xl md:text-3xl font-serif font-black">The <em class="italic text-[var(--color-accent-crimson)] font-serif">conversations</em> tonight</h2>
+          </>
+        )}
       </div>
       <a href="/forum" class="hidden sm:inline-block font-mono text-xs hover:text-[var(--color-accent-crimson)] transition-colors border-b border-[var(--color-line)] pb-1">All threads →</a>
     </div>
@@ -159,18 +187,32 @@ const [heroTile, ...restTiles] = tiles;
 
   <!-- Why Section -->
   <section class="max-w-4xl mx-auto mb-12">
-    <span class="block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-text-secondary)] mb-2 text-center">Why this place</span>
-    <h2 class="text-2xl md:text-3xl font-serif font-black text-center mb-12">For writers who <em class="italic text-[var(--color-accent-crimson)] font-serif">mean it.</em></h2>
+    <span class="block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-upside)] mb-2 text-center">Why this place</span>
+    <h2 class="text-2xl md:text-3xl font-serif font-black text-center mb-12">For writers who <em class="italic text-[var(--color-ember)] font-serif">mean it.</em></h2>
     
     <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
       {WHY.map((w) => (
         <div class="flex flex-col gap-3">
-          <div class="font-serif font-black text-2xl text-[var(--color-accent-crimson)] italic">{w.ic}</div>
+          <div class="font-serif font-black text-2xl text-[var(--color-upside)] italic">{w.ic}</div>
           <h3 class="text-base font-serif font-bold tracking-tight text-[var(--color-text-primary)]">{w.label}</h3>
-          <p class="text-xs font-serif text-[var(--color-text-secondary)] leading-relaxed">{w.body}</p>
+          <p class="text-sm font-serif text-[var(--color-text-secondary)] leading-relaxed">{w.body}</p>
         </div>
       ))}
     </div>
+  </section>
+
+  <!-- Closing CTA — the page finally asks -->
+  <section
+    class="text-center py-20 px-6 -mx-6 mb-4"
+    style="background: radial-gradient(ellipse 700px 400px at 50% 100%, rgba(25,165,184,0.14), transparent 70%);"
+  >
+    <h2 class="text-2xl md:text-3xl font-serif font-black mb-4">Be one of the first names in the dark.</h2>
+    <p class="font-serif italic text-[var(--color-text-secondary)] text-base mb-9">
+      No cost. No algorithm deciding who sees you. Just a coven and a blank page.
+    </p>
+    <button id="cta-join-closing" class="border border-[var(--color-upside)] text-[var(--color-upside)] font-mono text-xs uppercase px-8 py-4 tracking-wider shadow-[0_0_20px_rgba(25,165,184,0.25)] hover:bg-[var(--color-upside)] hover:text-[var(--color-void)] transition-colors cursor-pointer">
+      Join the Coven — Founding Member
+    </button>
   </section>
 
 </MainLayout>
@@ -200,6 +242,9 @@ const [heroTile, ...restTiles] = tiles;
 
   // Listen to custom signin clicks
   document.getElementById('cta-join')?.addEventListener('click', () => {
+    window.dispatchEvent(new CustomEvent('open-signin'));
+  });
+  document.getElementById('cta-join-closing')?.addEventListener('click', () => {
     window.dispatchEvent(new CustomEvent('open-signin'));
   });
 </script>
