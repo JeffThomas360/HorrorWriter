@@ -1,92 +1,94 @@
 # HorrorWriter — CLAUDE.md
 
-A horror writing community at **horrorwriter.org**. Astro 7 (React islands) on Cloudflare Workers,
-Supabase backend. Solo-maintained by Jeff; must stay non-technical for writer users and
-low-maintenance to run.
-
-> ## 📖 The source of truth is the Obsidian vault
->
-> **`D:\CLAUDECODE\Vault\02_Projects\horrorwriter\`**
->
-> | | |
-> |---|---|
-> | `project-overview.md` | Hub — start here |
-> | `roadmap.md` | The board: what to work on, in order |
-> | `work/*.md` | One note per task, sized to a PR. Work it out in the note. |
-> | `reference/architecture.md` | Stack, island model, structure, database, design system, testing |
-> | `reference/infrastructure.md` | Supabase, Workers, deploy, secrets |
-> | `decisions-and-milestones.md` | What shipped, what was decided, what's superseded |
->
-> **Read `project-overview.md` before starting work.** This file carries only the traps that bite
-> while editing code — everything else lives in the vault, and is not duplicated here.
+A specialized, retro-aesthetic horror writing and critique community at **[horrorwriter.org](https://horrorwriter.org)**.
+Solo-maintained by Jeff Thomas (`JeffThomas360`). Built with **Astro 7** (React islands) deployed to **Cloudflare Workers**, backed by **Supabase PostgreSQL**.
 
 ---
 
-## ⚠️ Traps
+## 1. What This Project Is
 
-These have each cost a production bug or a debugging session.
+HorrorWriter is an online sanctuary for horror authors, flash-fiction writers, and dark literature aficionados. It merges the analog nostalgia of **1980s VHS tape aesthetic and midnight horror radio** with a modern, high-performance web experience.
 
-- **`withProviders` is a NAMED export** from `src/components/Providers.jsx`; the default export is
-  `Providers`. A default import compiles fine, then crashes at SSR with
-  `Cannot read properties of null (reading 'useState')`. This is the live `/library/series/[id]`
-  500 — see `work/series-hub-500.md`.
-- **Hooks before early returns** in island components. A hooks-after-return bug crashed the story
-  reader in production (`6b69881`).
-- **Islands don't share React context.** Each `client:load` is a separate React root, so one page
-  has several `AuthProvider` instances. They coordinate through module-scoped globals in
-  `AuthContext.jsx` (`globalInFlight`, `globalProfileCache`). Any new shared or loading state must
-  resolve correctly for *every* instance.
-- **Cross-island events must survive the hydration gap** — persist a flag (see
-  `window.__signinPending` in `MainLayout.astro`); never rely on catching a live CustomEvent.
-- **`supabase` may be null** (unconfigured env) — guard before querying.
-- **`Permissions-Policy` microphone must stay `(self)`** in `public/_headers`. `microphone=()`
-  silently kills Dictate in production with no error anywhere.
-- **CSP `script-src` must keep `'unsafe-inline'`** in `public/_headers`. Astro hydrates every
-  `client:load` island via an *inline* `<script type="module">`; `script-src 'self'` blocks all of
-  them, so **no island ever hydrates** while the page still looks normal (the SSR'd HTML renders
-  fine). Sign-in modal, notifications bell, mobile menu all dead, and `UserMenu` frozen on its
-  server-rendered `▸ Reading coven...`. Deliberate trade — see `standing-decisions.md`, don't
-  "harden" it back.
-- **`public/_headers` is invisible to `npm run dev`** — it's a Cloudflare static-hosting file, so a
-  header change that passes locally can be totally broken in production. Verify on the PR's Workers
-  Builds preview. **Tell for dead hydration:** network panel shows CSS and fonts only, zero JS.
-- **Read the browser console before reading component source.** The CSP outage above was first
-  misdiagnosed as an `AuthContext` loading-state bug from source alone; the console named the real
-  cause in one look. Cost a wasted PR and deploy cycle.
-- **`wrangler.toml` has no `main` or `[assets]` on purpose** — the Cloudflare Vite plugin validates
-  `main` at build start, before `dist/` exists, and would error.
-- **Astro 7 ↔ Vite 8:** `package.json` `overrides` pins `vite ^8`. Don't let npm downgrade it.
-- **Two reds, and they are not interchangeable.** `--color-blood` `#C8102E` measures **3.38:1** on
-  `--color-void` (3.21:1 on `--color-surface`) — it clears WCAG AA for *large* text only (≥24px, or
-  ≥18.66px at weight 700+). `--color-ember` `#FF3B2F` measures **5.61:1** / **5.32:1** and clears AA
-  at any size. Use blood for display type and for fills (white or bone *on* blood is fine, 5.88:1 /
-  4.63:1); use **ember for anything interactive or small**. ~83% of this site's text renders at
-  12px, so "small" is the default case, not the exception. Blood as a *border* is decorative and
-  exempt. The header/footer `H` monogram is 3.21:1 but is a logotype, exempt under WCAG 1.4.3.
-  <br>An earlier version of this note named `#991B1B` and allowed blood on "hovers". Both were
-  wrong: `#991B1B` was migrated out (`designTokens.test.js` bans its return), and hover text is
-  usually *small*, which is precisely where blood fails.
+### Core Value Propositions:
+1. **Unobstructed Reading (Amazon Kindle Experience)**:
+   - Dedicated **Kindle Focus Mode** (`/library/read/[id]`) that strips away all navigation, sidebars, and comment threads into an authentic e-reader room.
+   - Authentic Kindle themes: **Void Dark** (`#050505`), **Sepia Paperback** (`#F4EFEA` / `#2B231D`), and **Paper Light** (`#FAF9F6` / `#1A1A1A`).
+   - Bookerly, Literata, Sans, and Monospace typography with adjustable sizing, margins, line spacing, and novel paragraph indentation.
+   - Live telemetry tracking scroll progress (`XX%`) and estimated reading time left (`~X mins left`).
+2. **Sensory & RTF Writing Studio (`MarkdownEditor.jsx`)**:
+   - Full rich-text formatting toolbar: Bold, Italic, Underline (`<u>`), Strikethrough, Crimson Highlight (`<mark>`), Headings (H1/H2/H3), Scene Breaks (`* * *`), Dialogue Em-Dashes (`—`), Blockquotes, and Lists.
+   - **Split View Typesetter**: Real-time side-by-side authoring with instant book-typeset preview.
+   - Sensory immersion: Tactile mechanical typewriter audio clicks and ambient horror audio soundscapes (Rain, Tape Hum).
+   - Document import for `.docx`, `.md`, and `.txt` manuscripts.
+3. **Psychological Draw & Viral Acquisition**:
+   - **Dread Spectrum Diagnostic**: A psychological archetype quiz matching writers to 4 horror profiles (*Lovecraftian Void*, *Slasher Visceral*, *Gothic Melancholy*, *Psychological Paranoia*) generating shareable Dread Dossiers.
+   - **Whispers in the Void**: Ephemeral, anonymous micro-confessional stream for raw reader fears.
+   - **Witching Hour Telemetry**: Live nocturnal status monitoring and midnight signal intercept (*Tape #00* Channel 13 terminal).
+4. **Community Critique & Serial Fiction**:
+   - Long-form story publishing, multi-part series arcs, constructive critique exchanges, and transparent community moderation.
 
-## Commands
+---
+
+## 2. Strategic Goals Going Forward
+
+### A. Product & Community Goals
+1. **Frictionless Reading & Retention**:
+   - Keep reading unobstructed, beautiful, and distraction-free. Readers should feel like they are reading on a Kindle or holding a physical paperback.
+   - Preserve soft single returns and book-style paragraph formatting across all stories.
+2. **Writer Empowerment**:
+   - Provide the premier editor for horror fiction: fast, distraction-free, rich formatting, sensory soundscapes, and autosaved drafts.
+3. **Organic Search Dominance (Top 10 Google Ranking)**:
+   - Maintain JSON-LD structured data (`CreativeWork`, `Book`, `DiscussionForumPosting`, `BreadcrumbList`, `WebSite`).
+   - Keep dynamic XML sitemaps (`sitemap-stories.xml.js`, `sitemap-threads.xml.js`, `sitemap-profiles.xml.js`) auto-updating.
+   - Ensure dynamic social share card generation (`/og/story/[id].png`) works seamlessly on Twitter/X, Reddit, and Discord.
+4. **Low-Maintenance & High Reliability**:
+   - Two hard constraints shape every engineering decision: **must stay simple and non-technical for writer users**, and **strictly low-maintenance to operate**.
+
+---
+
+## 3. Tech Stack & Architecture
+
+- **Framework**: Astro 7 (`output: "static"`, `mode: "server"` via `@astrojs/cloudflare` adapter).
+- **Frontend**: React 19 islands (`client:load` / `client:only="react"`).
+- **Bundler & Compiler**: Vite 8 (overrides pinned in `package.json`).
+- **Styling**: Tailwind CSS 4 + Vanilla CSS Design Tokens in `src/styles/global.css`.
+- **Database & Auth**: Supabase PostgreSQL + PostgREST + Supabase Auth.
+- **Edge Runtime**: Cloudflare Workers (Astro SSR + static asset pipeline).
+- **Secondary Workers**: Audio transcription worker (`workers/transcribe/`).
+
+---
+
+## 4. Critical Traps & Engineering Guardrails
+
+These have cost production outages or lengthy debugging sessions in the past:
+
+1. **`withProviders` is a NAMED export** from `src/components/Providers.jsx`; the default export is `Providers`. A default import compiles cleanly, then crashes at SSR runtime with `Cannot read properties of null (reading 'useState')`.
+2. **Hooks before early returns in React islands**: Placing hooks after conditional returns (`if (loading) return ...`) crashes React islands in production. Always declare all hooks at the top.
+3. **Islands do NOT share React context**: Each `client:load` is a distinct React root. One page contains multiple `AuthProvider` instances. They coordinate via module-scoped globals in `AuthContext.jsx` (`globalInFlight`, `globalProfileCache`).
+4. **Tailwind v4 Paragraph Reset**: Tailwind v4 resets all `<p>` margins to 0. All paragraph vertical spacing must be explicitly governed by `.prose-book p` and `.prose p` in `global.css`.
+5. **Database Parity (`updated_at`)**: Every content table (`books`, `threads`, `posts`, `book_comments`, `profiles`) has `updated_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL` and trigger `touch_profile_updated_at()`. When adding columns or modifying tables, always create a numbered migration in `supabase/migrations/` and reload PostgREST cache via `NOTIFY pgrst, 'reload schema';`.
+6. **CSP & Cloudflare `public/_headers`**:
+   - `Permissions-Policy`: `microphone=(self)` must remain active for Dictate transcription.
+   - `CSP script-src`: Must retain `'unsafe-inline'` because Astro hydrates React islands via inline module scripts. Dropping it disables all client hydration.
+   - `_headers` is invisible to `npm run dev` (Cloudflare static hosting only). Verify header changes in production or staging builds.
+7. **Color Tokens & WCAG AA Contrast**:
+   - `--color-blood` (`#C8102E`) is **3.38:1** on dark surfaces. It passes WCAG AA **only for large display type** (≥24px or ≥18.66px bold).
+   - `--color-ember` (`#FF3B2F`) is **5.61:1** and passes AA at any size. Use **ember for small text and interactive links/buttons**.
+   - Use blood as a decorative border or solid background fill with white text. Never use blood for 12px body copy.
+
+---
+
+## 5. Development & Verification Workflow
 
 ```powershell
-npm run dev          # astro dev — http://localhost:5173
-npm run build        # astro build → dist/ (Cloudflare adapter)
-npm run test:unit    # vitest run — 39 tests
-npx playwright test  # E2E, 54 tests. From PowerShell prefix with `cmd /c` (npx.ps1 is blocked).
-
-# Release: git push to main (Workers Builds auto-deploys)
-# Transcribe Worker is NOT auto-deployed: cd workers/transcribe; npx wrangler deploy
+npm run dev          # Local development (http://localhost:4321)
+npm run test:unit    # Vitest unit tests (18 test suites, 137 tests)
+npm run build        # Astro Cloudflare production build verification
+npx playwright test  # E2E browser test suite
 ```
 
-## Environment notes
-
-- **`gh` CLI is authenticated** (`JeffThomas360`) — `gh pr create` / `gh pr merge` work.
-- **Dependabot pushes to `main` unattended, and `main` auto-deploys. There is no CI test gate.**
-- **Agent sandbox:** Playwright's browser download is blocked, so E2E must run on Jeff's machine.
-  Unit tests and `npm run build` work, but only after copying the repo to `/tmp` and reinstalling —
-  the Windows `node_modules` holds native binaries Linux can't load.
-- **If "Supabase not configured" appears in production,** check Workers Builds → Settings → Build →
-  Variables for the `VITE_*` set.
-- Plan docs under `docs/superpowers/` have **stale checkboxes** — they were never ticked as work
-  landed. Trust `git log`.
+### Protocol for Deployments:
+1. Always run `npm run test:unit` and `npm run build` before pushing.
+2. Commit with descriptive semantic messages (`feat: ...`, `fix: ...`, `chore: ...`).
+3. Push to `main`: Cloudflare Pages auto-deploys via GitHub webhook.
+4. Verify visually via browser subagent or headless Playwright script with screenshots saved to brain artifacts.
