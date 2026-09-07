@@ -272,7 +272,7 @@ function Profile() {
           </button>
           {status === 'saved' && <span className="form-ok font-mono text-xs text-green-700">✓ Saved</span>}
           {status === 'passkey_enrolled' && <span className="form-ok font-mono text-xs text-green-700">✓ Passkey added</span>}
-          {status?.error && <span className="form-err font-mono text-xs text-[var(--color-accent-crimson)]">{status.error}</span>}
+          {status?.error && <span className="form-err font-mono text-xs text-[var(--color-ember)]">{status.error}</span>}
         </div>
       </form>
 

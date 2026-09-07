@@ -319,7 +319,7 @@ function ReadStory({ id }) {
               >
                 {isSubmitting ? 'Summoning…' : 'Post Critique'}
               </button>
-              {commentError && <span className="form-err font-mono text-xs text-[var(--color-accent-crimson)]">{commentError}</span>}
+              {commentError && <span className="form-err font-mono text-xs text-[var(--color-ember)]">{commentError}</span>}
             </div>
           </form>
         ) : (

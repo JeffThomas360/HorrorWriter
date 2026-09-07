@@ -89,7 +89,7 @@ export default function ReportModal({ isOpen, onClose, targetType, targetId }) {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-            {error && <div className="text-sm text-[var(--color-accent-crimson)]">{error}</div>}
+            {error && <div className="text-sm text-[var(--color-ember)]">{error}</div>}
 
             <div className="flex flex-col gap-2">
               <label className="font-mono text-xs uppercase text-[var(--color-text-secondary)]">Category</label>

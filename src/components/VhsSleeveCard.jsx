@@ -34,10 +34,10 @@ export default function VhsSleeveCard({ story }) {
       <div
         data-testid="vhs-spine"
         className={`w-7 sm:w-8 md:w-9 shrink-0 flex items-center justify-center relative overflow-hidden transition-colors ${
-          isSeries ? 'bg-[var(--color-upside)]' : 'bg-[var(--color-blood)]'
+          isSeries ? 'bg-[var(--color-upside)] text-[var(--color-void)]' : 'bg-[var(--color-blood)] text-white'
         }`}
       >
-        <span className="[writing-mode:vertical-rl] rotate-180 select-none text-[9px] font-mono uppercase tracking-widest text-[var(--color-void)] font-bold truncate max-h-full px-1">
+        <span className="[writing-mode:vertical-rl] rotate-180 select-none text-[9px] font-mono uppercase tracking-widest font-bold truncate max-h-full px-1">
           {isSeries ? `${seriesInfo.title} • VOL ${seriesInfo.sort_order}` : 'HORROR TAPE • STANDALONE'}
         </span>
       </div>

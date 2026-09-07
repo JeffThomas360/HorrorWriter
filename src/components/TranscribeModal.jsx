@@ -171,7 +171,7 @@ export default function TranscribeModal({ onTranscribed, onClose }) {
 
         <p className="mb-5 font-serif text-sm text-[var(--color-text-secondary)]">{HELPER}</p>
 
-        {error && <p className="mb-4 font-mono text-xs text-[var(--color-accent-crimson)]">{error}</p>}
+        {error && <p className="mb-4 font-mono text-xs text-[var(--color-ember)]">{error}</p>}
 
         {/* Record step */}
         {step === 'record' && (

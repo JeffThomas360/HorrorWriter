@@ -144,7 +144,7 @@ function CreateThread() {
           >
             Cancel
           </button>
-          {error && <span className="form-err font-mono text-xs text-[var(--color-accent-crimson)]">{error}</span>}
+          {error && <span className="form-err font-mono text-xs text-[var(--color-ember)]">{error}</span>}
         </div>
       </form>
     </div>
