@@ -10,14 +10,18 @@ let error = null;
 try {
   const isTest = typeof process !== 'undefined' && process.env.PLAYWRIGHT_TEST === 'true';
   if (supabase && !isTest) {
-    const { data, error: err } = await supabase
-      .from('transparency_log')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(50);
+    // Attempt hardened RPC first; fallback to legacy view during migration transition
+    let res = await supabase.rpc('get_transparency_log', { limit_count: 50 });
+    if (res.error) {
+      res = await supabase
+        .from('transparency_log')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+    }
       
-    if (err) error = err.message;
-    else logs = data || [];
+    if (res.error) error = res.error.message;
+    else logs = res.data || [];
   } else if (isTest) {
     logs = [];
   } else {
