@@ -17,6 +17,7 @@ import QuoteSharer from '../components/QuoteSharer'
 import { fetchStorySeriesContext } from '../lib/series'
 import SeriesContextBar from '../components/SeriesContextBar'
 import SeriesSidebar from '../components/SeriesSidebar'
+import { ARCHIVE_STORIES } from '../lib/seedArchives'
 
 const AV_COLORS = ['', 'av-1', 'av-2', 'av-3', 'av-4', 'av-5', 'av-6']
 
@@ -80,6 +81,10 @@ function ReadStory({ id }) {
   const { data: book, isLoading: loading, error: queryError } = useQuery({
     queryKey: ['book', id],
     queryFn: async () => {
+      if (typeof id === 'string' && id.startsWith('archive-')) {
+        const found = ARCHIVE_STORIES.find(s => s.id === id)
+        if (found) return found
+      }
       if (!supabase) return null
       const { data, error } = await supabase
         .from('books')
@@ -187,6 +192,23 @@ function ReadStory({ id }) {
       }}>
         <div className="mt-8">
           <QuoteSharer title={book?.title} />
+
+          {book?.is_artificial && (
+            <div className="mb-8 p-4 border border-[var(--color-upside)]/50 bg-[var(--color-upside)]/10 font-mono text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-left">
+              <div className="flex items-center gap-2.5 text-[var(--color-upside)]">
+                <span className="text-xl">📼</span>
+                <div>
+                  <strong className="tracking-wider uppercase">Public Archive Sample (Artificial / Pre-Seeded)</strong>
+                  <p className="text-[11px] text-[var(--color-text-secondary)] font-serif italic mt-0.5">
+                    This piece is a public-domain horror masterwork preserved as an archival showcase.
+                  </p>
+                </div>
+              </div>
+              <span className="shrink-0 px-2 py-0.5 border border-[var(--color-upside)] text-[10px] uppercase font-bold text-[var(--color-upside)]">
+                Archive Tape
+              </span>
+            </div>
+          )}
 
           {/* Title & Author Info */}
           <div className="border-b border-[var(--color-line)] pb-8 mb-12 text-center">

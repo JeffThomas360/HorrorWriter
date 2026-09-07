@@ -5,6 +5,7 @@ import remarkGfm from 'remark-gfm'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../components/AuthContext'
 import MarkdownEditor from '../components/MarkdownEditor'
+import VhsSleeveCustomizer from '../components/VhsSleeveCustomizer'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { fetchAuthorSeriesOptions, addBookToSeries } from '../lib/series'
 import { validateStoryContent, countWords } from '../lib/storyValidation'
@@ -13,21 +14,25 @@ import TranscribeButton from '../components/TranscribeButton'
 import { withProviders } from '../components/Providers'
 import RequireAuth from '../components/RequireAuth'
 
-const COVER_OPTIONS = [
-  { value: 'blood', label: 'Blood', color: 'var(--color-blood)' },
-  { value: 'cyan',  label: 'Phantom', color: 'var(--color-upside)' },
-  { value: 'bone',  label: 'Bone',  color: '#E5E1D8' },
+const CRITIQUE_TAGS = [
+  { id: 'hook', label: 'First 250 Words / Hook' },
+  { id: 'atmosphere', label: 'Atmosphere & Dread' },
+  { id: 'pacing', label: 'Pacing & Plot Twist' },
+  { id: 'proofreading', label: 'Proofreading & Polish' },
+  { id: 'readonly', label: 'Read Only / General Feedback' },
 ]
 
 function PublishStory({ bookId }) {
   const { session, isLoading: authLoading } = useAuth()
   const queryClient = useQueryClient()
 
-  const [title,   setTitle]   = useState('')
-  const [lede,    setLede]    = useState('')
-  const [cover,   setCover]   = useState('blood')
+  const [title, setTitle] = useState('')
+  const [lede, setLede] = useState('')
+  const [cover, setCover] = useState('blood')
+  const [sticker, setSticker] = useState('rewind')
+  const [critiqueFocus, setCritiqueFocus] = useState('atmosphere')
   const [content, setContent] = useState('')
-  const [error,   setError]   = useState(null)
+  const [error, setError] = useState(null)
   const [seriesId, setSeriesId] = useState('')
   const [activeTab, setActiveTab] = useState('write') // 'write' | 'preview'
   const [currentVersion, setCurrentVersion] = useState(1)
@@ -36,6 +41,13 @@ function PublishStory({ bookId }) {
   const [pendingDraft, setPendingDraft] = useState(null)
 
   const draftKey = bookId ? `edit_${bookId}` : 'new_story'
+
+  // Fetch author's series options
+  const { data: seriesOptions = [] } = useQuery({
+    queryKey: ['authorSeries', session?.user?.id],
+    queryFn: () => fetchAuthorSeriesOptions(session.user.id),
+    enabled: Boolean(session?.user?.id),
+  })
 
   // Fetch story details if in Edit Mode (bookId)
   useEffect(() => {
@@ -83,7 +95,7 @@ function PublishStory({ bookId }) {
     }
   }, [draftKey])
 
-  // Auto-save draft on typing (debounced 2s)
+  // Auto-save draft on typing (debounced 1.5s)
   useEffect(() => {
     if (authLoading || fetchingBook) return
     if (!title && !lede && !content) return
@@ -103,7 +115,7 @@ function PublishStory({ bookId }) {
     if (pendingDraft.content) setContent(pendingDraft.content)
     if (pendingDraft.seriesId) setSeriesId(pendingDraft.seriesId)
     setPendingDraft(null)
-    toast.success('Draft restored from local backup.')
+    toast.success('Draft restored from local memory.')
   }
 
   const handleDismissDraft = () => {
@@ -111,23 +123,10 @@ function PublishStory({ bookId }) {
     setPendingDraft(null)
   }
 
-  const seriesOptionsQuery = useQuery({
-    queryKey: ['my-series-options', session?.user?.id],
-    queryFn: () => fetchAuthorSeriesOptions(session.user.id),
-    enabled: !!session?.user?.id,
-  })
-  const seriesOptions = seriesOptionsQuery.data || []
-
-  useEffect(() => {
-    if (!authLoading && !session) {
-      window.location.replace('/library')
-    }
-  }, [session, authLoading])
-
   const mutation = useMutation({
     mutationFn: async ({ title, lede, cover, content }) => {
       if (bookId) {
-        // Edit Mode: UPDATE story & increment version
+        // Edit Mode: UPDATE story with version increment
         const { data, error: updateErr } = await supabase
           .from('books')
           .update({
@@ -136,6 +135,7 @@ function PublishStory({ bookId }) {
             cover,
             content: content.trim(),
             version: currentVersion + 1,
+            updated_at: new Date().toISOString(),
           })
           .eq('id', bookId)
           .eq('author_id', session.user.id)
@@ -219,6 +219,7 @@ function PublishStory({ bookId }) {
   const isSubmitting = mutation.isPending
   const wc = countWords(content)
   const readMins = wc > 0 ? Math.ceil(wc / 200) : null
+  const authorHandle = session?.user?.user_metadata?.handle || session?.user?.email?.split('@')[0] || 'you'
 
   if (authLoading || !session || fetchingBook) return (
     <div className="flex flex-col items-center justify-center min-h-[40vh]">
@@ -229,7 +230,7 @@ function PublishStory({ bookId }) {
   )
 
   return (
-    <div className="mt-8 max-w-2xl mx-auto">
+    <div className="mt-8 max-w-6xl mx-auto">
       {/* Draft Backup Restore Banner */}
       {pendingDraft && (
         <div className="card-raised p-4 mb-6 border border-[var(--color-ember)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -250,7 +251,7 @@ function PublishStory({ bookId }) {
             <button
               type="button"
               onClick={handleDismissDraft}
-              className="px-3 py-1 font-mono text-xs uppercase border border-[var(--color-line)] text-[var(--color-ash)] hover:border-white"
+              className="px-3 py-1 font-mono text-xs uppercase border border-[var(--color-line)] text-[var(--color-ash)] hover:border-white cursor-pointer"
             >
               Discard
             </button>
@@ -258,151 +259,145 @@ function PublishStory({ bookId }) {
         </div>
       )}
 
-      <span className="block font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-ash)] mb-2">The Library</span>
-      <h2 className="title text-3xl font-serif font-black mb-8">
-        {bookId ? 'Revise ' : 'Publish '}
-        <em className="italic text-[var(--color-blood)] font-serif">
-          {bookId ? 'story' : 'a story'}
-        </em>
-        {bookId && <span className="text-xs font-mono font-normal ml-3 text-[var(--color-ash)]">(v{currentVersion})</span>}
-      </h2>
-
-      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-mono text-[var(--color-ash)] uppercase">Title</label>
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-            placeholder="The Tell-Tale Heart"
-            className="bg-[var(--color-void)] text-[var(--color-bone)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-ember)] outline-none font-mono"
-          />
+      <div className="border-b border-[var(--color-line)] pb-6 mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div>
+          <span className="block font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-ash)] mb-2">The Library</span>
+          <h2 className="title text-3xl font-serif font-black">
+            {bookId ? 'Revise ' : 'Publish '}
+            <em className="italic text-[var(--color-blood)] font-serif">
+              {bookId ? 'story' : 'a story'}
+            </em>
+            {bookId && <span className="text-xs font-mono font-normal ml-3 text-[var(--color-ash)]">(v{currentVersion})</span>}
+          </h2>
         </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-mono text-[var(--color-ash)] uppercase">Lede / Pitch</label>
-          <input
-            value={lede}
-            onChange={(e) => setLede(e.target.value)}
-            required
-            placeholder="A short hook to draw readers in…"
-            className="bg-[var(--color-void)] text-[var(--color-bone)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-ember)] outline-none font-mono"
-          />
+        <div className="font-mono text-xs text-[var(--color-text-secondary)] uppercase">
+          Tactile Studio • Sensory Enabled
         </div>
+      </div>
 
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-mono text-[var(--color-ash)] uppercase">Cover Style</label>
-          <div className="flex gap-4 flex-wrap">
-            {COVER_OPTIONS.map(opt => (
-              <label
-                key={opt.value}
-                className={`flex items-center gap-3 cursor-pointer px-4 py-2 border transition-all ${cover === opt.value ? 'border-white bg-white/5' : 'border-[var(--color-line)]'}`}
-              >
-                <input
-                  type="radio"
-                  name="cover"
-                  value={opt.value}
-                  checked={cover === opt.value}
-                  onChange={() => setCover(opt.value)}
-                  className="hidden"
-                />
-                <span 
-                  className="w-3.5 h-3.5 rounded-full inline-block shrink-0 border border-white/20"
-                  style={{ backgroundColor: opt.color }}
-                />
-                <span className="text-xs font-mono uppercase tracking-wider">{opt.label}</span>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Left Column: Form & Editor (7 cols) */}
+        <div className="lg:col-span-7 flex flex-col gap-6">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-mono text-[var(--color-ash)] uppercase">Story Title</label>
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+                placeholder="The Music of Erich Zann"
+                className="bg-[var(--color-void)] text-[var(--color-bone)] border border-[var(--color-line)] px-3.5 py-2.5 text-sm focus:border-[var(--color-blood)] outline-none font-mono"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-mono text-[var(--color-ash)] uppercase">Lede / Back-Cover Hook</label>
+              <input
+                value={lede}
+                onChange={(e) => setLede(e.target.value)}
+                required
+                placeholder="In the Rue d'Auseil, the old man played melodies that held back the abyss..."
+                className="bg-[var(--color-void)] text-[var(--color-bone)] border border-[var(--color-line)] px-3.5 py-2.5 text-sm focus:border-[var(--color-blood)] outline-none font-mono"
+              />
+            </div>
+
+            {/* Critique Feedback Wanted */}
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-mono text-[var(--color-ash)] uppercase">
+                What feedback do you want from the coven?
               </label>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-mono text-[var(--color-ash)] uppercase">Part of a series?</label>
-          <select
-            value={seriesId}
-            onChange={(e) => setSeriesId(e.target.value)}
-            className="bg-[var(--color-void)] text-[var(--color-bone)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-ember)] outline-none font-mono"
-          >
-            <option value="">None</option>
-            {seriesOptions.map(s => (
-              <option key={s.id} value={s.id}>{s.title}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Content Section with Live Preview Tab */}
-        <div className="flex flex-col gap-2">
-          <div className="flex justify-between items-center mb-1">
-            <div className="flex items-center gap-3">
-              <label className="text-xs font-mono text-[var(--color-ash)] uppercase">Story Content</label>
-              <div className="flex gap-1">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('write')}
-                  className={`font-mono text-xs uppercase px-2 py-0.5 border ${activeTab === 'write' ? 'bg-[var(--color-blood)] text-white border-[var(--color-blood)]' : 'border-[var(--color-line)] text-[var(--color-ash)]'}`}
-                >
-                  Write
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('preview')}
-                  className={`font-mono text-xs uppercase px-2 py-0.5 border ${activeTab === 'preview' ? 'bg-[var(--color-blood)] text-white border-[var(--color-blood)]' : 'border-[var(--color-line)] text-[var(--color-ash)]'}`}
-                >
-                  Preview
-                </button>
+              <div className="flex flex-wrap gap-2">
+                {CRITIQUE_TAGS.map((tag) => (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    onClick={() => setCritiqueFocus(tag.id)}
+                    className={`font-mono text-xs px-2.5 py-1 border transition-colors cursor-pointer ${
+                      critiqueFocus === tag.id
+                        ? 'bg-[var(--color-blood)] text-white border-[var(--color-blood)]'
+                        : 'bg-[var(--color-surface)] text-[var(--color-text-secondary)] border-[var(--color-line)] hover:border-white'
+                    }`}
+                  >
+                    {tag.label}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {wc > 0 && (
-              <span className={`font-mono text-xs tracking-wider ${wc < 50 || wc > 10000 ? 'text-[var(--color-ember)]' : 'text-[var(--color-ash)]'}`}>
-                {wc.toLocaleString()} words{readMins ? ` · ~${readMins} min read` : ''}
-              </span>
-            )}
-          </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-mono text-[var(--color-ash)] uppercase">Part of a series?</label>
+              <select
+                value={seriesId}
+                onChange={(e) => setSeriesId(e.target.value)}
+                className="bg-[var(--color-void)] text-[var(--color-bone)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-blood)] outline-none font-mono cursor-pointer"
+              >
+                <option value="">None (Standalone Tape)</option>
+                {seriesOptions.map(s => (
+                  <option key={s.id} value={s.id}>{s.title}</option>
+                ))}
+              </select>
+            </div>
 
-          {activeTab === 'write' ? (
-            <>
+            {/* Content Section with Sensory MarkdownEditor */}
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-between items-center mb-1">
+                <label className="text-xs font-mono text-[var(--color-ash)] uppercase">Story Manuscript</label>
+                {wc > 0 && (
+                  <span className={`font-mono text-xs tracking-wider ${wc < 50 || wc > 10000 ? 'text-[var(--color-ember)]' : 'text-[var(--color-ash)]'}`}>
+                    {wc.toLocaleString()} words{readMins ? ` · ~${readMins} min read` : ''}
+                  </span>
+                )}
+              </div>
+
               <MarkdownEditor
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 placeholder="True!—nervous—very, very dreadfully nervous I had been and am; but why will you say that I am mad?"
               />
+
               <div className="mt-2">
                 <TranscribeButton
                   onTranscribed={(text) => setContent(prev => prev ? `${prev}\n\n${text}` : text)}
                 />
               </div>
-            </>
-          ) : (
-            <div className="card-surface p-6 min-h-[300px] border border-[var(--color-line)] font-serif leading-relaxed text-[var(--color-bone)] space-y-4">
-              {content.trim() ? (
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
-              ) : (
-                <p className="font-mono text-xs italic text-[var(--color-ash)]">Nothing to preview yet…</p>
-              )}
             </div>
-          )}
+
+            <div className="flex items-center gap-4 mt-4 border-t border-[var(--color-line)] pt-6">
+              <button 
+                type="submit" 
+                className="btn-vhs disabled:opacity-50 cursor-pointer"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (bookId ? 'Updating…' : 'Publishing Tape…') : (bookId ? 'Save Revisions' : 'Publish Story to Archives')}
+              </button>
+              <button 
+                type="button" 
+                className="border border-[var(--color-line)] hover:border-white text-[var(--color-bone)] font-mono text-xs uppercase px-4 py-3 transition-colors cursor-pointer"
+                onClick={() => window.location.replace(bookId ? `/library/read/${bookId}` : '/library')} 
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+              {error && <span className="form-err font-mono text-xs text-[var(--color-ember)]">{error}</span>}
+            </div>
+          </form>
         </div>
 
-        <div className="flex items-center gap-4 mt-4 border-t border-[var(--color-line)] pt-6">
-          <button 
-            type="submit" 
-            className="btn-vhs disabled:opacity-50"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (bookId ? 'Updating…' : 'Publishing…') : (bookId ? 'Save Revisions' : 'Publish Story')}
-          </button>
-          <button 
-            type="button" 
-            className="border border-[var(--color-line)] hover:border-white text-[var(--color-bone)] font-mono text-xs uppercase px-4 py-3 transition-colors cursor-pointer"
-            onClick={() => window.location.replace(bookId ? `/library/read/${bookId}` : '/library')} 
-            disabled={isSubmitting}
-          >
-            Cancel
-          </button>
-          {error && <span className="form-err font-mono text-xs text-[var(--color-ember)]">{error}</span>}
+        {/* Right Column: Live Tactile VHS Sleeve Customizer (5 cols) */}
+        <div className="lg:col-span-5">
+          <div className="sticky top-6">
+            <VhsSleeveCustomizer
+              title={title}
+              author={authorHandle}
+              lede={lede}
+              cover={cover}
+              sticker={sticker}
+              onCoverChange={(c) => setCover(c)}
+              onStickerChange={(s) => setSticker(s)}
+            />
+          </div>
         </div>
-      </form>
+      </div>
     </div>
   )
 }

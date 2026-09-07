@@ -1,6 +1,7 @@
 ---
 import MainLayout from '../layouts/MainLayout.astro';
 import StructuredData from '../components/StructuredData.astro';
+import MidnightRitual from '../components/MidnightRitual.jsx';
 import { supabase } from '../supabaseClient';
 import { buildWebSiteSchema } from '../lib/seo';
 
@@ -133,6 +134,9 @@ const isFallback = tiles === FALLBACK_TILES;
       </a>
     </div>
   </section>
+
+  <!-- The Midnight Ritual: Interactive Flash Prompt Terminal -->
+  <MidnightRitual client:load />
 
   <!-- Content Grid Section -->
   <section class="mb-20">

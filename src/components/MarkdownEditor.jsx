@@ -1,7 +1,8 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { parseFileToMarkdown } from '../lib/fileParser'
+import { playTypewriterKey, setAmbientSound, getCurrentAmbientType } from '../lib/soundscapes'
 
 const TOOL_BTN =
   'relative flex h-8 w-8 items-center justify-center border border-transparent text-sm text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-line)] hover:text-[var(--color-text-primary)] disabled:pointer-events-none disabled:opacity-30'
@@ -20,7 +21,7 @@ function ToolButton({ label, onClick, disabled, children, className = '' }) {
       </button>
       <span
         role="tooltip"
-        className="pointer-events-none absolute -top-8 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap border border-[var(--color-line)] bg-[var(--color-bg-surface)] px-2 py-1 font-mono text-[10px] uppercase tracking-wide text-[var(--color-text-secondary)] opacity-0 transition-opacity duration-100 group-hover/tip:opacity-100"
+        className="pointer-events-none absolute -top-8 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap border border-[var(--color-line)] bg-[var(--color-surface)] px-2 py-1 font-mono text-[10px] uppercase tracking-wide text-[var(--color-text-secondary)] opacity-0 transition-opacity duration-100 group-hover/tip:opacity-100 shadow-md"
       >
         {label}
       </span>
@@ -28,8 +29,16 @@ function ToolButton({ label, onClick, disabled, children, className = '' }) {
   )
 }
 
+function getWordMilestone(count) {
+  if (count >= 2500) return { label: 'Grimoire', badge: '🩸 2,500w+', color: 'text-[var(--color-ember)]' }
+  if (count >= 1000) return { label: 'Blaze', badge: '⚡ 1,000w', color: 'text-amber-400' }
+  if (count >= 500)  return { label: 'Flame', badge: '🔥 500w', color: 'text-amber-500' }
+  if (count >= 250)  return { label: 'Spark', badge: '🕯️ 250w', color: 'text-[var(--color-upside)]' }
+  return { label: 'Kindling', badge: `${count} words`, color: 'text-[var(--color-text-secondary)]' }
+}
+
 export default function MarkdownEditor({
-  value,
+  value = '',
   onChange,
   placeholder = 'Speak into the void...',
   rows = 10,
@@ -38,8 +47,41 @@ export default function MarkdownEditor({
   const [isPreview, setIsPreview] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [uploadError, setUploadError] = useState(null)
+  const [typewriterAudio, setTypewriterAudio] = useState(false)
+  const [ambientAudio, setAmbientAudio] = useState('off')
+
   const fileInputRef = useRef(null)
   const textareaRef = useRef(null)
+
+  const wordCount = useMemo(() => {
+    if (!value || typeof value !== 'string') return 0
+    const matches = value.trim().match(/\S+/g)
+    return matches ? matches.length : 0
+  }, [value])
+
+  const milestone = getWordMilestone(wordCount)
+
+  const handleKeyDown = (e) => {
+    if (typewriterAudio && !disabled && !isPreview) {
+      if (e.key !== 'Shift' && e.key !== 'Control' && e.key !== 'Alt' && e.key !== 'Meta') {
+        playTypewriterKey(e.key === 'Enter')
+      }
+    }
+  }
+
+  const toggleTypewriterAudio = () => {
+    const next = !typewriterAudio
+    setTypewriterAudio(next)
+    if (next) {
+      playTypewriterKey(false)
+    }
+  }
+
+  const handleAmbientChange = (e) => {
+    const mode = e.target.value
+    setAmbientAudio(mode)
+    setAmbientSound(mode)
+  }
 
   const insertText = (before, after = '') => {
     if (!textareaRef.current) return
@@ -67,7 +109,6 @@ export default function MarkdownEditor({
     setUploadError(null)
     try {
       const markdown = await parseFileToMarkdown(file)
-      // Append or replace? If editor is empty, replace. Else, append.
       const newText = value ? value + '\n\n' + markdown : markdown
       onChange({ target: { value: newText } })
     } catch (err) {
@@ -80,9 +121,9 @@ export default function MarkdownEditor({
 
   return (
     <div
-      className={`md-editor w-full border border-[var(--color-line)] bg-[var(--color-bg-primary)] transition-colors focus-within:border-[var(--color-accent-crimson)] ${disabled ? 'opacity-60' : ''}`}
+      className={`md-editor w-full border border-[var(--color-line)] bg-[var(--color-void)] transition-colors focus-within:border-[var(--color-blood)] ${disabled ? 'opacity-60' : ''}`}
     >
-      <div className="md-toolbar flex flex-wrap items-center justify-between gap-2 border-b border-[var(--color-line)] bg-[var(--color-bg-surface)] px-2 py-1.5">
+      <div className="md-toolbar flex flex-wrap items-center justify-between gap-2 border-b border-[var(--color-line)] bg-[var(--color-surface)] px-2.5 py-1.5">
         <div className="md-tools flex items-center gap-0.5">
           <ToolButton label="Bold" onClick={() => insertText('**', '**')} disabled={disabled || isPreview}>
             <span className="font-bold">B</span>
@@ -125,54 +166,94 @@ export default function MarkdownEditor({
             className="w-auto gap-1.5 px-2 font-mono text-[11px] uppercase tracking-wide"
           >
             <span aria-hidden="true">{isUploading ? '⏳' : '📁'}</span>
-            <span>{isUploading ? 'Parsing…' : 'Import File'}</span>
+            <span>{isUploading ? 'Parsing…' : 'Import'}</span>
           </ToolButton>
         </div>
 
-        <div className="md-modes flex border border-[var(--color-line)]">
-          <button
-            type="button"
-            onClick={() => setIsPreview(false)}
-            aria-pressed={!isPreview}
-            className={`px-3 py-1 font-mono text-[11px] uppercase tracking-wide transition-colors ${
-              !isPreview
-                ? 'bg-[var(--color-accent-crimson)] text-white'
-                : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
-            }`}
+        {/* Sensory Audio & Word Count Controls */}
+        <div className="flex items-center gap-3">
+          {/* Audio Controls */}
+          <div className="flex items-center gap-1.5 bg-[var(--color-void)] px-2 py-0.5 border border-[var(--color-line)] text-[11px] font-mono">
+            <button
+              type="button"
+              onClick={toggleTypewriterAudio}
+              title="Toggle tactile typewriter clicks while typing"
+              className={`flex items-center gap-1 transition-colors px-1 py-0.5 ${
+                typewriterAudio ? 'text-[var(--color-ember)] font-bold' : 'text-[var(--color-text-secondary)] hover:text-white'
+              }`}
+            >
+              <span>⌨️</span>
+              <span className="hidden sm:inline">{typewriterAudio ? 'Clicks: ON' : 'Clicks'}</span>
+            </button>
+
+            <span className="text-[var(--color-line)]">|</span>
+
+            <select
+              value={ambientAudio}
+              onChange={handleAmbientChange}
+              title="Select background sensory horror atmosphere"
+              className="bg-transparent text-[var(--color-text-secondary)] hover:text-white cursor-pointer focus:outline-none text-[11px] py-0.5"
+            >
+              <option value="off" className="bg-[var(--color-surface)] text-[var(--color-text-primary)]">Audio: Off</option>
+              <option value="tape" className="bg-[var(--color-surface)] text-[var(--color-text-primary)]">📻 Tape Hum</option>
+              <option value="rain" className="bg-[var(--color-surface)] text-[var(--color-text-primary)]">🌧️ Night Rain</option>
+            </select>
+          </div>
+
+          {/* Word Count Milestone */}
+          <div
+            title={`Current word count: ${wordCount} words`}
+            className="hidden md:flex items-center gap-1.5 font-mono text-[11px] tracking-wide"
           >
-            Write
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsPreview(true)}
-            aria-pressed={isPreview}
-            className={`border-l border-[var(--color-line)] px-3 py-1 font-mono text-[11px] uppercase tracking-wide transition-colors ${
-              isPreview
-                ? 'bg-[var(--color-accent-crimson)] text-white'
-                : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
-            }`}
-          >
-            Preview
-          </button>
+            <span className={milestone.color}>{milestone.badge}</span>
+          </div>
+
+          {/* Write / Preview Tab */}
+          <div className="md-modes flex border border-[var(--color-line)]">
+            <button
+              type="button"
+              onClick={() => setIsPreview(false)}
+              aria-pressed={!isPreview}
+              className={`px-3 py-1 font-mono text-[11px] uppercase tracking-wide transition-colors ${
+                !isPreview
+                  ? 'bg-[var(--color-blood)] text-white'
+                  : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
+              }`}
+            >
+              Write
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsPreview(true)}
+              aria-pressed={isPreview}
+              className={`border-l border-[var(--color-line)] px-3 py-1 font-mono text-[11px] uppercase tracking-wide transition-colors ${
+                isPreview
+                  ? 'bg-[var(--color-blood)] text-white'
+                  : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
+              }`}
+            >
+              Preview
+            </button>
+          </div>
         </div>
       </div>
 
       {uploadError && (
-        <div className="md-error border-b border-[var(--color-line)] bg-[var(--color-accent-crimson)]/10 px-3 py-2 font-mono text-xs text-[var(--color-ember)]">
+        <div className="md-error border-b border-[var(--color-line)] bg-[var(--color-blood)]/10 px-3 py-2 font-mono text-xs text-[var(--color-ember)]">
           {uploadError}
         </div>
       )}
 
       {isPreview ? (
         <div
-          className={`md-preview prose overflow-y-auto px-3 py-3 ${rows >= 10 ? 'min-h-[16rem]' : 'min-h-[8rem]'}`}
+          className={`md-preview prose prose-invert max-w-none overflow-y-auto px-4 py-4 ${rows >= 10 ? 'min-h-[16rem]' : 'min-h-[8rem]'}`}
         >
           {value ? (
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {value}
             </ReactMarkdown>
           ) : (
-            <span className="italic text-[var(--color-text-secondary)]">Nothing to preview yet…</span>
+            <span className="italic text-[var(--color-text-secondary)] font-serif">Nothing to preview yet… speak into the dark.</span>
           )}
         </div>
       ) : (
@@ -180,11 +261,12 @@ export default function MarkdownEditor({
           ref={textareaRef}
           value={value}
           onChange={onChange}
+          onKeyDown={handleKeyDown}
           placeholder={placeholder}
           rows={rows}
           disabled={disabled}
           aria-label={placeholder}
-          className="md-textarea block w-full resize-y bg-transparent px-3 py-3 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)]/70 focus:outline-none disabled:cursor-not-allowed"
+          className="md-textarea block w-full resize-y bg-transparent px-4 py-4 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)]/50 focus:outline-none disabled:cursor-not-allowed font-serif text-base leading-relaxed selection:bg-[var(--color-blood)] selection:text-white"
         />
       )}
     </div>

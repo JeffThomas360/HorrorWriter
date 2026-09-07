@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { withProviders } from '../components/Providers'
 import VhsSleeveCard from '../components/VhsSleeveCard'
 import { filterOneExamplePerGroup } from '../lib/storyHelpers'
+import { ARCHIVE_STORIES } from '../lib/seedArchives'
 
 const COVER_SVG = (
   <svg viewBox="0 0 260 320" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" className="w-full h-full text-white/20">
@@ -121,23 +122,62 @@ function Library() {
       )}
 
       {!loading && !error && books.length === 0 && (
-        <div className="vintage-card py-16 text-center">
-          <p className="font-serif italic text-sm text-[var(--color-text-secondary)] mb-6">The library is currently empty.</p>
+        <div className="vintage-card py-12 text-center mb-12">
+          <p className="font-serif italic text-base text-[var(--color-text-primary)] mb-2">No community stories published yet.</p>
+          <p className="font-serif italic text-xs text-[var(--color-text-secondary)] mb-6">Be the first writer in the coven to place your tape on the shelf.</p>
           {session ? (
-            <a href="/library/publish" className="border border-[var(--color-line)] hover:border-white font-mono text-xs uppercase px-4 py-2 transition-colors">
-              Publish the first story
+            <a href="/library/publish" className="bg-[var(--color-blood)] hover:bg-red-800 text-white font-mono text-xs uppercase px-5 py-3 transition-colors inline-block">
+              Publish the First Story
             </a>
           ) : (
-            <span className="font-mono text-xs border border-[var(--color-line)] text-[var(--color-text-secondary)] px-3 py-1.5 uppercase">Sign in to publish</span>
+            <span className="font-mono text-xs border border-[var(--color-line)] text-[var(--color-text-secondary)] px-4 py-2 uppercase">Sign in to publish your tape</span>
           )}
         </div>
       )}
 
       {!loading && !error && books.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {books.map((b) => (
-            <VhsSleeveCard key={b.id} story={b} />
-          ))}
+        <div className="mb-16">
+          <div className="flex items-center justify-between mb-6">
+            <span className="font-mono text-xs uppercase tracking-widest text-[var(--color-text-secondary)]">Community Tapes</span>
+            <span className="font-mono text-xs text-[var(--color-text-secondary)]">{books.length} {books.length === 1 ? 'story' : 'stories'}</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {books.map((b) => (
+              <VhsSleeveCard key={b.id} story={b} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* The Archives — Pre-seeded showcase masterworks explicitly flagged as artificial */}
+      {!loading && !error && (
+        <div className="mt-12 pt-8 border-t border-[var(--color-line)]">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 mb-6">
+            <div>
+              <span className="font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-upside)] block mb-1">
+                The Archives • Pre-Seeded Showcase Tapes
+              </span>
+              <h3 className="text-xl font-serif font-black text-[var(--color-text-primary)]">
+                Public Domain <em className="italic text-[var(--color-ember)] font-serif">Masterworks</em>
+              </h3>
+            </div>
+            <span className="font-mono text-[11px] text-[var(--color-text-secondary)]">
+              Flagged as Archival Samples
+            </span>
+          </div>
+
+          <div className="p-3.5 mb-6 border border-[var(--color-upside)]/30 bg-[var(--color-upside)]/5 font-mono text-[11px] text-[var(--color-text-secondary)] flex items-center gap-3">
+            <span className="text-base">📼</span>
+            <span>
+              <strong>Showcase Preservation:</strong> These 4 classic tapes illustrate the VHS reader format. They are public-domain showcase samples rather than community user submissions.
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {ARCHIVE_STORIES.map((story) => (
+              <VhsSleeveCard key={story.id} story={story} />
+            ))}
+          </div>
         </div>
       )}
     </div>
