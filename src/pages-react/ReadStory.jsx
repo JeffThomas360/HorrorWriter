@@ -12,6 +12,7 @@ import InlineModControls from '../components/mod/InlineModControls'
 import MarkdownEditor from '../components/MarkdownEditor'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import remarkBreaks from 'remark-breaks'
 import ShareBar from '../components/ShareBar'
 import QuoteSharer from '../components/QuoteSharer'
 import { fetchStorySeriesContext } from '../lib/series'
@@ -54,6 +55,33 @@ function ReadStory({ id }) {
   const [seriesContext, setSeriesContext] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [formatMode, setFormatMode] = useState('modern')
+  const [fontSize, setFontSize] = useState('md')
+
+  useEffect(() => {
+    try {
+      const f = localStorage.getItem('hw_reader_format')
+      if (f) setFormatMode(f)
+      const s = localStorage.getItem('hw_reader_size')
+      if (s) setFontSize(s)
+    } catch {
+      // Ignore localStorage errors
+    }
+  }, [])
+
+  function toggleFormat(mode) {
+    setFormatMode(mode)
+    try {
+      localStorage.setItem('hw_reader_format', mode)
+    } catch {}
+  }
+
+  function changeFontSize(size) {
+    setFontSize(size)
+    try {
+      localStorage.setItem('hw_reader_size', size)
+    } catch {}
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -258,9 +286,86 @@ function ReadStory({ id }) {
         </div>
       </div>
 
+      {/* Reading Typesetting & Layout Controls */}
+      <div className="max-w-[44rem] mx-auto mb-8 flex flex-wrap items-center justify-between gap-3 border-y border-[var(--color-line)] py-2 font-mono text-xs text-[var(--color-text-secondary)] select-none">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] uppercase tracking-wider text-[var(--color-text-secondary)]">Format:</span>
+          <button
+            type="button"
+            onClick={() => toggleFormat('modern')}
+            className={`px-2.5 py-1 border text-xs cursor-pointer transition-colors ${
+              formatMode === 'modern'
+                ? 'bg-[var(--color-blood)] text-white border-[var(--color-blood)]'
+                : 'border-[var(--color-line)] hover:border-white text-[var(--color-text-primary)]'
+            }`}
+          >
+            ¶ Modern Spacing
+          </button>
+          <button
+            type="button"
+            onClick={() => toggleFormat('novel')}
+            className={`px-2.5 py-1 border text-xs cursor-pointer transition-colors ${
+              formatMode === 'novel'
+                ? 'bg-[var(--color-blood)] text-white border-[var(--color-blood)]'
+                : 'border-[var(--color-line)] hover:border-white text-[var(--color-text-primary)]'
+            }`}
+          >
+            📖 Print Novel
+          </button>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] uppercase tracking-wider text-[var(--color-text-secondary)] mr-1">Size:</span>
+          <button
+            type="button"
+            onClick={() => changeFontSize('md')}
+            className={`px-2 py-0.5 border cursor-pointer font-serif ${
+              fontSize === 'md'
+                ? 'border-[var(--color-ember)] text-[var(--color-ember)] font-bold'
+                : 'border-[var(--color-line)] hover:border-white'
+            }`}
+            title="Standard Font Size (18px)"
+          >
+            A
+          </button>
+          <button
+            type="button"
+            onClick={() => changeFontSize('lg')}
+            className={`px-2 py-0.5 border cursor-pointer font-serif text-sm ${
+              fontSize === 'lg'
+                ? 'border-[var(--color-ember)] text-[var(--color-ember)] font-bold'
+                : 'border-[var(--color-line)] hover:border-white'
+            }`}
+            title="Large Font Size (20px)"
+          >
+            A+
+          </button>
+          <button
+            type="button"
+            onClick={() => changeFontSize('xl')}
+            className={`px-2 py-0.5 border cursor-pointer font-serif text-base ${
+              fontSize === 'xl'
+                ? 'border-[var(--color-ember)] text-[var(--color-ember)] font-bold'
+                : 'border-[var(--color-line)] hover:border-white'
+            }`}
+            title="Extra Large Font Size (22px)"
+          >
+            A++
+          </button>
+        </div>
+      </div>
+
       {/* Story Content Block (Restricted Line Width) */}
-      <article className="prose-book prose prose-invert font-serif leading-relaxed text-[var(--color-text-primary)] mb-12">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{book?.content || ''}</ReactMarkdown>
+      <article
+        className={`prose-book prose prose-invert font-serif leading-relaxed text-[var(--color-text-primary)] mb-12 ${
+          formatMode === 'novel' ? 'format-novel' : ''
+        } ${
+          fontSize === 'xl' ? '!text-xl' : fontSize === 'lg' ? '!text-lg' : ''
+        }`}
+      >
+        <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+          {book?.content || ''}
+        </ReactMarkdown>
       </article>
 
       {/* Share Bar */}

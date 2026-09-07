@@ -41,11 +41,126 @@ main.shell {
 }
 
 .prose-book {
-  max-width: 42rem;
+  max-width: 44rem;
   margin: 0 auto;
   font-size: 1.125rem;
+  line-height: 1.85;
+}
+
+/* Fiction Paragraph Spacing & Typography */
+.prose-book p,
+.prose p {
+  margin-top: 0;
+  margin-bottom: 1.65rem;
+  line-height: 1.85;
+  color: var(--color-bone);
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 1.125rem;
+  letter-spacing: 0.012em;
+  word-break: break-word;
+}
+
+/* Ensure no trailing margin on final paragraph */
+.prose-book p:last-child,
+.prose p:last-child {
+  margin-bottom: 0;
+}
+
+/* Classic Print Paperback Formatting (when .format-novel is active) */
+.prose-book.format-novel p {
+  margin-bottom: 0.35rem;
+  text-indent: 1.85rem;
+}
+
+.prose-book.format-novel p:first-of-type,
+.prose-book.format-novel h1 + p,
+.prose-book.format-novel h2 + p,
+.prose-book.format-novel h3 + p,
+.prose-book.format-novel hr + p,
+.prose-book.format-novel blockquote + p {
+  text-indent: 0;
+}
+
+/* Story Headings */
+.prose-book h1, .prose h1 {
+  font-size: 2rem;
+  margin-top: 2.75rem;
+  margin-bottom: 1.25rem;
+  font-family: 'Fraunces', Georgia, serif;
+  color: var(--color-bone);
+  line-height: 1.25;
+}
+
+.prose-book h2, .prose h2 {
+  font-size: 1.6rem;
+  margin-top: 2.25rem;
+  margin-bottom: 1rem;
+  font-family: 'Fraunces', Georgia, serif;
+  color: var(--color-bone);
+  line-height: 1.3;
+}
+
+.prose-book h3, .prose h3 {
+  font-size: 1.3rem;
+  margin-top: 1.75rem;
+  margin-bottom: 0.75rem;
+  font-family: 'Fraunces', Georgia, serif;
+  color: var(--color-bone);
+  line-height: 1.35;
+}
+
+/* Blockquotes & Inner Monologues */
+.prose-book blockquote,
+.prose blockquote {
+  border-left: 3px solid var(--color-blood);
+  padding-left: 1.25rem;
+  margin: 1.75rem 0;
+  font-style: italic;
+  color: var(--color-ash);
   line-height: 1.75;
 }
+
+/* Scene Breaks */
+.prose-book hr,
+.prose hr {
+  border: none;
+  border-top: 1px solid var(--color-line);
+  margin: 2.5rem auto;
+  width: 35%;
+  opacity: 0.6;
+}
+
+/* Lists */
+.prose-book ul, .prose ul {
+  list-style-type: disc;
+  margin-bottom: 1.5rem;
+  padding-left: 1.75rem;
+  color: var(--color-bone);
+}
+
+.prose-book ol, .prose ol {
+  list-style-type: decimal;
+  margin-bottom: 1.5rem;
+  padding-left: 1.75rem;
+  color: var(--color-bone);
+}
+
+.prose-book li, .prose li {
+  margin-bottom: 0.5rem;
+  line-height: 1.7;
+}
+
+/* Emphasis & Bold */
+.prose-book em, .prose em {
+  font-style: italic;
+  color: inherit;
+}
+
+.prose-book strong, .prose strong {
+  font-weight: 700;
+  color: var(--color-bone);
+}
+
 
 h1,
 h2,

@@ -8,6 +8,7 @@ import InlineModControls from '../components/mod/InlineModControls'
 import MarkdownEditor from '../components/MarkdownEditor'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import remarkBreaks from 'remark-breaks'
 import { withProviders } from '../components/Providers'
 
 const PAGE_SIZE = 15
@@ -233,7 +234,7 @@ function ThreadView({ id }) {
                 </div>
               </div>
               <div className="prose prose-invert font-serif text-lg leading-relaxed text-[var(--color-text-primary)]">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{p.content}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{p.content}</ReactMarkdown>
               </div>
             </article>
           )

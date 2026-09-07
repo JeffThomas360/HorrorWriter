@@ -1,6 +1,7 @@
 import { useState, useRef, useMemo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import remarkBreaks from 'remark-breaks'
 import { parseFileToMarkdown } from '../lib/fileParser'
 import { playTypewriterKey, setAmbientSound, getCurrentAmbientType } from '../lib/soundscapes'
 
@@ -249,7 +250,7 @@ export default function MarkdownEditor({
           className={`md-preview prose prose-invert max-w-none overflow-y-auto px-4 py-4 ${rows >= 10 ? 'min-h-[16rem]' : 'min-h-[8rem]'}`}
         >
           {value ? (
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
               {value}
             </ReactMarkdown>
           ) : (
