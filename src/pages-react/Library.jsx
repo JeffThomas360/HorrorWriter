@@ -68,7 +68,7 @@ function Library() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8 border-b border-[var(--color-line)] pb-6">
         <div>
           <span className="block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-text-secondary)] mb-2">The Library</span>
-          <h2 className="text-3xl font-serif font-black">Shared <em className="italic text-[var(--color-accent-crimson)] font-serif">work</em></h2>
+          <h1 className="text-3xl font-serif font-black">The <em className="italic text-[var(--color-accent-crimson)] font-serif">Library</em> <span className="text-sm font-mono uppercase tracking-widest block text-[var(--color-text-secondary)] mt-1 font-normal">Horror Fiction, Stories & Archives</span></h1>
           <p className="text-xs text-[var(--color-text-secondary)] font-serif mt-1">Excerpts, shorts, and chapters left in the dark for others to find.</p>
         </div>
         {session ? (

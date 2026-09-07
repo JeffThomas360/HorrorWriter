@@ -15,7 +15,11 @@ interface Props {
   ogImage?: string;
 }
 
-const { title = "Horror Writer", description = "A premium community for dark fiction writers.", ogImage } = Astro.props;
+const {
+  title = "Horror Writer — Dark Fiction Community, Critique & Writing Prompts",
+  description = "The premier community for serious horror writers. Receive ruthless craft critique in The Crypt, share stories in vintage VHS sleeves, and answer daily dark fiction writing prompts.",
+  ogImage
+} = Astro.props;
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 const ogImageURL = ogImage ? new URL(ogImage, Astro.site) : new URL('/og.png', Astro.site);
@@ -27,20 +31,24 @@ const ogImageURL = ogImage ? new URL(ogImage, Astro.site) : new URL('/og.png', A
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="canonical" href={canonicalURL} />
-    <meta name="viewport" content="width=device-width" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="generator" content={Astro.generator} />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
 
     <title>{title}</title>
     <meta name="description" content={description} />
+    <meta name="keywords" content="horror writing community, horror writers, dark fiction, creative writing critique, writing prompts, creepypasta, weird fiction, cosmic horror, analog horror, flash fiction" />
 
-    <!-- Open Graph -->
+    <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Horror Writer" />
+    <meta property="og:locale" content="en_US" />
     <meta property="og:url" content={canonicalURL} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:image" content={ogImageURL} />
 
-    <!-- Twitter -->
+    <!-- Twitter / X -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />

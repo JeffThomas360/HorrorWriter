@@ -5,39 +5,64 @@ import MainLayout from '../../../layouts/MainLayout.astro';
 import StructuredData from '../../../components/StructuredData.astro';
 import ReadStory from '../../../pages-react/ReadStory.jsx';
 import { supabase } from '../../../supabaseClient';
-import { buildCreativeWorkSchema } from '../../../lib/seo';
+import { buildCreativeWorkSchema, buildBreadcrumbSchema } from '../../../lib/seo';
+import { ARCHIVE_STORIES } from '../../../lib/seedArchives';
 
 const { id } = Astro.params;
 
 let book = null;
-try {
-  const isTest = typeof process !== 'undefined' && process.env.PLAYWRIGHT_TEST === 'true';
-  if (supabase && !isTest) {
-    const { data } = await supabase
-      .from('books')
-      .select('title, lede, created_at, profiles(handle)')
-      .eq('id', id)
-      .single();
-    book = data;
+const archiveMatch = ARCHIVE_STORIES.find(a => a.id === id);
+
+if (archiveMatch) {
+  book = {
+    title: archiveMatch.title,
+    lede: archiveMatch.lede,
+    created_at: archiveMatch.created_at,
+    profiles: {
+      handle: archiveMatch.profiles?.display_name || archiveMatch.profiles?.handle || 'Classic Author'
+    }
+  };
+} else {
+  try {
+    const isTest = typeof process !== 'undefined' && process.env.PLAYWRIGHT_TEST === 'true';
+    if (supabase && !isTest) {
+      const { data } = await supabase
+        .from('books')
+        .select('title, lede, created_at, profiles(handle)')
+        .eq('id', id)
+        .single();
+      book = data;
+    }
+  } catch (e) {
+    console.error('Error fetching book details for SEO:', e);
   }
-} catch (e) {
-  console.error('Error fetching book details for SEO:', e);
 }
 
-const title = book ? `${book.title} | Library` : 'Reading Story';
-const description = book?.lede || 'Read this chilling story on Horror Writer.';
+const authorHandle = book?.profiles?.handle || 'Unknown';
+const title = book ? `${book.title} — Horror Fiction by ${authorHandle} | Horror Writer` : 'Read Horror Fiction | Horror Writer';
+const description = book?.lede ? `${book.lede.slice(0, 155)}... Read on Horror Writer.` : 'Read original dark fiction, psychological terror, and horror stories on Horror Writer.';
 const ogImage = `/og/story/${id}.png`;
-const pageUrl = new URL(Astro.url.pathname, Astro.site).toString();
+const siteUrl = Astro.site ? new URL(Astro.site).origin : 'https://horrorwriter.org';
+const pageUrl = new URL(Astro.url.pathname, siteUrl).toString();
+
 const creativeWorkSchema = book ? buildCreativeWorkSchema({
   url: pageUrl,
   title: book.title,
   description: book.lede,
-  authorName: book.profiles?.handle || 'Unknown',
-  datePublished: book.created_at
+  authorName: authorHandle,
+  datePublished: book.created_at,
+  type: 'ShortStory'
 }) : null;
+
+const breadcrumbSchema = book ? buildBreadcrumbSchema([
+  { name: 'Home', url: `${siteUrl}/` },
+  { name: 'The Library', url: `${siteUrl}/library` },
+  { name: book.title, url: pageUrl }
+]) : null;
 ---
 
 <MainLayout title={title} description={description} ogImage={ogImage}>
+  {breadcrumbSchema && <StructuredData data={breadcrumbSchema} />}
   {creativeWorkSchema && <StructuredData data={creativeWorkSchema} />}
   <ReadStory id={id} client:load />
 </MainLayout>

@@ -5,7 +5,7 @@ import MainLayout from '../../../layouts/MainLayout.astro';
 import StructuredData from '../../../components/StructuredData.astro';
 import ThreadView from '../../../pages-react/ThreadView.jsx';
 import { supabase } from '../../../supabaseClient';
-import { buildDiscussionForumPostingSchema } from '../../../lib/seo';
+import { buildDiscussionForumPostingSchema, buildBreadcrumbSchema } from '../../../lib/seo';
 
 const { id } = Astro.params;
 
@@ -24,18 +24,28 @@ try {
   console.error('Error fetching thread for SEO:', e);
 }
 
-const title = thread ? `${thread.title} | Forum` : 'Forum Thread';
-const description = 'Join the discussion on Horror Writer.';
-const pageUrl = new URL(Astro.url.pathname, Astro.site).toString();
+const authorHandle = thread?.profiles?.handle || 'Unknown Author';
+const title = thread ? `${thread.title} — Horror Writing Forum | Horror Writer` : 'The Crypt Discussion Thread | Horror Writer';
+const description = thread ? `Read and critique "${thread.title}" by ${authorHandle} in The Crypt horror workshop on Horror Writer.` : 'Join dark fiction and horror craft discussions in The Crypt on Horror Writer.';
+const siteUrl = Astro.site ? new URL(Astro.site).origin : 'https://horrorwriter.org';
+const pageUrl = new URL(Astro.url.pathname, siteUrl).toString();
+
 const postingSchema = thread ? buildDiscussionForumPostingSchema({
   url: pageUrl,
   headline: thread.title,
-  authorName: thread.profiles?.handle || 'Unknown',
+  authorName: authorHandle,
   datePublished: thread.created_at
 }) : null;
+
+const breadcrumbSchema = thread ? buildBreadcrumbSchema([
+  { name: 'Home', url: `${siteUrl}/` },
+  { name: 'The Crypt Forum', url: `${siteUrl}/forum` },
+  { name: thread.title, url: pageUrl }
+]) : null;
 ---
 
 <MainLayout title={title} description={description}>
+  {breadcrumbSchema && <StructuredData data={breadcrumbSchema} />}
   {postingSchema && <StructuredData data={postingSchema} />}
   <ThreadView id={id} client:load />
 </MainLayout>

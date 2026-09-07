@@ -3,13 +3,34 @@ import MainLayout from '../layouts/MainLayout.astro';
 import StructuredData from '../components/StructuredData.astro';
 import MidnightRitual from '../components/MidnightRitual.jsx';
 import { supabase } from '../supabaseClient';
-import { buildWebSiteSchema } from '../lib/seo';
+import { buildWebSiteSchema, buildFAQSchema } from '../lib/seo';
+
+const faqs = [
+  {
+    question: "What is Horror Writer?",
+    answer: "Horror Writer (horrorwriter.org) is an independent circle and community for serious dark fiction authors. It offers constructive critique in The Crypt, retro VHS cassette publishing in The Library, and sensory flash fiction writing challenges."
+  },
+  {
+    question: "Who owns the copyright to stories published on Horror Writer?",
+    answer: "You retain 100% of your copyright. By publishing on Horror Writer, you only grant a non-exclusive display license to show your work to members. You can edit or delete your stories at any time."
+  },
+  {
+    question: "How does critique work in The Crypt?",
+    answer: "Members critique under the core rule: 'Critique the art, respect the author.' Authors can tag their stories with specific feedback goals (opening hook, pacing, dread, or line edits) to receive genre-literate constructive criticism."
+  },
+  {
+    question: "What is The Midnight Ritual writing challenge?",
+    answer: "The Midnight Ritual is an interactive prompt receiver broadcasting weekly and instant micro-fiction prompts across cosmic dread, analog horror, folk occult, and psychological terror. Writers can answer prompts directly in an instant 250-word flash writing terminal."
+  }
+];
 
 const websiteSchema = buildWebSiteSchema({
   url: 'https://horrorwriter.org',
-  name: 'Horror Writer',
+  name: 'Horror Writer — Dark Fiction Community, Critique & Writing Prompts',
   description: 'A circle for serious horror writers — forums, critique, and craft.'
 });
+
+const faqSchema = buildFAQSchema(faqs);
 
 const FALLBACK_TILES = [
   {
@@ -80,8 +101,9 @@ const [heroTile, ...restTiles] = tiles;
 const isFallback = tiles === FALLBACK_TILES;
 ---
 
-<MainLayout title="Horror Writer" description="A circle for serious horror writers — forums, critique, and craft.">
+<MainLayout title="Horror Writer — Dark Fiction Community, Critique & Writing Prompts" description="The premier community for serious horror writers. Receive ruthless craft critique in The Crypt, share stories in vintage VHS sleeves, and answer daily dark fiction writing prompts.">
   <StructuredData data={websiteSchema} />
+  <StructuredData data={faqSchema} />
 
   <!-- Hero Section — "Late Signal": public-access-TV register, teal + red CRT double-image title -->
   <section
@@ -200,6 +222,25 @@ const isFallback = tiles === FALLBACK_TILES;
           <div class="font-serif font-black text-2xl text-[var(--color-upside)] italic">{w.ic}</div>
           <h3 class="text-base font-serif font-bold tracking-tight text-[var(--color-text-primary)]">{w.label}</h3>
           <p class="text-sm font-serif text-[var(--color-text-secondary)] leading-relaxed">{w.body}</p>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <!-- FAQ Section for Search Discoverability -->
+  <section class="max-w-4xl mx-auto mb-20 border-t border-[var(--color-line)] pt-16">
+    <span class="block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-upside)] mb-2 text-center">Inquiries</span>
+    <h2 class="text-2xl md:text-3xl font-serif font-black text-center mb-10">Frequently Asked <em class="italic text-[var(--color-ember)] font-serif">Questions</em></h2>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+      {faqs.map((faq) => (
+        <div class="vintage-card p-6 flex flex-col justify-between">
+          <h3 class="text-base font-serif font-bold text-[var(--color-text-primary)] mb-3 leading-snug">
+            {faq.question}
+          </h3>
+          <p class="text-xs font-serif text-[var(--color-text-secondary)] leading-relaxed">
+            {faq.answer}
+          </p>
         </div>
       ))}
     </div>

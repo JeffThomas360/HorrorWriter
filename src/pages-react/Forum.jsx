@@ -121,7 +121,7 @@ function Forum() {
     <div className="mt-8">
       <div className="border-b border-[var(--color-line)] pb-6 mb-8">
         <span className="block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-text-secondary)] mb-2">The Forums</span>
-        <h2 className="text-3xl font-serif font-black">The <em className="italic text-[var(--color-accent-crimson)] font-serif">Crypt</em></h2>
+        <h1 className="text-3xl font-serif font-black">The <em className="italic text-[var(--color-accent-crimson)] font-serif">Crypt</em> <span className="text-sm font-mono uppercase tracking-widest block text-[var(--color-text-secondary)] mt-1 font-normal">Horror Writing Workshop & Critique Forum</span></h1>
       </div>
       <div className="flex flex-col items-center justify-center min-h-[30vh]">
         <p className="font-mono text-xs uppercase tracking-widest text-[var(--color-text-secondary)] animate-pulse">Entering the crypt…</p>
@@ -139,7 +139,7 @@ function Forum() {
     <div className="mt-8">
       <div className="border-b border-[var(--color-line)] pb-6 mb-8">
         <span className="block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-text-secondary)] mb-2">The Forums</span>
-        <h2 className="text-3xl font-serif font-black">The <em className="italic text-[var(--color-accent-crimson)] font-serif">Crypt</em></h2>
+        <h1 className="text-3xl font-serif font-black">The <em className="italic text-[var(--color-accent-crimson)] font-serif">Crypt</em> <span className="text-sm font-mono uppercase tracking-widest block text-[var(--color-text-secondary)] mt-1 font-normal">Horror Writing Workshop & Critique Forum</span></h1>
         <p className="text-xs text-[var(--color-text-secondary)] font-serif mt-1">Where the conversations live. Pick a category, or search the dark.</p>
       </div>
 
