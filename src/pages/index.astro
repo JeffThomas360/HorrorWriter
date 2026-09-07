@@ -2,6 +2,9 @@
 import MainLayout from '../layouts/MainLayout.astro';
 import StructuredData from '../components/StructuredData.astro';
 import MidnightRitual from '../components/MidnightRitual.jsx';
+import WitchingHourBar from '../components/WitchingHourBar.jsx';
+import DreadDiagnostic from '../components/DreadDiagnostic.jsx';
+import VoidWhispers from '../components/VoidWhispers.jsx';
 import { supabase } from '../supabaseClient';
 import { buildWebSiteSchema, buildFAQSchema } from '../lib/seo';
 
@@ -105,6 +108,9 @@ const isFallback = tiles === FALLBACK_TILES;
   <StructuredData data={websiteSchema} />
   <StructuredData data={faqSchema} />
 
+  <!-- The Witching Hour Status Bar -->
+  <WitchingHourBar client:load />
+
   <!-- Hero Section — "Late Signal": public-access-TV register, teal + red CRT double-image title -->
   <section
     class="relative border-b border-[var(--color-line)] pb-16 mb-16 pt-10 px-6 -mx-6 overflow-hidden"
@@ -160,6 +166,9 @@ const isFallback = tiles === FALLBACK_TILES;
   <!-- The Midnight Ritual: Interactive Flash Prompt Terminal -->
   <MidnightRitual client:load />
 
+  <!-- The Dread Spectrum: Horror Archetype Psychological Diagnostic -->
+  <DreadDiagnostic client:load />
+
   <!-- Content Grid Section -->
   <section class="mb-20">
     <div class="flex justify-between items-end mb-8">
@@ -210,6 +219,9 @@ const isFallback = tiles === FALLBACK_TILES;
       </div>
     </div>
   </section>
+
+  <!-- Whispers in the Void: Anonymous Dread Confessional & Story Seeds -->
+  <VoidWhispers client:load />
 
   <!-- Why Section -->
   <section class="max-w-4xl mx-auto mb-12">

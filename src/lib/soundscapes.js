@@ -228,3 +228,97 @@ export function setAmbientSound(type) {
 export function getCurrentAmbientType() {
   return currentAmbientType;
 }
+
+/**
+ * Synthesizes a brief analog CRT / radio static burst.
+ */
+export function playStaticGlitch() {
+  const ctx = getContext();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+
+  const bufferSize = Math.floor(ctx.sampleRate * 0.14);
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) {
+    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.4));
+  }
+
+  const noise = ctx.createBufferSource();
+  noise.buffer = buffer;
+
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.frequency.setValueAtTime(1400, now);
+  filter.frequency.exponentialRampToValueAtTime(320, now + 0.13);
+  filter.Q.value = 2.0;
+
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.24, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+
+  noise.connect(filter);
+  filter.connect(gain);
+  gain.connect(ctx.destination);
+
+  noise.start(now);
+}
+
+/**
+ * Synthesizes an ominous sub-bass drone tone for psychological revelations.
+ */
+export function playDreadTone() {
+  const ctx = getContext();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+
+  const osc = ctx.createOscillator();
+  const osc2 = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(65, now);
+  osc.frequency.exponentialRampToValueAtTime(42, now + 0.8);
+
+  // Detuned second oscillator creates eerie sub-bass acoustic beating
+  osc2.type = 'triangle';
+  osc2.frequency.setValueAtTime(67.5, now);
+  osc2.frequency.exponentialRampToValueAtTime(43, now + 0.8);
+
+  gain.gain.setValueAtTime(0.3, now);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.95);
+
+  osc.connect(gain);
+  osc2.connect(gain);
+  gain.connect(ctx.destination);
+
+  osc.start(now);
+  osc2.start(now);
+  osc.stop(now + 1.0);
+  osc2.stop(now + 1.0);
+}
+
+/**
+ * Synthesizes an airy, ethereal whisper echo when a confession is released.
+ */
+export function playWhisperEcho() {
+  const ctx = getContext();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+
+  const chime = ctx.createOscillator();
+  const chimeGain = ctx.createGain();
+  chime.type = 'sine';
+  chime.frequency.setValueAtTime(587.33, now); // D5
+  chime.frequency.exponentialRampToValueAtTime(880, now + 0.25); // A5
+
+  chimeGain.gain.setValueAtTime(0.12, now);
+  chimeGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.65);
+
+  chime.connect(chimeGain);
+  chimeGain.connect(ctx.destination);
+
+  chime.start(now);
+  chime.stop(now + 0.7);
+}
+

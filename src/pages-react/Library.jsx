@@ -4,6 +4,7 @@ import { useAuth } from '../components/AuthContext'
 import { useQuery } from '@tanstack/react-query'
 import { withProviders } from '../components/Providers'
 import VhsSleeveCard from '../components/VhsSleeveCard'
+import ForbiddenTape from '../components/ForbiddenTape'
 import { filterOneExamplePerGroup } from '../lib/storyHelpers'
 import { ARCHIVE_STORIES } from '../lib/seedArchives'
 
@@ -178,6 +179,9 @@ function Library() {
               <VhsSleeveCard key={story.id} story={story} />
             ))}
           </div>
+
+          {/* Forbidden Tape #00 Curiosity Hook */}
+          <ForbiddenTape />
         </div>
       )}
     </div>
