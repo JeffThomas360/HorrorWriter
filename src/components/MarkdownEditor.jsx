@@ -2,6 +2,7 @@ import { useState, useRef, useMemo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
+import rehypeRaw from 'rehype-raw'
 import { parseFileToMarkdown } from '../lib/fileParser'
 import { playTypewriterKey, setAmbientSound, getCurrentAmbientType } from '../lib/soundscapes'
 
@@ -45,7 +46,7 @@ export default function MarkdownEditor({
   rows = 10,
   disabled = false,
 }) {
-  const [isPreview, setIsPreview] = useState(false)
+  const [viewMode, setViewMode] = useState('write') // 'write' | 'split' | 'preview'
   const [isUploading, setIsUploading] = useState(false)
   const [uploadError, setUploadError] = useState(null)
   const [typewriterAudio, setTypewriterAudio] = useState(false)
@@ -63,7 +64,7 @@ export default function MarkdownEditor({
   const milestone = getWordMilestone(wordCount)
 
   const handleKeyDown = (e) => {
-    if (typewriterAudio && !disabled && !isPreview) {
+    if (typewriterAudio && !disabled && viewMode !== 'preview') {
       if (e.key !== 'Shift' && e.key !== 'Control' && e.key !== 'Alt' && e.key !== 'Meta') {
         playTypewriterKey(e.key === 'Enter')
       }
@@ -120,39 +121,77 @@ export default function MarkdownEditor({
     }
   }
 
+  const isEditorDisabled = disabled || viewMode === 'preview'
+
   return (
     <div
       className={`md-editor w-full border border-[var(--color-line)] bg-[var(--color-void)] transition-colors focus-within:border-[var(--color-blood)] ${disabled ? 'opacity-60' : ''}`}
     >
+      {/* RTF Toolbar */}
       <div className="md-toolbar flex flex-wrap items-center justify-between gap-2 border-b border-[var(--color-line)] bg-[var(--color-surface)] px-2.5 py-1.5">
-        <div className="md-tools flex items-center gap-0.5">
-          <ToolButton label="Bold" onClick={() => insertText('**', '**')} disabled={disabled || isPreview}>
+        <div className="md-tools flex items-center flex-wrap gap-0.5">
+          {/* Text Styling */}
+          <ToolButton label="Bold (**text**)" onClick={() => insertText('**', '**')} disabled={isEditorDisabled}>
             <span className="font-bold">B</span>
           </ToolButton>
-          <ToolButton label="Italic" onClick={() => insertText('*', '*')} disabled={disabled || isPreview}>
+          <ToolButton label="Italic (*text*)" onClick={() => insertText('*', '*')} disabled={isEditorDisabled}>
             <span className="italic">I</span>
           </ToolButton>
-          <ToolButton label="Heading" onClick={() => insertText('### ')} disabled={disabled || isPreview}>
-            <span className="font-mono font-bold text-xs">H</span>
+          <ToolButton label="Underline (<u>text</u>)" onClick={() => insertText('<u>', '</u>')} disabled={isEditorDisabled}>
+            <span className="underline">U</span>
           </ToolButton>
-          <ToolButton label="Strikethrough" onClick={() => insertText('~~', '~~')} disabled={disabled || isPreview}>
+          <ToolButton label="Strikethrough (~~text~~)" onClick={() => insertText('~~', '~~')} disabled={isEditorDisabled}>
             <span className="line-through">S</span>
           </ToolButton>
-          <ToolButton label="List" onClick={() => insertText('- ')} disabled={disabled || isPreview}>
-            <span className="font-mono text-xs">•</span>
+          <ToolButton label="Highlight (<mark>text</mark>)" onClick={() => insertText('<mark>', '</mark>')} disabled={isEditorDisabled}>
+            <span className="bg-amber-400/30 text-amber-200 px-1 rounded-xs text-xs font-mono font-bold">H</span>
           </ToolButton>
-          <ToolButton label="Code" onClick={() => insertText('`', '`')} disabled={disabled || isPreview}>
-            <span className="font-mono text-xs">{'</>'}</span>
+
+          <div className="md-divider mx-1 h-5 w-px bg-[var(--color-line)]" />
+
+          {/* Headings */}
+          <ToolButton label="Heading 1 (#)" onClick={() => insertText('# ')} disabled={isEditorDisabled}>
+            <span className="font-mono font-bold text-xs">H1</span>
           </ToolButton>
-          <ToolButton label="Quote" onClick={() => insertText('> ')} disabled={disabled || isPreview}>
+          <ToolButton label="Heading 2 (##)" onClick={() => insertText('## ')} disabled={isEditorDisabled}>
+            <span className="font-mono font-bold text-xs">H2</span>
+          </ToolButton>
+          <ToolButton label="Heading 3 (###)" onClick={() => insertText('### ')} disabled={isEditorDisabled}>
+            <span className="font-mono font-bold text-xs">H3</span>
+          </ToolButton>
+
+          <div className="md-divider mx-1 h-5 w-px bg-[var(--color-line)]" />
+
+          {/* Story RTF Helpers: Scene break & Dialogue Em-Dash */}
+          <ToolButton label="Scene Break (* * *)" onClick={() => insertText('\n\n* * *\n\n')} disabled={isEditorDisabled}>
+            <span className="font-mono text-xs tracking-widest">***</span>
+          </ToolButton>
+          <ToolButton label="Dialogue Em-Dash (—)" onClick={() => insertText('— ')} disabled={isEditorDisabled}>
+            <span className="font-serif font-bold text-xs">—</span>
+          </ToolButton>
+          <ToolButton label="Blockquote (>)" onClick={() => insertText('> ')} disabled={isEditorDisabled}>
             <span className="text-base leading-none">&quot;</span>
           </ToolButton>
-          <ToolButton label="Link" onClick={() => insertText('[', '](https://)')} disabled={disabled || isPreview}>
+
+          <div className="md-divider mx-1 h-5 w-px bg-[var(--color-line)]" />
+
+          {/* Lists & Links */}
+          <ToolButton label="Bullet List" onClick={() => insertText('- ')} disabled={isEditorDisabled}>
+            <span className="font-mono text-xs">•</span>
+          </ToolButton>
+          <ToolButton label="Numbered List" onClick={() => insertText('1. ')} disabled={isEditorDisabled}>
+            <span className="font-mono text-xs">1.</span>
+          </ToolButton>
+          <ToolButton label="Code" onClick={() => insertText('`', '`')} disabled={isEditorDisabled}>
+            <span className="font-mono text-xs">{'</>'}</span>
+          </ToolButton>
+          <ToolButton label="Link" onClick={() => insertText('[', '](https://)')} disabled={isEditorDisabled}>
             <span aria-hidden="true">🔗</span>
           </ToolButton>
 
           <div className="md-divider mx-1 h-5 w-px bg-[var(--color-line)]" />
 
+          {/* File Import */}
           <input
             type="file"
             ref={fileInputRef}
@@ -161,9 +200,9 @@ export default function MarkdownEditor({
             className="hidden"
           />
           <ToolButton
-            label="Import .txt or .docx"
+            label="Import .txt, .md, or .docx"
             onClick={() => fileInputRef.current?.click()}
-            disabled={disabled || isPreview || isUploading}
+            disabled={isEditorDisabled || isUploading}
             className="w-auto gap-1.5 px-2 font-mono text-[11px] uppercase tracking-wide"
           >
             <span aria-hidden="true">{isUploading ? '⏳' : '📁'}</span>
@@ -171,7 +210,7 @@ export default function MarkdownEditor({
           </ToolButton>
         </div>
 
-        {/* Sensory Audio & Word Count Controls */}
+        {/* Sensory Audio, Word Milestone & Mode Tabs */}
         <div className="flex items-center gap-3">
           {/* Audio Controls */}
           <div className="flex items-center gap-1.5 bg-[var(--color-void)] px-2 py-0.5 border border-[var(--color-line)] text-[11px] font-mono">
@@ -209,14 +248,14 @@ export default function MarkdownEditor({
             <span className={milestone.color}>{milestone.badge}</span>
           </div>
 
-          {/* Write / Preview Tab */}
+          {/* Write / Split / Preview View Mode Tabs */}
           <div className="md-modes flex border border-[var(--color-line)]">
             <button
               type="button"
-              onClick={() => setIsPreview(false)}
-              aria-pressed={!isPreview}
-              className={`px-3 py-1 font-mono text-[11px] uppercase tracking-wide transition-colors ${
-                !isPreview
+              onClick={() => setViewMode('write')}
+              aria-pressed={viewMode === 'write'}
+              className={`px-2.5 py-1 font-mono text-[11px] uppercase tracking-wide transition-colors ${
+                viewMode === 'write'
                   ? 'bg-[var(--color-blood)] text-white'
                   : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
               }`}
@@ -225,10 +264,22 @@ export default function MarkdownEditor({
             </button>
             <button
               type="button"
-              onClick={() => setIsPreview(true)}
-              aria-pressed={isPreview}
-              className={`border-l border-[var(--color-line)] px-3 py-1 font-mono text-[11px] uppercase tracking-wide transition-colors ${
-                isPreview
+              onClick={() => setViewMode('split')}
+              aria-pressed={viewMode === 'split'}
+              className={`border-l border-[var(--color-line)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-wide transition-colors ${
+                viewMode === 'split'
+                  ? 'bg-[var(--color-blood)] text-white'
+                  : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
+              }`}
+            >
+              Split View
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('preview')}
+              aria-pressed={viewMode === 'preview'}
+              className={`border-l border-[var(--color-line)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-wide transition-colors ${
+                viewMode === 'preview'
                   ? 'bg-[var(--color-blood)] text-white'
                   : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
               }`}
@@ -245,19 +296,8 @@ export default function MarkdownEditor({
         </div>
       )}
 
-      {isPreview ? (
-        <div
-          className={`md-preview prose prose-invert max-w-none overflow-y-auto px-4 py-4 ${rows >= 10 ? 'min-h-[16rem]' : 'min-h-[8rem]'}`}
-        >
-          {value ? (
-            <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
-              {value}
-            </ReactMarkdown>
-          ) : (
-            <span className="italic text-[var(--color-text-secondary)] font-serif">Nothing to preview yet… speak into the dark.</span>
-          )}
-        </div>
-      ) : (
+      {/* Editor Content Area */}
+      {viewMode === 'write' && (
         <textarea
           ref={textareaRef}
           value={value}
@@ -270,6 +310,50 @@ export default function MarkdownEditor({
           className="md-textarea block w-full resize-y bg-transparent px-4 py-4 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)]/50 focus:outline-none disabled:cursor-not-allowed font-serif text-base leading-relaxed selection:bg-[var(--color-blood)] selection:text-white"
         />
       )}
+
+      {viewMode === 'preview' && (
+        <div
+          className={`md-preview prose-book prose prose-invert max-w-none overflow-y-auto px-6 py-6 ${
+            rows >= 10 ? 'min-h-[18rem]' : 'min-h-[10rem]'
+          }`}
+        >
+          {value ? (
+            <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]}>
+              {value}
+            </ReactMarkdown>
+          ) : (
+            <span className="italic text-[var(--color-text-secondary)] font-serif">Nothing to preview yet… speak into the dark.</span>
+          )}
+        </div>
+      )}
+
+      {viewMode === 'split' && (
+        <div className="md-split-grid w-full min-h-[18rem]">
+          <div className="border-b md:border-b-0 md:border-r border-[var(--color-line)]">
+            <textarea
+              ref={textareaRef}
+              value={value}
+              onChange={onChange}
+              onKeyDown={handleKeyDown}
+              placeholder={placeholder}
+              rows={rows}
+              disabled={disabled}
+              aria-label={placeholder}
+              className="md-textarea block w-full h-full resize-none bg-transparent px-4 py-4 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)]/50 focus:outline-none disabled:cursor-not-allowed font-serif text-base leading-relaxed selection:bg-[var(--color-blood)] selection:text-white"
+            />
+          </div>
+          <div className="md-preview prose-book prose prose-invert max-w-none overflow-y-auto px-6 py-4 bg-[var(--color-surface)]/30">
+            {value ? (
+              <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]}>
+                {value}
+              </ReactMarkdown>
+            ) : (
+              <span className="italic text-[var(--color-text-secondary)] font-serif text-sm">Live preview renders here as you type…</span>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
+

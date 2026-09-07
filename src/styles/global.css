@@ -314,4 +314,170 @@ a:hover {
   }
 }
 
+/* ==========================================================================
+   Amazon Kindle Reading Suite & Unobstructed Typography Engine
+   ========================================================================== */
 
+/* Kindle Themes */
+.kindle-theme-void {
+  background-color: #090a0f !important;
+  color: #E2E0D8 !important;
+}
+.kindle-theme-void .prose-book p,
+.kindle-theme-void .prose p,
+.kindle-theme-void h1,
+.kindle-theme-void h2,
+.kindle-theme-void h3 {
+  color: #E2E0D8 !important;
+}
+.kindle-theme-void .kindle-hud {
+  background-color: rgba(9, 10, 15, 0.94) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: #9E9B93 !important;
+}
+
+.kindle-theme-sepia {
+  background-color: #F4EFEA !important;
+  color: #2B231D !important;
+}
+.kindle-theme-sepia .prose-book p,
+.kindle-theme-sepia .prose p,
+.kindle-theme-sepia h1,
+.kindle-theme-sepia h2,
+.kindle-theme-sepia h3 {
+  color: #2B231D !important;
+}
+.kindle-theme-sepia .prose-book blockquote,
+.kindle-theme-sepia .prose blockquote {
+  border-left-color: #A33A2D !important;
+  color: #5C4E43 !important;
+}
+.kindle-theme-sepia .kindle-hud {
+  background-color: rgba(244, 239, 234, 0.96) !important;
+  border-color: rgba(43, 35, 29, 0.12) !important;
+  color: #5C4E43 !important;
+}
+.kindle-theme-sepia .kindle-hud button {
+  color: #2B231D !important;
+  border-color: rgba(43, 35, 29, 0.15) !important;
+}
+
+.kindle-theme-paper {
+  background-color: #FAF9F6 !important;
+  color: #1A1A1A !important;
+}
+.kindle-theme-paper .prose-book p,
+.kindle-theme-paper .prose p,
+.kindle-theme-paper h1,
+.kindle-theme-paper h2,
+.kindle-theme-paper h3 {
+  color: #1A1A1A !important;
+}
+.kindle-theme-paper .prose-book blockquote,
+.kindle-theme-paper .prose blockquote {
+  border-left-color: #C8102E !important;
+  color: #4A4A4A !important;
+}
+.kindle-theme-paper .kindle-hud {
+  background-color: rgba(250, 249, 246, 0.96) !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+  color: #4A4A4A !important;
+}
+.kindle-theme-paper .kindle-hud button {
+  color: #1A1A1A !important;
+  border-color: rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Kindle Fonts */
+.kindle-font-bookerly {
+  font-family: 'Fraunces', 'Bookerly', Georgia, serif !important;
+}
+.kindle-font-literata {
+  font-family: 'Literata', 'Baskerville', 'Times New Roman', Georgia, serif !important;
+}
+.kindle-font-sans {
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif !important;
+}
+.kindle-font-mono {
+  font-family: 'IBM Plex Mono', Menlo, Consolas, monospace !important;
+}
+
+/* Kindle Column Widths */
+.kindle-width-narrow {
+  max-width: 36rem !important;
+}
+.kindle-width-normal {
+  max-width: 44rem !important;
+}
+.kindle-width-wide {
+  max-width: 52rem !important;
+}
+
+/* Kindle Line Spacing */
+.kindle-leading-compact p {
+  line-height: 1.55 !important;
+}
+.kindle-leading-normal p {
+  line-height: 1.85 !important;
+}
+.kindle-leading-relaxed p {
+  line-height: 2.2 !important;
+}
+
+/* Fullscreen Immersive Reading Mode */
+.kindle-immersive-mode {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 99999 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  overflow-y: auto !important;
+  margin: 0 !important;
+  padding: 5rem 1.5rem 6rem 1.5rem !important;
+}
+
+/* RTF Elements in Prose */
+.prose-book mark,
+.prose mark {
+  background-color: rgba(229, 57, 53, 0.25);
+  color: inherit;
+  padding: 0.1em 0.3em;
+  border-radius: 2px;
+  border-bottom: 1px solid rgba(229, 57, 53, 0.6);
+}
+.kindle-theme-sepia mark {
+  background-color: rgba(163, 58, 45, 0.2) !important;
+  border-bottom-color: rgba(163, 58, 45, 0.5) !important;
+}
+.kindle-theme-paper mark {
+  background-color: rgba(200, 16, 46, 0.15) !important;
+  border-bottom-color: rgba(200, 16, 46, 0.4) !important;
+}
+
+.prose-book u,
+.prose u {
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+
+.prose-book hr,
+.prose hr {
+  border: none;
+  border-top: 1px solid var(--color-line);
+  margin: 2.5rem auto;
+  width: 40%;
+  text-align: center;
+  position: relative;
+}
+
+/* Split Editor */
+.md-split-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 768px) {
+  .md-split-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
