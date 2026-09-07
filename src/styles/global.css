@@ -340,15 +340,14 @@ a:hover {
   background-color: #F4EFEA !important;
   color: #2B231D !important;
 }
-.kindle-theme-sepia .prose-book p,
-.kindle-theme-sepia .prose p,
+.kindle-theme-sepia p,
 .kindle-theme-sepia h1,
 .kindle-theme-sepia h2,
-.kindle-theme-sepia h3 {
+.kindle-theme-sepia h3,
+.kindle-theme-sepia span {
   color: #2B231D !important;
 }
-.kindle-theme-sepia .prose-book blockquote,
-.kindle-theme-sepia .prose blockquote {
+.kindle-theme-sepia blockquote {
   border-left-color: #A33A2D !important;
   color: #5C4E43 !important;
 }
@@ -366,15 +365,14 @@ a:hover {
   background-color: #FAF9F6 !important;
   color: #1A1A1A !important;
 }
-.kindle-theme-paper .prose-book p,
-.kindle-theme-paper .prose p,
+.kindle-theme-paper p,
 .kindle-theme-paper h1,
 .kindle-theme-paper h2,
-.kindle-theme-paper h3 {
+.kindle-theme-paper h3,
+.kindle-theme-paper span {
   color: #1A1A1A !important;
 }
-.kindle-theme-paper .prose-book blockquote,
-.kindle-theme-paper .prose blockquote {
+.kindle-theme-paper blockquote {
   border-left-color: #C8102E !important;
   color: #4A4A4A !important;
 }

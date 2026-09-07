@@ -1,0 +1,42 @@
+---
+import MainLayout from '../layouts/MainLayout.astro';
+import MarkdownEditor from '../components/MarkdownEditor';
+
+const initialContent = `# Chapter I: The Whispering Cellar
+
+Vincent stepped into the fog, his trench coat damp with **heavy salt spray**. Elisa watched from the shoreline, fingers gripping her radio transmitter.
+
+— *“Did you hear that?”* she asked, her voice crackling into static.
+
+<u>The door below groaned on ancient rusted hinges</u>.
+
+<mark>DO NOT OPEN AFTER MIDNIGHT</mark>
+
+* * *
+
+> “There are things beneath Bangor that time forgot. And things that time refused to swallow.”
+
+1. Never look directly into the well
+2. Keep the salt circle unbroken
+3. Trust no one who walks without a shadow`;
+---
+
+<MainLayout title="RTF Editor Studio | Horror Writer" description="Rich Text Formatting suite and split view editor">
+  <main class="max-w-5xl mx-auto py-12 px-4">
+    <div class="mb-6 pb-4 border-b border-[var(--color-line)] flex items-center justify-between">
+      <div>
+        <p class="font-mono text-xs uppercase tracking-widest text-[var(--color-ember)] mb-1">Writer's Studio</p>
+        <h1 class="font-serif font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">RTF Editor &amp; Live Typesetter</h1>
+      </div>
+      <span class="font-mono text-xs px-2.5 py-1 border border-[var(--color-line)] text-[var(--color-ash)] uppercase">
+        Markdown + HTML RTF
+      </span>
+    </div>
+
+    <MarkdownEditor
+      client:only="react"
+      value={initialContent}
+      rows={14}
+    />
+  </main>
+</MainLayout>

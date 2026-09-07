@@ -727,74 +727,36 @@ function ReadStory({ id }) {
           </button>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Theme Quick Toggle */}
-          <div className="flex items-center border border-[var(--color-line)]">
-            <button
-              type="button"
-              onClick={() => updateKindleSetting('theme', 'void', setKindleTheme)}
-              title="Void Dark Theme"
-              className={`px-2 py-0.5 text-xs font-mono transition-colors cursor-pointer ${
-                kindleTheme === 'void' ? 'bg-[var(--color-line)] text-white font-bold' : 'hover:text-white'
-              }`}
-            >
-              Void
-            </button>
-            <button
-              type="button"
-              onClick={() => updateKindleSetting('theme', 'sepia', setKindleTheme)}
-              title="Sepia Paperback Theme"
-              className={`px-2 py-0.5 text-xs font-mono border-l border-[var(--color-line)] transition-colors cursor-pointer ${
-                kindleTheme === 'sepia' ? 'bg-[#F4EFEA] text-[#2B231D] font-bold' : 'hover:text-white'
-              }`}
-            >
-              Sepia
-            </button>
-            <button
-              type="button"
-              onClick={() => updateKindleSetting('theme', 'paper', setKindleTheme)}
-              title="Paper Light Theme"
-              className={`px-2 py-0.5 text-xs font-mono border-l border-[var(--color-line)] transition-colors cursor-pointer ${
-                kindleTheme === 'paper' ? 'bg-[#FAF9F6] text-[#1A1A1A] font-bold' : 'hover:text-white'
-              }`}
-            >
-              Paper
-            </button>
-          </div>
-
-          {/* Size Quick Toggle */}
-          <div className="flex items-center gap-1">
-            <span className="text-[10px] uppercase tracking-wider text-[var(--color-text-secondary)] mr-0.5">Size:</span>
-            {[16, 18, 20, 22].map((sz, idx) => {
-              const labels = ['A-', 'A', 'A+', 'A++']
-              return (
-                <button
-                  key={sz}
-                  type="button"
-                  onClick={() => changeFontSize(sz)}
-                  className={`px-1.5 py-0.5 border cursor-pointer font-serif text-xs ${
-                    kindleSize === sz
-                      ? 'border-[var(--color-ember)] text-[var(--color-ember)] font-bold'
-                      : 'border-[var(--color-line)] hover:border-white'
-                  }`}
-                  title={`${sz}px font size`}
-                >
-                  {labels[idx]}
-                </button>
-              )
-            })}
-          </div>
+        {/* Size Quick Toggle */}
+        <div className="flex items-center gap-1">
+          <span className="text-[10px] uppercase tracking-wider text-[var(--color-text-secondary)] mr-0.5">Size:</span>
+          {[16, 18, 20, 22].map((sz, idx) => {
+            const labels = ['A-', 'A', 'A+', 'A++']
+            return (
+              <button
+                key={sz}
+                type="button"
+                onClick={() => changeFontSize(sz)}
+                className={`px-1.5 py-0.5 border cursor-pointer font-serif text-xs ${
+                  kindleSize === sz
+                    ? 'border-[var(--color-ember)] text-[var(--color-ember)] font-bold'
+                    : 'border-[var(--color-line)] hover:border-white'
+                }`}
+                title={`${sz}px font size`}
+              >
+                {labels[idx]}
+              </button>
+            )
+          })}
         </div>
       </div>
 
       {/* Story Content Block */}
       <article
-        className={`prose-book prose font-serif leading-relaxed text-[var(--color-text-primary)] mb-12 kindle-theme-${kindleTheme} kindle-font-${kindleFont} kindle-leading-${kindleSpacing} ${
-          kindleTheme === 'void' ? 'prose-invert' : ''
-        } ${
+        className={`prose-book prose prose-invert font-serif leading-relaxed text-[var(--color-text-primary)] mb-12 kindle-font-${kindleFont} kindle-leading-${kindleSpacing} ${
           formatMode === 'novel' ? 'format-novel' : ''
         }`}
-        style={{ fontSize: `${kindleSize}px`, padding: kindleTheme !== 'void' ? '2rem' : '0', borderRadius: kindleTheme !== 'void' ? '4px' : '0' }}
+        style={{ fontSize: `${kindleSize}px` }}
       >
         <ReactMarkdown
           remarkPlugins={[remarkGfm, remarkBreaks]}
