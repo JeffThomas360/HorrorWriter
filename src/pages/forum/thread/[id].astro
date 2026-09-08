@@ -25,8 +25,8 @@ try {
 }
 
 const authorHandle = thread?.profiles?.handle || 'Unknown Author';
-const title = thread ? `${thread.title} — Horror Writing Forum | Horror Writer` : 'The Crypt Discussion Thread | Horror Writer';
-const description = thread ? `Read and critique "${thread.title}" by ${authorHandle} in The Crypt horror workshop on Horror Writer.` : 'Join dark fiction and horror craft discussions in The Crypt on Horror Writer.';
+const title = thread ? `${thread.title} — The Crypt | Horror Writer` : 'Thread — The Crypt | Horror Writer';
+const description = thread ? `A discussion started by ${authorHandle} in The Crypt, the horror writing forum on Horror Writer.` : 'Horror writing discussion in The Crypt on Horror Writer.';
 const siteUrl = Astro.site ? new URL(Astro.site).origin : 'https://horrorwriter.org';
 const pageUrl = new URL(Astro.url.pathname, siteUrl).toString();
 

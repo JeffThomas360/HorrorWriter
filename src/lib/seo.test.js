@@ -8,8 +8,33 @@ import {
   buildSitemapXml,
   buildFAQSchema,
   buildBreadcrumbSchema,
-  buildSitemapIndexXml
+  buildSitemapIndexXml,
+  metaDescription,
+  SITE_DESCRIPTION
 } from './seo'
+
+describe('metaDescription', () => {
+  it('returns short text unchanged, with no ellipsis', () => {
+    expect(metaDescription('A quiet house.')).toBe('A quiet house.')
+  })
+  it('collapses whitespace and strips light markdown', () => {
+    expect(metaDescription('  **Bold**  and\n_soft_ `code` ')).toBe('Bold and soft code')
+  })
+  it('cuts at a word boundary under max and appends an ellipsis', () => {
+    const long = 'word '.repeat(60).trim()
+    const out = metaDescription(long, { max: 50 })
+    expect(out.length).toBeLessThanOrEqual(50)
+    expect(out.endsWith('…')).toBe(true)
+    expect(out).not.toMatch(/ …$/)
+  })
+  it('falls back when text is empty', () => {
+    expect(metaDescription('', { fallback: 'fb' })).toBe('fb')
+    expect(metaDescription(null, { fallback: 'fb' })).toBe('fb')
+  })
+  it('site description fits a search snippet', () => {
+    expect(SITE_DESCRIPTION.length).toBeLessThanOrEqual(155)
+  })
+})
 
 describe('buildWebSiteSchema', () => {
   it('returns a WebSite + Organization graph', () => {

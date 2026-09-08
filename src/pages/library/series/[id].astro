@@ -4,7 +4,7 @@ import MainLayout from '../../../layouts/MainLayout.astro'
 import StructuredData from '../../../components/StructuredData.astro'
 import SeriesHub from '../../../pages-react/SeriesHub'
 import { supabase } from '../../../supabaseClient'
-import { buildCreativeWorkSeriesSchema } from '../../../lib/seo'
+import { buildCreativeWorkSeriesSchema, metaDescription } from '../../../lib/seo'
 
 const { id } = Astro.params
 
@@ -23,8 +23,10 @@ try {
   console.error('Error fetching series details for SEO:', e)
 }
 
-const title = series ? `${series.title} | Series | Horror Writer` : 'Series | Horror Writer'
-const description = series?.description || 'A multi-story series on Horror Writer.'
+const title = series ? `${series.title} — Story Series | Horror Writer` : 'Story Series | Horror Writer'
+const description = series
+  ? metaDescription(series.description, { fallback: `${series.title}: a multi-part horror series on Horror Writer.` })
+  : 'Multi-part horror series on Horror Writer.'
 const pageUrl = new URL(Astro.url.pathname, Astro.site).toString()
 const seriesSchema = series ? buildCreativeWorkSeriesSchema({ url: pageUrl, name: series.title, description: series.description }) : null
 ---
