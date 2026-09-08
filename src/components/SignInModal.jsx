@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
 import { signInWithPasskey } from '../lib/passkey'
+import { MIN_AGE, PASSED, BLOCKED, meetsMinimumAge, selectableYears, readGate, writeGate } from '../lib/ageGate'
+
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+]
 
 const DISPOSABLE_DOMAINS = [
   'mailinator.com', 'yopmail.com', '10minutemail.com', 'tempmail.com',
@@ -27,9 +33,17 @@ export default function SignInModal({ isOpen, onClose }) {
   const [message, setMessage] = useState(null)
   const [error, setError] = useState(null)
 
-  // Load email cookie only on client mount
+  // Age gate. `null` until the client reads storage, so SSR renders nothing
+  // that assumes a verdict either way.
+  const [gate, setGate] = useState(null)
+  const [birthMonth, setBirthMonth] = useState('')
+  const [birthYear, setBirthYear] = useState('')
+  const [gateError, setGateError] = useState(null)
+
+  // Load email cookie and the stored age verdict only on client mount
   useEffect(() => {
     setEmail(getEmailCookie())
+    setGate(readGate())
   }, [])
 
   const enableGoogle = import.meta.env.VITE_ENABLE_GOOGLE_LOGIN === 'true'
@@ -69,6 +83,30 @@ export default function SignInModal({ isOpen, onClose }) {
   if (!isOpen) return null
 
   const anyBusy = isSubmitting || isPasskeySubmitting || isGoogleSubmitting
+
+  // The birth date is used to compute a verdict and then dropped. It is never
+  // stored, never sent anywhere: keeping the birth date of someone rejected as
+  // under-age would be collecting a child's personal information.
+  const handleAgeSubmit = (e) => {
+    e.preventDefault()
+    const year = parseInt(birthYear, 10)
+    const month = parseInt(birthMonth, 10)
+
+    if (!birthYear || !birthMonth) {
+      setGateError('Select a month and year.')
+      return
+    }
+    if (meetsMinimumAge(year, month, new Date())) {
+      writeGate(PASSED)
+      setGate(PASSED)
+      setGateError(null)
+    } else {
+      writeGate(BLOCKED)
+      setGate(BLOCKED)
+    }
+    setBirthMonth('')
+    setBirthYear('')
+  }
 
   const handlePasskey = async () => {
     if (!email.trim()) {
@@ -174,6 +212,69 @@ export default function SignInModal({ isOpen, onClose }) {
       <div className="modal-content w-full max-w-md bg-[var(--color-bg-surface)] border border-[var(--color-line)] p-8 relative vintage-border" onClick={e => e.stopPropagation()}>
         <button className="absolute top-4 right-4 text-2xl text-[var(--color-text-secondary)] hover:text-white cursor-pointer" onClick={onClose} aria-label="Close modal">×</button>
 
+        {gate === BLOCKED && (
+          <div className="text-center">
+            <h2 className="text-2xl font-serif mb-3">The Door Stays <em className="text-[var(--color-accent-crimson)] not-italic">Shut</em></h2>
+            <p className="text-sm font-serif text-[var(--color-text-secondary)] leading-relaxed">
+              You must be at least {MIN_AGE} to join this coven. Come back when the years have caught up.
+            </p>
+            <p className="text-xs font-serif text-[var(--color-text-secondary)] mt-6">
+              The <a href="/rules" className="underline hover:text-[var(--color-accent-crimson)]" onClick={onClose}>House Rules</a> explain why.
+            </p>
+          </div>
+        )}
+
+        {gate !== BLOCKED && gate !== PASSED && (
+          <div>
+            <div className="mb-6 text-center">
+              <h2 className="text-2xl font-serif mb-2">Before You <em className="text-[var(--color-accent-crimson)] not-italic">Enter</em></h2>
+              <p className="text-xs text-[var(--color-text-secondary)] font-serif">When were you born?</p>
+              {gateError && <div className="text-[var(--color-ember)] text-xs mt-3 font-mono">{gateError}</div>}
+            </div>
+
+            <form onSubmit={handleAgeSubmit} className="flex flex-col gap-4">
+              <div className="flex gap-3">
+                <div className="flex flex-col gap-2 flex-1">
+                  <label htmlFor="birth-month" className="text-xs font-mono text-[var(--color-text-secondary)]">Month</label>
+                  <select
+                    id="birth-month"
+                    value={birthMonth}
+                    onChange={e => setBirthMonth(e.target.value)}
+                    className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
+                  >
+                    <option value="">—</option>
+                    {MONTHS.map((name, i) => <option key={name} value={i + 1}>{name}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-2 flex-1">
+                  <label htmlFor="birth-year" className="text-xs font-mono text-[var(--color-text-secondary)]">Year</label>
+                  <select
+                    id="birth-year"
+                    value={birthYear}
+                    onChange={e => setBirthYear(e.target.value)}
+                    className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
+                  >
+                    <option value="">—</option>
+                    {selectableYears().map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-[var(--color-text-primary)] text-[var(--color-bg-primary)] font-mono text-xs uppercase py-3 hover:bg-white cursor-pointer"
+              >
+                Continue
+              </button>
+            </form>
+
+            <p className="text-center text-xs text-[var(--color-text-secondary)] mt-6 font-serif">
+              We use this once, to check you are old enough. It is not stored.
+            </p>
+          </div>
+        )}
+
+        {gate === PASSED && (<>
         <div className="mb-6 text-center">
           <h2 className="text-2xl font-serif mb-2">Summon <em className="text-[var(--color-accent-crimson)] not-italic">Yourself</em></h2>
           <p className="text-xs text-[var(--color-text-secondary)] font-serif">Enter the void using your passkey or email credentials.</p>
@@ -252,6 +353,7 @@ export default function SignInModal({ isOpen, onClose }) {
         <p className="text-center text-xs text-[var(--color-text-secondary)] mt-6 font-serif">
           By entering, you agree to the <a href="/rules" className="underline hover:text-[var(--color-accent-crimson)]" onClick={onClose}>House Rules</a>. No algorithms, no ads.
         </p>
+        </>)}
       </div>
     </div>
   )
