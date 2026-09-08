@@ -13,6 +13,7 @@ const TARGET_TABLE: Record<string, { table: string; column: string }> = {
   critique: { table: 'book_comments', column: 'content' },
   thread: { table: 'threads', column: 'title' },
   post: { table: 'posts', column: 'content' },
+  whisper: { table: 'whispers', column: 'text' },
 }
 
 serve(async (req) => {

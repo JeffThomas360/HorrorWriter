@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react'
 import { playWhisperEcho, playTypewriterKey } from '../lib/soundscapes'
+import { useAuth } from './AuthContext'
+import { withProviders } from './Providers'
+import { fetchWhispers, releaseWhisper, WHISPER_MAX } from '../lib/whispers'
 
 // Authored writing prompts, not user submissions. Labelled SEED in the UI, the same way
 // seedArchives.js labels its public-domain tapes ARCHIVE SAMPLE.
@@ -36,55 +39,46 @@ const SEED_WHISPERS = [
   },
 ]
 
-export default function VoidWhispers() {
+function VoidWhispers() {
   const [whispers, setWhispers] = useState(SEED_WHISPERS)
   const [inputVal, setInputVal] = useState('')
   const [isWhispering, setIsWhispering] = useState(false)
   const [claimedId, setClaimedId] = useState(null)
   const [dissolving, setDissolving] = useState(false)
+  const [error, setError] = useState(null)
+  const { session } = useAuth()
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('hw_void_whispers')
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setWhispers([...parsed, ...SEED_WHISPERS])
-        }
-      }
-    } catch {
-      // Ignore storage errors
-    }
+    let cancelled = false
+    fetchWhispers()
+      .then(rows => {
+        if (!cancelled && rows.length) setWhispers([...rows, ...SEED_WHISPERS])
+      })
+      .catch(() => {
+        // A failed read must never take the section down — the seeds still stand
+        // on their own as writing prompts.
+      })
+    return () => { cancelled = true }
   }, [])
 
-  function handleRelease(e) {
+  async function handleRelease(e) {
     e.preventDefault()
     if (!inputVal.trim()) return
 
+    setError(null)
     setDissolving(true)
     playWhisperEcho()
 
-    setTimeout(() => {
-      const newWhisper = {
-        id: 'whisper-' + Date.now(),
-        text: inputVal.trim(),
-    seed: true,
-        category: 'Fresh Confession',
-      }
-
-      const updated = [newWhisper, ...whispers]
-      setWhispers(updated)
+    try {
+      const saved = await releaseWhisper(inputVal)
+      setWhispers(prev => [saved, ...prev])
       setInputVal('')
-      setDissolving(false)
       setIsWhispering(false)
-
-      try {
-        const userSubmissions = updated.filter(w => !w.id.startsWith('seed-'))
-        localStorage.setItem('hw_void_whispers', JSON.stringify(userSubmissions))
-      } catch {
-        // Ignore
-      }
-    }, 600)
+    } catch (err) {
+      setError(err.message || 'The dark refused it. Try again.')
+    } finally {
+      setDissolving(false)
+    }
   }
 
   function handleClaimSeed(item) {
@@ -106,26 +100,35 @@ export default function VoidWhispers() {
             Whispers in <em className="italic text-[var(--color-ember)] font-serif">the Void</em>
           </h2>
           <p className="text-xs text-[var(--color-text-secondary)] font-serif mt-1">
-            The fears we never speak aloud are the ones that beg to be written. Claim a seed, or write your own — anything you release stays in this browser, on this device.
+            The fears we never speak aloud are the ones that beg to be written. Claim a seed, or release your own — shown to everyone without your name on it.
           </p>
         </div>
 
-        <button
-          onClick={() => {
-            playTypewriterKey(false)
-            setIsWhispering(!isWhispering)
-          }}
-          className="font-mono text-xs uppercase px-4 py-2.5 border border-[var(--color-ember)] text-[var(--color-ember)] hover:bg-[var(--color-ember)] hover:text-white transition-colors cursor-pointer self-start sm:self-auto"
-        >
-          {isWhispering ? 'Close Well' : '+ Whisper a Fear'}
-        </button>
+        {session ? (
+          <button
+            onClick={() => {
+              playTypewriterKey(false)
+              setIsWhispering(!isWhispering)
+            }}
+            className="font-mono text-xs uppercase px-4 py-2.5 border border-[var(--color-ember)] text-[var(--color-ember)] hover:bg-[var(--color-ember)] hover:text-white transition-colors cursor-pointer self-start sm:self-auto"
+          >
+            {isWhispering ? 'Close Well' : '+ Whisper a Fear'}
+          </button>
+        ) : (
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('open-signin'))}
+            className="font-mono text-xs uppercase px-4 py-2.5 border border-[var(--color-line)] text-[var(--color-text-secondary)] hover:border-white transition-colors cursor-pointer self-start sm:self-auto"
+          >
+            Sign in to whisper
+          </button>
+        )}
       </div>
 
       {/* Whisper Input Drawer */}
       {isWhispering && (
         <form onSubmit={handleRelease} className="mb-8 p-6 bg-[#0e060c] border border-[var(--color-line)] relative">
           <label className="block font-mono text-xs uppercase tracking-widest text-[var(--color-text-primary)] mb-2">
-            Speak an unspoken fear into the dark (kept on this device only):
+            Speak an unspoken fear into the dark (shown without your name):
           </label>
           <textarea
             value={inputVal}
@@ -134,12 +137,15 @@ export default function VoidWhispers() {
             className={`w-full bg-[#050204] border border-[var(--color-line)] p-4 font-serif text-sm text-[var(--color-text-primary)] focus:border-[var(--color-ember)] focus:outline-none min-h-[100px] transition-opacity duration-500 ${
               dissolving ? 'opacity-20 animate-pulse' : 'opacity-100'
             }`}
-            maxLength={280}
+            maxLength={WHISPER_MAX}
             required
           />
+          {error && (
+            <div className="mt-3 font-mono text-xs text-[var(--color-ember)]">{error}</div>
+          )}
           <div className="flex justify-between items-center mt-3">
             <span className="font-mono text-xs text-[var(--color-text-secondary)]">
-              {280 - inputVal.length} glyphs left
+              {WHISPER_MAX - inputVal.length} glyphs left
             </span>
             <button
               type="submit"
@@ -165,7 +171,7 @@ export default function VoidWhispers() {
                   {item.category}
                 </span>
                 <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--color-text-secondary)]">
-                  {item.seed ? 'Seed' : 'Yours · this device'}
+                  {item.seed ? 'Seed' : 'Anonymous'}
                 </span>
               </div>
               <p className="font-serif italic text-sm text-[var(--color-text-primary)] leading-relaxed mb-4">
@@ -187,3 +193,5 @@ export default function VoidWhispers() {
     </section>
   )
 }
+
+export default withProviders(VoidWhispers)
