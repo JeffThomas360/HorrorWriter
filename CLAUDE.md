@@ -1,94 +1,117 @@
 # HorrorWriter — CLAUDE.md
 
-A specialized, retro-aesthetic horror writing and critique community at **[horrorwriter.org](https://horrorwriter.org)**.
-Solo-maintained by Jeff Thomas (`JeffThomas360`). Built with **Astro 7** (React islands) deployed to **Cloudflare Workers**, backed by **Supabase PostgreSQL**.
+A horror writing community at **horrorwriter.org**. Astro 7 (React islands) on Cloudflare Workers,
+Supabase backend. Solo-maintained by Jeff; must stay non-technical for writer users and
+low-maintenance to run.
+
+> ## 📖 The source of truth is the Obsidian vault
+>
+> **`D:\CLAUDECODE\Vault\02_Projects\horrorwriter\`**
+>
+> | | |
+> |---|---|
+> | `project-overview.md` | Hub — start here |
+> | `roadmap.md` | The board: what's open, in order. Only what's open. |
+> | `standing-decisions.md` | The rules still in force — including how Claude works on this repo |
+> | `work/*.md` | Themed notes; each `##` is one open item sized to a PR. Work it out in the note. |
+> | `stewing-on-jeffs-input/` | Gray-area items with a decision attached. Don't start from these alone. |
+> | `reference/architecture.md` | Stack, island model, structure, database, design system, testing |
+> | `reference/infrastructure.md` | Supabase, Workers, deploy, secrets |
+> | `_archive/` | What shipped and why. History only. |
+>
+> **Read `project-overview.md` before starting work.** This file carries only the traps that bite
+> while editing code — everything else lives in the vault and is not duplicated here.
+
+## How work lands
+
+- **Claude commits, pushes a feature branch, and opens the PR. Jeff reviews and merges.**
+  Claude never pushes `main` and never merges — `main` auto-deploys with no CI gate in front of it.
+- After a code change, state the exact commands (`npm run test:unit`, `npm run build`,
+  `npx playwright test`) — Jeff runs them. Don't narrate process.
+- One deliverable at a time. Name scope creep out loud, with its cost, before acting on it.
+- **Check state before diagnosing:** `git status`, which environment, is it deployed — and for
+  anything visible in a browser, **read the console first.**
+- Before picking work, `git log --since=<vault date>` and diff it against the board. The vault has
+  drifted before.
 
 ---
 
-## 1. What This Project Is
+## ⚠️ Traps
 
-HorrorWriter is an online sanctuary for horror authors, flash-fiction writers, and dark literature aficionados. It merges the analog nostalgia of **1980s VHS tape aesthetic and midnight horror radio** with a modern, high-performance web experience.
+These have each cost a production bug or a debugging session.
 
-### Core Value Propositions:
-1. **Unobstructed Reading (Amazon Kindle Experience)**:
-   - Dedicated **Kindle Focus Mode** (`/library/read/[id]`) that strips away all navigation, sidebars, and comment threads into an authentic e-reader room.
-   - Authentic Kindle themes: **Void Dark** (`#050505`), **Sepia Paperback** (`#F4EFEA` / `#2B231D`), and **Paper Light** (`#FAF9F6` / `#1A1A1A`).
-   - Bookerly, Literata, Sans, and Monospace typography with adjustable sizing, margins, line spacing, and novel paragraph indentation.
-   - Live telemetry tracking scroll progress (`XX%`) and estimated reading time left (`~X mins left`).
-2. **Sensory & RTF Writing Studio (`MarkdownEditor.jsx`)**:
-   - Full rich-text formatting toolbar: Bold, Italic, Underline (`<u>`), Strikethrough, Crimson Highlight (`<mark>`), Headings (H1/H2/H3), Scene Breaks (`* * *`), Dialogue Em-Dashes (`—`), Blockquotes, and Lists.
-   - **Split View Typesetter**: Real-time side-by-side authoring with instant book-typeset preview.
-   - Sensory immersion: Tactile mechanical typewriter audio clicks and ambient horror audio soundscapes (Rain, Tape Hum).
-   - Document import for `.docx`, `.md`, and `.txt` manuscripts.
-3. **Psychological Draw & Viral Acquisition**:
-   - **Dread Spectrum Diagnostic**: A psychological archetype quiz matching writers to 4 horror profiles (*Lovecraftian Void*, *Slasher Visceral*, *Gothic Melancholy*, *Psychological Paranoia*) generating shareable Dread Dossiers.
-   - **Whispers in the Void**: Ephemeral, anonymous micro-confessional stream for raw reader fears.
-   - **Witching Hour Telemetry**: Live nocturnal status monitoring and midnight signal intercept (*Tape #00* Channel 13 terminal).
-4. **Community Critique & Serial Fiction**:
-   - Long-form story publishing, multi-part series arcs, constructive critique exchanges, and transparent community moderation.
+- **`withProviders` is a NAMED export** from `src/components/Providers.jsx`; the default export is
+  `Providers`. A default import compiles fine, then crashes at SSR with
+  `Cannot read properties of null (reading 'useState')`. Guarded by a regression test.
+- **Hooks before early returns** in island components. A hooks-after-return bug crashed the story
+  reader in production (`6b69881`).
+- **Islands don't share React context.** Each `client:load` is a separate React root, so one page
+  has several `AuthProvider` instances. They coordinate through module-scoped globals in
+  `AuthContext.jsx` (`globalInFlight`, `globalProfileCache`). Any new shared or loading state must
+  resolve correctly for *every* instance — and `getSession().then()` must `await` the profile fetch
+  or `isLoading` never clears (`fd3c35d`).
+- **Cross-island events must survive the hydration gap** — persist a flag (see
+  `window.__signinPending` in `MainLayout.astro`); never rely on catching a live CustomEvent.
+- **Never ship a primary CTA as `class="hidden"` revealed by script.** Render it visible
+  server-side and let JS *upgrade* it; a JS failure must not leave the landing page with no call to
+  action (`ccd4656`, the 2026-09-06 outage).
+- **`supabase` may be null** (unconfigured env) — guard before querying.
+- **`Permissions-Policy` microphone must stay `(self)`** in `public/_headers`. `microphone=()`
+  silently kills Dictate in production with no error anywhere.
+- **CSP `script-src` must keep `'unsafe-inline'`** in `public/_headers`. Astro hydrates every
+  `client:load` island via an *inline* `<script type="module">`; `script-src 'self'` blocks all of
+  them, so **no island ever hydrates** while the page still looks normal (the SSR'd HTML renders
+  fine). Deliberate trade — see `standing-decisions.md`. The agreed way out is Astro build-time
+  hashes **with `script-src` removed from `_headers` in the same change** (meta and header CSPs are
+  intersected by the browser).
+- **`public/_headers` is invisible to `npm run dev`** — it's a Cloudflare static-hosting file, so a
+  header change that passes locally can be totally broken in production. Verify on the PR's Workers
+  Builds preview. **Tell for dead hydration:** network panel shows CSS and fonts only, zero JS.
+- **`wrangler.toml` has no `main` or `[assets]` on purpose** — the Cloudflare Vite plugin validates
+  `main` at build start, before `dist/` exists, and would error.
+- **`wrangler.toml` points local dev at the production Supabase project.** `npm run dev` reads and
+  writes live data. Local is fine for code/render/console breakage; not for exercising writes.
+- **Astro 7 ↔ Vite 8:** `package.json` `overrides` pins `vite ^8`. Don't let npm downgrade it.
+- **Schema changes need a numbered migration in `supabase/migrations/` AND a PostgREST cache
+  reload** — `NOTIFY pgrst, 'reload schema';` — or the API throws
+  `Could not find the '<col>' column of '<table>' in the schema cache` while the column plainly
+  exists (`books.updated_at`, 2026-09-07).
+- **`transparency_log` is an RPC** (`get_transparency_log`), not a view, since `20260907000000`.
+  Don't recreate the view; the advisor ERROR it cleared will come back.
+- **`site_settings` has no client write path.** All writes go through `set_site_setting()`, which
+  logs to `mod_actions`. Don't add an UPDATE policy.
+- **Tailwind v4 resets `<p>` margins to 0.** Paragraph spacing lives in `.prose-book p` / `.prose p`
+  in `global.css`; a bare `<p>` has none.
+- **Two reds, and they are not interchangeable.** `--color-blood` `#C8102E` measures **3.38:1** on
+  `--color-void` — WCAG AA for *large* text only (≥24px, or ≥18.66px bold). `--color-ember`
+  `#FF3B2F` measures **5.61:1** and clears AA at any size. Blood for display type, borders and fills
+  (white or bone *on* blood is fine); **ember for anything interactive or small.** Most of this
+  site's text is small, so ember is the default red, not the exception. `#991B1B` is gone —
+  `designTokens.test.js` bans its return.
 
----
-
-## 2. Strategic Goals Going Forward
-
-### A. Product & Community Goals
-1. **Frictionless Reading & Retention**:
-   - Keep reading unobstructed, beautiful, and distraction-free. Readers should feel like they are reading on a Kindle or holding a physical paperback.
-   - Preserve soft single returns and book-style paragraph formatting across all stories.
-2. **Writer Empowerment**:
-   - Provide the premier editor for horror fiction: fast, distraction-free, rich formatting, sensory soundscapes, and autosaved drafts.
-3. **Organic Search Dominance (Top 10 Google Ranking)**:
-   - Maintain JSON-LD structured data (`CreativeWork`, `Book`, `DiscussionForumPosting`, `BreadcrumbList`, `WebSite`).
-   - Keep dynamic XML sitemaps (`sitemap-stories.xml.js`, `sitemap-threads.xml.js`, `sitemap-profiles.xml.js`) auto-updating.
-   - Ensure dynamic social share card generation (`/og/story/[id].png`) works seamlessly on Twitter/X, Reddit, and Discord.
-4. **Low-Maintenance & High Reliability**:
-   - Two hard constraints shape every engineering decision: **must stay simple and non-technical for writer users**, and **strictly low-maintenance to operate**.
-
----
-
-## 3. Tech Stack & Architecture
-
-- **Framework**: Astro 7 (`output: "static"`, `mode: "server"` via `@astrojs/cloudflare` adapter).
-- **Frontend**: React 19 islands (`client:load` / `client:only="react"`).
-- **Bundler & Compiler**: Vite 8 (overrides pinned in `package.json`).
-- **Styling**: Tailwind CSS 4 + Vanilla CSS Design Tokens in `src/styles/global.css`.
-- **Database & Auth**: Supabase PostgreSQL + PostgREST + Supabase Auth.
-- **Edge Runtime**: Cloudflare Workers (Astro SSR + static asset pipeline).
-- **Secondary Workers**: Audio transcription worker (`workers/transcribe/`).
-
----
-
-## 4. Critical Traps & Engineering Guardrails
-
-These have cost production outages or lengthy debugging sessions in the past:
-
-1. **`withProviders` is a NAMED export** from `src/components/Providers.jsx`; the default export is `Providers`. A default import compiles cleanly, then crashes at SSR runtime with `Cannot read properties of null (reading 'useState')`.
-2. **Hooks before early returns in React islands**: Placing hooks after conditional returns (`if (loading) return ...`) crashes React islands in production. Always declare all hooks at the top.
-3. **Islands do NOT share React context**: Each `client:load` is a distinct React root. One page contains multiple `AuthProvider` instances. They coordinate via module-scoped globals in `AuthContext.jsx` (`globalInFlight`, `globalProfileCache`).
-4. **Tailwind v4 Paragraph Reset**: Tailwind v4 resets all `<p>` margins to 0. All paragraph vertical spacing must be explicitly governed by `.prose-book p` and `.prose p` in `global.css`.
-5. **Database Parity (`updated_at`)**: Every content table (`books`, `threads`, `posts`, `book_comments`, `profiles`) has `updated_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL` and trigger `touch_profile_updated_at()`. When adding columns or modifying tables, always create a numbered migration in `supabase/migrations/` and reload PostgREST cache via `NOTIFY pgrst, 'reload schema';`.
-6. **CSP & Cloudflare `public/_headers`**:
-   - `Permissions-Policy`: `microphone=(self)` must remain active for Dictate transcription.
-   - `CSP script-src`: Must retain `'unsafe-inline'` because Astro hydrates React islands via inline module scripts. Dropping it disables all client hydration.
-   - `_headers` is invisible to `npm run dev` (Cloudflare static hosting only). Verify header changes in production or staging builds.
-7. **Color Tokens & WCAG AA Contrast**:
-   - `--color-blood` (`#C8102E`) is **3.38:1** on dark surfaces. It passes WCAG AA **only for large display type** (≥24px or ≥18.66px bold).
-   - `--color-ember` (`#FF3B2F`) is **5.61:1** and passes AA at any size. Use **ember for small text and interactive links/buttons**.
-   - Use blood as a decorative border or solid background fill with white text. Never use blood for 12px body copy.
-
----
-
-## 5. Development & Verification Workflow
+## Commands
 
 ```powershell
-npm run dev          # Local development (http://localhost:4321)
-npm run test:unit    # Vitest unit tests (18 test suites, 137 tests)
-npm run build        # Astro Cloudflare production build verification
-npx playwright test  # E2E browser test suite
+npm run dev          # astro dev — http://localhost:5173 (astro.config.mjs server.port)
+npm run build        # astro build → dist/ (Cloudflare adapter)
+npm run test:unit    # vitest run — 137 tests / 18 suites as of 2026-09-07; the count moves
+npx playwright test  # E2E, 12 spec files. From PowerShell prefix with `cmd /c` (npx.ps1 is blocked).
+
+# Release: merge to main → Cloudflare Workers Builds auto-deploys. (Pages is dead; don't cite it.)
+# Transcribe Worker is NOT auto-deployed: cd workers/transcribe; npx wrangler deploy
 ```
 
-### Protocol for Deployments:
-1. Always run `npm run test:unit` and `npm run build` before pushing.
-2. Commit with descriptive semantic messages (`feat: ...`, `fix: ...`, `chore: ...`).
-3. Push to `main`: Cloudflare Pages auto-deploys via GitHub webhook.
-4. Verify visually via browser subagent or headless Playwright script with screenshots saved to brain artifacts.
+## Environment notes
+
+- **`gh` CLI is authenticated** (`JeffThomas360`) — `gh pr create` works.
+- **Dependabot pushes to `main` unattended, and `main` auto-deploys.** Unit tests run on PRs only.
+- **Agent shells:** the cloud container has no git credentials and no route to GitHub or Supabase.
+  The desktop Linux workspace (`device_bash`) can run git, but **cannot unlink files** — every
+  index-touching git command leaves a `.git/index.lock` behind unless delete permission was
+  granted. Playwright's browser download is blocked in both; E2E runs on Jeff's machine. Unit tests
+  and `npm run build` work only after copying the repo to `/tmp` and reinstalling — the Windows
+  `node_modules` holds native binaries Linux can't load.
+- **If "Supabase not configured" appears in production,** check Workers Builds → Settings → Build →
+  Variables for the `VITE_*` set.
+- Plan docs under `docs/superpowers/` have **stale checkboxes** — they were never ticked as work
+  landed. Trust `git log`.
