@@ -1,40 +1,37 @@
 import { useState, useEffect } from 'react'
 import { playWhisperEcho, playTypewriterKey } from '../lib/soundscapes'
 
+// Authored writing prompts, not user submissions. Labelled SEED in the UI, the same way
+// seedArchives.js labels its public-domain tapes ARCHIVE SAMPLE.
 const SEED_WHISPERS = [
   {
     id: 'seed-1',
     text: 'I keep thinking about the fact that if a person I love was replaced by an exact double, I would never know until it was too late.',
-    author: 'Anonymous · 02:14 AM',
-    candles: 31,
+    seed: true,
     category: 'The Uncanny',
   },
   {
     id: 'seed-2',
     text: 'When I lived in the cabin upstate, I heard crying beneath the living room floorboards. My father said it was pipes. The cabin had no plumbing.',
-    author: 'Anonymous · 03:45 AM',
-    candles: 48,
+    seed: true,
     category: 'Rural Dread',
   },
   {
     id: 'seed-3',
     text: 'I’m not afraid of being alone in the dark. I’m afraid of realizing I’m not alone, but whatever is there refuses to make a sound.',
-    author: 'Anonymous · 01:03 AM',
-    candles: 64,
+    seed: true,
     category: 'Sensory Isolation',
   },
   {
     id: 'seed-4',
     text: 'Every night at 3:12 AM, our baby monitor picks up static and the unmistakable sound of someone slowly turning the pages of an old book.',
-    author: 'Anonymous · 03:12 AM',
-    candles: 52,
+    seed: true,
     category: 'Domestic Haunting',
   },
   {
     id: 'seed-5',
     text: 'I wrote a gruesome fictional murder scene ten years ago. Last winter, an unsolved disappearance in my hometown matched every single sentence.',
-    author: 'Anonymous · 11:59 PM',
-    candles: 77,
+    seed: true,
     category: 'The Unwritten Curse',
   },
 ]
@@ -71,8 +68,7 @@ export default function VoidWhispers() {
       const newWhisper = {
         id: 'whisper-' + Date.now(),
         text: inputVal.trim(),
-        author: 'Anonymous · Just now',
-        candles: 1,
+    seed: true,
         category: 'Fresh Confession',
       }
 
@@ -99,23 +95,18 @@ export default function VoidWhispers() {
     })
   }
 
-  function handleLightCandle(id) {
-    playTypewriterKey(false)
-    setWhispers(prev => prev.map(w => w.id === id ? { ...w, candles: w.candles + 1 } : w))
-  }
-
   return (
     <section id="void-whispers" className="vintage-card p-6 sm:p-10 mb-20 relative overflow-hidden border-[var(--color-line)]">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--color-line)] pb-4 mb-8">
         <div>
           <span className="block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-upside)] mb-1">
-            ▸ Collective Dread Stream · The Confessional
+            ▸ Writing Seeds · Prompt Well
           </span>
           <h2 className="text-2xl sm:text-3xl font-serif font-black">
             Whispers in <em className="italic text-[var(--color-ember)] font-serif">the Void</em>
           </h2>
           <p className="text-xs text-[var(--color-text-secondary)] font-serif mt-1">
-            The fears we never speak aloud are the ones that beg to be written. Claim a seed, or release your own.
+            The fears we never speak aloud are the ones that beg to be written. Claim a seed, or write your own — anything you release stays in this browser, on this device.
           </p>
         </div>
 
@@ -134,7 +125,7 @@ export default function VoidWhispers() {
       {isWhispering && (
         <form onSubmit={handleRelease} className="mb-8 p-6 bg-[#0e060c] border border-[var(--color-line)] relative">
           <label className="block font-mono text-xs uppercase tracking-widest text-[var(--color-text-primary)] mb-2">
-            Speak an unspoken fear into the dark (100% anonymous):
+            Speak an unspoken fear into the dark (kept on this device only):
           </label>
           <textarea
             value={inputVal}
@@ -173,8 +164,8 @@ export default function VoidWhispers() {
                 <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--color-upside)]">
                   {item.category}
                 </span>
-                <span className="font-mono text-[10px] text-[var(--color-text-secondary)]">
-                  {item.author}
+                <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--color-text-secondary)]">
+                  {item.seed ? 'Seed' : 'Yours · this device'}
                 </span>
               </div>
               <p className="font-serif italic text-sm text-[var(--color-text-primary)] leading-relaxed mb-4">
@@ -182,16 +173,7 @@ export default function VoidWhispers() {
               </p>
             </div>
 
-            <div className="flex items-center justify-between pt-3 border-t border-[var(--color-line)]/50">
-              <button
-                onClick={() => handleLightCandle(item.id)}
-                className="flex items-center gap-1.5 font-mono text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-ember)] transition-colors cursor-pointer"
-                title="Light a candle for this fear"
-              >
-                <span>🕯️</span>
-                <span>{item.candles} candles</span>
-              </button>
-
+            <div className="flex items-center justify-end pt-3 border-t border-[var(--color-line)]/50">
               <button
                 onClick={() => handleClaimSeed(item)}
                 className="font-mono text-xs uppercase text-[var(--color-upside)] hover:text-white transition-colors cursor-pointer"

@@ -6,6 +6,10 @@ import { withProviders } from '../components/Providers'
 
 const AV_COLORS = ['', 'av-1', 'av-2', 'av-3', 'av-4', 'av-5', 'av-6']
 
+// Five empty category shelves read as abandonment; one quiet list reads as new.
+// The taxonomy stays in the schema either way -- this only controls when it renders.
+const CATEGORY_REVEAL_THRESHOLD = 10
+
 function initials(handle) {
   if (!handle) return '??'
   return handle.split('-').map(w => w[0].toUpperCase()).slice(0, 2).join('')
@@ -157,7 +161,12 @@ function Forum() {
                 <span>All Threads</span>
                 <span className="font-mono text-xs">{threads.length}</span>
               </li>
-              {categories.map(c => {
+              {threads.length < CATEGORY_REVEAL_THRESHOLD && (
+                <li className="py-1 px-2 font-serif text-xs text-[var(--color-text-secondary)] italic">
+                  More rooms open as the Crypt fills.
+                </li>
+              )}
+              {threads.length >= CATEGORY_REVEAL_THRESHOLD && categories.map(c => {
                 const count = threads.filter(t => t.category_id === c.id).length
                 return (
                   <li
@@ -214,7 +223,7 @@ function Forum() {
         {/* Main Content Area */}
         <div className="md:col-span-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-            <div className="flex-1 min-w-0">
+            <div className={`flex-1 min-w-0 ${threads.length === 0 ? 'hidden' : ''}`}>
               <input
                 placeholder="Search threads, authors, tags…"
                 value={query}
@@ -227,9 +236,7 @@ function Forum() {
               <a href="/forum/new" className="shrink-0 text-center bg-[var(--color-accent-crimson)] text-white font-mono text-xs uppercase px-4 py-2 hover:bg-red-700 transition-colors">
                 New Thread
               </a>
-            ) : (
-              <span className="shrink-0 text-center font-mono text-xs border border-[var(--color-line)] text-[var(--color-text-secondary)] px-3 py-2 uppercase">Sign in to post</span>
-            )}
+            ) : null}
           </div>
 
           {visible.length === 0 && (

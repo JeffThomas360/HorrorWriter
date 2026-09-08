@@ -22,7 +22,6 @@ function getMoonPhase() {
 
 export default function WitchingHourBar() {
   const [timeLeft, setTimeLeft] = useState('')
-  const [activeWriters, setActiveWriters] = useState(19)
   const moon = useMemo(() => getMoonPhase(), [])
 
   useEffect(() => {
@@ -49,7 +48,6 @@ export default function WitchingHourBar() {
 
     // Subtle drift in nocturnal active writers
     const writerInterval = setInterval(() => {
-      setActiveWriters((prev) => Math.max(12, Math.min(34, prev + (Math.random() > 0.5 ? 1 : -1))))
     }, 18000)
 
     return () => {
@@ -75,12 +73,6 @@ export default function WitchingHourBar() {
           <span className="text-[var(--color-upside)]">({moon.illum}%)</span>
         </span>
 
-        <span className="text-[var(--color-line)] hidden md:inline">|</span>
-
-        <span className="inline-flex items-center gap-1.5">
-          <span className="text-[var(--color-upside)]">●</span>
-          <span>{activeWriters} authors writing in the dark</span>
-        </span>
       </div>
     </aside>
   )

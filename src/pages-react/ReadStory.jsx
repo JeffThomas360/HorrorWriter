@@ -75,7 +75,14 @@ function ReadStory({ id }) {
       const font = localStorage.getItem('hw_kindle_font')
       if (font) setKindleFont(font)
       const sz = localStorage.getItem('hw_kindle_size')
-      if (sz) setKindleSize(Number(sz))
+      if (sz) {
+        setKindleSize(Number(sz))
+      } else if (typeof window !== 'undefined' && window.innerWidth < 768) {
+        // 18px Merriweather on a 375px screen is ~30 characters a line; comfortable
+        // measure is 45-75. Start narrow screens a step down. The A-/A/A+/A++ control
+        // still wins, and once used it persists.
+        setKindleSize(16)
+      }
       const w = localStorage.getItem('hw_kindle_width')
       if (w) setKindleWidth(w)
       const sp = localStorage.getItem('hw_kindle_spacing')
