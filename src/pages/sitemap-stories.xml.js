@@ -9,7 +9,9 @@ export async function GET() {
   const rows = await fetchLiveStoryUrls()
   const archiveRows = ARCHIVE_STORIES.map(a => ({
     loc: `https://horrorwriter.org/library/read/${a.id}`,
-    lastmod: a.created_at
+    // created_at is the work's original date (1843…); Google discards implausible
+    // lastmod values, so report when the page went live here instead.
+    lastmod: a.added_at || a.created_at
   }))
   const liveRows = rows.map(r => ({
     loc: `https://horrorwriter.org/library/read/${r.id}`,
