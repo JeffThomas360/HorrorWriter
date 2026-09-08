@@ -48,8 +48,6 @@ export default function MidnightRitual() {
   const [activeFreqIndex, setActiveFreqIndex] = useState(0)
   const [isWriting, setIsWriting] = useState(false)
   const [submissionText, setSubmissionText] = useState('')
-  const [candleCount, setCandleCount] = useState(42)
-  const [hasIgnited, setHasIgnited] = useState(false)
   const [submitted, setSubmitted] = useState(false)
 
   const active = FREQUENCIES[activeFreqIndex]
@@ -63,14 +61,6 @@ export default function MidnightRitual() {
   const handleTune = (idx) => {
     setActiveFreqIndex(idx)
     playTypewriterKey(true)
-  }
-
-  const handleIgniteCandle = () => {
-    if (!hasIgnited) {
-      setCandleCount(prev => prev + 1)
-      setHasIgnited(true)
-      playTypewriterKey(false)
-    }
   }
 
   const handleQuickSubmit = (e) => {
@@ -156,18 +146,6 @@ export default function MidnightRitual() {
             {isWriting ? 'Dismiss Transmitter' : '⚡ Answer the Signal (250w)'}
           </button>
 
-          <button
-            type="button"
-            onClick={handleIgniteCandle}
-            className={`font-mono text-xs uppercase px-4 py-3 border transition-all cursor-pointer flex items-center justify-center gap-2 ${
-              hasIgnited
-                ? 'border-[var(--color-ember)] text-[var(--color-ember)] bg-[var(--color-ember)]/10'
-                : 'border-[var(--color-line)] text-[var(--color-text-secondary)] hover:border-white'
-            }`}
-          >
-            <span>🕯️</span>
-            <span>{candleCount} Candles Lit</span>
-          </button>
         </div>
       </div>
 
