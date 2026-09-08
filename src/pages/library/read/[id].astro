@@ -5,7 +5,7 @@ import MainLayout from '../../../layouts/MainLayout.astro';
 import StructuredData from '../../../components/StructuredData.astro';
 import ReadStory from '../../../pages-react/ReadStory.jsx';
 import { supabase } from '../../../supabaseClient';
-import { buildCreativeWorkSchema, buildBreadcrumbSchema } from '../../../lib/seo';
+import { buildCreativeWorkSchema, buildBreadcrumbSchema, metaDescription } from '../../../lib/seo';
 import { ARCHIVE_STORIES } from '../../../lib/seedArchives';
 
 const { id } = Astro.params;
@@ -39,8 +39,10 @@ if (archiveMatch) {
 }
 
 const authorHandle = book?.profiles?.handle || 'Unknown';
-const title = book ? `${book.title} — Horror Fiction by ${authorHandle} | Horror Writer` : 'Read Horror Fiction | Horror Writer';
-const description = book?.lede ? `${book.lede.slice(0, 155)}... Read on Horror Writer.` : 'Read original dark fiction, psychological terror, and horror stories on Horror Writer.';
+const title = book ? `${book.title} by ${authorHandle} | Horror Writer` : 'Story | Horror Writer';
+const description = book
+  ? metaDescription(book.lede, { fallback: `A horror story by ${authorHandle} on Horror Writer.` })
+  : 'Read horror stories and dark fiction on Horror Writer.';
 const ogImage = `/og/story/${id}.png`;
 const siteUrl = Astro.site ? new URL(Astro.site).origin : 'https://horrorwriter.org';
 const pageUrl = new URL(Astro.url.pathname, siteUrl).toString();

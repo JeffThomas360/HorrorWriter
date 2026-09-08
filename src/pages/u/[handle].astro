@@ -5,7 +5,7 @@ import MainLayout from '../../layouts/MainLayout.astro';
 import StructuredData from '../../components/StructuredData.astro';
 import UserProfile from '../../pages-react/UserProfile.jsx';
 import { supabase } from '../../supabaseClient';
-import { buildProfilePageSchema, buildBreadcrumbSchema } from '../../lib/seo';
+import { buildProfilePageSchema, buildBreadcrumbSchema, metaDescription } from '../../lib/seo';
 
 const { handle } = Astro.params;
 
@@ -25,8 +25,8 @@ try {
 }
 
 const displayName = profile?.display_name || `@${handle}`;
-const title = `${displayName} — Horror Author Profile | Horror Writer`;
-const description = profile?.bio ? `${profile.bio.slice(0, 150)}... Read ${displayName}'s stories on Horror Writer.` : `Read ${displayName}'s horror stories, dark fiction chapters, and critiques on Horror Writer.`;
+const title = `${displayName} | Horror Writer`;
+const description = metaDescription(profile?.bio, { fallback: `${displayName}'s horror stories and critiques on Horror Writer.` });
 const siteUrl = Astro.site ? new URL(Astro.site).origin : 'https://horrorwriter.org';
 const pageUrl = new URL(Astro.url.pathname, siteUrl).toString();
 const profileSchema = buildProfilePageSchema({ url: pageUrl, name: displayName });

@@ -4,6 +4,26 @@
  * and high-ranking search appearance.
  */
 
+export const SITE_DESCRIPTION = 'A community for serious horror writers: publish stories in The Library, get real critique in The Crypt, and answer weekly dark-fiction prompts.';
+
+/**
+ * Build a meta description from free text (a story lede, a bio, a series blurb).
+ * Collapses whitespace and light markdown, cuts at a word boundary under `max`,
+ * and only appends an ellipsis when something was actually removed.
+ * Returns `fallback` when the text is empty.
+ */
+export function metaDescription(text, { max = 155, fallback = '' } = {}) {
+  const clean = String(text ?? '')
+    .replace(/[*_`#>]+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!clean) return fallback;
+  if (clean.length <= max) return clean;
+  const cut = clean.slice(0, max - 1);
+  const atWord = cut.lastIndexOf(' ');
+  return (atWord > max * 0.6 ? cut.slice(0, atWord) : cut).replace(/[\s,;:—-]+$/, '') + '…';
+}
+
 export function buildWebSiteSchema({ url = 'https://horrorwriter.org', name = 'Horror Writer', description }) {
   return {
     '@context': 'https://schema.org',
@@ -13,7 +33,7 @@ export function buildWebSiteSchema({ url = 'https://horrorwriter.org', name = 'H
         '@id': `${url}/#website`,
         url,
         name,
-        description: description || 'A premier community for serious horror writers — forums, critique, and dark fiction craft.',
+        description: description || SITE_DESCRIPTION,
         publisher: {
           '@id': `${url}/#organization`
         },
