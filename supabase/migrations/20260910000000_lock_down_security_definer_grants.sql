@@ -111,6 +111,9 @@ COMMENT ON FUNCTION public.content_visible(text, uuid, text) IS
 'SECURITY DEFINER STABLE predicate used by 4 RLS policies. anon/authenticated EXECUTE is REQUIRED - RLS predicates run as the calling role. Advisor lints 0028/0029 on this function are accepted, not a finding.';
 
 -- ---------------------------------------------------------------------------
+-- Verify after applying: scripts/sql/verify-grants.sql must return ZERO rows.
+-- (Before this migration it returns 33.)
+--
 -- 4. PostgREST publishes RPCs from its schema cache; a grant change is invisible
 --    until the cache reloads.
 -- ---------------------------------------------------------------------------

@@ -76,6 +76,12 @@ These have each cost a production bug or a debugging session.
   reload** — `NOTIFY pgrst, 'reload schema';` — or the API throws
   `Could not find the '<col>' column of '<table>' in the schema cache` while the column plainly
   exists (`books.updated_at`, 2026-09-07).
+- **Every new function in `public` starts with `EXECUTE TO PUBLIC`.** That is Postgres's default
+  ACL, and `CREATE OR REPLACE` won't fix it later — only a first-time `CREATE` gets it. A
+  migration that adds a function must `REVOKE ... FROM PUBLIC` and `GRANT` deliberately in the
+  same file (pattern: `20260908010000` lines 270–271). After **any** migration, run
+  `scripts/sql/verify-grants.sql` — it must return zero rows. This reopened once already
+  (`20260702000000` fixed it; the 2026-08-19 storm work reopened it).
 - **`transparency_log` is an RPC** (`get_transparency_log`), not a view, since `20260907000000`.
   Don't recreate the view; the advisor ERROR it cleared will come back.
 - **`site_settings` has no client write path.** All writes go through `set_site_setting()`, which
