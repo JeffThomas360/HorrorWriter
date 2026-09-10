@@ -109,7 +109,15 @@ npx playwright test  # E2E, 12 spec files. From PowerShell prefix with `cmd /c` 
 
 ## Environment notes
 
-- **`gh` CLI is authenticated** (`JeffThomas360`) — `gh pr create` works.
+- **`gh` CLI is authenticated** (`JeffThomas360`) — `gh pr create` works. **On Windows only.** The
+  agent's Linux workspace starts each session without it; background processes die when a shell
+  call returns, so `gh auth login --web` can't be used there. Recipe that works (2026-09-10):
+  download the release tarball to `$HOME/bin`, then split the OAuth device flow across two calls —
+  `POST github.com/login/device/code` with `client_id=178c6fc778ccc68e1d6a` and
+  **`scope=repo workflow read:org`** (`gh` refuses a token without `read:org`), show Jeff the code,
+  then `POST login/oauth/access_token` piped straight into `gh auth login --with-token`. The token
+  must never be printed. Read access to the public repo needs none of this — plain `curl` to
+  `api.github.com` works from that workspace.
 - **Dependabot pushes to `main` unattended, and `main` auto-deploys.** Unit tests run on PRs only.
 - **Agent shells:** the cloud container has no git credentials and no route to GitHub or Supabase.
   The desktop Linux workspace (`device_bash`) can run git, but **cannot unlink files** — every
