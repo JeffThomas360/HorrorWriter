@@ -26,8 +26,23 @@ serve(async (req) => {
     const mapping = TARGET_TABLE[targetType]
     if (!mapping) throw new Error(`Unknown targetType: ${targetType}`)
 
-    // Service-role client: this function needs to read content regardless of
-    // RLS (it runs unauthenticated, right after insert) and needs to call
+    // The client calls this right after inserting its own content. Only that
+    // author may trigger a screen: the anon key passes verify_jwt, so without
+    // this anyone could replay any targetId, spending a model call and writing
+    // a mod_actions row each time.
+    // TODO: trigger screening from the database on insert instead, so an
+    // author can't skip it by never calling this.
+    const supabaseUser = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } }
+    )
+    const { data: { user } } = await supabaseUser.auth.getUser()
+    if (!user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders })
+    }
+
+    // Service-role client: needed to read content regardless of RLS and to call
     // apply_automated_mod_status(), which is service-role-only by design.
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -36,10 +51,18 @@ serve(async (req) => {
 
     const { data: row, error: fetchError } = await supabaseAdmin
       .from(mapping.table)
-      .select(mapping.column)
+      .select(`${mapping.column}, author_id, mod_status`)
       .eq('id', targetId)
       .single()
-    if (fetchError || !row) throw new Error('Target content not found')
+    // Same response for "missing" and "not yours", so it can't be used to probe ids.
+    if (fetchError || !row || row.author_id !== user.id) throw new Error('Target content not found')
+
+    // Screen only content that is still live. Anything already in screening or
+    // hidden has had a decision, possibly a moderator's, which a replay must
+    // not overwrite.
+    if (row.mod_status !== 'live') {
+      return new Response(JSON.stringify({ flagged: false, reason: 'already reviewed' }), { headers: corsHeaders })
+    }
 
     const content = row[mapping.column]
     if (!content || typeof content !== 'string' || content.trim().length === 0) {

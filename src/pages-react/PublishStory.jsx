@@ -49,9 +49,12 @@ function PublishStory({ bookId }) {
     enabled: Boolean(session?.user?.id),
   })
 
-  // Fetch story details if in Edit Mode (bookId)
+  // Fetch story details if in Edit Mode (bookId). Keyed on the user id, not
+  // the session object: AuthContext replaces session on every token refresh,
+  // and reloading here would overwrite the author's unsaved edits.
+  const userId = session?.user?.id
   useEffect(() => {
-    if (!bookId || !session?.user?.id) return
+    if (!bookId || !userId) return
     let isMounted = true
     setFetchingBook(true)
 
@@ -85,7 +88,7 @@ function PublishStory({ bookId }) {
 
     loadBook()
     return () => { isMounted = false }
-  }, [bookId, session])
+  }, [bookId, userId])
 
   // Check for unsaved draft in localStorage
   useEffect(() => {

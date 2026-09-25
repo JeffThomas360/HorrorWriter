@@ -1,5 +1,6 @@
 // supabase/functions/send-storm-alert/index.ts
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { bearerMatches, escapeHtml } from '../_shared/security.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -8,6 +9,14 @@ const corsHeaders = {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+
+  // Only check_for_storm() calls this, via pg_net with
+  // `Authorization: Bearer <app.settings.service_role_key>`. The public anon
+  // key also passes the platform's verify_jwt, so without this check anyone
+  // could send unlimited alert emails and priority pushes.
+  if (!bearerMatches(req.headers.get('Authorization'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'))) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders })
+  }
 
   try {
     const { targetType, targetId, reportCount, replyCount } = await req.json()
@@ -24,7 +33,7 @@ serve(async (req) => {
           from: 'HorrorWriter Safety <safety@horrorwriter.org>',
           to: jeffEmail,
           subject: `⚠️ STORM DETECTED: ${targetType} under coordinated attack`,
-          html: `<p><strong>${summary}</strong></p><p>Nothing has been auto-frozen — content is still fully visible. Review and confirm at <a href="https://horrorwriter.org/moderation">the Moderation Terminal</a> to exclude these signals from the target's standing.</p>`,
+          html: `<p><strong>${escapeHtml(summary)}</strong></p><p>Nothing has been auto-frozen — content is still fully visible. Review and confirm at <a href="https://horrorwriter.org/moderation">the Moderation Terminal</a> to exclude these signals from the target's standing.</p>`,
         }),
       })
       if (!res.ok) console.error('[send-storm-alert] Resend failed', await res.text())
