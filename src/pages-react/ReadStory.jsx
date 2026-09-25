@@ -10,16 +10,16 @@ import CritiqueSignalBadge from '../components/CritiqueSignalBadge'
 import { withProviders } from '../components/Providers'
 import InlineModControls from '../components/mod/InlineModControls'
 import MarkdownEditor from '../components/MarkdownEditor'
+import StoryMarkdown from '../components/StoryMarkdown'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import remarkBreaks from 'remark-breaks'
-import rehypeRaw from 'rehype-raw'
 import ShareBar from '../components/ShareBar'
 import QuoteSharer from '../components/QuoteSharer'
 import { fetchStorySeriesContext } from '../lib/series'
 import SeriesContextBar from '../components/SeriesContextBar'
 import SeriesSidebar from '../components/SeriesSidebar'
 import { ARCHIVE_STORIES } from '../lib/seedArchives'
+import { isStoryOwner } from '../lib/storyHelpers'
 
 const AV_COLORS = ['', 'av-1', 'av-2', 'av-3', 'av-4', 'av-5', 'av-6']
 
@@ -245,6 +245,7 @@ function ReadStory({ id }) {
   }
 
   const error = queryError ? 'Story not found in the archives.' : null
+  const isOwner = isStoryOwner(session?.user?.id, book)
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center min-h-[40vh]">
@@ -553,12 +554,7 @@ function ReadStory({ id }) {
               formatMode === 'novel' ? 'format-novel' : ''
             }`}
           >
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm, remarkBreaks]}
-              rehypePlugins={[rehypeRaw]}
-            >
-              {book?.content || ''}
-            </ReactMarkdown>
+            <StoryMarkdown content={book?.content} />
           </article>
 
           {/* End of story marker */}
@@ -653,7 +649,7 @@ function ReadStory({ id }) {
           >
             Report
           </button>
-          {book && session?.user?.id === book.author_id && (
+          {isOwner && (
             <a 
               href={`/library/edit/${book.id}`}
               className="text-xs uppercase border border-[var(--color-line)] hover:border-[var(--color-bone)] px-2 py-0.5 text-[var(--color-ash)] hover:text-[var(--color-bone)] transition-colors"
@@ -661,10 +657,10 @@ function ReadStory({ id }) {
               Edit Story
             </a>
           )}
-          {book && session?.user?.id !== book.author_id && (
+          {book && session?.user?.id && book.author_id && !isOwner && (
             <BlockButton targetUserId={book.author_id} targetHandle={book?.profiles?.handle} />
           )}
-          {book && session?.user?.id === book.author_id && book.mod_status !== 'live' && (
+          {isOwner && book.mod_status !== 'live' && (
             <AppealButton modActionId={book.id} targetType="story" />
           )}
           {book && <InlineModControls targetType="story" targetId={book.id} currentStatus={book.mod_status} authorId={book.author_id} />}
@@ -765,12 +761,7 @@ function ReadStory({ id }) {
         }`}
         style={{ fontSize: `${kindleSize}px` }}
       >
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm, remarkBreaks]}
-          rehypePlugins={[rehypeRaw]}
-        >
-          {book?.content || ''}
-        </ReactMarkdown>
+        <StoryMarkdown content={book?.content} />
       </article>
 
       {/* Share Bar */}

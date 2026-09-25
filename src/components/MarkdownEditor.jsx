@@ -1,8 +1,5 @@
 import { useState, useRef, useMemo } from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import remarkBreaks from 'remark-breaks'
-import rehypeRaw from 'rehype-raw'
+import StoryMarkdown from './StoryMarkdown'
 import { parseFileToMarkdown } from '../lib/fileParser'
 import { playTypewriterKey, setAmbientSound, getCurrentAmbientType } from '../lib/soundscapes'
 
@@ -318,9 +315,7 @@ export default function MarkdownEditor({
           }`}
         >
           {value ? (
-            <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]}>
-              {value}
-            </ReactMarkdown>
+            <StoryMarkdown content={value} />
           ) : (
             <span className="italic text-[var(--color-text-secondary)] font-serif">Nothing to preview yet… speak into the dark.</span>
           )}
@@ -344,9 +339,7 @@ export default function MarkdownEditor({
           </div>
           <div className="md-preview prose-book prose prose-invert max-w-none overflow-y-auto px-6 py-4 bg-[var(--color-surface)]/30">
             {value ? (
-              <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]}>
-                {value}
-              </ReactMarkdown>
+              <StoryMarkdown content={value} />
             ) : (
               <span className="italic text-[var(--color-text-secondary)] font-serif text-sm">Live preview renders here as you type…</span>
             )}
