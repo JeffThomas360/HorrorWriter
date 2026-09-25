@@ -9,3 +9,9 @@ binding = "AI"
 
 [observability]
 enabled = true   # persist console logs so transcription failures are debuggable
+
+# Used to verify the caller's Supabase access token (src/auth.js). Both are
+# public values; the anon key is the same one the site ships to every browser.
+[vars]
+SUPABASE_URL = "https://bmvvugrfnuedjlucmlbw.supabase.co"
+SUPABASE_ANON_KEY = "sb_publishable_-Y5K0e8qQrpsybmuQyyqxg_llQOokRY"

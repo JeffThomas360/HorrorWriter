@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { escapeHtml } from '../_shared/security.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -28,13 +29,18 @@ serve(async (req) => {
     // Fetch the report to verify it belongs to the user and is urgent
     const { data: report, error: reportError } = await supabaseClient
       .from('reports')
-      .select('category, target_type, details')
+      .select('category, target_type, details, created_at')
       .eq('id', reportId)
       .eq('reporter_id', user.id)
       .single()
 
     if (reportError || !report) throw new Error('Report not found')
     if (report.category !== 'urgent') throw new Error('Report is not urgent')
+    // The client calls this once, straight after filing. Refusing older reports
+    // stops a reporter replaying the same reportId to flood the admin inbox.
+    if (Date.now() - new Date(report.created_at).getTime() > 10 * 60 * 1000) {
+      throw new Error('Report is too old to alert on')
+    }
 
     const resendApiKey = Deno.env.get('RESEND_API_KEY')
     const adminEmail = 'admin@horrorwriter.org' // Or fetch Keeper email
@@ -52,7 +58,7 @@ serve(async (req) => {
           from: 'HorrorWriter Safety <safety@horrorwriter.org>',
           to: adminEmail,
           subject: `URGENT REPORT: ${report.target_type.toUpperCase()}`,
-          html: `<p>An urgent report was just filed.</p><p>Target: <strong>${report.target_type}</strong></p><p>Details: ${report.details}</p><p><a href="https://horrorwriter.org/moderation">Go to Keeper Terminal</a></p>`,
+          html: `<p>An urgent report was just filed.</p><p>Target: <strong>${escapeHtml(report.target_type)}</strong></p><p>Details: ${escapeHtml(report.details)}</p><p><a href="https://horrorwriter.org/moderation">Go to Keeper Terminal</a></p>`,
         }),
       })
       if (!res.ok) {
