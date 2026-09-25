@@ -45,4 +45,18 @@ describe('no fabricated engagement metrics', () => {
       expect(read(f), `${f} should not synthesise metrics`).not.toMatch(/Math\.random/)
     }
   })
+
+  // The four seeded archive stories showed "8 CRITIQUES", 5, 3 and 6 on their
+  // library cards. They live in code, not the database, and cannot hold
+  // comments at all (book_comments.book_id is a uuid).
+  it('seeded archive stories carry no invented engagement counts', () => {
+    const src = read('../lib/seedArchives.js')
+    expect(src).not.toMatch(/comments_count|likes|views_count|reads_count/)
+  })
+
+  // "TRENDING" was stamped on whichever thread was most recently updated.
+  it('the home page claims no trending thread', () => {
+    const src = read('../pages/index.astro')
+    expect(src).not.toMatch(/TRENDING/i)
+  })
 })
