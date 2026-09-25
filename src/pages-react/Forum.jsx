@@ -63,9 +63,14 @@ function Forum() {
     queryFn: fetchThreads,
   })
 
+  // Keyed on the user id and handle, not the session/profile objects:
+  // AuthContext replaces those on every token refresh, and rebuilding the
+  // channel each time froze presence.
+  const userId = session?.user?.id
+  const handle = profile?.handle
   useEffect(() => {
     if (!supabase) return
-    const presenceKey = session?.user?.id || 'anonymous-' + Math.random().toString(36).substr(2, 9)
+    const presenceKey = userId || 'anonymous-' + Math.random().toString(36).substr(2, 9)
     const channel = supabase.channel('global:lobby', {
       config: { presence: { key: presenceKey } },
     })
@@ -90,14 +95,16 @@ function Forum() {
     channel.subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
         await channel.track({
-          handle: profile?.handle || (session?.user ? 'Summoning...' : 'Guest'),
+          handle: handle || (userId ? 'Summoning...' : 'Guest'),
           online_at: new Date().toISOString(),
         })
       }
     })
 
-    return () => { channel.unsubscribe() }
-  }, [session, profile])
+    // removeChannel, not unsubscribe: a still-leaving channel left in the
+    // client is handed back by the next supabase.channel() for the same topic.
+    return () => { supabase.removeChannel(channel) }
+  }, [userId, handle])
 
   const loading = catLoading || threadLoading
   const error = catError ? catError.message : threadError ? threadError.message : null

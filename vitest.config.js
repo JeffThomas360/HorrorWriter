@@ -6,6 +6,6 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.js'],
-    include: ['src/**/*.test.js', 'src/**/*.test.jsx']
+    include: ['src/**/*.test.js', 'src/**/*.test.jsx', 'supabase/functions/_shared/**/*.test.ts', 'workers/*/src/**/*.test.js']
   }
 });
