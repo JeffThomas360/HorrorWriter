@@ -13,9 +13,14 @@
 begin;
 
 -- As the migration role: make the test user a warden, with no active sanction.
+-- The guard trigger is switched off for this one setup write only (the version
+-- before 20260924000000 refuses even the SQL editor), then back on before any
+-- assertion runs. Both statements roll back with everything else.
+alter table public.profiles disable trigger trg_prevent_profile_mod_escalation;
 update public.profiles
    set mod_role = 'warden', mod_scope = 'all', banned_until = null, ban_reason = null
  where id = (select id from public.profiles order by created_at limit 1);
+alter table public.profiles enable trigger trg_prevent_profile_mod_escalation;
 
 select set_config(
   'request.jwt.claims',
