@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { toast } from 'sonner'
+import { supabase } from '../supabaseClient'
 
 const TRANSCRIBE_URL = import.meta.env.VITE_TRANSCRIBE_URL
 const MAX_BYTES = 4 * 1024 * 1024
@@ -10,16 +11,24 @@ const STEPS = ['Record', 'Review', 'Add']
 
 async function postAudio(blob, filename) {
   if (!TRANSCRIBE_URL) throw new Error('Transcription service is not configured.')
+  // The worker only transcribes for signed-in users; it checks this token.
+  const { data } = (await supabase?.auth.getSession()) ?? {}
+  const token = data?.session?.access_token
+  if (!token) throw new Error('Please sign in to use Dictate.')
   const form = new FormData()
   form.append('audio', blob, filename)
-  const res = await fetch(`${TRANSCRIBE_URL}/transcribe`, { method: 'POST', body: form })
+  const res = await fetch(`${TRANSCRIBE_URL}/transcribe`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  })
   if (!res.ok) {
     let msg = 'Transcription failed.'
     try { const d = await res.json(); msg = d.error ?? msg } catch { /* ignore */ }
     throw new Error(msg)
   }
-  const data = await res.json()
-  return data.text
+  const body = await res.json()
+  return body.text
 }
 
 function fmtTime(s) {

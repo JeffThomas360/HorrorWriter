@@ -86,9 +86,12 @@ function ThreadView({ id }) {
     ? 'Thread lost to the void. It may have been deleted.'
     : postsError ? 'Failed to load posts.' : null
 
+  // Keyed on the user id, not the session object: AuthContext replaces it on
+  // every token refresh, and rebuilding the channel each time stopped live replies.
+  const userId = session?.user?.id
   useEffect(() => {
     if (!supabase || !id) return
-    const presenceKey = session?.user?.id || 'anonymous-' + Math.random().toString(36).substr(2, 9)
+    const presenceKey = userId || 'anonymous-' + Math.random().toString(36).substr(2, 9)
     const channel = supabase.channel(`thread:${id}`, {
       config: { presence: { key: presenceKey } },
     })
@@ -119,8 +122,9 @@ function ThreadView({ id }) {
       }
     })
 
-    return () => { channel.unsubscribe() }
-  }, [id, session, queryClient])
+    // removeChannel, not unsubscribe: see Forum.jsx.
+    return () => { supabase.removeChannel(channel) }
+  }, [id, userId, queryClient])
 
   const replyMutation = useMutation({
     mutationFn: async (content) => {

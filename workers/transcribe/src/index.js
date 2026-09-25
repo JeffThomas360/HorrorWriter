@@ -1,23 +1,22 @@
 import { Buffer } from 'node:buffer'
+import { verifySupabaseUser } from './auth.js'
 
 const MAX_BYTES = 4 * 1024 * 1024
 
+// The site moved from Pages to Workers; the pages.dev origins are gone.
 const ALLOWED_ORIGINS = [
   'https://horrorwriter.org',
   'https://www.horrorwriter.org',
-  'https://horrorwriter.pages.dev',
   'http://localhost:5173',
   'http://localhost:4173',
 ]
 
 function corsHeaders(origin) {
-  const ok =
-    ALLOWED_ORIGINS.includes(origin) ||
-    (typeof origin === 'string' && origin.endsWith('.horrorwriter.pages.dev'))
+  const ok = ALLOWED_ORIGINS.includes(origin)
   return {
     'Access-Control-Allow-Origin': ok ? origin : 'https://horrorwriter.org',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   }
 }
 
@@ -41,6 +40,13 @@ export default {
       }
       if (req.method !== 'POST') {
         return json({ error: 'Method not allowed' }, 405, origin)
+      }
+
+      // Before reading the body: an unauthenticated caller costs one small
+      // Supabase lookup, never a model run.
+      const userId = await verifySupabaseUser(req.headers.get('Authorization'), env)
+      if (!userId) {
+        return json({ error: 'Please sign in to use Dictate.' }, 401, origin)
       }
 
       let formData

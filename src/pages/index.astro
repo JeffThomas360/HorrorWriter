@@ -88,7 +88,6 @@ try {
     if (data && data.length > 0) {
       tiles = data.map((t, i) => ({
         tag: `▸ ${(t.categories?.name || 'THREAD').split('·')[0].toUpperCase().trim()}`,
-        hot: i === 0,
         title: t.title,
         body: `Started by @${t.profiles?.handle || 'someone'}. Join the discussion in the dark.`,
         meta: `${t.replies_count || 0} replies`,
@@ -197,7 +196,6 @@ const isFallback = tiles === FALLBACK_TILES;
         <div>
           <div class="flex justify-between items-start mb-4">
             <span class="font-mono text-xs tracking-wider text-[var(--color-text-secondary)] font-bold">{heroTile.tag}</span>
-            {heroTile.hot && <span class="font-mono text-xs bg-[var(--color-accent-crimson)] text-white px-1.5 py-0.5 animate-pulse">TRENDING</span>}
           </div>
           <h3 class="text-xl font-serif font-bold mb-3 hover:text-[var(--color-accent-crimson)] transition-colors">{heroTile.title}</h3>
           <p class="text-sm font-serif text-[var(--color-text-secondary)] leading-relaxed max-w-xl">{heroTile.body}</p>
