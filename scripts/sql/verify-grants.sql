@@ -28,6 +28,10 @@ with allow(name, role, why) as (values
   ('mod_can',                 'authenticated', 'RLS predicate in 12 policies'),
   ('content_visible',         'anon',          'RLS predicate in 4 policies'),
   ('content_visible',         'authenticated', 'RLS predicate in 4 policies'),
+  -- INSERT WITH CHECK on books/threads/posts/book_comments (20260822000000).
+  -- Only signed-in users insert, so anon is deliberately NOT here.
+  ('is_banned',               'authenticated', 'INSERT WITH CHECK in 4 policies'),
+  ('is_blocked_by',           'authenticated', 'INSERT WITH CHECK in 2 policies'),
   -- Public by design.
   ('get_transparency_log',    'anon',          'public moderation transparency (20260907000000)'),
   ('get_transparency_log',    'authenticated', 'public moderation transparency (20260907000000)'),

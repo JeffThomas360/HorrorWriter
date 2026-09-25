@@ -34,8 +34,6 @@
 -- ---------------------------------------------------------------------------
 
 REVOKE ALL ON FUNCTION public.check_for_storm(text, uuid)      FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.is_banned(uuid)                  FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.is_blocked_by(uuid, uuid)        FROM PUBLIC, anon, authenticated;
 
 -- Trigger functions. Postgres refuses a direct call anyway ("trigger functions
 -- can only be called as triggers"), but they should not be published as RPC.
@@ -47,11 +45,6 @@ REVOKE ALL ON FUNCTION public.trg_check_storm_on_report()      FROM PUBLIC, anon
 COMMENT ON FUNCTION public.check_for_storm(text, uuid) IS
 'SECURITY DEFINER, trigger-internal only. Writes storm_alerts and dispatches to the storm-alert Edge Function, so it carries NO client grant: called only from trg_check_storm_on_comment/post/report.';
 
-COMMENT ON FUNCTION public.is_banned(uuid) IS
-'SECURITY DEFINER STABLE helper. No client grant: reached only from inside content_visible(), which is itself SECURITY DEFINER.';
-
-COMMENT ON FUNCTION public.is_blocked_by(uuid, uuid) IS
-'SECURITY DEFINER STABLE helper. No client grant; currently has no callers.';
 
 -- ---------------------------------------------------------------------------
 -- 2. Moderator/Keeper RPCs — signed-in callers only.
@@ -104,17 +97,48 @@ GRANT EXECUTE ON FUNCTION public.mod_can(text, text)                  TO anon, a
 GRANT EXECUTE ON FUNCTION public.content_visible(text, uuid, text)    TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_transparency_log(int)            TO anon, authenticated;
 
+-- is_banned() and is_blocked_by() sit in the WITH CHECK of the INSERT policies
+-- on books, threads, posts and book_comments (20260822000000_enforce_sanctions).
+-- Those checks run as the inserting role, so revoking authenticated here would
+-- make every insert fail with "permission denied for function is_banned".
+-- anon cannot insert anything, so it loses EXECUTE.
+REVOKE ALL ON FUNCTION public.is_banned(uuid)                         FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.is_blocked_by(uuid, uuid)               FROM PUBLIC, anon;
+
+GRANT EXECUTE ON FUNCTION public.is_banned(uuid)                      TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_blocked_by(uuid, uuid)            TO authenticated;
+
 COMMENT ON FUNCTION public.mod_can(text, text) IS
 'SECURITY DEFINER STABLE predicate used by 12 RLS policies. anon/authenticated EXECUTE is REQUIRED - RLS predicates run as the calling role. Read-only; reveals only the caller''s own capabilities. Advisor lints 0028/0029 on this function are accepted, not a finding.';
 
 COMMENT ON FUNCTION public.content_visible(text, uuid, text) IS
 'SECURITY DEFINER STABLE predicate used by 4 RLS policies. anon/authenticated EXECUTE is REQUIRED - RLS predicates run as the calling role. Advisor lints 0028/0029 on this function are accepted, not a finding.';
 
+COMMENT ON FUNCTION public.is_banned(uuid) IS
+'SECURITY DEFINER STABLE helper. Called from content_visible() and from the INSERT WITH CHECK on books/threads/posts/book_comments, which run as the inserting role, so authenticated EXECUTE is REQUIRED. anon has no grant.';
+
+COMMENT ON FUNCTION public.is_blocked_by(uuid, uuid) IS
+'SECURITY DEFINER STABLE helper. Called from the INSERT WITH CHECK on posts and book_comments, which run as the inserting role, so authenticated EXECUTE is REQUIRED. anon has no grant.';
+
+-- ---------------------------------------------------------------------------
+-- 4. Close the trap at the source. Two defaults grant every NEW function:
+--    - Postgres's global default: EXECUTE TO PUBLIC.
+--    - Supabase's per-schema default for functions postgres creates in public
+--      (pg_default_acl): EXECUTE TO anon, authenticated, service_role.
+--    REVOKE ... FROM PUBLIC alone leaves the second one in place, which is how
+--    check_for_storm stayed anon-callable. After this, a new function is
+--    callable only by its owner and service_role until a migration grants it.
+--    A new client RPC that forgets its GRANT fails loudly instead of shipping open.
+-- ---------------------------------------------------------------------------
+
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM anon, authenticated;
+
 -- ---------------------------------------------------------------------------
 -- Verify after applying: scripts/sql/verify-grants.sql must return ZERO rows.
 -- (Before this migration it returns 33.)
 --
--- 4. PostgREST publishes RPCs from its schema cache; a grant change is invisible
+-- 5. PostgREST publishes RPCs from its schema cache; a grant change is invisible
 --    until the cache reloads.
 -- ---------------------------------------------------------------------------
 
