@@ -17,7 +17,6 @@ export const ARCHIVE_STORIES = [
       handle: 'edgar_allan_poe',
       display_name: 'Edgar Allan Poe (Archive)',
     },
-    comments_count: 8,
     created_at: '1843-01-01T00:00:00Z',
     added_at: '2026-09-07T00:00:00Z', // when this page went live on horrorwriter.org — used for sitemap lastmod; created_at stays the work's own date
     content: `> ⚠️ **PUBLIC ARCHIVE TAPE · PRE-SEEDED MASTERWORK**  
@@ -46,7 +45,6 @@ And every night, about midnight, I turned the latch of his door and opened it—
       handle: 'hp_lovecraft',
       display_name: 'H.P. Lovecraft (Archive)',
     },
-    comments_count: 5,
     created_at: '1922-03-01T00:00:00Z',
     added_at: '2026-09-07T00:00:00Z', // when this page went live on horrorwriter.org — used for sitemap lastmod; created_at stays the work's own date
     content: `> ⚠️ **PUBLIC ARCHIVE TAPE · PRE-SEEDED MASTERWORK**  
@@ -73,7 +71,6 @@ Night after night, he played melodies of a wild, unearthly order—notes that pl
       handle: 'ww_jacobs',
       display_name: 'W.W. Jacobs (Archive)',
     },
-    comments_count: 3,
     created_at: '1902-09-01T00:00:00Z',
     added_at: '2026-09-07T00:00:00Z', // when this page went live on horrorwriter.org — used for sitemap lastmod; created_at stays the work's own date
     content: `> ⚠️ **PUBLIC ARCHIVE TAPE · PRE-SEEDED MASTERWORK**  
@@ -102,7 +99,6 @@ The visitor arrived with a strange relic from India: a mummified monkey’s paw 
       handle: 'cp_gilman',
       display_name: 'Charlotte Perkins Gilman (Archive)',
     },
-    comments_count: 6,
     created_at: '1892-01-01T00:00:00Z',
     added_at: '2026-09-07T00:00:00Z', // when this page went live on horrorwriter.org — used for sitemap lastmod; created_at stays the work's own date
     content: `> ⚠️ **PUBLIC ARCHIVE TAPE · PRE-SEEDED MASTERWORK**  

@@ -23,3 +23,12 @@ export function filterOneExamplePerGroup(stories = []) {
 
   return result
 }
+
+/**
+ * True only when a signed-in user wrote the story. Both ids must be present:
+ * seeded archive stories have no author_id, and signed-out visitors have no
+ * user id, so a bare === matched undefined to undefined.
+ */
+export function isStoryOwner(userId, book) {
+  return Boolean(userId) && Boolean(book?.author_id) && userId === book.author_id
+}
