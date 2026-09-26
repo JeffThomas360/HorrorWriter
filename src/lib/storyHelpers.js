@@ -32,3 +32,16 @@ export function filterOneExamplePerGroup(stories = []) {
 export function isStoryOwner(userId, book) {
   return Boolean(userId) && Boolean(book?.author_id) && userId === book.author_id
 }
+
+/**
+ * The line shown under every story. Authors keep all rights (House Rules,
+ * rule 1). The seeded archive classics are public domain, so they say that
+ * instead: claiming copyright on them would be false.
+ */
+export function copyrightNotice(book) {
+  if (!book) return null
+  const year = book.created_at ? new Date(book.created_at).getUTCFullYear() : new Date().getUTCFullYear()
+  if (book.is_artificial) return `Public domain · first published ${year}`
+  const author = book.profiles?.handle ? `@${book.profiles.handle}` : 'the author'
+  return `© ${year} ${author}. All rights reserved.`
+}

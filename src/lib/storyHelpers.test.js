@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { filterOneExamplePerGroup, isStoryOwner } from './storyHelpers'
+import { filterOneExamplePerGroup, isStoryOwner, copyrightNotice } from './storyHelpers'
 
 describe('storyHelpers', () => {
   it('passes through all real (non-example) stories', () => {
@@ -51,5 +51,29 @@ describe('isStoryOwner', () => {
 
   it('is false with no story', () => {
     expect(isStoryOwner('u1', null)).toBe(false)
+  })
+})
+
+describe('copyrightNotice', () => {
+  // Authors keep all rights (House Rules, rule 1). Every story says so.
+  it('credits the author and the year of publication', () => {
+    expect(copyrightNotice({ created_at: '2026-09-02T10:00:00Z', profiles: { handle: 'beetlebub' } }))
+      .toBe('© 2026 @beetlebub. All rights reserved.')
+  })
+
+  // The seeded classics are public domain: claiming copyright would be false.
+  it('marks archive stories as public domain, never copyrighted', () => {
+    const notice = copyrightNotice({ is_artificial: true, created_at: '1843-01-01T00:00:00Z', profiles: { handle: 'edgar_allan_poe' } })
+    expect(notice).toBe('Public domain · first published 1843')
+    expect(notice).not.toMatch(/©|rights reserved/i)
+  })
+
+  it('still credits the author when the handle is missing', () => {
+    expect(copyrightNotice({ created_at: '2026-01-05T00:00:00Z', profiles: null }))
+      .toBe('© 2026 the author. All rights reserved.')
+  })
+
+  it('returns nothing without a story', () => {
+    expect(copyrightNotice(null)).toBeNull()
   })
 })

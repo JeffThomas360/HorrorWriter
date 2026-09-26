@@ -62,7 +62,9 @@ const creativeWorkSchema = book ? buildCreativeWorkSchema({
   description: book.lede,
   authorName: authorHandle,
   datePublished: book.created_at,
-  type: 'ShortStory'
+  type: 'ShortStory',
+  // Authors keep all rights; the public-domain archive classics claim none.
+  copyrightYear: archiveMatch || !book.created_at ? undefined : new Date(book.created_at).getUTCFullYear()
 }) : null;
 
 const breadcrumbSchema = book ? buildBreadcrumbSchema([

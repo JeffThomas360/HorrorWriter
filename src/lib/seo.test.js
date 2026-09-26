@@ -189,3 +189,20 @@ describe('buildSitemapXml escaping', () => {
     expect(xml).toContain('<loc>https://horrorwriter.org/u/a&amp;b&lt;c/</loc>')
   })
 })
+
+describe('buildCreativeWorkSchema copyright', () => {
+  const base = { url: 'https://horrorwriter.org/library/read/x/', title: 'T', description: 'D', authorName: 'beetlebub', datePublished: '2026-09-02T00:00:00Z' }
+
+  it('names the author as copyright holder, with the year', () => {
+    const s = buildCreativeWorkSchema({ ...base, copyrightYear: 2026 })
+    expect(s.copyrightHolder).toEqual({ '@type': 'Person', name: 'beetlebub' })
+    expect(s.copyrightYear).toBe(2026)
+  })
+
+  // Public-domain archive stories carry no copyright claim.
+  it('omits copyright fields when no year is given', () => {
+    const s = buildCreativeWorkSchema(base)
+    expect(s).not.toHaveProperty('copyrightHolder')
+    expect(s).not.toHaveProperty('copyrightYear')
+  })
+})
