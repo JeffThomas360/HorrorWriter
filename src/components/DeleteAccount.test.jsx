@@ -56,3 +56,18 @@ test('shows error and re-enables button if invoke rejects', async () => {
   const button = screen.getByRole('button', { name: /erase my account/i })
   expect(button).not.toBeDisabled()
 })
+
+test('shows the server\'s own error message when the function returns one', async () => {
+  const serverMessage = 'Your writing is gone, but signing out failed. Please try again.'
+  invoke.mockResolvedValueOnce({
+    data: null,
+    error: { context: { json: async () => ({ error: serverMessage }) } },
+  })
+  render(<DeleteAccount />)
+  fireEvent.click(screen.getByRole('button', { name: /delete my account/i }))
+  fireEvent.click(screen.getByRole('button', { name: /^erase everything$/i }))
+  fireEvent.change(screen.getByLabelText(/type delete/i), { target: { value: 'DELETE' } })
+  fireEvent.click(screen.getByRole('button', { name: /erase my account/i }))
+  const alert = await screen.findByRole('alert')
+  expect(alert).toHaveTextContent(serverMessage)
+})

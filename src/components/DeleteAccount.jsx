@@ -3,6 +3,22 @@ import { supabase } from '../supabaseClient'
 import { useAuth } from './AuthContext'
 
 const FRESH_SIGN_IN_MS = 10 * 60 * 1000
+const GENERIC_ERROR = 'Nothing was deleted. Please try again.'
+
+// The Edge Function can fail after partly succeeding (e.g. delete_member
+// committed but signOut/deleteUser then failed), and it says so in the
+// response body. A FunctionsHttpError carries that Response on `.context`;
+// read it and show the server's own message when there is one, falling back
+// to the generic text only when there's nothing readable there.
+async function readErrorMessage(fnError) {
+  try {
+    const body = await fnError?.context?.json?.()
+    if (body?.error) return body.error
+  } catch {
+    // context wasn't readable JSON -- fall through to the generic message
+  }
+  return GENERIC_ERROR
+}
 
 const ROWS = [
   ['Stories and series', 'Deleted for good', 'Encrypted in your browser, then removed from the site'],
@@ -28,14 +44,14 @@ export default function DeleteAccount() {
     try {
       const { error: fnError } = await supabase.functions.invoke('delete-account', { body: { mode: 'erase' } })
       if (fnError) {
-        setError('Nothing was deleted. Please try again.')
+        setError(await readErrorMessage(fnError))
         setBusy(false)
         return
       }
       await supabase.auth.signOut()
       window.location.href = '/'
     } catch (err) {
-      setError('Nothing was deleted. Please try again.')
+      setError(GENERIC_ERROR)
       setBusy(false)
     }
   }
@@ -93,7 +109,7 @@ export default function DeleteAccount() {
           <label htmlFor="confirm-delete" className="font-mono text-xs uppercase">Type DELETE to confirm</label>
           <input id="confirm-delete" value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off"
             className="bg-[var(--color-bg-primary)] border border-[var(--color-line)] px-3 py-2 text-sm max-w-xs" />
-          {error && <p className="text-[var(--color-ember)] text-xs font-mono">{error}</p>}
+          {error && <p role="alert" className="text-[var(--color-ember)] text-xs font-mono">{error}</p>}
           <div className="flex gap-3">
             <button type="button" disabled={typed !== 'DELETE' || busy} onClick={erase}
               className="bg-[var(--color-ember)] text-white font-mono text-xs uppercase px-4 py-2 disabled:opacity-40 cursor-pointer">
