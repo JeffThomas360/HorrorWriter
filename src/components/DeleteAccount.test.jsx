@@ -44,3 +44,15 @@ test('asks for a fresh sign-in when the last one is older than 10 minutes', () =
   expect(screen.getByText(/sign in again/i)).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: /^erase everything$/i })).toBeNull()
 })
+
+test('shows error and re-enables button if invoke rejects', async () => {
+  invoke.mockRejectedValueOnce(new Error('network'))
+  render(<DeleteAccount />)
+  fireEvent.click(screen.getByRole('button', { name: /delete my account/i }))
+  fireEvent.click(screen.getByRole('button', { name: /^erase everything$/i }))
+  fireEvent.change(screen.getByLabelText(/type delete/i), { target: { value: 'DELETE' } })
+  fireEvent.click(screen.getByRole('button', { name: /erase my account/i }))
+  await waitFor(() => expect(screen.getByText(/nothing was deleted/i)).toBeInTheDocument())
+  const button = screen.getByRole('button', { name: /erase my account/i })
+  expect(button).not.toBeDisabled()
+})

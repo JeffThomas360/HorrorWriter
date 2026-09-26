@@ -25,14 +25,19 @@ export default function DeleteAccount() {
   const erase = async () => {
     setBusy(true)
     setError(null)
-    const { error: fnError } = await supabase.functions.invoke('delete-account', { body: { mode: 'erase' } })
-    if (fnError) {
+    try {
+      const { error: fnError } = await supabase.functions.invoke('delete-account', { body: { mode: 'erase' } })
+      if (fnError) {
+        setError('Nothing was deleted. Please try again.')
+        setBusy(false)
+        return
+      }
+      await supabase.auth.signOut()
+      window.location.href = '/'
+    } catch (err) {
       setError('Nothing was deleted. Please try again.')
       setBusy(false)
-      return
     }
-    await supabase.auth.signOut()
-    window.location.href = '/'
   }
 
   return (
@@ -62,10 +67,10 @@ export default function DeleteAccount() {
               </tr>
             </thead>
             <tbody>
-              {ROWS.map(([label, erase, seal]) => (
+              {ROWS.map(([label, eraseText, sealText]) => (
                 <tr key={label} className="border-t border-[var(--color-line)] align-top">
                   <th scope="row" className="py-2 pr-3 text-left font-mono">{label}</th>
-                  <td className="py-2 pr-3">{erase}</td><td className="py-2">{seal}</td>
+                  <td className="py-2 pr-3">{eraseText}</td><td className="py-2">{sealText}</td>
                 </tr>
               ))}
             </tbody>
