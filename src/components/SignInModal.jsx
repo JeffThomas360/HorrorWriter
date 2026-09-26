@@ -36,6 +36,10 @@ export default function SignInModal({ isOpen, onClose }) {
   // Age gate. `null` until the client reads storage, so SSR renders nothing
   // that assumes a verdict either way.
   const [gate, setGate] = useState(null)
+  // 'signin' needs no gate: passkeys and a create-off email link only reach
+  // existing accounts. 'signup' shows the gate until this browser has passed.
+  const [mode, setMode] = useState('signin')
+  const [noAccount, setNoAccount] = useState(false)
   const [birthMonth, setBirthMonth] = useState('')
   const [birthYear, setBirthYear] = useState('')
   const [gateError, setGateError] = useState(null)
@@ -77,6 +81,8 @@ export default function SignInModal({ isOpen, onClose }) {
       setEmail(getEmailCookie())
       setError(null)
       setMessage(null)
+      setMode('signin')
+      setNoAccount(false)
     }
   }, [isOpen])
 
@@ -128,6 +134,12 @@ export default function SignInModal({ isOpen, onClose }) {
   }
 
   const handleGoogleSignIn = async () => {
+    // Google creates an account silently for a new address, so it is a
+    // sign-up path: a browser that hasn't passed the gate takes it first.
+    if (gate !== PASSED) {
+      setMode('signup')
+      return
+    }
     setIsGoogleSubmitting(true)
     setError(null)
     setMessage(null)
@@ -170,6 +182,7 @@ export default function SignInModal({ isOpen, onClose }) {
     setIsSubmitting(true)
     setError(null)
     setMessage(null)
+    setNoAccount(false)
 
     if (honeypot.trim()) {
       setTimeout(() => {
@@ -194,10 +207,19 @@ export default function SignInModal({ isOpen, onClose }) {
 
     try {
       saveEmailCookie(email)
+      // Only a browser that has passed the gate may create an account by email;
+      // otherwise the link can only sign in to an account that already exists.
       const { error } = await supabase.auth.signInWithOtp({
         email,
-        options: { emailRedirectTo: window.location.origin + '/auth/callback' }
+        options: {
+          emailRedirectTo: window.location.origin + '/auth/callback',
+          shouldCreateUser: gate === PASSED,
+        }
       })
+      if (error && (error.code === 'otp_disabled' || /signups not allowed/i.test(error.message || ''))) {
+        setNoAccount(true)
+        return
+      }
       if (error) throw error
       setMessage('Check your email for the magic link.')
     } catch (err) {
@@ -224,7 +246,7 @@ export default function SignInModal({ isOpen, onClose }) {
           </div>
         )}
 
-        {gate !== BLOCKED && gate !== PASSED && (
+        {gate !== BLOCKED && gate !== PASSED && mode === 'signup' && (
           <div>
             <div className="mb-6 text-center">
               <h2 className="text-2xl font-serif mb-2">Before You <em className="text-[var(--color-accent-crimson)] not-italic">Enter</em></h2>
@@ -271,15 +293,32 @@ export default function SignInModal({ isOpen, onClose }) {
             <p className="text-center text-xs text-[var(--color-text-secondary)] mt-6 font-serif">
               We use this once, to check you are old enough. It is not stored.
             </p>
+            <p className="text-center text-xs font-serif mt-3">
+              <button
+                type="button"
+                onClick={() => setMode('signin')}
+                className="underline text-[var(--color-text-secondary)] hover:text-[var(--color-ember)] cursor-pointer bg-transparent"
+              >
+                Already a member? Sign in
+              </button>
+            </p>
           </div>
         )}
 
-        {gate === PASSED && (<>
+        {gate !== BLOCKED && (gate === PASSED || mode === 'signin') && (<>
         <div className="mb-6 text-center">
           <h2 className="text-2xl font-serif mb-2">Summon <em className="text-[var(--color-accent-crimson)] not-italic">Yourself</em></h2>
           <p className="text-xs text-[var(--color-text-secondary)] font-serif">Enter the void using your passkey or email credentials.</p>
           {error   && <div className="text-[var(--color-ember)] text-xs mt-3 font-mono">{error}</div>}
           {message && <div className="text-[var(--color-text-primary)] text-xs mt-3 font-mono">{message}</div>}
+          {noAccount && (
+            <div className="text-[var(--color-ember)] text-xs mt-3 font-mono">
+              No account uses that email.{' '}
+              <button type="button" onClick={() => setMode('signup')} className="underline cursor-pointer bg-transparent">
+                New here? Create an account
+              </button>
+            </div>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -346,9 +385,21 @@ export default function SignInModal({ isOpen, onClose }) {
             className="text-center font-mono text-xs uppercase text-[var(--color-text-secondary)] underline hover:text-[var(--color-accent-crimson)] cursor-pointer py-1 bg-transparent"
             disabled={anyBusy}
           >
-            {isSubmitting ? 'Channeling...' : 'Email me a magic link instead'}
+            {isSubmitting ? 'Channeling...' : 'Email me a sign-in link instead'}
           </button>
         </form>
+
+        {gate !== PASSED && (
+          <p className="text-center text-xs font-serif mt-6">
+            <button
+              type="button"
+              onClick={() => setMode('signup')}
+              className="underline text-[var(--color-text-primary)] hover:text-[var(--color-ember)] cursor-pointer bg-transparent"
+            >
+              New here? Create an account
+            </button>
+          </p>
+        )}
 
         <p className="text-center text-xs text-[var(--color-text-secondary)] mt-6 font-serif">
           By entering, you agree to the <a href="/rules" className="underline hover:text-[var(--color-accent-crimson)]" onClick={onClose}>House Rules</a>. No algorithms, no ads.

@@ -1,5 +1,10 @@
 /**
- * Age gate — minimum age to create an account or sign in.
+ * Age gate — minimum age to create an account.
+ *
+ * It stands in front of every path that can CREATE an account (the email link
+ * with account creation on, and Google, which creates accounts silently), and
+ * nothing else. Signing in to an existing account (passkey, or the email link
+ * with account creation off) needs no gate: that account was gated when made.
  *
  * Deliberate design notes:
  * - The screen is **neutral**: it asks for a birth month and year rather than
@@ -67,4 +72,13 @@ export function writeGate(verdict) {
   } catch {
     /* private mode / storage disabled — the gate still holds for this session */
   }
+}
+
+/**
+ * Call after a successful sign-in. An existing account passed the gate when it
+ * was created (or predates it), so this browser needn't ask again. A browser
+ * that failed the gate stays failed, whoever signs in on it.
+ */
+export function markSignedIn() {
+  if (readGate() !== BLOCKED) writeGate(PASSED)
 }
