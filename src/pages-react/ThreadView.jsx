@@ -214,6 +214,9 @@ function ThreadView({ id }) {
       <div className="flex flex-col gap-6">
         {posts.map((p, index) => {
           const handle = p.profiles?.handle || 'unknown'
+          const postLabel = index === 0
+            ? (isTombstone(thread) ? null : 'Original Post')
+            : `Reply #${index}`
           return (
             <article key={p.id} className="vintage-card flex flex-col gap-4">
               <div className="flex justify-between items-start border-b border-[var(--color-line)] pb-3">
@@ -224,7 +227,7 @@ function ThreadView({ id }) {
                   <div className="flex flex-col">
                     <span className="font-mono text-xs font-bold text-[var(--color-text-primary)]">{authorLabel(p.profiles)}</span>
                     <span className="font-mono text-xs text-[var(--color-text-secondary)]">
-                      {index === 0 ? 'Original Post' : `Reply #${index}`} · {timeAgo(p.created_at)}
+                      {postLabel ? `${postLabel} · ` : ''}{timeAgo(p.created_at)}
                     </span>
                   </div>
                 </div>

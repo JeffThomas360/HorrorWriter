@@ -18,7 +18,7 @@ try {
   if (supabase && !isTest) {
     const result = await supabase
       .from('threads')
-      .select('title, created_at, profiles(handle)')
+      .select('title, created_at, removed_by_author, profiles(handle)')
       .eq('id', id)
       .maybeSingle();
     thread = result.data;
@@ -32,27 +32,30 @@ try {
 const notFound = outcome === 'missing';
 if (notFound) Astro.response.status = 404;
 
+const isTombstone = Boolean(thread?.removed_by_author);
 const authorHandle = thread?.profiles?.handle || 'Unknown Author';
-const title = thread ? `${thread.title} — The Crypt | Horror Writer` : 'Thread — The Crypt | Horror Writer';
+const title = isTombstone
+  ? 'Removed by its author | Horror Writer'
+  : thread ? `${thread.title} — The Crypt | Horror Writer` : 'Thread — The Crypt | Horror Writer';
 const description = thread ? `A discussion started by ${authorHandle} in The Crypt, the horror writing forum on Horror Writer.` : 'Horror writing discussion in The Crypt on Horror Writer.';
 const siteUrl = Astro.site ? new URL(Astro.site).origin : 'https://horrorwriter.org';
 const pageUrl = new URL(Astro.url.pathname, siteUrl).toString();
 
-const postingSchema = thread ? buildDiscussionForumPostingSchema({
+const postingSchema = thread && !isTombstone ? buildDiscussionForumPostingSchema({
   url: pageUrl,
   headline: thread.title,
   authorName: authorHandle,
   datePublished: thread.created_at
 }) : null;
 
-const breadcrumbSchema = thread ? buildBreadcrumbSchema([
+const breadcrumbSchema = thread && !isTombstone ? buildBreadcrumbSchema([
   { name: 'Home', url: `${siteUrl}/` },
   { name: 'The Crypt Forum', url: `${siteUrl}/forum/` },
   { name: thread.title, url: pageUrl }
 ]) : null;
 ---
 
-<MainLayout noindex={notFound} title={title} description={description}>
+<MainLayout noindex={notFound || isTombstone} title={title} description={description}>
   {breadcrumbSchema && <StructuredData data={breadcrumbSchema} />}
   {postingSchema && <StructuredData data={postingSchema} />}
   <ThreadView id={id} client:load />

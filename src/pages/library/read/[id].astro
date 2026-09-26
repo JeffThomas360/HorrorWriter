@@ -32,7 +32,7 @@ if (archiveMatch) {
     if (supabase && !isTest) {
       const result = await supabase
         .from('books')
-        .select('title, lede, created_at, profiles(handle)')
+        .select('title, lede, created_at, removed_by_author, profiles(handle)')
         .eq('id', id)
         .maybeSingle();
       book = result.data;
@@ -47,8 +47,11 @@ if (archiveMatch) {
 const notFound = outcome === 'missing';
 if (notFound) Astro.response.status = 404;
 
+const isTombstone = Boolean(book?.removed_by_author);
 const authorHandle = book?.profiles?.handle || 'Unknown';
-const title = book ? `${book.title} by ${authorHandle} | Horror Writer` : 'Story | Horror Writer';
+const title = isTombstone
+  ? 'Removed by its author | Horror Writer'
+  : book ? `${book.title} by ${authorHandle} | Horror Writer` : 'Story | Horror Writer';
 const description = book
   ? metaDescription(book.lede, { fallback: `A horror story by ${authorHandle} on Horror Writer.` })
   : 'Read horror stories and dark fiction on Horror Writer.';
@@ -56,7 +59,7 @@ const ogImage = `/og/story/${id}.png`;
 const siteUrl = Astro.site ? new URL(Astro.site).origin : 'https://horrorwriter.org';
 const pageUrl = new URL(Astro.url.pathname, siteUrl).toString();
 
-const creativeWorkSchema = book ? buildCreativeWorkSchema({
+const creativeWorkSchema = book && !isTombstone ? buildCreativeWorkSchema({
   url: pageUrl,
   title: book.title,
   description: book.lede,
@@ -67,14 +70,14 @@ const creativeWorkSchema = book ? buildCreativeWorkSchema({
   copyrightYear: archiveMatch || !book.created_at ? undefined : new Date(book.created_at).getUTCFullYear()
 }) : null;
 
-const breadcrumbSchema = book ? buildBreadcrumbSchema([
+const breadcrumbSchema = book && !isTombstone ? buildBreadcrumbSchema([
   { name: 'Home', url: `${siteUrl}/` },
   { name: 'The Library', url: `${siteUrl}/library/` },
   { name: book.title, url: pageUrl }
 ]) : null;
 ---
 
-<MainLayout noindex={notFound} title={title} description={description} ogImage={ogImage}>
+<MainLayout noindex={notFound || isTombstone} title={title} description={description} ogImage={ogImage}>
   {breadcrumbSchema && <StructuredData data={breadcrumbSchema} />}
   {creativeWorkSchema && <StructuredData data={creativeWorkSchema} />}
   <ReadStory id={id} client:load />
