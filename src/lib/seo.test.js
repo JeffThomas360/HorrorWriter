@@ -181,3 +181,11 @@ describe('buildSitemapIndexXml', () => {
     expect(xml).toContain('</sitemapindex>')
   })
 })
+
+describe('buildSitemapXml escaping', () => {
+  // An unescaped & (or <) in any <loc> makes the whole sitemap unreadable.
+  it('XML-escapes loc values', () => {
+    const xml = buildSitemapXml([{ loc: 'https://horrorwriter.org/u/a&b<c/' }])
+    expect(xml).toContain('<loc>https://horrorwriter.org/u/a&amp;b&lt;c/</loc>')
+  })
+})

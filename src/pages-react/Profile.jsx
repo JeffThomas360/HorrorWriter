@@ -184,10 +184,10 @@ function Profile() {
           <h2 className="title text-3xl font-serif font-black">Edit <em className="italic text-[var(--color-accent-crimson)] font-serif">profile</em></h2>
         </div>
         <div className="flex items-center gap-3">
-          <a href="/my-stories" className="font-mono text-xs border border-[var(--color-line)] px-3 py-2 hover:border-white hover:text-[var(--color-accent-crimson)] transition-colors">
+          <a href="/my-stories/" className="font-mono text-xs border border-[var(--color-line)] px-3 py-2 hover:border-white hover:text-[var(--color-accent-crimson)] transition-colors">
             My Stories
           </a>
-          <a href="/my-reports" className="font-mono text-xs border border-[var(--color-line)] px-3 py-2 hover:border-white hover:text-[var(--color-accent-crimson)] transition-colors">
+          <a href="/my-reports/" className="font-mono text-xs border border-[var(--color-line)] px-3 py-2 hover:border-white hover:text-[var(--color-accent-crimson)] transition-colors">
             View My Reports
           </a>
         </div>

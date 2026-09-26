@@ -106,7 +106,7 @@ test.describe('Series Hub Page', () => {
     // Part 2 specifically: starting anywhere in the series is the point of the hub.
     await shell(page).getByRole('link', { name: /START READING/i }).nth(1).click();
 
-    await page.waitForURL(`**/library/read/${MOCK_SERIES_PARTS[1].book_id}`);
+    await page.waitForURL(`**/library/read/${MOCK_SERIES_PARTS[1].book_id}/`);
     expect(page.url()).toContain(`/library/read/${MOCK_SERIES_PARTS[1].book_id}`);
   });
 
@@ -211,7 +211,7 @@ test.describe('In-Story Series Navigation', () => {
       await page.goto(`/library/read/${PART_2.book_id}`);
 
       await page.locator('aside').getByRole('link', { name: /Prev/ }).click();
-      await page.waitForURL(`**/library/read/${PART_1.book_id}`);
+      await page.waitForURL(`**/library/read/${PART_1.book_id}/`);
 
       await expect(page.getByText(`Part 1 of ${PARTS.length}: ${PART_1.books.title}`)).toBeVisible();
     });
@@ -220,7 +220,7 @@ test.describe('In-Story Series Navigation', () => {
       await page.goto(`/library/read/${PART_1.book_id}`);
 
       await page.locator('aside').getByRole('link', { name: /Next/ }).click();
-      await page.waitForURL(`**/library/read/${PART_2.book_id}`);
+      await page.waitForURL(`**/library/read/${PART_2.book_id}/`);
 
       await expect(page.getByText(`Part 2 of ${PARTS.length}: ${PART_2.books.title}`)).toBeVisible();
     });
@@ -229,7 +229,7 @@ test.describe('In-Story Series Navigation', () => {
       await page.goto(`/library/read/${PART_2.book_id}`);
 
       await page.getByRole('link', { name: new RegExp(PART_2.series.title) }).click();
-      await page.waitForURL(`**/library/series/${PART_2.series_id}`);
+      await page.waitForURL(`**/library/series/${PART_2.series_id}/`);
     });
   });
 

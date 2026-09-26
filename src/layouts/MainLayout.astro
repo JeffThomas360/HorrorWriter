@@ -13,27 +13,36 @@ interface Props {
   title?: string;
   description?: string;
   ogImage?: string;
+  /** Keep this page out of search results: sign-in-only pages, and 404s. */
+  noindex?: boolean;
 }
 
 const {
   title = "Horror Writer — Horror Fiction Community, Critique & Prompts",
   description = "A community for serious horror writers: publish stories in The Library, get real critique in The Crypt, and answer weekly dark-fiction prompts.",
-  ogImage
+  ogImage,
+  noindex = false
 } = Astro.props;
 
-const canonicalURL = new URL(Astro.url.pathname, Astro.site);
+// Pages are served at their trailing-slash URL; never advertise the redirecting form.
+const canonicalPath = Astro.url.pathname.endsWith('/') ? Astro.url.pathname : `${Astro.url.pathname}/`;
+const canonicalURL = new URL(canonicalPath, Astro.site);
+const robots = noindex
+  ? 'noindex, follow'
+  : 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1';
 const ogImageURL = ogImage ? new URL(ogImage, Astro.site) : new URL('/og.png', Astro.site);
 ---
 
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="canonical" href={canonicalURL} />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="generator" content={Astro.generator} />
-    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <meta name="robots" content={robots} />
 
     <title>{title}</title>
     <meta name="description" content={description} />
@@ -79,8 +88,8 @@ const ogImageURL = ogImage ? new URL(ogImage, Astro.site) : new URL('/og.png', A
 
           <nav class="hidden md:flex items-center gap-8 font-['IBM_Plex_Mono'] text-xs uppercase tracking-wider" aria-label="Main navigation">
             <a href="/" class="text-[var(--color-bone)] hover:text-[var(--color-blood)] transition-colors">Home</a>
-            <a href="/forum" class="text-[var(--color-bone)] hover:text-[var(--color-blood)] transition-colors">The Crypt</a>
-            <a href="/library" class="text-[var(--color-bone)] hover:text-[var(--color-blood)] transition-colors">Library</a>
+            <a href="/forum/" class="text-[var(--color-bone)] hover:text-[var(--color-blood)] transition-colors">The Crypt</a>
+            <a href="/library/" class="text-[var(--color-bone)] hover:text-[var(--color-blood)] transition-colors">Library</a>
             <NavModLinks client:load variant="desktop" />
           </nav>
 
@@ -111,8 +120,8 @@ const ogImageURL = ogImage ? new URL(ogImage, Astro.site) : new URL('/og.png', A
       >
         <nav class="max-w-5xl mx-auto px-6 py-4 flex flex-col gap-1 font-mono text-xs uppercase tracking-wider text-text-primary">
           <a href="/" class="py-3 border-b border-[var(--color-line)] hover:text-accent-crimson transition-colors">Home</a>
-          <a href="/forum" class="py-3 border-b border-[var(--color-line)] hover:text-accent-crimson transition-colors">The Crypt</a>
-          <a href="/library" class="py-3 border-b border-[var(--color-line)] hover:text-accent-crimson transition-colors">Library</a>
+          <a href="/forum/" class="py-3 border-b border-[var(--color-line)] hover:text-accent-crimson transition-colors">The Crypt</a>
+          <a href="/library/" class="py-3 border-b border-[var(--color-line)] hover:text-accent-crimson transition-colors">Library</a>
           <NavModLinks client:load variant="mobile" />
         </nav>
       </div>

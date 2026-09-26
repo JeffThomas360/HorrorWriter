@@ -74,10 +74,10 @@ function Library() {
         </div>
         {session ? (
           <div className="flex items-center gap-3">
-            <a href="/my-stories" className="border border-[var(--color-line)] text-[var(--color-text-primary)] font-mono text-xs uppercase px-5 py-3 hover:border-white transition-colors inline-block text-center">
+            <a href="/my-stories/" className="border border-[var(--color-line)] text-[var(--color-text-primary)] font-mono text-xs uppercase px-5 py-3 hover:border-white transition-colors inline-block text-center">
               My Stories
             </a>
-            <a href="/library/publish" className="bg-[var(--color-accent-crimson)] text-white font-mono text-xs uppercase px-5 py-3 hover:bg-red-700 transition-colors inline-block text-center">
+            <a href="/library/publish/" className="bg-[var(--color-accent-crimson)] text-white font-mono text-xs uppercase px-5 py-3 hover:bg-red-700 transition-colors inline-block text-center">
               Publish a Story
             </a>
           </div>
@@ -127,7 +127,7 @@ function Library() {
           <p className="font-serif italic text-base text-[var(--color-text-primary)] mb-2">No community stories published yet.</p>
           <p className="font-serif italic text-xs text-[var(--color-text-secondary)] mb-6">Be the first writer in the coven to place your tape on the shelf.</p>
           {session ? (
-            <a href="/library/publish" className="bg-[var(--color-blood)] hover:bg-red-800 text-white font-mono text-xs uppercase px-5 py-3 transition-colors inline-block">
+            <a href="/library/publish/" className="bg-[var(--color-blood)] hover:bg-red-800 text-white font-mono text-xs uppercase px-5 py-3 transition-colors inline-block">
               Publish the First Story
             </a>
           ) : (

@@ -4,17 +4,18 @@ export const prerender = false
 import { fetchLiveStoryUrls } from '../lib/sitemapQueries'
 import { buildSitemapXml } from '../lib/seo'
 import { ARCHIVE_STORIES } from '../lib/seedArchives'
+import { absoluteUrl, storyPath } from '../lib/urls'
 
 export async function GET() {
   const rows = await fetchLiveStoryUrls()
   const archiveRows = ARCHIVE_STORIES.map(a => ({
-    loc: `https://horrorwriter.org/library/read/${a.id}`,
+    loc: absoluteUrl(storyPath(a.id)),
     // created_at is the work's original date (1843…); Google discards implausible
     // lastmod values, so report when the page went live here instead.
     lastmod: a.added_at || a.created_at
   }))
   const liveRows = rows.map(r => ({
-    loc: `https://horrorwriter.org/library/read/${r.id}`,
+    loc: absoluteUrl(storyPath(r.id)),
     lastmod: r.created_at
   }))
   const xml = buildSitemapXml([...archiveRows, ...liveRows])

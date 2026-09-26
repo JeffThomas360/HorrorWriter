@@ -19,9 +19,9 @@ function NavModLinks({ variant = 'desktop' }) {
 
   return (
     <>
-      <a href="/moderation" className={linkClass}>Moderation</a>
+      <a href="/moderation/" className={linkClass}>Moderation</a>
       {profile?.mod_role === 'keeper' && (
-        <a href="/admin" className={linkClass}>Admin</a>
+        <a href="/admin/" className={linkClass}>Admin</a>
       )}
     </>
   )

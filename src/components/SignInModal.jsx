@@ -241,7 +241,7 @@ export default function SignInModal({ isOpen, onClose }) {
               You must be at least {MIN_AGE} to join this coven. Come back when the years have caught up.
             </p>
             <p className="text-xs font-serif text-[var(--color-text-secondary)] mt-6">
-              The <a href="/rules" className="underline hover:text-[var(--color-accent-crimson)]" onClick={onClose}>House Rules</a> explain why.
+              The <a href="/rules/" className="underline hover:text-[var(--color-accent-crimson)]" onClick={onClose}>House Rules</a> explain why.
             </p>
           </div>
         )}
@@ -402,7 +402,7 @@ export default function SignInModal({ isOpen, onClose }) {
         )}
 
         <p className="text-center text-xs text-[var(--color-text-secondary)] mt-6 font-serif">
-          By entering, you agree to the <a href="/rules" className="underline hover:text-[var(--color-accent-crimson)]" onClick={onClose}>House Rules</a>. No algorithms, no ads.
+          By entering, you agree to the <a href="/rules/" className="underline hover:text-[var(--color-accent-crimson)]" onClick={onClose}>House Rules</a>. No algorithms, no ads.
         </p>
         </>)}
       </div>

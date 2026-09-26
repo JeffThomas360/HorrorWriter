@@ -130,8 +130,8 @@ export async function resolveAppeal(reportId, upheld, reason) {
 
 /** Where a report/case-file link for a piece of content should point. */
 export function contentHref(targetType, targetId) {
-  if (targetType === 'story' || targetType === 'critique') return `/library/read/${targetId}`
-  if (targetType === 'thread' || targetType === 'post') return `/forum/thread/${targetId}`
+  if (targetType === 'story' || targetType === 'critique') return `/library/read/${targetId}/`
+  if (targetType === 'thread' || targetType === 'post') return `/forum/thread/${targetId}/`
   return null
 }
 

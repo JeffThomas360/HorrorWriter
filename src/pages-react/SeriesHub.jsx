@@ -89,7 +89,7 @@ function SeriesHub({ seriesId }) {
               Published
             </div>
             <a
-              href={`/library/read/${book.id}`}
+              href={`/library/read/${book.id}/`}
               style={{
                 display: 'inline-block',
                 padding: '0.5rem 1rem',

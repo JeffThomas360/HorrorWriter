@@ -68,7 +68,7 @@ export default function SeriesSidebar({ seriesContext, isOpen, onClose, isMobile
                 }}
               >
                 <a
-                  href={`/library/read/${book.id}`}
+                  href={`/library/read/${book.id}/`}
                   style={{
                     color: isCurrentPart ? 'var(--color-blood)' : 'var(--color-bone)',
                     textDecoration: 'none',
@@ -223,7 +223,7 @@ export default function SeriesSidebar({ seriesContext, isOpen, onClose, isMobile
                   }}
                 >
                   <a
-                    href={`/library/read/${book.id}`}
+                    href={`/library/read/${book.id}/`}
                     onClick={onClose}
                     style={{
                       color: isCurrentPart ? 'var(--color-blood)' : 'var(--color-bone)',

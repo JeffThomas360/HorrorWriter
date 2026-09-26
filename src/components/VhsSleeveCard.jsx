@@ -27,7 +27,7 @@ export default function VhsSleeveCard({ story }) {
 
   return (
     <a
-      href={`/library/read/${story.id}`}
+      href={`/library/read/${story.id}/`}
       className="group relative flex flex-col w-full aspect-[4/5] bg-[var(--color-surface)] border border-[var(--color-line)] hover:border-[var(--color-line-hi)] transition-all duration-200 hover:-translate-y-1 overflow-hidden shadow-md"
     >
       {/* Tape Spine (Left Column) */}

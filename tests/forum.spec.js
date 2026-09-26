@@ -57,7 +57,7 @@ test.describe('Forum Flows', () => {
     });
 
     // Verify it redirects back to the forum
-    await page.waitForURL('**/forum');
+    await page.waitForURL('**/forum/');
     await expect(page.locator('.forum-grid')).toBeVisible();
   });
 
