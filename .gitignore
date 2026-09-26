@@ -70,3 +70,6 @@ storybook-static/
 
 # Scratch dirs for superpowers skills (SDD progress ledgers, brainstorm sessions)
 .superpowers/
+
+# Leftover lock files the Linux sandbox could not delete
+_to_delete/

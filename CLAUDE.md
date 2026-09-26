@@ -25,7 +25,10 @@ low-maintenance to run.
 ## How work lands
 
 - **Claude commits, pushes a feature branch, and opens the PR. Jeff reviews and merges.**
-  Claude never pushes `main` and never merges — `main` auto-deploys with no CI gate in front of it.
+  Claude never pushes `main`, and merges only when Jeff says so in chat for that PR. `main`
+  auto-deploys on merge. The ruleset "Require tests on main" requires a passing `vitest` on an
+  up-to-date branch, with **no admin bypass** (removed 2026-09-25), so a red PR can't be merged
+  by anyone.
 - After a code change, state the exact commands (`npm run test:unit`, `npm run build`,
   `npx playwright test`) — Jeff runs them. Don't narrate process.
 - One deliverable at a time. Name scope creep out loud, with its cost, before acting on it.
@@ -76,6 +79,12 @@ These have each cost a production bug or a debugging session.
   reload** — `NOTIFY pgrst, 'reload schema';` — or the API throws
   `Could not find the '<col>' column of '<table>' in the schema cache` while the column plainly
   exists (`books.updated_at`, 2026-09-07).
+- **Merging a migration to `main` applies it to production.** Supabase's GitHub integration (the
+  "Supabase Preview" check) runs new migrations on every merge. It fails, silently and applying
+  nothing, whenever `schema_migrations` holds a version the repo doesn't: it did so from at least
+  2026-09-08 until the drift was repaired on 2026-09-25. Never use the MCP `apply_migration` tool (it
+  records its own timestamp, which recreates that drift). Rehearse risky migrations first inside a
+  `begin; … rollback;` via `npx supabase db query --linked -f <file>`.
 - **Function grants: new functions are private since `20260910000000`.** Before it, every new
   function in `public` was callable by PUBLIC *and* by anon/authenticated (Supabase's
   `pg_default_acl`), and `CREATE OR REPLACE` never fixes an existing ACL. That migration revoked
@@ -102,11 +111,13 @@ These have each cost a production bug or a debugging session.
 ```powershell
 npm run dev          # astro dev — http://localhost:5173 (astro.config.mjs server.port)
 npm run build        # astro build → dist/ (Cloudflare adapter)
-npm run test:unit    # vitest run — 137 tests / 18 suites as of 2026-09-07; the count moves
+npm run test:unit    # vitest run — 212 tests / 28 files as of 2026-09-26; the count moves
 npx playwright test  # E2E, 12 spec files. From PowerShell prefix with `cmd /c` (npx.ps1 is blocked).
 
 # Release: merge to main → Cloudflare Workers Builds auto-deploys. (Pages is dead; don't cite it.)
-# Transcribe Worker is NOT auto-deployed: cd workers/transcribe; npx wrangler deploy
+# NOT auto-deployed (deploy by hand, after the site change they depend on is live):
+#   Transcribe Worker:  npx wrangler deploy --config workers/transcribe/wrangler.toml
+#   Edge Functions:     npx supabase functions deploy <name> --use-api
 ```
 
 ## Environment notes
@@ -120,7 +131,8 @@ npx playwright test  # E2E, 12 spec files. From PowerShell prefix with `cmd /c` 
   then `POST login/oauth/access_token` piped straight into `gh auth login --with-token`. The token
   must never be printed. Read access to the public repo needs none of this — plain `curl` to
   `api.github.com` works from that workspace.
-- **Dependabot pushes to `main` unattended, and `main` auto-deploys.** Unit tests run on PRs only.
+- **Dependabot only opens security-update PRs** (there is no `dependabot.yml`); they are merged by
+  hand like any other PR. Unit tests run on every PR and again after each merge to `main`.
 - **Agent shells:** the cloud container has no git credentials and no route to GitHub or Supabase.
   The desktop Linux workspace (`device_bash`) can run git, but **cannot unlink files** — every
   index-touching git command leaves a `.git/index.lock` behind unless delete permission was
