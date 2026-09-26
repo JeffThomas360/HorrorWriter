@@ -59,4 +59,17 @@ describe('no fabricated engagement metrics', () => {
     const src = read('../pages/index.astro')
     expect(src).not.toMatch(/TRENDING/i)
   })
+
+  // Tape #00 promised "permanent Founding Member status, unfiltered critique
+  // access, and the right to broadcast on Channel 13" to anyone signing up
+  // "before midnight". None of it existed, and no midnight was ever set.
+  // Founding Member is to be recognition only (a badge), never a perk.
+  it('Tape #00 promises no perks and no fake deadline', () => {
+    const src = read('ForbiddenTape.jsx')
+    expect(src).not.toMatch(/unfiltered critique/i)
+    expect(src).not.toMatch(/broadcast on Channel 13/i)
+    expect(src).not.toMatch(/before midnight/i)
+    expect(src).not.toMatch(/Claim Founding/i)
+  })
 })
+
