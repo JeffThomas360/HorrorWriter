@@ -514,8 +514,9 @@ afterEach(() => cleanup())
 test('explains both choices side by side', () => {
   render(<DeleteAccount />)
   fireEvent.click(screen.getByRole('button', { name: /delete my account/i }))
-  expect(screen.getByText(/erase everything/i)).toBeInTheDocument()
-  expect(screen.getByText(/seal my writing/i)).toBeInTheDocument()
+  // Each option's name appears as a column header (and Erase also as a button).
+  expect(screen.getAllByText(/erase everything/i).length).toBeGreaterThan(0)
+  expect(screen.getAllByText(/seal my writing/i).length).toBeGreaterThan(0)
   expect(screen.getByText(/not by anyone/i)).toBeInTheDocument()
 })
 
@@ -996,13 +997,14 @@ In `deleteRequest.ts`, add `export const MAX_BUNDLE_BYTES = 5 * 1024 * 1024` and
 ```
 In `delete-account/index.ts`, before the `rpc` call:
 ```ts
+  const request = body as { mode: 'erase' | 'seal'; bundle?: string } // validated by checkDeleteRequest
   let p_email_key: string | null = null
   let p_bundle: string | null = null
-  if (body.mode === 'seal') {
+  if (request.mode === 'seal') {
     if (!user.email || !user.email_confirmed_at) return json({ error: 'Confirm your email before sealing.' }, 400)
     p_email_key = await emailKey(user.email, Deno.env.get('SEAL_EMAIL_KEY_SECRET') ?? '')
     // bytea from base64: PostgREST accepts '\\x<hex>'
-    const raw = Uint8Array.from(atob(body.bundle), (c) => c.charCodeAt(0))
+    const raw = Uint8Array.from(atob(request.bundle ?? ''), (c) => c.charCodeAt(0))
     p_bundle = '\\x' + Array.from(raw, (x) => x.toString(16).padStart(2, '0')).join('')
   }
   const { error: dbError } = await admin.rpc('delete_member', { p_user: user.id, p_email_key, p_bundle })
