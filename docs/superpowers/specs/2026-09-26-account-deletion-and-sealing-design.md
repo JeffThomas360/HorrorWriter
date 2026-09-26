@@ -90,12 +90,16 @@ Content removed by moderation, and anything the law requires us to preserve, rem
    `ON DELETE CASCADE` to `ON DELETE SET NULL`. `series.author_id` stays `CASCADE` (a series is the
    member's own and holds no one else's words; `series_books` rows go with it).
 2. **Tombstones.** New column `removed_by_author boolean not null default false` on `books` and
-   `threads`. A tombstone has its author-written fields blanked (`books.title`, `lede`, `content`;
-   `threads.title` and the opening post's `content`), `author_id = null`,
-   `removed_by_author = true`. RLS and the UI render tombstones as "Removed by its author."
+   `threads`. A departed member's story or thread is kept **only if someone else's words hang off
+   it** (another member's critique or reply); otherwise it is deleted outright. A kept one becomes
+   a tombstone: author-written fields blanked (`books.title`, `lede`, `content`, `series_teaser`,
+   `chapters_info`; `threads.title`), `author_id = null`, `removed_by_author = true`. The member's
+   own posts, including a thread's opening post, are deleted. The UI renders tombstones as
+   "Removed by its author."
 3. **`sealed_bundles`:**
    - `email_key text primary key`: `HMAC-SHA256(server_secret, lower(trim(email)))`, hex. The bare
-     address is never stored. The secret lives in Supabase Vault.
+     address is never stored. The secret is an Edge Function secret (`SEAL_EMAIL_KEY_SECRET`),
+     encrypted at rest by Supabase and never sent to a browser.
    - `bundle bytea not null`: the encrypted, compressed payload (format below).
    - `sealed_at timestamptz not null default now()`
    - `expires_at timestamptz not null default now() + interval '7 years'`
@@ -133,10 +137,10 @@ Content removed by moderation, and anything the law requires us to preserve, rem
 2. Calls one `SECURITY DEFINER` database function, `delete_member(p_user uuid, p_email_key text,
    p_bundle bytea)`, callable only by `service_role`, which in **one transaction**:
    - stores the bundle when sealing (upsert on `email_key`)
-   - hard-deletes the member's `hidden` (moderation-removed) stories, threads, critiques and posts
-   - turns the member's stories and threads into tombstones
-   - deletes the member's critiques and forum posts that are not opening posts of their own
-     threads
+   - deletes all the member's critiques and forum posts (opening posts included)
+   - deletes the member's stories and threads that no one else's words hang off, and turns the rest
+     into tombstones. `hidden` stories get the same treatment; what keeps them out of a seal is
+     that the browser never puts them in the bundle (see Sealing)
    - deletes the profile (series, follows, blocks, notifications, `mod_notes` about them cascade;
      the `SET NULL` foreign keys detach everything else)
 3. Deletes the member's avatar from storage (`avatars/<user_id>/`).
