@@ -289,7 +289,7 @@ function ReadStory({ id }) {
           </button>
 
           <div className="hidden md:block max-w-md truncate text-center font-serif italic text-sm opacity-80">
-            {book?.title}
+            {isTombstone(book) ? TOMBSTONE_TEXT : book?.title}
           </div>
 
           <div className="relative">
@@ -633,7 +633,7 @@ function ReadStory({ id }) {
         paddingRight: '1rem'
       }}>
         <div className="mt-8">
-          <QuoteSharer title={book?.title} />
+          {!isTombstone(book) && <QuoteSharer title={book?.title} />}
 
           {book?.is_artificial && (
             <div className="mb-8 p-4 border border-[var(--color-upside)]/50 bg-[var(--color-upside)]/10 font-mono text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-left">
