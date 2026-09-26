@@ -18,7 +18,7 @@ test.describe('Codex (Rules & Disclaimers) Flows', () => {
     
     // Click "House Rules" in footer (scoped to footer to avoid conflicts)
     await page.locator('footer').getByRole('link', { name: 'House Rules' }).click();
-    await page.waitForURL('**/rules#house-rules');
+    await page.waitForURL('**/rules/#house-rules');
     await expect(page.locator('h2.title')).toContainText('The Codex');
     
     // Verify target header is visible
@@ -36,7 +36,7 @@ test.describe('Codex (Rules & Disclaimers) Flows', () => {
     await page.locator('.modal-content').getByRole('link', { name: 'House Rules' }).click();
 
     // Verify it navigated to /rules
-    await page.waitForURL('**/rules');
+    await page.waitForURL('**/rules/');
 
     // Verify modal is closed
     await expect(page.locator('.modal-content')).not.toBeVisible();

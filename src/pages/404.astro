@@ -1,0 +1,23 @@
+---
+// Served for any URL that matches no route, with a 404 status.
+import MainLayout from '../layouts/MainLayout.astro';
+---
+
+<MainLayout noindex title="Nothing Here | Horror Writer" description="This page does not exist.">
+  <div class="text-center py-24 px-6">
+    <span class="inline-block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-text-secondary)] mb-4">
+      Signal lost · 404
+    </span>
+    <h1 class="text-3xl md:text-4xl font-serif font-black mb-4">
+      Nothing <em class="italic text-[var(--color-ember)] font-serif">here</em>
+    </h1>
+    <p class="font-serif italic text-[var(--color-text-secondary)] max-w-md mx-auto mb-10 leading-relaxed">
+      The tape ends. Whatever was on this page has been erased, or was never recorded.
+    </p>
+    <div class="flex flex-wrap gap-4 justify-center">
+      <a href="/library/" class="border border-[var(--color-line)] hover:border-white font-mono text-xs uppercase px-5 py-3 transition-colors">The Library</a>
+      <a href="/forum/" class="border border-[var(--color-line)] hover:border-white font-mono text-xs uppercase px-5 py-3 transition-colors">The Crypt</a>
+      <a href="/" class="border border-[var(--color-line)] hover:border-white font-mono text-xs uppercase px-5 py-3 transition-colors">Home</a>
+    </div>
+  </div>
+</MainLayout>

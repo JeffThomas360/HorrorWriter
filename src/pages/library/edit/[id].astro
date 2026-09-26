@@ -7,6 +7,6 @@ import PublishStory from '../../../pages-react/PublishStory.jsx';
 const { id } = Astro.params;
 ---
 
-<MainLayout title="Edit Story | Horror Writer" description="Revise your published story and update its archives.">
+<MainLayout noindex title="Edit Story | Horror Writer" description="Revise your published story and update its archives.">
   <PublishStory client:load bookId={id} />
 </MainLayout>

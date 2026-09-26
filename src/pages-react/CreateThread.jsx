@@ -19,7 +19,7 @@ function CreateThread() {
 
   useEffect(() => {
     if (!authLoading && !session) {
-      window.location.replace('/forum')
+      window.location.replace('/forum/')
     }
   }, [session, authLoading])
 
@@ -56,7 +56,7 @@ function CreateThread() {
           body: { targetType: 'thread', targetId: data.id },
         }).catch(console.error)
       }
-      window.location.replace('/forum')
+      window.location.replace('/forum/')
     },
     onError: (err) => {
       setError(err.message || 'Failed to summon thread.')
@@ -139,7 +139,7 @@ function CreateThread() {
           <button 
             type="button" 
             className="border border-[var(--color-line)] hover:border-white text-[var(--color-text-primary)] font-mono text-xs uppercase px-4 py-3 transition-colors cursor-pointer"
-            onClick={() => window.location.replace('/forum')} 
+            onClick={() => window.location.replace('/forum/')} 
             disabled={isSubmitting}
           >
             Cancel

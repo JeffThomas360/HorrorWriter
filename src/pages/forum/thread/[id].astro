@@ -2,6 +2,7 @@
 export const prerender = false;
 
 import MainLayout from '../../../layouts/MainLayout.astro';
+import { lookupOutcome } from '../../../lib/lookup';
 import StructuredData from '../../../components/StructuredData.astro';
 import ThreadView from '../../../pages-react/ThreadView.jsx';
 import { supabase } from '../../../supabaseClient';
@@ -10,19 +11,26 @@ import { buildDiscussionForumPostingSchema, buildBreadcrumbSchema } from '../../
 const { id } = Astro.params;
 
 let thread = null;
+// 'unknown' until a lookup answers definitively; only 'missing' becomes a 404.
+let outcome = 'unknown';
 try {
   const isTest = typeof process !== 'undefined' && process.env.PLAYWRIGHT_TEST === 'true';
   if (supabase && !isTest) {
-    const { data } = await supabase
+    const result = await supabase
       .from('threads')
       .select('title, created_at, profiles(handle)')
       .eq('id', id)
-      .single();
-    thread = data;
+      .maybeSingle();
+    thread = result.data;
+    outcome = lookupOutcome(result);
   }
 } catch (e) {
   console.error('Error fetching thread for SEO:', e);
 }
+
+// A record that definitely doesn't exist gets a real 404 and stays out of search results.
+const notFound = outcome === 'missing';
+if (notFound) Astro.response.status = 404;
 
 const authorHandle = thread?.profiles?.handle || 'Unknown Author';
 const title = thread ? `${thread.title} — The Crypt | Horror Writer` : 'Thread — The Crypt | Horror Writer';
@@ -39,12 +47,12 @@ const postingSchema = thread ? buildDiscussionForumPostingSchema({
 
 const breadcrumbSchema = thread ? buildBreadcrumbSchema([
   { name: 'Home', url: `${siteUrl}/` },
-  { name: 'The Crypt Forum', url: `${siteUrl}/forum` },
+  { name: 'The Crypt Forum', url: `${siteUrl}/forum/` },
   { name: thread.title, url: pageUrl }
 ]) : null;
 ---
 
-<MainLayout title={title} description={description}>
+<MainLayout noindex={notFound} title={title} description={description}>
   {breadcrumbSchema && <StructuredData data={breadcrumbSchema} />}
   {postingSchema && <StructuredData data={postingSchema} />}
   <ThreadView id={id} client:load />

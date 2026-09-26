@@ -26,7 +26,7 @@ export default function SeriesContextBar({ seriesContext, onToggleSidebar, isMob
     >
       <div style={{ flex: 1, minWidth: 0 }}>
         <a
-          href={`/library/series/${series.id}`}
+          href={`/library/series/${series.id}/`}
           style={{
             color: 'var(--color-bone)',
             textDecoration: 'none',

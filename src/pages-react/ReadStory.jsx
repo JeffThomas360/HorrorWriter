@@ -256,7 +256,7 @@ function ReadStory({ id }) {
     <div className="vintage-card text-center py-12 border-red-950">
       <p className="font-mono text-xs uppercase tracking-widest text-[var(--color-accent-crimson)] mb-4">Not found</p>
       <p className="font-serif italic text-sm text-[var(--color-text-secondary)] mb-6">{error}</p>
-      <a href="/library" className="border border-[var(--color-line)] hover:border-white font-mono text-xs uppercase px-4 py-2 transition-colors">Back to Library</a>
+      <a href="/library/" className="border border-[var(--color-line)] hover:border-white font-mono text-xs uppercase px-4 py-2 transition-colors">Back to Library</a>
     </div>
   )
 
@@ -651,7 +651,7 @@ function ReadStory({ id }) {
           </button>
           {isOwner && (
             <a 
-              href={`/library/edit/${book.id}`}
+              href={`/library/edit/${book.id}/`}
               className="text-xs uppercase border border-[var(--color-line)] hover:border-[var(--color-bone)] px-2 py-0.5 text-[var(--color-ash)] hover:text-[var(--color-bone)] transition-colors"
             >
               Edit Story
@@ -859,7 +859,7 @@ function ReadStory({ id }) {
       </div>
 
       <div className="text-center border-t border-[var(--color-line)] pt-8 mt-16 max-w-2xl mx-auto">
-        <a href="/library" className="font-mono text-xs hover:text-[var(--color-accent-crimson)] transition-colors">← Return to the Library</a>
+        <a href="/library/" className="font-mono text-xs hover:text-[var(--color-accent-crimson)] transition-colors">← Return to the Library</a>
       </div>
 
           <ReportModal

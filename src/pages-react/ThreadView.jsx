@@ -176,14 +176,14 @@ function ThreadView({ id }) {
     <div className="vintage-card text-center py-12 border-red-950 mt-8 max-w-2xl mx-auto">
       <p className="font-mono text-xs uppercase tracking-widest text-[var(--color-ember)] mb-4">Error</p>
       <p className="font-serif italic text-sm text-[var(--color-text-secondary)] mb-6">{error}</p>
-      <a href="/forum" className="border border-[var(--color-line)] hover:border-white font-mono text-xs uppercase px-4 py-2 transition-colors">Back to the Crypt</a>
+      <a href="/forum/" className="border border-[var(--color-line)] hover:border-white font-mono text-xs uppercase px-4 py-2 transition-colors">Back to the Crypt</a>
     </div>
   )
 
   return (
     <div className="mt-8 max-w-2xl mx-auto">
       <a
-        href="/forum"
+        href="/forum/"
         className="inline-block font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-text-secondary)] mb-4 hover:text-[var(--color-accent-crimson)] hover:underline transition-colors"
       >
         ← Back to {thread?.categories?.name?.split('·')[0].trim() || 'The Crypt'}

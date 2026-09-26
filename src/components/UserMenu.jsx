@@ -13,7 +13,7 @@ function UserMenu() {
     <div className="flex items-center gap-4">
       {session ? (
         <div className="flex items-center gap-4">
-          <a href="/profile" className="flex items-center gap-2 hover:text-[var(--color-accent-crimson)]">
+          <a href="/profile/" className="flex items-center gap-2 hover:text-[var(--color-accent-crimson)]">
             {profile?.avatar_url ? (
               <img 
                 src={profile.avatar_url} 

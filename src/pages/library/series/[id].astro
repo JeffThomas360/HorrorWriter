@@ -1,6 +1,7 @@
 ---
 export const prerender = false
 import MainLayout from '../../../layouts/MainLayout.astro'
+import { lookupOutcome } from '../../../lib/lookup'
 import StructuredData from '../../../components/StructuredData.astro'
 import SeriesHub from '../../../pages-react/SeriesHub'
 import { supabase } from '../../../supabaseClient'
@@ -9,19 +10,26 @@ import { buildCreativeWorkSeriesSchema, metaDescription } from '../../../lib/seo
 const { id } = Astro.params
 
 let series = null
+// 'unknown' until a lookup answers definitively; only 'missing' becomes a 404.
+let outcome = 'unknown'
 try {
   const isTest = typeof process !== 'undefined' && process.env.PLAYWRIGHT_TEST === 'true'
   if (supabase && !isTest) {
-    const { data } = await supabase
+    const result = await supabase
       .from('series')
       .select('title, description')
       .eq('id', id)
-      .single()
-    series = data
+      .maybeSingle()
+    series = result.data
+    outcome = lookupOutcome(result)
   }
 } catch (e) {
   console.error('Error fetching series details for SEO:', e)
 }
+
+// A record that definitely doesn't exist gets a real 404 and stays out of search results.
+const notFound = outcome === 'missing'
+if (notFound) Astro.response.status = 404
 
 const title = series ? `${series.title} — Story Series | Horror Writer` : 'Story Series | Horror Writer'
 const description = series
@@ -31,7 +39,7 @@ const pageUrl = new URL(Astro.url.pathname, Astro.site).toString()
 const seriesSchema = series ? buildCreativeWorkSeriesSchema({ url: pageUrl, name: series.title, description: series.description }) : null
 ---
 
-<MainLayout title={title} description={description}>
+<MainLayout noindex={notFound} title={title} description={description}>
   {seriesSchema && <StructuredData data={seriesSchema} />}
   <div class="series-shell">
     <SeriesHub client:load seriesId={id} />

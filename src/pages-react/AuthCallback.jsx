@@ -55,7 +55,7 @@ function AuthCallback() {
             window.opener.postMessage({ type: 'AUTH_SUCCESS' }, window.location.origin)
             window.close()
           } else {
-            window.location.replace('/profile')
+            window.location.replace('/profile/')
           }
         }
       } catch (err) {
@@ -72,7 +72,7 @@ function AuthCallback() {
           window.opener.postMessage({ type: 'AUTH_SUCCESS' }, window.location.origin)
           window.close()
         } else {
-          window.location.replace('/profile')
+          window.location.replace('/profile/')
         }
       }
     })
@@ -86,7 +86,7 @@ function AuthCallback() {
             window.opener.postMessage({ type: 'AUTH_SUCCESS' }, window.location.origin)
             window.close()
           } else {
-            window.location.replace('/profile')
+            window.location.replace('/profile/')
           }
         }
       } else {

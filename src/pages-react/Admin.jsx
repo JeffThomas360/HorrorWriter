@@ -108,7 +108,7 @@ function Admin() {
         <h2 className="text-3xl font-serif font-black">Site <em className="italic text-[var(--color-blood)] font-serif">Admin</em></h2>
         <p className="text-xs text-[var(--color-ash)] font-serif mt-1 font-mono">
           ▸ Configuration and oversight. Day-to-day moderation lives at{' '}
-          <a href="/moderation" className="underline hover:text-[var(--color-blood)]">/moderation</a>.
+          <a href="/moderation/" className="underline hover:text-[var(--color-blood)]">/moderation</a>.
         </p>
       </div>
 

@@ -188,7 +188,7 @@ function PublishStory({ bookId }) {
         }
       }
 
-      const destination = data?.id ? `/library/read/${data.id}` : '/library'
+      const destination = data?.id ? `/library/read/${data.id}/` : '/library/'
       toast.success(bookId ? 'Story updated successfully!' : 'Story published!')
       if (seriesAttachFailed) {
         setTimeout(() => window.location.replace(destination), 1800)
@@ -376,7 +376,7 @@ function PublishStory({ bookId }) {
               <button 
                 type="button" 
                 className="border border-[var(--color-line)] hover:border-white text-[var(--color-bone)] font-mono text-xs uppercase px-4 py-3 transition-colors cursor-pointer"
-                onClick={() => window.location.replace(bookId ? `/library/read/${bookId}` : '/library')} 
+                onClick={() => window.location.replace(bookId ? `/library/read/${bookId}/` : '/library/')} 
                 disabled={isSubmitting}
               >
                 Cancel

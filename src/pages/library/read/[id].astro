@@ -2,6 +2,7 @@
 export const prerender = false;
 
 import MainLayout from '../../../layouts/MainLayout.astro';
+import { lookupOutcome } from '../../../lib/lookup';
 import StructuredData from '../../../components/StructuredData.astro';
 import ReadStory from '../../../pages-react/ReadStory.jsx';
 import { supabase } from '../../../supabaseClient';
@@ -11,9 +12,12 @@ import { ARCHIVE_STORIES } from '../../../lib/seedArchives';
 const { id } = Astro.params;
 
 let book = null;
+// 'unknown' until a lookup answers definitively; only 'missing' becomes a 404.
+let outcome = 'unknown';
 const archiveMatch = ARCHIVE_STORIES.find(a => a.id === id);
 
 if (archiveMatch) {
+  outcome = 'found';
   book = {
     title: archiveMatch.title,
     lede: archiveMatch.lede,
@@ -26,17 +30,22 @@ if (archiveMatch) {
   try {
     const isTest = typeof process !== 'undefined' && process.env.PLAYWRIGHT_TEST === 'true';
     if (supabase && !isTest) {
-      const { data } = await supabase
+      const result = await supabase
         .from('books')
         .select('title, lede, created_at, profiles(handle)')
         .eq('id', id)
-        .single();
-      book = data;
+        .maybeSingle();
+      book = result.data;
+      outcome = lookupOutcome(result);
     }
   } catch (e) {
     console.error('Error fetching book details for SEO:', e);
   }
 }
+
+// A record that definitely doesn't exist gets a real 404 and stays out of search results.
+const notFound = outcome === 'missing';
+if (notFound) Astro.response.status = 404;
 
 const authorHandle = book?.profiles?.handle || 'Unknown';
 const title = book ? `${book.title} by ${authorHandle} | Horror Writer` : 'Story | Horror Writer';
@@ -58,12 +67,12 @@ const creativeWorkSchema = book ? buildCreativeWorkSchema({
 
 const breadcrumbSchema = book ? buildBreadcrumbSchema([
   { name: 'Home', url: `${siteUrl}/` },
-  { name: 'The Library', url: `${siteUrl}/library` },
+  { name: 'The Library', url: `${siteUrl}/library/` },
   { name: book.title, url: pageUrl }
 ]) : null;
 ---
 
-<MainLayout title={title} description={description} ogImage={ogImage}>
+<MainLayout noindex={notFound} title={title} description={description} ogImage={ogImage}>
   {breadcrumbSchema && <StructuredData data={breadcrumbSchema} />}
   {creativeWorkSchema && <StructuredData data={creativeWorkSchema} />}
   <ReadStory id={id} client:load />

@@ -10,10 +10,10 @@ export default defineConfig({
   integrations: [
     react(),
     sitemap({
-      // Exclude auth-gated / private / technical routes — they have no SEO value
+      // Exclude auth-gated / private / technical / demo routes — they have no SEO value
       // and shouldn't be advertised as crawlable public content.
       filter: (page) =>
-        !/\/(admin|moderation|my-reports|my-stories|profile|library\/publish|forum\/new|auth\/callback)\/?$/.test(page),
+        !/\/(admin|moderation|my-reports|my-stories|profile|library\/publish|forum\/new|auth\/callback|demo-editor)\/?$/.test(page),
     }),
   ],
   adapter: cloudflare(),

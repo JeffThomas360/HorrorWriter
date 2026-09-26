@@ -240,7 +240,7 @@ function Forum() {
               />
             </div>
             {session ? (
-              <a href="/forum/new" className="shrink-0 text-center bg-[var(--color-accent-crimson)] text-white font-mono text-xs uppercase px-4 py-2 hover:bg-red-700 transition-colors">
+              <a href="/forum/new/" className="shrink-0 text-center bg-[var(--color-accent-crimson)] text-white font-mono text-xs uppercase px-4 py-2 hover:bg-red-700 transition-colors">
                 New Thread
               </a>
             ) : null}
@@ -250,7 +250,7 @@ function Forum() {
             <div className="vintage-card text-center py-16">
               <p className="font-serif italic text-xs text-[var(--color-text-secondary)] mb-6">Nothing here. The dark is quiet tonight.</p>
               {session ? (
-                <a href="/forum/new" className="border border-[var(--color-line)] hover:border-white font-mono text-xs uppercase px-4 py-2 transition-colors">
+                <a href="/forum/new/" className="border border-[var(--color-line)] hover:border-white font-mono text-xs uppercase px-4 py-2 transition-colors">
                   Start the first thread
                 </a>
               ) : (
@@ -265,7 +265,7 @@ function Forum() {
               return (
                 <a 
                   key={t.id}
-                  href={`/forum/thread/${t.id}`}
+                  href={`/forum/thread/${t.id}/`}
                   className="vintage-card flex items-center justify-between gap-4 hover:border-[var(--color-accent-crimson)] transition-colors p-4"
                 >
                   <div className="flex items-center gap-4">

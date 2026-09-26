@@ -3,11 +3,12 @@ export const prerender = false
 
 import { fetchLiveThreadUrls } from '../lib/sitemapQueries'
 import { buildSitemapXml } from '../lib/seo'
+import { absoluteUrl, threadPath } from '../lib/urls'
 
 export async function GET() {
   const rows = await fetchLiveThreadUrls()
   const xml = buildSitemapXml(rows.map(r => ({
-    loc: `https://horrorwriter.org/forum/thread/${r.id}`,
+    loc: absoluteUrl(threadPath(r.id)),
     lastmod: r.updated_at
   })))
   return new Response(xml, { headers: { 'Content-Type': 'application/xml' } })

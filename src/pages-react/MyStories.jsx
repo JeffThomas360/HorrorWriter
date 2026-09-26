@@ -282,7 +282,7 @@ function MyStories() {
 
                 <div className="flex items-center gap-3 shrink-0">
                   <a
-                    href={`/library/edit/${b.id}`}
+                    href={`/library/edit/${b.id}/`}
                     className="font-mono text-xs uppercase border border-[var(--color-line)] hover:border-white px-3 py-1 text-[var(--color-bone)] transition-colors"
                   >
                     Edit

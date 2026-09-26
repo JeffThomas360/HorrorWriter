@@ -260,7 +260,7 @@ export default function DreadDiagnostic() {
                   {copied ? '✓ Dossier Copied' : 'Copy Talisman Dossier'}
                 </button>
                 <a
-                  href={`/library/publish?prompt=${encodeURIComponent(result.prompt)}`}
+                  href={`/library/publish/?prompt=${encodeURIComponent(result.prompt)}`}
                   className="font-mono text-xs uppercase px-5 py-3 bg-[var(--color-accent-crimson)] text-white hover:bg-red-700 transition-colors inline-block"
                 >
                   Write in Studio →
