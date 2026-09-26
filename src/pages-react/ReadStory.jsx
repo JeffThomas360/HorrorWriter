@@ -19,7 +19,7 @@ import { fetchStorySeriesContext } from '../lib/series'
 import SeriesContextBar from '../components/SeriesContextBar'
 import SeriesSidebar from '../components/SeriesSidebar'
 import { ARCHIVE_STORIES } from '../lib/seedArchives'
-import { isStoryOwner } from '../lib/storyHelpers'
+import { isStoryOwner, copyrightNotice } from '../lib/storyHelpers'
 
 const AV_COLORS = ['', 'av-1', 'av-2', 'av-3', 'av-4', 'av-5', 'av-6']
 
@@ -560,6 +560,7 @@ function ReadStory({ id }) {
           {/* End of story marker */}
           <div className="mt-16 pt-8 border-t border-current opacity-40 text-center font-serif italic text-sm">
             <p className="mb-4">~ Finis ~</p>
+            <p className="mb-4 not-italic font-mono text-xs">{copyrightNotice(book)}</p>
             <button
               type="button"
               onClick={() => {
@@ -763,6 +764,14 @@ function ReadStory({ id }) {
       >
         <StoryMarkdown content={book?.content} />
       </article>
+
+      {/* Authors keep all rights (House Rules, rule 1); archive classics say public domain. */}
+      <p className="max-w-2xl mx-auto mb-8 text-center font-mono text-xs text-[var(--color-text-secondary)]">
+        {copyrightNotice(book)}{' '}
+        {!book?.is_artificial && (
+          <a href="/rules/#house-rules" className="underline hover:text-[var(--color-ember)]">Creator ownership</a>
+        )}
+      </p>
 
       {/* Share Bar */}
       <div className="max-w-2xl mx-auto border-t border-[var(--color-line)] pt-8">

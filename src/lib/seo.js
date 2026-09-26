@@ -91,7 +91,12 @@ export function buildBreadcrumbSchema(items) {
   }
 }
 
-export function buildCreativeWorkSchema({ url, title, description, authorName, datePublished, genre = 'Horror', type = 'CreativeWork' }) {
+// Pass copyrightYear for member stories (authors keep all rights). Omit it for
+// public-domain archive stories, which must not claim copyright.
+export function buildCreativeWorkSchema({ url, title, description, authorName, datePublished, genre = 'Horror', type = 'CreativeWork', copyrightYear }) {
+  const copyright = copyrightYear
+    ? { copyrightHolder: { '@type': 'Person', name: authorName }, copyrightYear }
+    : {}
   return {
     '@context': 'https://schema.org',
     '@type': type,
@@ -110,7 +115,8 @@ export function buildCreativeWorkSchema({ url, title, description, authorName, d
       '@type': 'Organization',
       name: 'Horror Writer',
       url: 'https://horrorwriter.org'
-    }
+    },
+    ...copyright
   }
 }
 
