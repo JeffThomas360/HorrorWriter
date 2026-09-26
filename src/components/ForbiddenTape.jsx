@@ -80,8 +80,8 @@ export default function ForbiddenTape() {
               THE PACT OF THE TAPE:
             </span>
             <p className="font-serif text-xs leading-relaxed">
-              Every member who signs their name before midnight is granted permanent Founding Member status, 
-              unfiltered critique access, and the right to broadcast on Channel 13.
+              Those who sign their names while the coven is young will be remembered as Founding Members.
+              The mark is recognition, not privilege: it opens no door the rest of the coven cannot walk through.
             </p>
           </div>
 
@@ -90,7 +90,7 @@ export default function ForbiddenTape() {
               onClick={() => window.dispatchEvent(new CustomEvent('open-signin'))}
               className="font-mono text-xs uppercase px-6 py-3 bg-[var(--color-ember)] text-white font-bold hover:bg-red-600 transition-colors cursor-pointer"
             >
-              Claim Founding Coven Status →
+              Sign Your Name →
             </button>
           </div>
         </div>
