@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { supabase } from '../supabaseClient'
+import { markSignedIn } from '../lib/ageGate'
 
 const AuthContext = createContext({
   session: null,
@@ -93,6 +94,8 @@ export function AuthProvider({ children }) {
       setSession(session)
       setUser(session?.user ?? null)
       if (session?.user) {
+        // Signed in to an account, so this browser needn't show the age gate again.
+        markSignedIn()
         fetchProfile(session.user.id)
       } else {
         setProfile(null)

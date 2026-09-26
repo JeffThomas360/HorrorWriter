@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
   MIN_AGE, GATE_KEY, PASSED, BLOCKED,
-  meetsMinimumAge, selectableYears, readGate, writeGate
+  meetsMinimumAge, selectableYears, readGate, writeGate, markSignedIn
 } from './ageGate'
 
 const NOW = new Date(Date.UTC(2026, 8, 8)) // 2026-09-08
@@ -80,5 +80,23 @@ describe('gate storage', () => {
       .mockImplementation(() => { throw new Error('denied') })
     expect(() => writeGate(PASSED)).not.toThrow()
     setSpy.mockRestore()
+  })
+})
+
+describe('markSignedIn', () => {
+  beforeEach(() => localStorage.clear())
+
+  // Signing in to an existing account proves the gate was passed when that
+  // account was created (or predates the gate), so the browser stops asking.
+  it('marks a browser with no verdict as passed', () => {
+    markSignedIn()
+    expect(readGate()).toBe(PASSED)
+  })
+
+  // A browser that failed the gate stays failed, whoever signs in on it.
+  it('never overrides a failed gate', () => {
+    writeGate(BLOCKED)
+    markSignedIn()
+    expect(readGate()).toBe(BLOCKED)
   })
 })
