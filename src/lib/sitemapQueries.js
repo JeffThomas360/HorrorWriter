@@ -6,6 +6,7 @@ export async function fetchLiveStoryUrls() {
     .from('books')
     .select('id, created_at')
     .eq('mod_status', 'live')
+    .eq('removed_by_author', false)
   if (error || !data) return []
   return data
 }
@@ -16,6 +17,7 @@ export async function fetchLiveThreadUrls() {
     .from('threads')
     .select('id, updated_at')
     .eq('mod_status', 'live')
+    .eq('removed_by_author', false)
   if (error || !data) return []
   return data
 }

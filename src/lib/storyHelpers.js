@@ -45,3 +45,15 @@ export function copyrightNotice(book) {
   const author = book.profiles?.handle ? `@${book.profiles.handle}` : 'the author'
   return `© ${year} ${author}. All rights reserved.`
 }
+
+export const TOMBSTONE_TEXT = 'Removed by its author.'
+
+/** Author credit: '@handle', or 'a departed member' once the account is deleted. */
+export function authorLabel(profile) {
+  return profile?.handle ? `@${profile.handle}` : 'a departed member'
+}
+
+/** A story or thread whose author deleted their account, kept for others' replies. */
+export function isTombstone(row) {
+  return Boolean(row?.removed_by_author)
+}

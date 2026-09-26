@@ -42,6 +42,7 @@ function Library() {
       let query = supabase
         .from('books')
         .select('*, profiles(handle), series_books(sort_order, series(id, title))')
+        .eq('removed_by_author', false)
         .order('created_at', { ascending: false })
 
       if (feedMode === 'following' && session) {

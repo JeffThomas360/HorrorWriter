@@ -3,6 +3,7 @@ import { supabase } from '../supabaseClient'
 import { useAuth } from '../components/AuthContext'
 import { useQuery } from '@tanstack/react-query'
 import { withProviders } from '../components/Providers'
+import { authorLabel, isTombstone, TOMBSTONE_TEXT } from '../lib/storyHelpers'
 
 const AV_COLORS = ['', 'av-1', 'av-2', 'av-3', 'av-4', 'av-5', 'av-6']
 
@@ -275,10 +276,10 @@ function Forum() {
                     <div>
                       <h4 className="font-serif font-bold text-sm text-[var(--color-text-primary)] flex items-center gap-2 mb-1">
                         {t.pinned && <span className="text-xs" title="Pinned">📌</span>}
-                        {t.title}
+                        {isTombstone(t) ? TOMBSTONE_TEXT : t.title}
                       </h4>
                       <div className="font-mono text-xs text-[var(--color-text-secondary)]">
-                        <span className="text-[var(--color-text-primary)] font-bold mr-1">@{handle}</span>
+                        <span className="text-[var(--color-text-primary)] font-bold mr-1">{authorLabel(t.profiles)}</span>
                         · {catLabels[t.category_id] || 'Thread'} · {timeAgo(t.updated_at)}
                       </div>
                     </div>
