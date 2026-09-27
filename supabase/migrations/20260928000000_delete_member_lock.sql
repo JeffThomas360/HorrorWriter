@@ -4,12 +4,23 @@
 -- deletions of the same member, and makes a retry a true no-op: the first
 -- transaction locks the row, a second one waits, then finds no row and
 -- returns without touching sealed_bundles.
+--
+-- The race LOSER (the second, blocked call) needs to know it lost, not just
+-- that nothing blew up: it's the one whose collected bundle never got stored,
+-- so if it's a seal, the caller must treat it exactly like the already-gone
+-- retry path and point the member back at their FIRST attempt's code. That
+-- means the function can no longer return void -- it returns true when it
+-- actually ran (found and locked the profile row), false when it found the
+-- profile already gone. A return-type change needs drop + create, not
+-- create or replace.
 -- Spec: docs/superpowers/specs/2026-09-26-account-deletion-and-sealing-design.md
 -- Test: scripts/sql/test-delete-member.sql (rolls back; must print ALL PASS)
 
-create or replace function public.delete_member(
+drop function if exists public.delete_member(uuid, text, bytea);
+
+create function public.delete_member(
   p_user uuid, p_email_key text default null, p_bundle bytea default null
-) returns void
+) returns boolean
 language plpgsql
 security definer
 set search_path = public, pg_temp
@@ -22,12 +33,13 @@ begin
     raise exception 'delete_member: email key and bundle go together';
   end if;
 
-  -- Serialise concurrent deletions of the same member and make a retry a no-op:
-  -- the first transaction locks the profile row; a second one waits, then finds
-  -- no row and returns without touching sealed_bundles.
+  -- Serialise concurrent deletions of the same member and make a retry (or the
+  -- loser of a race) a no-op: the first transaction locks the profile row; a
+  -- second one waits, then finds no row and returns false without touching
+  -- sealed_bundles.
   perform 1 from public.profiles where id = p_user for update;
   if not found then
-    return;
+    return false;
   end if;
 
   if p_bundle is not null then
@@ -41,16 +53,16 @@ begin
   -- notifications and mod_notes about the member cascade too (mod_notes
   -- authored BY the member instead keep the note and clear author_id).
   delete from public.profiles where id = p_user;
+  return true;
 end;
 $$;
 
--- CREATE OR REPLACE keeps the existing ACL (service_role only, granted in
--- 20260927000000); these lines are added again for clarity, not because the
--- grant was lost.
+-- drop function above discards any grants the old signature had; reapply the
+-- service_role-only ACL exactly as 20260927000000 set it up.
 revoke all on function public.delete_member(uuid, text, bytea) from public, anon, authenticated;
 grant execute on function public.delete_member(uuid, text, bytea) to service_role;
 
 comment on function public.delete_member(uuid, text, bytea) is
-'SECURITY DEFINER, service_role only (delete-account Edge Function). Locks and validates the profile row, stores a sealed bundle when given one, and deletes the profile -- the erase_member_content trigger does the content work. A retry against an already-gone member is a no-op.';
+'SECURITY DEFINER, service_role only (delete-account Edge Function). Locks and validates the profile row, stores a sealed bundle when given one, and deletes the profile -- the erase_member_content trigger does the content work. Returns true if it ran, false if the profile was already gone (a retry, or the loser of a concurrent-deletion race).';
 
 notify pgrst, 'reload schema';

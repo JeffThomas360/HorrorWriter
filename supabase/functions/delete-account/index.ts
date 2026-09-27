@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { checkDeleteRequest, shouldRunDatabaseStep } from '../_shared/deleteRequest.ts'
+import { checkDeleteRequest, shouldRunDatabaseStep, partialFailureMessage } from '../_shared/deleteRequest.ts'
 import { emailKey } from '../_shared/emailKey.ts'
 import { decodeBundle, toByteaHex } from '../_shared/bundle.ts'
 
@@ -51,6 +51,14 @@ serve(async (req) => {
     return json({ error: 'Nothing was deleted. Please try again.' }, 500)
   }
 
+  // Whether delete_member actually ran (found and locked a profile row) on THIS call.
+  // False either because the profile was already gone at the lookup above (an ordinary
+  // retry), or because delete_member itself found no row once it got the lock -- the
+  // LOSER of a race between two concurrent calls for the same member, which passed the
+  // lookup above but lost the lock to the other call. Either way, this call did not store
+  // whatever bundle it collected, so downstream messaging must treat them the same.
+  let ranDeleteMember = false
+
   if (shouldRunDatabaseStep(!!profile)) {
     let p_email_key: string | null = null
     let p_bundle: string | null = null
@@ -68,12 +76,14 @@ serve(async (req) => {
       p_bundle = toByteaHex(raw)
     }
 
-    // 1. Everything in the database, in one transaction.
-    const { error: dbError } = await admin.rpc('delete_member', { p_user: user.id, p_email_key, p_bundle })
+    // 1. Everything in the database, in one transaction. Returns true if it ran, false
+    // if it found the profile already gone (the race-loser case described above).
+    const { data: ran, error: dbError } = await admin.rpc('delete_member', { p_user: user.id, p_email_key, p_bundle })
     if (dbError) {
       console.error('[delete-account] delete_member failed', dbError.message)
       return json({ error: 'Nothing was deleted. Please try again.' }, 500)
     }
+    ranDeleteMember = ran === true
   }
 
   // 2. Avatar files. Safe to repeat.
@@ -86,15 +96,12 @@ serve(async (req) => {
   const { error: authError } = await admin.auth.admin.deleteUser(user.id)
   if (authError) {
     console.error('[delete-account] deleteUser failed', authError.message)
-    const message = request.mode === 'seal'
-      ? 'Your writing is sealed, but signing out failed. Please try again — and keep the recovery code from this attempt.'
-      : 'Your writing is gone, but signing out failed. Please try again.'
-    return json({ error: message }, 500)
+    return json({ error: partialFailureMessage(request.mode, ranDeleteMember) }, 500)
   }
 
-  // A retry after a partial failure lands here with no database step run above (the
-  // profile row is already gone). For a seal retry, the real bundle was stored on the
-  // FIRST attempt -- this call's freshly-generated code was never sent anywhere, so the
-  // browser must tell the member their earlier code is the one that matters.
-  return json({ deleted: true, sealAlreadyStored: !profile && request.mode === 'seal' })
+  // This call didn't run delete_member (an ordinary retry, or the loser of a concurrent-
+  // deletion race). For a seal, the real bundle was stored on WHICHEVER call actually ran
+  // -- this call's freshly-generated code was never sent anywhere, so the browser must
+  // point the member back at that earlier code.
+  return json({ deleted: true, sealAlreadyStored: !ranDeleteMember && request.mode === 'seal' })
 })

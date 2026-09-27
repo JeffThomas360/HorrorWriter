@@ -39,7 +39,11 @@ insert into public.books (id, title, lede, content, author_id) values
 insert into public.book_comments (book_id, author_id, content) values
   ('00000000-0000-4000-8000-0000000b0005', '00000000-0000-4000-8000-00000000d002', 'stayer critique of dashboarded member');
 
-select public.delete_member('00000000-0000-4000-8000-00000000d001', 'k-test', '\x01ff'::bytea);
+do $$
+begin
+  if public.delete_member('00000000-0000-4000-8000-00000000d001', 'k-test', '\x01ff'::bytea) is not true then
+    raise exception 'FAIL: delete_member returned false for a member with a real profile row'; end if;
+end $$;
 
 -- F2: a profile deleted by a path other than delete_member -- here, the auth
 -- user is deleted directly, the way the Supabase dashboard would -- must still
@@ -94,12 +98,13 @@ begin
 end $$;
 
 -- F3: delete_member for a uuid with no profile (a retry after the profile's
--- already gone) must be a true no-op -- in particular, it must never store a
--- sealed_bundles row for the email key it was passed.
-select public.delete_member('00000000-0000-4000-8000-00000000d999', 'k-retry', '\xff01'::bytea);
-
+-- already gone, or the loser of a concurrent-deletion race) must be a true
+-- no-op -- it must return false, and it must never store a sealed_bundles
+-- row for the email key it was passed.
 do $$
 begin
+  if public.delete_member('00000000-0000-4000-8000-00000000d999', 'k-retry', '\xff01'::bytea) is not false then
+    raise exception 'FAIL: delete_member did not return false for a member with no profile row'; end if;
   if exists (select 1 from public.sealed_bundles where email_key = 'k-retry') then
     raise exception 'FAIL: delete_member stored a seal for a member with no profile row'; end if;
 end $$;
