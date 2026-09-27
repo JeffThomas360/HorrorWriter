@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { checkDeleteRequest } from '../_shared/deleteRequest.ts'
 import { emailKey } from '../_shared/emailKey.ts'
+import { decodeBundle, toByteaHex } from '../_shared/bundle.ts'
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -27,20 +28,24 @@ serve(async (req) => {
 
   const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '')
 
-  const request = body as { mode: 'erase' | 'seal'; bundle?: string } // validated by checkDeleteRequest
+  // `mode` and, for seal, the presence/size of `bundle` are validated by checkDeleteRequest above;
+  // the bundle's *content* (valid base64, minimum length, version byte) is not — decodeBundle below
+  // is the actual gate for that.
+  const request = body as { mode: 'erase' | 'seal'; bundle?: string }
   let p_email_key: string | null = null
   let p_bundle: string | null = null
   if (request.mode === 'seal') {
     if (!user.email || !user.email_confirmed_at) return json({ error: 'Confirm your email before sealing.' }, 400)
+    const raw = decodeBundle(request.bundle ?? '')
+    if (!raw) return json({ error: 'The sealed writing did not arrive intact. Nothing was deleted.' }, 400)
     try {
       p_email_key = await emailKey(user.email, Deno.env.get('SEAL_EMAIL_KEY_SECRET') ?? '')
     } catch (err) {
       console.error('[delete-account] emailKey failed', err instanceof Error ? err.message : err)
       return json({ error: 'Nothing was deleted. Please try again.' }, 500)
     }
-    // bytea from base64: PostgREST accepts '\\x<hex>'
-    const raw = Uint8Array.from(atob(request.bundle ?? ''), (c) => c.charCodeAt(0))
-    p_bundle = '\\x' + Array.from(raw, (x) => x.toString(16).padStart(2, '0')).join('')
+    // bytea from bytes: PostgREST accepts '\\x<hex>'
+    p_bundle = toByteaHex(raw)
   }
 
   // 1. Everything in the database, in one transaction.

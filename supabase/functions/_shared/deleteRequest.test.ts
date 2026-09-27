@@ -4,6 +4,16 @@ import { checkDeleteRequest, FRESH_SIGN_IN_MS, MAX_BUNDLE_BYTES } from './delete
 const now = Date.parse('2026-09-27T12:00:00Z')
 const fresh = new Date(now - 60_000).toISOString()
 
+// Builds a base64 string whose decoded length is exactly byteLen, using real btoa so the
+// padding matches what the production decoder will see.
+function base64OfByteLength(byteLen: number): string {
+  const chunk = 'A'.repeat(60000)
+  let raw = ''
+  while (raw.length < byteLen) raw += chunk
+  raw = raw.slice(0, byteLen)
+  return btoa(raw)
+}
+
 describe('checkDeleteRequest', () => {
   it('accepts an erase with a fresh sign-in', () => {
     expect(checkDeleteRequest({ mode: 'erase' }, fresh, now)).toBeNull()
@@ -31,5 +41,15 @@ describe('checkDeleteRequest seal', () => {
   it('rejects an oversized bundle', () => {
     const huge = 'A'.repeat(Math.ceil((MAX_BUNDLE_BYTES + 1) * 4 / 3))
     expect(checkDeleteRequest({ mode: 'seal', bundle: huge }, fresh, now)).toMatch(/too large/i)
+  })
+
+  it('accepts a bundle whose exact decoded size is the cap', () => {
+    const b64 = base64OfByteLength(MAX_BUNDLE_BYTES)
+    expect(checkDeleteRequest({ mode: 'seal', bundle: b64 }, fresh, now)).toBeNull()
+  })
+
+  it('rejects a bundle whose exact decoded size is one byte over the cap', () => {
+    const b64 = base64OfByteLength(MAX_BUNDLE_BYTES + 1)
+    expect(checkDeleteRequest({ mode: 'seal', bundle: b64 }, fresh, now)).toMatch(/too large/i)
   })
 })
