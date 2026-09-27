@@ -21,6 +21,25 @@ export function shouldRunDatabaseStep(profileExists: boolean): boolean {
   return profileExists
 }
 
+// The message shown when everything up through delete_member succeeded but a later step
+// (avatar cleanup is safe to repeat; deleteUser is the one that can actually fail) did not.
+// Which recovery code is "real" depends on whether THIS call ran the database step:
+// - erase: no code involved either way, wording never changes.
+// - seal, profile existed (this call just ran delete_member and stored the bundle): the code
+//   shown on THIS attempt is the one that opens it.
+// - seal, profile already gone (this call is itself a retry; delete_member found no row and
+//   didn't touch sealed_bundles): the code shown on THIS attempt was never stored anywhere —
+//   the FIRST attempt's code is the one that matters.
+export function partialFailureMessage(mode: 'erase' | 'seal', profileExisted: boolean): string {
+  if (mode === 'erase') {
+    return 'Your writing is gone, but signing out failed. Please try again.'
+  }
+  if (profileExisted) {
+    return 'Your writing is sealed, but signing out failed. Please try again — and keep the recovery code from this attempt.'
+  }
+  return 'Your writing was sealed on your first attempt, but signing out failed. Please try again — keep the recovery code from that first attempt.'
+}
+
 export function checkDeleteRequest(
   body: unknown,
   lastSignInAt: string | null | undefined,
