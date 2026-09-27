@@ -74,7 +74,7 @@ const ROWS = [
 
 export default function DeleteAccount() {
   const { session } = useAuth()
-  const [step, setStep] = useState('closed') // closed | choose | erase | preparing | seal
+  const [step, setStep] = useState('closed') // closed | choose | erase | preparing | seal | sealed-already
   const [typed, setTyped] = useState('')
   const [lastPart, setLastPart] = useState('')
   const [code, setCode] = useState('')
@@ -216,10 +216,18 @@ export default function DeleteAccount() {
         return
       }
       const base64 = bytesToBase64(bundle)
-      const { error: fnError } = await supabase.functions.invoke('delete-account', { body: { mode: 'seal', bundle: base64 } })
+      const { data, error: fnError } = await supabase.functions.invoke('delete-account', { body: { mode: 'seal', bundle: base64 } })
       if (fnError) {
         setError(await readErrorMessage(fnError))
         setBusy(false)
+        return
+      }
+      // A retry of a partial failure: the real seal was stored on the FIRST attempt, and
+      // the code shown on THIS attempt was never sent anywhere -- it doesn't open anything.
+      // Don't sign out or redirect yet; make the member read that before leaving the page.
+      if (data?.sealAlreadyStored === true) {
+        setBusy(false)
+        setStep('sealed-already')
         return
       }
       // The server has already deleted the account at this point. A signOut failure here
@@ -234,6 +242,15 @@ export default function DeleteAccount() {
       setError(SEAL_ERROR)
       setBusy(false)
     }
+  }
+
+  const continueAfterAlreadySealed = async () => {
+    try {
+      await supabase.auth.signOut()
+    } catch {
+      // ignored: fall through to the redirect below regardless
+    }
+    window.location.href = '/'
   }
 
   const erase = async () => {
@@ -351,6 +368,21 @@ export default function DeleteAccount() {
             </button>
             <button type="button" disabled={busy} onClick={openChoose}
               className="font-mono text-xs uppercase px-4 py-2 disabled:opacity-40 cursor-pointer">Back</button>
+          </div>
+        </div>
+      )}
+
+      {step === 'sealed-already' && (
+        <div className="flex flex-col gap-3">
+          <p role="status" className="font-serif text-sm">
+            Your writing was already sealed on your first attempt. Keep the recovery code from that
+            attempt — the code shown here won't open it.
+          </p>
+          <div className="flex gap-3">
+            <button type="button" onClick={continueAfterAlreadySealed}
+              className="bg-[var(--color-ember)] text-white font-mono text-xs uppercase px-4 py-2 cursor-pointer">
+              Continue
+            </button>
           </div>
         </div>
       )}

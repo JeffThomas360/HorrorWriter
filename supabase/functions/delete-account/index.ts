@@ -86,8 +86,15 @@ serve(async (req) => {
   const { error: authError } = await admin.auth.admin.deleteUser(user.id)
   if (authError) {
     console.error('[delete-account] deleteUser failed', authError.message)
-    return json({ error: 'Your writing is gone, but signing out failed. Please try again.' }, 500)
+    const message = request.mode === 'seal'
+      ? 'Your writing is sealed, but signing out failed. Please try again — and keep the recovery code from this attempt.'
+      : 'Your writing is gone, but signing out failed. Please try again.'
+    return json({ error: message }, 500)
   }
 
-  return json({ deleted: true })
+  // A retry after a partial failure lands here with no database step run above (the
+  // profile row is already gone). For a seal retry, the real bundle was stored on the
+  // FIRST attempt -- this call's freshly-generated code was never sent anywhere, so the
+  // browser must tell the member their earlier code is the one that matters.
+  return json({ deleted: true, sealAlreadyStored: !profile && request.mode === 'seal' })
 })

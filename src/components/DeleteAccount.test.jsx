@@ -206,6 +206,22 @@ test('a signOut failure after a successful seal still redirects home', async () 
   expect(screen.queryByText(/nothing was deleted/i)).toBeNull()
 })
 
+test('a seal retry that already stored the seal warns before redirecting', async () => {
+  invoke.mockResolvedValueOnce({ data: { deleted: true, sealAlreadyStored: true }, error: null })
+  render(<DeleteAccount />)
+  fireEvent.click(screen.getByRole('button', { name: /delete my account/i }))
+  fireEvent.click(screen.getByRole('button', { name: /^seal my writing$/i }))
+  fireEvent.change(await screen.findByLabelText(/last 4 characters of your code/i), { target: { value: '7Q4K' } })
+  fireEvent.change(screen.getByLabelText(/type delete/i), { target: { value: 'DELETE' } })
+  fireEvent.click(screen.getByRole('button', { name: /seal and delete/i }))
+  expect(await screen.findByText(/already sealed on your first attempt/i)).toBeInTheDocument()
+  expect(screen.getByRole('status')).toHaveTextContent(/already sealed on your first attempt/i)
+  expect(screen.getByText(/won't open it/i)).toBeInTheDocument()
+  expect(signOut).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: /^continue$/i }))
+  await waitFor(() => expect(signOut).toHaveBeenCalled())
+})
+
 test('a wrong last part of the code keeps Seal and delete disabled', async () => {
   render(<DeleteAccount />)
   fireEvent.click(screen.getByRole('button', { name: /delete my account/i }))
