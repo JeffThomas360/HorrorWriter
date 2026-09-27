@@ -109,3 +109,79 @@ test('mentions it when the old handle is taken', async () => {
   fireEvent.click(screen.getByRole('button', { name: /unseal/i }))
   expect(await screen.findByText(/@oldhandle.*taken.*@currenthandle/i)).toBeInTheDocument()
 })
+
+test('a DELETE that fails twice still shows success, with a note that the seal is still there', async () => {
+  invoke.mockImplementation(async (name, opts) => opts?.method === 'DELETE'
+    ? { data: null, error: { message: 'boom' } }
+    : { data: { waiting: true, bundle: 'AQID', sealed_at: SEALED_AT }, error: null })
+  unsealWriting.mockResolvedValue({ v: 2, stories: [], series: [] })
+  render(<SealedWritingPrompt />)
+  fireEvent.change(await screen.findByLabelText(/recovery code/i), { target: { value: 'pale-hound' } })
+  fireEvent.click(screen.getByRole('button', { name: /unseal/i }))
+  expect(await screen.findByText(/2 stories and 1 series are back, live/i)).toBeInTheDocument()
+  expect(screen.getByText(/couldn.t be cleared/i)).toBeInTheDocument()
+  const deleteCalls = invoke.mock.calls.filter(([, opts]) => opts?.method === 'DELETE')
+  expect(deleteCalls.length).toBe(2)
+})
+
+test('a retry against an already-restored seal skips restoreIdentity and clears the old seal', async () => {
+  invoke.mockImplementation(async (name, opts) => opts?.method === 'DELETE'
+    ? { data: { removed: true }, error: null }
+    : { data: { waiting: true, bundle: 'AQID', sealed_at: SEALED_AT }, error: null })
+  unsealWriting.mockResolvedValue({ v: 2, stories: [], series: [], identity: { handle: 'oldhandle', display_name: null } })
+  restoreWriting.mockResolvedValue({ stories: 0, series: 0, skipped: 2 })
+  render(<SealedWritingPrompt />)
+  fireEvent.change(await screen.findByLabelText(/recovery code/i), { target: { value: 'pale-hound' } })
+  fireEvent.click(screen.getByRole('button', { name: /unseal/i }))
+  expect(await screen.findByText(/already back/i)).toBeInTheDocument()
+  expect(screen.getByText(/old seal has been cleared/i)).toBeInTheDocument()
+  expect(restoreIdentity).not.toHaveBeenCalled()
+  await waitFor(() =>
+    expect(invoke).toHaveBeenCalledWith(`sealed-writing?sealed_at=${encodeURIComponent(SEALED_AT)}`, { method: 'DELETE' }),
+  )
+})
+
+test('notes how many stories/series were already there alongside newly restored ones', async () => {
+  invoke.mockImplementation(async (name, opts) => opts?.method === 'DELETE'
+    ? { data: { removed: true }, error: null }
+    : { data: { waiting: true, bundle: 'AQID', sealed_at: SEALED_AT }, error: null })
+  unsealWriting.mockResolvedValue({ v: 2, stories: [], series: [] })
+  restoreWriting.mockResolvedValue({ stories: 1, series: 1, skipped: 1 })
+  render(<SealedWritingPrompt />)
+  fireEvent.change(await screen.findByLabelText(/recovery code/i), { target: { value: 'pale-hound' } })
+  fireEvent.click(screen.getByRole('button', { name: /unseal/i }))
+  expect(await screen.findByText(/1 was already here/i)).toBeInTheDocument()
+})
+
+test('uses singular story/series counts', async () => {
+  invoke.mockImplementation(async (name, opts) => opts?.method === 'DELETE'
+    ? { data: { removed: true }, error: null }
+    : { data: { waiting: true, bundle: 'AQID', sealed_at: SEALED_AT }, error: null })
+  unsealWriting.mockResolvedValue({ v: 2, stories: [], series: [] })
+  restoreWriting.mockResolvedValue({ stories: 1, series: 0, skipped: 0 })
+  render(<SealedWritingPrompt />)
+  fireEvent.change(await screen.findByLabelText(/recovery code/i), { target: { value: 'pale-hound' } })
+  fireEvent.click(screen.getByRole('button', { name: /unseal/i }))
+  expect(await screen.findByText(/1 story and 0 series are back, live/i)).toBeInTheDocument()
+})
+
+test('a malformed bundle (bad base64) is reported as damaged, not a wrong code', async () => {
+  invoke.mockResolvedValue({ data: { waiting: true, bundle: '!!!not-base64!!!', sealed_at: SEALED_AT }, error: null })
+  render(<SealedWritingPrompt />)
+  fireEvent.change(await screen.findByLabelText(/recovery code/i), { target: { value: 'pale-hound' } })
+  fireEvent.click(screen.getByRole('button', { name: /unseal/i }))
+  expect(await screen.findByText(/seal looks damaged/i)).toBeInTheDocument()
+  expect(unsealWriting).not.toHaveBeenCalled()
+})
+
+test('the success section is announced and focused', async () => {
+  invoke.mockImplementation(async (name, opts) => opts?.method === 'DELETE'
+    ? { data: { removed: true }, error: null }
+    : { data: { waiting: true, bundle: 'AQID', sealed_at: SEALED_AT }, error: null })
+  unsealWriting.mockResolvedValue({ v: 2, stories: [], series: [] })
+  render(<SealedWritingPrompt />)
+  fireEvent.change(await screen.findByLabelText(/recovery code/i), { target: { value: 'pale-hound' } })
+  fireEvent.click(screen.getByRole('button', { name: /unseal/i }))
+  const status = await screen.findByRole('status')
+  await waitFor(() => expect(status).toHaveFocus())
+})
