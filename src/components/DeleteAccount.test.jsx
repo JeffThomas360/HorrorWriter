@@ -71,3 +71,32 @@ test('shows the server\'s own error message when the function returns one', asyn
   const alert = await screen.findByRole('alert')
   expect(alert).toHaveTextContent(serverMessage)
 })
+
+vi.mock('../lib/seal', () => ({
+  generateRecoveryCode: () => 'PALE-HOUND-ASHES-TALLOW-EMBER-MIRE-7Q4K',
+  sealWriting: vi.fn(async () => new Uint8Array([1, 2, 3])),
+}))
+vi.mock('../lib/sealCollect', () => ({ collectWriting: vi.fn(async () => ({ v: 1, stories: [], series: [] })) }))
+
+test('seal shows the code once and needs its last part typed back', async () => {
+  render(<DeleteAccount />)
+  fireEvent.click(screen.getByRole('button', { name: /delete my account/i }))
+  fireEvent.click(screen.getByRole('button', { name: /^seal my writing$/i }))
+  expect(screen.getByText('PALE-HOUND-ASHES-TALLOW-EMBER-MIRE-7Q4K')).toBeInTheDocument()
+  expect(screen.getByText(/not by us, not by anyone/i)).toBeInTheDocument()
+  fireEvent.change(screen.getByLabelText(/last part of your code/i), { target: { value: '7q4k' } })
+  fireEvent.change(screen.getByLabelText(/type delete/i), { target: { value: 'DELETE' } })
+  fireEvent.click(screen.getByRole('button', { name: /seal and delete/i }))
+  await waitFor(() => expect(invoke).toHaveBeenCalledWith('delete-account', { body: { mode: 'seal', bundle: 'AQID' } }))
+})
+
+test('the recovery code is never sent to the server', async () => {
+  render(<DeleteAccount />)
+  fireEvent.click(screen.getByRole('button', { name: /delete my account/i }))
+  fireEvent.click(screen.getByRole('button', { name: /^seal my writing$/i }))
+  fireEvent.change(screen.getByLabelText(/last part of your code/i), { target: { value: '7Q4K' } })
+  fireEvent.change(screen.getByLabelText(/type delete/i), { target: { value: 'DELETE' } })
+  fireEvent.click(screen.getByRole('button', { name: /seal and delete/i }))
+  await waitFor(() => expect(invoke).toHaveBeenCalled())
+  expect(JSON.stringify(invoke.mock.calls)).not.toContain('PALE-HOUND')
+})
