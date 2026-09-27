@@ -1406,3 +1406,30 @@ and add a new `<li>` directly after it:
 - [ ] **Step 3:** `npx supabase functions deploy sealed-writing --use-api`.
 - [ ] **Step 4:** Manual round trip with the throwaway account from Task 12: sign up again with the same email, see the prompt, enter the saved code → stories back in the Library; `sealed_bundles` row gone. Then a wrong-code attempt on a fresh seal shows the error and keeps the row.
 - [ ] **Step 5:** Record in the vault (`standing-decisions.md`): the deletion model, "never rotate `SEAL_EMAIL_KEY_SECRET`", and the 7-year purge job name `purge-expired-seals`.
+
+---
+
+# PR 3 amendments (Jeff, 2026-09-26, after testing PR 2)
+
+Decisions that change PR 3:
+- **Identity travels in the seal.** From now on a seal also carries the member's `handle` and
+  `display_name` (payload `v: 2`, field `identity`). Recovery restores the display name, and the
+  handle **if it is still free**; if someone else took it, the member keeps their current handle
+  and is told so. Seals made before this (`v: 1`, no identity) still restore their writing.
+- **30-day handle timer** is part of the later "previously known as" feature. Recovery sets the
+  handle through the normal profile update, so that feature's timer will count from the recovery.
+- **Reserving a departed member's handle** is deferred to the name-history feature (it belongs
+  with old-handle redirects).
+- **Parked from PR 2, now in scope:** (a) close the two-tab race with a row lock in
+  `delete_member`; (b) when `delete-account` skips the database step on a retry, it returns
+  `sealAlreadyStored: true` and the UI says to keep the code from the first attempt.
+- **Carried from PR 2 review:** `sealed-writing` must base64-encode bundles without spreading all
+  bytes into one call — use a tested shared helper.
+
+Amended task list for PR 3 (briefs written directly into the SDD workspace):
+- **Task 13a** — seal payload v2 with identity (`sealCollect.js`, `seal.js` untouched).
+- **Task 13** — `sealed-writing` Edge Function + `bytesToBase64`/`fromByteaHex` shared helpers + `verify_jwt = false`.
+- **Task 14** — `restoreWriting` + `restoreIdentity`.
+- **Task 15** — `SealedWritingPrompt` on Profile (reports the handle outcome).
+- **Task 16** — House Rules wording.
+- **Task 16b** — migration: row lock in `delete_member`; `sealAlreadyStored` on retry + UI message.
