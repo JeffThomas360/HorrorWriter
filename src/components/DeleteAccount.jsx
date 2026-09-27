@@ -1,24 +1,38 @@
 import { useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { useAuth } from './AuthContext'
+import { loadSealModules } from '../lib/sealLoader'
 
 const FRESH_SIGN_IN_MS = 10 * 60 * 1000
 const GENERIC_ERROR = 'Nothing was deleted. Please try again.'
 const SEAL_ERROR = 'Nothing was deleted. Please try again, or choose Erase everything.'
+const COPY_FAILED = 'Copy failed — select the code and copy it'
 const BASE64_CHUNK = 32 * 1024
 
 // seal.js pulls in the ~25 KB (gzipped) EFF wordlist, which must not land in
-// the Profile page's main chunk. Load it (and sealCollect.js) as a separate,
-// dynamically-imported chunk as soon as this component's own code loads, so
-// it's normally already cached by the time a member reaches the seal step —
-// with a "Preparing…" fallback in beginSeal for the rare case it isn't yet.
-let sealApi = null
-const sealApiPromise = Promise.all([import('../lib/seal'), import('../lib/sealCollect')]).then(
-  ([seal, sealCollect]) => {
-    sealApi = { ...seal, ...sealCollect }
-    return sealApi
-  },
-)
+// the Profile page's main chunk, and must not start loading during SSR. Load
+// it (and sealCollect.js) as a separate, dynamically-imported chunk lazily,
+// on demand — never at module-evaluation time. Memoized so we don't refetch
+// once it succeeds; reset to null on failure so a later attempt retries
+// instead of being stuck on a cached rejection for the rest of the page's
+// life.
+let sealApiPromise = null
+function loadSealApi() {
+  if (!sealApiPromise) {
+    sealApiPromise = loadSealModules().catch((err) => {
+      sealApiPromise = null
+      throw err
+    })
+  }
+  return sealApiPromise
+}
+
+// Test-only seam: the cache above is deliberately module-scoped (it should
+// live for the whole page, not per-render), which means it otherwise leaks
+// across test cases in the same file. Not used by the app itself.
+export function __resetSealApiCacheForTests() {
+  sealApiPromise = null
+}
 
 // btoa(String.fromCharCode(...bytes)) blows the call stack on large bundles;
 // build the binary string in chunks instead.
@@ -61,9 +75,19 @@ export default function DeleteAccount() {
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+  const [copyStatus, setCopyStatus] = useState('')
 
   const signedInAt = Date.parse(session?.user?.last_sign_in_at ?? '')
   const fresh = Number.isFinite(signedInAt) && Date.now() - signedInAt <= FRESH_SIGN_IN_MS
+
+  // Kick off the seal chunk fetch as soon as the member is looking at the
+  // choose step, so it's normally already cached by the time they click
+  // "Seal my writing" — but fire-and-forget: a failure here is silent, and
+  // just leaves loadSealApi() ready to retry on the next call.
+  const openChoose = () => {
+    setStep('choose')
+    loadSealApi().catch(() => {})
+  }
 
   const goErase = () => {
     setTyped('')
@@ -71,28 +95,29 @@ export default function DeleteAccount() {
     setStep('erase')
   }
 
-  const beginSeal = () => {
+  const beginSeal = async () => {
     setError(null)
     setTyped('')
     setLastPart('')
-    if (sealApi) {
-      setCode(sealApi.generateRecoveryCode())
-      setStep('seal')
-      return
-    }
     setStep('preparing')
-    sealApiPromise
-      .then((api) => {
-        setCode(api.generateRecoveryCode())
-        setStep('seal')
-      })
-      .catch(() => {
-        setError(GENERIC_ERROR)
-        setStep('choose')
-      })
+    try {
+      const api = await loadSealApi()
+      setCode(api.generateRecoveryCode())
+      setStep('seal')
+    } catch {
+      setError(GENERIC_ERROR)
+      setStep('choose')
+    }
   }
 
-  const copyCode = () => navigator.clipboard.writeText(code)
+  const copyCode = () => {
+    setCopyStatus('')
+    const clip = navigator.clipboard?.writeText ? navigator.clipboard.writeText(code) : Promise.reject()
+    clip.then(
+      () => setCopyStatus('Copied'),
+      () => setCopyStatus(COPY_FAILED),
+    )
+  }
 
   const downloadCode = () => {
     const blob = new Blob([code + '\n'], { type: 'text/plain' })
@@ -103,10 +128,69 @@ export default function DeleteAccount() {
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
-  const printCode = () => window.print()
+  // Printing the live page would print the whole dark-themed site (bone text
+  // on white paper is ~1.25:1, unreadable) with no print stylesheet of its
+  // own. Print a dedicated, minimal, black-on-white document instead, built
+  // in a hidden iframe so the member's own page is untouched. The code is
+  // inserted as text (never innerHTML) so it can't be misinterpreted as
+  // markup.
+  const printCode = () => {
+    const iframe = document.createElement('iframe')
+    iframe.style.position = 'fixed'
+    iframe.style.width = '0'
+    iframe.style.height = '0'
+    iframe.style.border = '0'
+    iframe.setAttribute('aria-hidden', 'true')
+    document.body.appendChild(iframe)
+
+    let cleaned = false
+    const cleanup = () => {
+      if (cleaned) return
+      cleaned = true
+      if (iframe.parentNode) iframe.parentNode.removeChild(iframe)
+    }
+    const fallback = setTimeout(cleanup, 3000)
+
+    iframe.onload = () => {
+      const doc = iframe.contentDocument
+      const win = iframe.contentWindow
+      if (!doc || !win) {
+        cleanup()
+        return
+      }
+      const heading = doc.createElement('h1')
+      heading.textContent = 'HorrorWriter recovery code'
+      const codeEl = doc.createElement('pre')
+      codeEl.textContent = code
+      codeEl.style.fontFamily = 'monospace'
+      codeEl.style.fontSize = '28px'
+      codeEl.style.whiteSpace = 'pre-wrap'
+      codeEl.style.wordBreak = 'break-all'
+      const note = doc.createElement('p')
+      note.textContent = 'Without this code your writing can never be recovered. Not by us, not by anyone.'
+      doc.body.style.color = '#000'
+      doc.body.style.background = '#fff'
+      doc.body.style.fontFamily = 'sans-serif'
+      doc.body.appendChild(heading)
+      doc.body.appendChild(codeEl)
+      doc.body.appendChild(note)
+
+      win.addEventListener(
+        'afterprint',
+        () => {
+          clearTimeout(fallback)
+          cleanup()
+        },
+        { once: true },
+      )
+      win.focus()
+      win.print()
+    }
+    iframe.srcdoc = '<!DOCTYPE html><html><head><title>HorrorWriter recovery code</title></head><body></body></html>'
+  }
 
   const sealReady = lastPart.trim().toUpperCase() === code.split('-').pop() && typed === 'DELETE'
 
@@ -114,8 +198,9 @@ export default function DeleteAccount() {
     setBusy(true)
     setError(null)
     try {
-      const payload = await sealApi.collectWriting(supabase, session.user.id)
-      const bundle = await sealApi.sealWriting(payload, code)
+      const api = await loadSealApi()
+      const payload = await api.collectWriting(supabase, session.user.id)
+      const bundle = await api.sealWriting(payload, code)
       const base64 = bytesToBase64(bundle)
       const { error: fnError } = await supabase.functions.invoke('delete-account', { body: { mode: 'seal', bundle: base64 } })
       if (fnError) {
@@ -154,7 +239,7 @@ export default function DeleteAccount() {
       <h2 className="font-serif font-bold text-xl mb-3">Delete my account</h2>
 
       {step === 'closed' && (
-        <button type="button" onClick={() => setStep('choose')}
+        <button type="button" onClick={openChoose}
           className="border border-[var(--color-line)] hover:border-[var(--color-ember)] font-mono text-xs uppercase px-4 py-2 cursor-pointer">
           Delete my account
         </button>
@@ -202,7 +287,7 @@ export default function DeleteAccount() {
       )}
 
       {step === 'preparing' && fresh && (
-        <p className="font-serif text-sm text-[var(--color-text-secondary)]">Preparing…</p>
+        <p role="status" className="font-serif text-sm text-[var(--color-text-secondary)]">Preparing…</p>
       )}
 
       {step === 'seal' && fresh && (
@@ -211,13 +296,18 @@ export default function DeleteAccount() {
             Without this code your writing can never be recovered. Not by us, not by anyone.
           </p>
           <code className="block bg-[var(--color-bg-primary)] border border-[var(--color-line)] px-3 py-2 text-sm break-all">{code}</code>
-          <div className="flex gap-3">
-            <button type="button" onClick={copyCode} className="border border-[var(--color-line)] font-mono text-xs uppercase px-4 py-2 cursor-pointer">Copy</button>
-            <button type="button" onClick={downloadCode} className="border border-[var(--color-line)] font-mono text-xs uppercase px-4 py-2 cursor-pointer">Download</button>
-            <button type="button" onClick={printCode} className="border border-[var(--color-line)] font-mono text-xs uppercase px-4 py-2 cursor-pointer">Print</button>
+          <div className="flex gap-3 items-center">
+            <button type="button" disabled={busy} onClick={copyCode}
+              className="border border-[var(--color-line)] font-mono text-xs uppercase px-4 py-2 disabled:opacity-40 cursor-pointer">Copy</button>
+            <button type="button" disabled={busy} onClick={downloadCode}
+              className="border border-[var(--color-line)] font-mono text-xs uppercase px-4 py-2 disabled:opacity-40 cursor-pointer">Download</button>
+            <button type="button" disabled={busy} onClick={printCode}
+              className="border border-[var(--color-line)] font-mono text-xs uppercase px-4 py-2 disabled:opacity-40 cursor-pointer">Print</button>
+            {copyStatus && <span role="status" className="font-mono text-xs text-[var(--color-text-secondary)]">{copyStatus}</span>}
           </div>
           <label htmlFor="seal-last-part" className="font-mono text-xs uppercase">Type the last part of your code</label>
           <input id="seal-last-part" value={lastPart} onChange={(e) => setLastPart(e.target.value)} autoComplete="off"
+            spellCheck={false} autoCapitalize="characters"
             className="bg-[var(--color-bg-primary)] border border-[var(--color-line)] px-3 py-2 text-sm max-w-xs" />
           <label htmlFor="confirm-delete-seal" className="font-mono text-xs uppercase">Type DELETE to confirm</label>
           <input id="confirm-delete-seal" value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off"
@@ -228,7 +318,8 @@ export default function DeleteAccount() {
               className="bg-[var(--color-ember)] text-white font-mono text-xs uppercase px-4 py-2 disabled:opacity-40 cursor-pointer">
               {busy ? 'Sealing…' : 'Seal and delete'}
             </button>
-            <button type="button" onClick={() => setStep('choose')} className="font-mono text-xs uppercase px-4 py-2 cursor-pointer">Back</button>
+            <button type="button" disabled={busy} onClick={openChoose}
+              className="font-mono text-xs uppercase px-4 py-2 disabled:opacity-40 cursor-pointer">Back</button>
           </div>
         </div>
       )}
@@ -245,7 +336,7 @@ export default function DeleteAccount() {
               className="bg-[var(--color-ember)] text-white font-mono text-xs uppercase px-4 py-2 disabled:opacity-40 cursor-pointer">
               {busy ? 'Erasing…' : 'Erase my account'}
             </button>
-            <button type="button" onClick={() => setStep('choose')} className="font-mono text-xs uppercase px-4 py-2 cursor-pointer">Back</button>
+            <button type="button" onClick={openChoose} className="font-mono text-xs uppercase px-4 py-2 cursor-pointer">Back</button>
           </div>
         </div>
       )}

@@ -7,12 +7,31 @@ const invoke = vi.fn()
 const signOut = vi.fn()
 vi.mock('../supabaseClient', () => ({ supabase: { functions: { invoke: (...a) => invoke(...a) }, auth: { signOut: () => signOut() } } }))
 
-const DeleteAccount = (await import('./DeleteAccount')).default
+// The seal step lazily loads seal.js/sealCollect.js (the ~25 KB EFF wordlist
+// chunk) through this indirection rather than a bare `import()` inline in
+// the component, specifically so it's mockable per-test with the ordinary
+// vi.fn() APIs below (mockResolvedValue / mockRejectedValueOnce) instead of
+// racing real dynamic-import microtask timing.
+vi.mock('../lib/sealLoader', () => ({ loadSealModules: vi.fn() }))
+
+const DeleteAccountModule = await import('./DeleteAccount')
+const DeleteAccount = DeleteAccountModule.default
+const { loadSealModules } = await import('../lib/sealLoader')
+
+const RECOVERY_CODE = 'PALE-HOUND-ASHES-TALLOW-EMBER-MIRE-7Q4K'
+const sealWriting = vi.fn(async () => new Uint8Array([1, 2, 3]))
+const collectWriting = vi.fn(async () => ({ v: 1, stories: [], series: [] }))
+const sealApi = { generateRecoveryCode: () => RECOVERY_CODE, sealWriting, collectWriting }
 
 beforeEach(() => {
   authState = { session: { user: { id: 'u1', last_sign_in_at: new Date().toISOString() } } }
   invoke.mockReset().mockResolvedValue({ data: { deleted: true }, error: null })
   signOut.mockReset().mockResolvedValue({})
+  loadSealModules.mockReset().mockResolvedValue(sealApi)
+  // The component's loaded-module cache is intentionally page-lifetime
+  // (module-scoped), which would otherwise leak a resolved/rejected promise
+  // from one test into the next.
+  DeleteAccountModule.__resetSealApiCacheForTests()
 })
 afterEach(() => cleanup())
 
@@ -72,17 +91,13 @@ test('shows the server\'s own error message when the function returns one', asyn
   expect(alert).toHaveTextContent(serverMessage)
 })
 
-vi.mock('../lib/seal', () => ({
-  generateRecoveryCode: () => 'PALE-HOUND-ASHES-TALLOW-EMBER-MIRE-7Q4K',
-  sealWriting: vi.fn(async () => new Uint8Array([1, 2, 3])),
-}))
-vi.mock('../lib/sealCollect', () => ({ collectWriting: vi.fn(async () => ({ v: 1, stories: [], series: [] })) }))
-
 test('seal shows the code once and needs its last part typed back', async () => {
   render(<DeleteAccount />)
   fireEvent.click(screen.getByRole('button', { name: /delete my account/i }))
   fireEvent.click(screen.getByRole('button', { name: /^seal my writing$/i }))
-  expect(screen.getByText('PALE-HOUND-ASHES-TALLOW-EMBER-MIRE-7Q4K')).toBeInTheDocument()
+  // The module load is a real (mocked) promise now, so the code appears
+  // asynchronously — findByText waits for it rather than asserting sync.
+  expect(await screen.findByText(RECOVERY_CODE)).toBeInTheDocument()
   expect(screen.getByText(/not by us, not by anyone/i)).toBeInTheDocument()
   fireEvent.change(screen.getByLabelText(/last part of your code/i), { target: { value: '7q4k' } })
   fireEvent.change(screen.getByLabelText(/type delete/i), { target: { value: 'DELETE' } })
@@ -94,9 +109,37 @@ test('the recovery code is never sent to the server', async () => {
   render(<DeleteAccount />)
   fireEvent.click(screen.getByRole('button', { name: /delete my account/i }))
   fireEvent.click(screen.getByRole('button', { name: /^seal my writing$/i }))
-  fireEvent.change(screen.getByLabelText(/last part of your code/i), { target: { value: '7Q4K' } })
+  fireEvent.change(await screen.findByLabelText(/last part of your code/i), { target: { value: '7Q4K' } })
   fireEvent.change(screen.getByLabelText(/type delete/i), { target: { value: 'DELETE' } })
   fireEvent.click(screen.getByRole('button', { name: /seal and delete/i }))
   await waitFor(() => expect(invoke).toHaveBeenCalled())
   expect(JSON.stringify(invoke.mock.calls)).not.toContain('PALE-HOUND')
+})
+
+test('a failed module load shows the generic error and does not get stuck: clicking Seal again succeeds', async () => {
+  // Only one rejection queued: entering the choose step fires the
+  // fire-and-forget prefetch (loadSealApi's first call) and the immediately
+  // following "Seal my writing" click reuses that same still-pending
+  // promise rather than starting a second fetch — so this one rejection
+  // covers both. loadSealApi() resets its cached promise to null on
+  // failure, so the retry click below calls loadSealModules() again and
+  // gets the default (resolved) mock from beforeEach.
+  loadSealModules.mockRejectedValueOnce(new Error('chunk load failed'))
+  render(<DeleteAccount />)
+  fireEvent.click(screen.getByRole('button', { name: /delete my account/i }))
+  fireEvent.click(screen.getByRole('button', { name: /^seal my writing$/i }))
+  expect(await screen.findByText(/nothing was deleted/i)).toBeInTheDocument()
+
+  fireEvent.click(screen.getByRole('button', { name: /^seal my writing$/i }))
+  expect(await screen.findByText(RECOVERY_CODE)).toBeInTheDocument()
+})
+
+test('a wrong last part of the code keeps Seal and delete disabled', async () => {
+  render(<DeleteAccount />)
+  fireEvent.click(screen.getByRole('button', { name: /delete my account/i }))
+  fireEvent.click(screen.getByRole('button', { name: /^seal my writing$/i }))
+  await screen.findByText(RECOVERY_CODE)
+  fireEvent.change(screen.getByLabelText(/last part of your code/i), { target: { value: 'ZZZZ' } })
+  fireEvent.change(screen.getByLabelText(/type delete/i), { target: { value: 'DELETE' } })
+  expect(screen.getByRole('button', { name: /seal and delete/i })).toBeDisabled()
 })
