@@ -39,7 +39,7 @@ async function deriveKey(code, salt) {
 }
 
 async function pipe(bytes, transform) {
-  return new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(transform)).arrayBuffer())
+  return new Uint8Array(await new Response(new Response(bytes).body.pipeThrough(transform)).arrayBuffer())
 }
 
 export async function sealWriting(payload, code) {
@@ -56,9 +56,15 @@ export async function sealWriting(payload, code) {
   return out
 }
 
+// AES-GCM appends a 16-byte tag, so a valid bundle is at least
+// version(1) + salt(16) + iv(12) + tag(16) long, even for an empty payload.
+const MIN_BUNDLE_LENGTH = 1 + 16 + 12 + 16
+
 export async function unsealWriting(bundle, code) {
+  if (!(bundle instanceof Uint8Array) || bundle.length < MIN_BUNDLE_LENGTH || bundle[0] !== BUNDLE_VERSION) {
+    throw new SealError('corrupt-bundle')
+  }
   try {
-    if (bundle[0] !== BUNDLE_VERSION) throw new Error('version')
     const key = await deriveKey(code, bundle.slice(1, 17))
     const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: bundle.slice(17, 29) }, key, bundle.slice(29))
     const json = await pipe(new Uint8Array(plain), new DecompressionStream('gzip'))

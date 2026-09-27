@@ -4,6 +4,14 @@ import { EFF_WORDS } from './eff-wordlist'
 
 const payload = { v: 1, stories: [{ title: 'The Lath and the Marrow', content: 'x'.repeat(5000) }], series: [] }
 
+describe('EFF wordlist', () => {
+  it('is 7772 unique pure-lowercase words (no hyphens, which would break the dash-separated code)', () => {
+    expect(EFF_WORDS).toHaveLength(7772)
+    expect(new Set(EFF_WORDS).size).toBe(7772)
+    EFF_WORDS.forEach((w) => expect(w).toMatch(/^[a-z]+$/))
+  })
+})
+
 describe('recovery code', () => {
   it('is six EFF words and a four-character suffix', () => {
     const code = generateRecoveryCode()
@@ -35,16 +43,39 @@ describe('seal and unseal', () => {
     const bundle = await sealWriting(payload, generateRecoveryCode())
     await expect(unsealWriting(bundle, generateRecoveryCode())).rejects.toThrow(/wrong-code/)
   })
-  it('refuses a tampered bundle', async () => {
+  it('refuses a tampered bundle (bad auth tag) as wrong-code', async () => {
     const code = generateRecoveryCode()
     const bundle = await sealWriting(payload, code)
     bundle[bundle.length - 1] ^= 1
     await expect(unsealWriting(bundle, code)).rejects.toThrow(/wrong-code/)
+  })
+  it('refuses a wrong version byte as corrupt-bundle', async () => {
+    const code = generateRecoveryCode()
+    const bundle = await sealWriting(payload, code)
+    bundle[0] = BUNDLE_VERSION + 1
+    await expect(unsealWriting(bundle, code)).rejects.toThrow(/corrupt-bundle/)
+  })
+  it('refuses a truncated bundle as corrupt-bundle', async () => {
+    const code = generateRecoveryCode()
+    const bundle = await sealWriting(payload, code)
+    await expect(unsealWriting(bundle.slice(0, 20), code)).rejects.toThrow(/corrupt-bundle/)
   })
   it('never contains the code or the plaintext', async () => {
     const code = generateRecoveryCode()
     const text = new TextDecoder('latin1').decode(await sealWriting(payload, code))
     expect(text).not.toContain(code)
     expect(text).not.toContain('Lath and the Marrow')
+  })
+  it('unseals a code typed with spaces instead of dashes', async () => {
+    const code = generateRecoveryCode()
+    const bundle = await sealWriting(payload, code)
+    const messy = '  ' + code.toLowerCase().replaceAll('-', ' ') + ' '
+    expect(await unsealWriting(bundle, messy)).toEqual(payload)
+  })
+  it('uses a fresh salt and IV every time, even for the same payload and code', async () => {
+    const code = generateRecoveryCode()
+    const a = await sealWriting(payload, code)
+    const b = await sealWriting(payload, code)
+    expect(a.slice(1, 29)).not.toEqual(b.slice(1, 29))
   })
 })

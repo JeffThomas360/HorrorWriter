@@ -1,12 +1,12 @@
 import '@testing-library/jest-dom/vitest';
 
-// jsdom's CompressionStream/DecompressionStream/crypto.subtle are missing on
-// older Node, and jsdom's Blob has no .stream() — Node's does. Node 24+
-// provides the Streams/WebCrypto globals already; this only fills real gaps.
+// Defensive polyfills for older Node/jsdom combinations that lack
+// CompressionStream/DecompressionStream or a full crypto.subtle. Node 24+
+// (what this repo runs) already provides all three globally, so these are
+// no-ops here, but keep the environment from silently breaking if that
+// changes.
 import { CompressionStream, DecompressionStream } from 'node:stream/web';
 import { webcrypto } from 'node:crypto';
-import { Blob } from 'node:buffer';
 globalThis.CompressionStream ??= CompressionStream;
 globalThis.DecompressionStream ??= DecompressionStream;
-globalThis.crypto ??= webcrypto;
-globalThis.Blob = Blob;
+if (!globalThis.crypto?.subtle) globalThis.crypto = webcrypto;
