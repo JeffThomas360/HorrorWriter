@@ -40,7 +40,7 @@ export function fromByteaHex(value: string): Uint8Array | null {
   if (hex.length % 2 !== 0) return null
   if (!HEX_PAIR_RE.test(hex)) return null
   const bytes = new Uint8Array(hex.length / 2)
-  for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hex.substr(i * 2, 2), 16)
+  for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16)
   return bytes
 }
 
@@ -53,7 +53,7 @@ export function bytesToBase64(bytes: Uint8Array): string {
   let binary = ''
   for (let offset = 0; offset < bytes.length; offset += BASE64_CHUNK_SIZE) {
     const chunk = bytes.subarray(offset, offset + BASE64_CHUNK_SIZE)
-    binary += String.fromCharCode.apply(null, Array.from(chunk))
+    binary += String.fromCharCode.apply(null, chunk as unknown as number[])
   }
   return btoa(binary)
 }

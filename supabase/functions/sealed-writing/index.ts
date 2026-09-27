@@ -12,38 +12,51 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } })
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
-  const url = Deno.env.get('SUPABASE_URL') ?? ''
-  const userClient = createClient(url, Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
-    global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
-  })
-  const { data: { user } } = await userClient.auth.getUser()
-  if (!user?.email || !user.email_confirmed_at) return json({ error: 'Please sign in with a confirmed email.' }, 401)
+  try {
+    if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
+    if (req.method !== 'GET' && req.method !== 'DELETE') return json({ error: 'Method not allowed' }, 405)
 
-  // Fail closed: never query with a key derived from a missing secret.
-  const secret = Deno.env.get('SEAL_EMAIL_KEY_SECRET') ?? ''
-  if (!secret) {
-    console.error('[sealed-writing] SEAL_EMAIL_KEY_SECRET is not set')
-    return json({ error: 'Could not check for sealed writing.' }, 500)
-  }
-  const key = await emailKey(user.email, secret)
-  const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '')
+    const url = Deno.env.get('SUPABASE_URL') ?? ''
+    const userClient = createClient(url, Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
+      global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
+    })
+    const { data: { user } } = await userClient.auth.getUser()
+    if (!user?.email || !user.email_confirmed_at) return json({ error: 'Please sign in with a confirmed email.' }, 401)
 
-  if (req.method === 'GET') {
-    const { data, error } = await admin.from('sealed_bundles').select('bundle, sealed_at').eq('email_key', key).maybeSingle()
-    if (error) return json({ error: 'Could not check for sealed writing.' }, 500)
-    if (!data) return json({ waiting: false })
-    const bytes = fromByteaHex(String(data.bundle))
-    if (!bytes) {
-      console.error('[sealed-writing] stored bundle could not be parsed as bytea hex')
-      return json({ error: 'Could not read your sealed writing.' }, 500)
+    // Fail closed: never query with a key derived from a missing secret.
+    const secret = Deno.env.get('SEAL_EMAIL_KEY_SECRET') ?? ''
+    if (!secret) {
+      console.error('[sealed-writing] SEAL_EMAIL_KEY_SECRET is not set')
+      return json({ error: 'Sealed writing is unavailable right now.' }, 500)
     }
-    return json({ waiting: true, bundle: bytesToBase64(bytes), sealed_at: data.sealed_at })
-  }
-  if (req.method === 'DELETE') {
-    const { error } = await admin.from('sealed_bundles').delete().eq('email_key', key)
+    const key = await emailKey(user.email, secret)
+    const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '')
+
+    if (req.method === 'GET') {
+      const { data, error } = await admin.from('sealed_bundles').select('bundle, sealed_at').eq('email_key', key).maybeSingle()
+      if (error) return json({ error: 'Could not check for sealed writing.' }, 500)
+      if (!data) return json({ waiting: false })
+      const bytes = fromByteaHex(String(data.bundle))
+      if (!bytes) {
+        console.error('[sealed-writing] stored bundle could not be parsed as bytea hex')
+        return json({ error: 'Could not read your sealed writing.' }, 500)
+      }
+      return json({ waiting: true, bundle: bytesToBase64(bytes), sealed_at: data.sealed_at })
+    }
+
+    // DELETE: scoped to the exact sealed_at the client restored, via a query param (some clients
+    // drop DELETE request bodies, so a JSON body isn't reliable here). Without this, a stale
+    // DELETE fired after an earlier restore could race a newer seal (re-sealed in between) and
+    // wipe it instead of the one the client actually saw.
+    const sealedAt = new URL(req.url).searchParams.get('sealed_at')
+    if (!sealedAt) return json({ error: 'Missing sealed_at.' }, 400)
+    const { error } = await admin.from('sealed_bundles').delete().eq('email_key', key).eq('sealed_at', sealedAt)
     if (error) return json({ error: 'Could not remove the seal.' }, 500)
+    // Idempotent: no matching row (already removed, or sealed_at no longer matches) still
+    // reports success, as long as the query itself didn't error.
     return json({ removed: true })
+  } catch {
+    console.error('[sealed-writing] unexpected')
+    return json({ error: 'Something went wrong.' }, 500)
   }
-  return json({ error: 'Method not allowed' }, 405)
 })
