@@ -40,6 +40,46 @@ export async function collectWriting(supabase, userId) {
 
 const bookDupKey = (title, created_at) => `${title}\u0000${created_at}`
 
+function checkPayloadVersion(payload) {
+  if (payload.v !== 1 && payload.v !== 2) throw new Error('unsupported-payload')
+}
+
+async function readExistingBooks(supabase, userId) {
+  const { data, error } = await supabase.from('books').select('id, title, created_at').eq('author_id', userId)
+  if (error) throw error
+  return new Map((data ?? []).map((b) => [bookDupKey(b.title, b.created_at), b.id]))
+}
+
+async function readExistingSeries(supabase, userId) {
+  const { data, error } = await supabase.from('series').select('id, title').eq('author_id', userId)
+  if (error) throw error
+  return new Map((data ?? []).map((s) => [s.title, s.id]))
+}
+
+/**
+ * Decide, before writing anything, whether a sealed payload still has writing
+ * to put back on this account — using the same duplicate rules as
+ * restoreWriting (story: title + created_at; series: title). The caller uses
+ * this to restore identity FIRST whenever something is missing (or the
+ * payload holds no writing at all), and to skip identity entirely on a replay
+ * whose writing is already all back — restoring it again then would revert a
+ * rename made since the first restore.
+ */
+export async function planRestore(supabase, userId, payload) {
+  checkPayloadVersion(payload)
+  const [books, series] = await Promise.all([readExistingBooks(supabase, userId), readExistingSeries(supabase, userId)])
+  const stories = payload.stories ?? []
+  const seriesTitles = new Set((payload.series ?? []).map((s) => s.title))
+  const missingStories = stories.filter((s) => !books.has(bookDupKey(s.title, s.created_at))).length
+  const missingSeries = [...seriesTitles].filter((t) => !series.has(t)).length
+  return {
+    missingStories,
+    missingSeries,
+    missing: missingStories + missingSeries > 0,
+    empty: stories.length === 0 && seriesTitles.size === 0,
+  }
+}
+
 /**
  * Put a sealed payload's writing back on the (new) account. Idempotent: a
  * story already present with the same title AND created_at is skipped (its
@@ -49,11 +89,9 @@ const bookDupKey = (title, created_at) => `${title}\u0000${created_at}`
  * — e.g. a retry after a partial failure.
  */
 export async function restoreWriting(supabase, userId, payload) {
-  if (payload.v !== 1 && payload.v !== 2) throw new Error('unsupported-payload')
+  checkPayloadVersion(payload)
 
-  const { data: existingBooks, error: booksErr } = await supabase.from('books').select('id, title, created_at').eq('author_id', userId)
-  if (booksErr) throw booksErr
-  const existingBookMap = new Map((existingBooks ?? []).map((b) => [bookDupKey(b.title, b.created_at), b.id]))
+  const existingBookMap = await readExistingBooks(supabase, userId)
 
   const idFor = new Map()
   let stories = 0
@@ -76,9 +114,7 @@ export async function restoreWriting(supabase, userId, payload) {
     stories++
   }
 
-  const { data: existingSeriesRows, error: seriesReadErr } = await supabase.from('series').select('id, title').eq('author_id', userId)
-  if (seriesReadErr) throw seriesReadErr
-  const existingSeriesMap = new Map((existingSeriesRows ?? []).map((s) => [s.title, s.id]))
+  const existingSeriesMap = await readExistingSeries(supabase, userId)
 
   let series = 0
   for (const s of payload.series ?? []) {

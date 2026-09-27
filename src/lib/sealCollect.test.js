@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { buildPayload, collectWriting, restoreWriting, restoreIdentity } from './sealCollect'
+import { buildPayload, collectWriting, planRestore, restoreWriting, restoreIdentity } from './sealCollect'
 
 // Fake Supabase client: serves pre-seeded `books`/`series`/`profiles` rows for
 // reads, and records every insert/update it is given. `restoreIdentity` now
@@ -272,6 +272,45 @@ describe('restoreWriting', () => {
     expect(conflictClient.inserted.series_books).toHaveLength(1)
     expect(conflictClient.inserted.series_books[0]).toMatchObject({ book_id: 'books-2', sort_order: 2 })
     void client
+  })
+})
+
+describe('planRestore', () => {
+  const payload = {
+    v: 2,
+    identity: { handle: 'night-owl', display_name: 'Night Owl' },
+    stories: [{ key: 'old-1', title: 'T', created_at: 't1' }],
+    series: [
+      { title: 'S', parts: [] },
+      { title: 'S', parts: [] },
+    ],
+  }
+
+  it('reports everything missing on a fresh account', async () => {
+    const plan = await planRestore(fakeRestoreClient(), 'new-user', payload)
+    expect(plan).toEqual({ missingStories: 1, missingSeries: 1, missing: true, empty: false })
+  })
+
+  it('reports nothing missing once every story and series is already there', async () => {
+    const client = fakeRestoreClient({
+      existingBooks: [{ id: 'b', title: 'T', created_at: 't1' }],
+      existingSeries: [{ id: 's', title: 'S' }],
+    })
+    expect(await planRestore(client, 'new-user', payload)).toEqual({ missingStories: 0, missingSeries: 0, missing: false, empty: false })
+  })
+
+  it('reports a half-finished restore (stories back, series not) as missing', async () => {
+    const client = fakeRestoreClient({ existingBooks: [{ id: 'b', title: 'T', created_at: 't1' }] })
+    expect(await planRestore(client, 'new-user', payload)).toEqual({ missingStories: 0, missingSeries: 1, missing: true, empty: false })
+  })
+
+  it('flags a payload with no stories and no series as empty', async () => {
+    const plan = await planRestore(fakeRestoreClient(), 'new-user', { v: 2, identity: null, stories: [], series: [] })
+    expect(plan).toEqual({ missingStories: 0, missingSeries: 0, missing: false, empty: true })
+  })
+
+  it('throws on an unrecognized payload version', async () => {
+    await expect(planRestore(fakeRestoreClient(), 'new-user', { v: 3, stories: [], series: [] })).rejects.toThrow('unsupported-payload')
   })
 })
 
