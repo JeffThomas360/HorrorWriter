@@ -4,7 +4,14 @@ import { test, expect, vi, beforeEach, afterEach } from 'vitest'
 let authState
 vi.mock('./AuthContext', () => ({ useAuth: () => authState }))
 const invoke = vi.fn()
-vi.mock('../supabaseClient', () => ({ supabase: { functions: { invoke: (...a) => invoke(...a) } } }))
+const realClient = { functions: { invoke: (...a) => invoke(...a) } }
+// Swappable per test, so one case can model an unconfigured env (supabase === null).
+let supabaseMock = realClient
+vi.mock('../supabaseClient', () => ({
+  get supabase() {
+    return supabaseMock
+  },
+}))
 
 // Mirrors DeleteAccount.test.jsx: seal.js/sealCollect.js are only ever loaded
 // lazily through this indirection (never imported statically by the
@@ -18,7 +25,8 @@ const { loadSealModules } = await import('../lib/sealLoader')
 const unsealWriting = vi.fn()
 const restoreWriting = vi.fn()
 const restoreIdentity = vi.fn()
-const sealApi = { unsealWriting, restoreWriting, restoreIdentity }
+const planRestore = vi.fn()
+const sealApi = { unsealWriting, planRestore, restoreWriting, restoreIdentity }
 
 const SEALED_AT = '2026-10-01T00:00:00+00:00'
 
@@ -28,6 +36,8 @@ beforeEach(() => {
   unsealWriting.mockReset()
   restoreWriting.mockReset().mockResolvedValue({ stories: 2, series: 1, skipped: 0 })
   restoreIdentity.mockReset().mockResolvedValue({ handle: 'none', displayName: 'none' })
+  planRestore.mockReset().mockResolvedValue({ missingStories: 2, missingSeries: 1, missing: true, empty: false })
+  supabaseMock = realClient
   loadSealModules.mockReset().mockResolvedValue(sealApi)
 })
 afterEach(() => cleanup())
@@ -129,6 +139,7 @@ test('a retry against an already-restored seal skips restoreIdentity and clears 
     ? { data: { removed: true }, error: null }
     : { data: { waiting: true, bundle: 'AQID', sealed_at: SEALED_AT }, error: null })
   unsealWriting.mockResolvedValue({ v: 2, stories: [], series: [], identity: { handle: 'oldhandle', display_name: null } })
+  planRestore.mockResolvedValue({ missingStories: 0, missingSeries: 0, missing: false, empty: false })
   restoreWriting.mockResolvedValue({ stories: 0, series: 0, skipped: 2 })
   render(<SealedWritingPrompt />)
   fireEvent.change(await screen.findByLabelText(/recovery code/i), { target: { value: 'pale-hound' } })
@@ -184,4 +195,131 @@ test('the success section is announced and focused', async () => {
   fireEvent.click(screen.getByRole('button', { name: /unseal/i }))
   const status = await screen.findByRole('status')
   await waitFor(() => expect(status).toHaveFocus())
+})
+
+function mockSealAndDelete() {
+  invoke.mockImplementation(async (name, opts) => opts?.method === 'DELETE'
+    ? { data: { removed: true }, error: null }
+    : { data: { waiting: true, bundle: 'AQID', sealed_at: SEALED_AT }, error: null })
+}
+
+async function enterCodeAndUnseal(code = 'pale-hound') {
+  fireEvent.change(await screen.findByLabelText(/recovery code/i), { target: { value: code } })
+  fireEvent.click(screen.getByRole('button', { name: /unseal/i }))
+}
+
+test('restores identity BEFORE writing when writing is missing', async () => {
+  mockSealAndDelete()
+  unsealWriting.mockResolvedValue({ v: 2, stories: [{ key: 'a' }], series: [], identity: { handle: 'oldhandle', display_name: 'Old' } })
+  restoreIdentity.mockResolvedValue({ handle: 'restored', displayName: 'restored' })
+  render(<SealedWritingPrompt />)
+  await enterCodeAndUnseal()
+  await screen.findByText(/are back, live/i)
+  expect(restoreIdentity).toHaveBeenCalledTimes(1)
+  expect(planRestore.mock.invocationCallOrder[0]).toBeLessThan(restoreIdentity.mock.invocationCallOrder[0])
+  expect(restoreIdentity.mock.invocationCallOrder[0]).toBeLessThan(restoreWriting.mock.invocationCallOrder[0])
+})
+
+test('a replay after a crash between identity and writing still restores the writing', async () => {
+  mockSealAndDelete()
+  unsealWriting.mockResolvedValue({ v: 2, stories: [{ key: 'a' }], series: [], identity: { handle: 'oldhandle', display_name: null } })
+  restoreIdentity.mockResolvedValue({ handle: 'restored', displayName: 'none' })
+  // First attempt: identity lands, then writing fails -- the seal is kept.
+  restoreWriting.mockRejectedValueOnce(new Error('boom'))
+  render(<SealedWritingPrompt />)
+  await enterCodeAndUnseal()
+  expect(await screen.findByText(/restoring failed/i)).toBeInTheDocument()
+  expect(invoke).not.toHaveBeenCalledWith(expect.stringContaining('sealed-writing?sealed_at'), expect.anything())
+
+  // Replay: the writing is still missing, so the plan says so and the writing goes in.
+  restoreIdentity.mockResolvedValue({ handle: 'unchanged', displayName: 'none' })
+  fireEvent.click(screen.getByRole('button', { name: /unseal/i }))
+  expect(await screen.findByText(/2 stories and 1 series are back, live/i)).toBeInTheDocument()
+  expect(restoreWriting).toHaveBeenCalledTimes(2)
+  await waitFor(() =>
+    expect(invoke).toHaveBeenCalledWith(`sealed-writing?sealed_at=${encodeURIComponent(SEALED_AT)}`, { method: 'DELETE' }),
+  )
+})
+
+test('a seal with no writing at all still restores identity', async () => {
+  mockSealAndDelete()
+  unsealWriting.mockResolvedValue({ v: 2, stories: [], series: [], identity: { handle: 'oldhandle', display_name: null } })
+  planRestore.mockResolvedValue({ missingStories: 0, missingSeries: 0, missing: false, empty: true })
+  restoreWriting.mockResolvedValue({ stories: 0, series: 0, skipped: 0 })
+  restoreIdentity.mockResolvedValue({ handle: 'restored', displayName: 'none' })
+  render(<SealedWritingPrompt />)
+  await enterCodeAndUnseal()
+  expect(await screen.findByText(/@oldhandle is yours again/i)).toBeInTheDocument()
+  expect(restoreIdentity).toHaveBeenCalledTimes(1)
+})
+
+test('a failed plan restores nothing and keeps the seal', async () => {
+  invoke.mockResolvedValue({ data: { waiting: true, bundle: 'AQID', sealed_at: SEALED_AT }, error: null })
+  unsealWriting.mockResolvedValue({ v: 2, stories: [], series: [] })
+  planRestore.mockRejectedValue(new Error('read boom'))
+  render(<SealedWritingPrompt />)
+  await enterCodeAndUnseal()
+  expect(await screen.findByText(/restoring failed/i)).toBeInTheDocument()
+  expect(restoreIdentity).not.toHaveBeenCalled()
+  expect(restoreWriting).not.toHaveBeenCalled()
+  expect(invoke).not.toHaveBeenCalledWith(expect.stringContaining('sealed-writing?sealed_at'), expect.anything())
+})
+
+test('says so when the handle could not be restored', async () => {
+  mockSealAndDelete()
+  unsealWriting.mockResolvedValue({ v: 2, stories: [], series: [], identity: { handle: 'oldhandle', display_name: 'Old' } })
+  restoreIdentity.mockResolvedValue({ handle: 'failed', displayName: 'restored' })
+  render(<SealedWritingPrompt />)
+  await enterCodeAndUnseal()
+  expect(await screen.findByText("We couldn't restore your handle @oldhandle — you can set it below.")).toBeInTheDocument()
+})
+
+test('says so when the display name could not be restored', async () => {
+  mockSealAndDelete()
+  unsealWriting.mockResolvedValue({ v: 2, stories: [], series: [], identity: { handle: null, display_name: 'Old' } })
+  restoreIdentity.mockResolvedValue({ handle: 'none', displayName: 'failed' })
+  render(<SealedWritingPrompt />)
+  await enterCodeAndUnseal()
+  expect(await screen.findByText("We couldn't restore your display name — you can set it below.")).toBeInTheDocument()
+})
+
+test('pressing Enter in the code field unseals', async () => {
+  mockSealAndDelete()
+  unsealWriting.mockResolvedValue({ v: 2, stories: [], series: [] })
+  render(<SealedWritingPrompt />)
+  const input = await screen.findByLabelText(/recovery code/i)
+  fireEvent.change(input, { target: { value: 'pale-hound' } })
+  fireEvent.submit(input.closest('form'))
+  expect(await screen.findByText(/are back, live/i)).toBeInTheDocument()
+})
+
+test('an empty code does not submit on Enter', async () => {
+  mockSealAndDelete()
+  render(<SealedWritingPrompt />)
+  const input = await screen.findByLabelText(/recovery code/i)
+  fireEvent.submit(input.closest('form'))
+  await Promise.resolve()
+  expect(loadSealModules).not.toHaveBeenCalled()
+  expect(unsealWriting).not.toHaveBeenCalled()
+})
+
+test('an error is tied to the code field for assistive tech', async () => {
+  invoke.mockResolvedValue({ data: { waiting: true, bundle: 'AQID', sealed_at: SEALED_AT }, error: null })
+  unsealWriting.mockRejectedValue(new Error('wrong-code'))
+  render(<SealedWritingPrompt />)
+  const input = await screen.findByLabelText(/recovery code/i)
+  expect(input).not.toHaveAttribute('aria-invalid', 'true')
+  await enterCodeAndUnseal('nope')
+  const alert = await screen.findByRole('alert')
+  expect(alert.id).toBeTruthy()
+  expect(input).toHaveAttribute('aria-describedby', alert.id)
+  expect(input).toHaveAttribute('aria-invalid', 'true')
+})
+
+test('does not check for a seal when Supabase is not configured', async () => {
+  supabaseMock = null
+  const { container } = render(<SealedWritingPrompt />)
+  await Promise.resolve()
+  expect(invoke).not.toHaveBeenCalled()
+  expect(container).toBeEmptyDOMElement()
 })

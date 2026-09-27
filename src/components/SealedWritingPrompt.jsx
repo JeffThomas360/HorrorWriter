@@ -7,6 +7,7 @@ const WRONG_CODE_ERROR = "That code doesn't open this seal."
 const CORRUPT_BUNDLE_ERROR = "This seal looks damaged. Please contact the keeper — don't delete anything."
 const RATE_LIMIT_ERROR = "Some of your writing couldn't be restored yet. Try again in an hour — nothing is lost."
 const RESTORE_FAILED_ERROR = 'Unsealed, but restoring failed. Your seal is kept; please try again.'
+const ERROR_ID = 'recovery-code-error'
 const COULDNT_CLEAR_LINE =
   "Your writing is back, but the seal couldn't be cleared — if this box appears again, unsealing it is safe."
 
@@ -57,7 +58,7 @@ export default function SealedWritingPrompt() {
 
   // No seal code is needed just to check whether one is waiting.
   useEffect(() => {
-    if (!userId) return
+    if (!supabase || !userId) return
     let cancelled = false
     supabase.functions
       .invoke('sealed-writing', { method: 'GET' })
@@ -116,19 +117,24 @@ export default function SealedWritingPrompt() {
       return
     }
 
-    let counts
-    try {
-      counts = await api.restoreWriting(supabase, userId, payload)
-    } catch (err) {
+    const failRestore = (err) =>
       fail(String(err?.message ?? '').includes('Rate limit exceeded') ? RATE_LIMIT_ERROR : RESTORE_FAILED_ERROR)
+
+    // Decide up front, before writing anything, whether any writing is still
+    // missing. If it is (or the seal holds no writing at all), identity goes
+    // back FIRST: a crash between the two steps then leaves writing missing,
+    // so the replay plans it again and still gets it in. If nothing is missing
+    // (e.g. Unseal again after a DELETE that silently failed last time), the
+    // writing is already back — restoring identity again would revert any
+    // rename made since the first restore, so skip it and just clear the seal.
+    let plan
+    try {
+      plan = await api.planRestore(supabase, userId, payload)
+    } catch (err) {
+      failRestore(err)
       return
     }
-
-    // Nothing new came back — a repeat run against a seal already restored
-    // (e.g. the member clicked Unseal again after a DELETE that silently
-    // failed last time). Restoring identity again here would revert any
-    // rename made since the first, successful restore, so skip it entirely.
-    const alreadyRestored = counts.stories === 0 && counts.series === 0 && counts.skipped > 0
+    const alreadyRestored = !plan.missing && !plan.empty
 
     let identity = { handle: 'none', displayName: 'none' }
     if (!alreadyRestored) {
@@ -137,6 +143,17 @@ export default function SealedWritingPrompt() {
       } catch {
         identity = { handle: 'failed', displayName: 'failed' }
       }
+    }
+
+    // Still run on an already-restored replay: it inserts no stories or series
+    // then, but idempotently links any series part a crashed run left unlinked.
+    let counts
+    try {
+      counts = await api.restoreWriting(supabase, userId, payload)
+    } catch (err) {
+      if (!alreadyRestored) refreshProfile?.().catch(() => {})
+      failRestore(err)
+      return
     }
 
     let cleared = await deleteSeal(seal.sealedAt)
@@ -162,7 +179,11 @@ export default function SealedWritingPrompt() {
     else if (done.identity.handle === 'taken') {
       lines.push(`Your old handle @${done.oldHandle} is taken now, so you're still @${done.currentHandle}.`)
     }
+    else if (done.identity.handle === 'failed' && done.oldHandle) {
+      lines.push(`We couldn't restore your handle @${done.oldHandle} — you can set it below.`)
+    }
     if (done.identity.displayName === 'restored') lines.push('Your display name is back.')
+    else if (done.identity.displayName === 'failed') lines.push("We couldn't restore your display name — you can set it below.")
 
     let headline
     if (done.alreadyRestored) {
@@ -199,32 +220,41 @@ export default function SealedWritingPrompt() {
       <p className="font-serif text-sm text-[var(--color-text-secondary)] mb-4">
         Enter the recovery code you saved when you left. Everything comes back, live.
       </p>
-      <label htmlFor="recovery-code" className="font-mono text-xs uppercase block mb-2">
-        Recovery code
-      </label>
-      <input
-        id="recovery-code"
-        value={code}
-        onChange={(e) => setCode(e.target.value)}
-        autoComplete="off"
-        autoCapitalize="off"
-        autoCorrect="off"
-        spellCheck="false"
-        className="bg-[var(--color-bg-primary)] border border-[var(--color-line)] px-3 py-2 text-sm w-full font-mono mb-3"
-      />
-      {error && (
-        <p role="alert" className="text-[var(--color-ember)] text-xs font-mono mb-3">
-          {error}
-        </p>
-      )}
-      <button
-        type="button"
-        disabled={!code.trim() || busy}
-        onClick={unseal}
-        className="bg-[var(--color-ember)] text-white font-mono text-xs uppercase px-4 py-2 disabled:opacity-40 cursor-pointer"
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          if (!code.trim() || busy) return
+          unseal()
+        }}
       >
-        {busy ? 'Unsealing…' : 'Unseal my writing'}
-      </button>
+        <label htmlFor="recovery-code" className="font-mono text-xs uppercase block mb-2">
+          Recovery code
+        </label>
+        <input
+          id="recovery-code"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          autoComplete="off"
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck="false"
+          aria-invalid={error ? 'true' : undefined}
+          aria-describedby={error ? ERROR_ID : undefined}
+          className="bg-[var(--color-bg-primary)] border border-[var(--color-line)] px-3 py-2 text-sm w-full font-mono mb-3"
+        />
+        {error && (
+          <p id={ERROR_ID} role="alert" className="text-[var(--color-ember)] text-xs font-mono mb-3">
+            {error}
+          </p>
+        )}
+        <button
+          type="submit"
+          disabled={!code.trim() || busy}
+          className="bg-[var(--color-ember)] text-white font-mono text-xs uppercase px-4 py-2 disabled:opacity-40 cursor-pointer"
+        >
+          {busy ? 'Unsealing…' : 'Unseal my writing'}
+        </button>
+      </form>
     </section>
   )
 }
