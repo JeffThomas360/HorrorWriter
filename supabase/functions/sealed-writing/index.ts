@@ -55,8 +55,9 @@ serve(async (req) => {
     // Idempotent: no matching row (already removed, or sealed_at no longer matches) still
     // reports success, as long as the query itself didn't error.
     return json({ removed: true })
-  } catch {
-    console.error('[sealed-writing] unexpected')
+  } catch (err) {
+    // Name only: never the message, which could carry request or key material.
+    console.error('sealed-writing failed', (err as Error | undefined)?.name)
     return json({ error: 'Something went wrong.' }, 500)
   }
 })
