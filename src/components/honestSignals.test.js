@@ -71,5 +71,11 @@ describe('no fabricated engagement metrics', () => {
     expect(src).not.toMatch(/before midnight/i)
     expect(src).not.toMatch(/Claim Founding/i)
   })
-})
 
+  // Nothing records or shows Founding Member status yet, so the home page's
+  // closing CTA must not hand it out on sign-up.
+  it('the home page CTA promises no Founding Member status', () => {
+    const src = read('../pages/index.astro')
+    expect(src).not.toMatch(/Founding Member/i)
+  })
+})
