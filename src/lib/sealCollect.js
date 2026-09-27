@@ -1,5 +1,3 @@
-import { updateProfile } from './profile'
-
 // What goes into a sealed bundle. Moderation-removed ('hidden') stories never do.
 const STORY_FIELDS = ['title', 'lede', 'content', 'cover', 'badge', 'mod_status', 'created_at', 'updated_at', 'version']
 
@@ -61,16 +59,20 @@ export async function restoreWriting(supabase, userId, payload) {
   let stories = 0
   let skipped = 0
   for (const s of payload.stories ?? []) {
-    const { key, ...fields } = s
-    const dupId = existingBookMap.get(bookDupKey(fields.title, fields.created_at))
+    const dupId = existingBookMap.get(bookDupKey(s.title, s.created_at))
     if (dupId) {
-      idFor.set(key, dupId)
+      idFor.set(s.key, dupId)
       skipped++
       continue
     }
-    const { data, error } = await supabase.from('books').insert({ ...fields, author_id: userId }).select('id')
+    // Only ever insert the allowlisted story fields — the payload is
+    // untrusted (a tampered seal could otherwise set id, comments_count,
+    // removed_by_author, or any other column), and a stray key would make
+    // PostgREST reject the whole insert.
+    const row = Object.fromEntries(STORY_FIELDS.filter((f) => f in s).map((f) => [f, s[f]]))
+    const { data, error } = await supabase.from('books').insert({ ...row, author_id: userId }).select('id')
     if (error) throw error
-    idFor.set(key, data[0].id)
+    idFor.set(s.key, data[0].id)
     stories++
   }
 
@@ -88,13 +90,17 @@ export async function restoreWriting(supabase, userId, payload) {
         .insert({ title: s.title, description: s.description, created_at: s.created_at, author_id: userId }).select('id')
       if (error) throw error
       seriesId = data[0].id
+      existingSeriesMap.set(s.title, seriesId)
       series++
     }
     const parts = (s.parts ?? []).filter((p) => idFor.has(p.story_key))
-      .map((p) => ({ series_id: seriesId, book_id: idFor.get(p.story_key), sort_order: p.sort_order }))
-    if (parts.length) {
-      const { error: partsError } = await supabase.from('series_books').insert(parts)
-      if (partsError && partsError.code !== '23505') throw partsError
+      .map((p) => ({ series_id: seriesId, book_id: idFor.get(p.story_key), sort_order: Number(p.sort_order) || 0 }))
+    // Insert parts one at a time: a single multi-row insert fails whole-hog
+    // on one duplicate-key conflict, which would leave the other, genuinely
+    // missing parts unlinked on a retry.
+    for (const part of parts) {
+      const { error: partError } = await supabase.from('series_books').insert(part)
+      if (partError && partError.code !== '23505') throw partError
     }
   }
 
@@ -107,13 +113,18 @@ export async function restoreWriting(supabase, userId, payload) {
  * outcome reported, so a taken handle never blocks the display name (and
  * vice versa).
  */
+async function updateProfileField(supabase, userId, fields) {
+  const { error } = await supabase.from('profiles').update(fields).eq('id', userId).select().single()
+  if (error) throw error
+}
+
 export async function restoreIdentity(supabase, userId, identity) {
   if (!identity) return { handle: 'none', displayName: 'none' }
 
   let displayName = 'none'
   if (identity.display_name != null) {
     try {
-      await updateProfile(userId, { display_name: identity.display_name })
+      await updateProfileField(supabase, userId, { display_name: identity.display_name })
       displayName = 'restored'
     } catch {
       displayName = 'failed'
@@ -129,7 +140,7 @@ export async function restoreIdentity(supabase, userId, identity) {
       handle = 'unchanged'
     } else {
       try {
-        await updateProfile(userId, { handle: identity.handle })
+        await updateProfileField(supabase, userId, { handle: identity.handle })
         handle = 'restored'
       } catch (err) {
         handle = err?.code === '23505' ? 'taken' : 'failed'
