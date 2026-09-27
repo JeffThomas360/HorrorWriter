@@ -94,4 +94,15 @@ describe('SignInModal age gate', () => {
     fireEvent.click(await screen.findByRole('button', { name: /continue with google/i }))
     await waitFor(() => expect(signInWithOAuth).toHaveBeenCalled())
   })
+
+  // Without prompt=select_account Google silently reuses whichever account
+  // the browser last signed in with, so members with several Google accounts
+  // can't choose.
+  test('Google always shows its account chooser', async () => {
+    localStorage.setItem(GATE_KEY, PASSED)
+    open()
+    fireEvent.click(await screen.findByRole('button', { name: /continue with google/i }))
+    await waitFor(() => expect(signInWithOAuth).toHaveBeenCalled())
+    expect(signInWithOAuth.mock.calls[0][0].options.queryParams).toEqual({ prompt: 'select_account' })
+  })
 })

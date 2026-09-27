@@ -154,6 +154,9 @@ export default function SignInModal({ isOpen, onClose }) {
         options: {
           skipBrowserRedirect: true,
           redirectTo: window.location.origin + '/auth/callback',
+          // Always show Google's account chooser; otherwise it silently reuses
+          // the last account, and members with several can't pick another.
+          queryParams: { prompt: 'select_account' },
         }
       })
       if (error) throw error
