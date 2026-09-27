@@ -336,8 +336,8 @@ export default function DeleteAccount() {
               className="border border-[var(--color-line)] font-mono text-xs uppercase px-4 py-2 disabled:opacity-40 cursor-pointer">Print</button>
             {copyStatus && <span role="status" className="font-mono text-xs text-[var(--color-text-secondary)]">{copyStatus}</span>}
           </div>
-          <label htmlFor="seal-last-part" className="font-mono text-xs uppercase">Type the last part of your code</label>
-          <input id="seal-last-part" value={lastPart} onChange={(e) => setLastPart(e.target.value)} autoComplete="off"
+          <label htmlFor="seal-last-part" className="font-mono text-xs uppercase">Type the last 4 characters of your code (after the final dash)</label>
+          <input id="seal-last-part" maxLength={4} value={lastPart} onChange={(e) => setLastPart(e.target.value)} autoComplete="off"
             spellCheck={false} autoCapitalize="characters"
             className="bg-[var(--color-bg-primary)] border border-[var(--color-line)] px-3 py-2 text-sm max-w-xs" />
           <label htmlFor="confirm-delete-seal" className="font-mono text-xs uppercase">Type DELETE to confirm</label>
