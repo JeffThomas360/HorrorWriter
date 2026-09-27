@@ -288,7 +288,7 @@ export default function DeleteAccount() {
         </button>
       )}
 
-      {step !== 'closed' && !fresh && (
+      {step !== 'closed' && step !== 'sealed-already' && !fresh && (
         <p className="font-serif text-sm text-[var(--color-text-secondary)]">
           For your safety, sign in again, then come back here within 10 minutes.{' '}
           <button type="button" onClick={() => supabase.auth.signOut()} className="underline cursor-pointer">Sign out now</button>
@@ -376,7 +376,7 @@ export default function DeleteAccount() {
         <div className="flex flex-col gap-3">
           <p role="status" className="font-serif text-sm">
             Your writing was already sealed on your first attempt. Keep the recovery code from that
-            attempt — the code shown here won't open it.
+            attempt — the code from this attempt won't open it.
           </p>
           <div className="flex gap-3">
             <button type="button" onClick={continueAfterAlreadySealed}

@@ -216,7 +216,7 @@ test('a seal retry that already stored the seal warns before redirecting', async
   fireEvent.click(screen.getByRole('button', { name: /seal and delete/i }))
   expect(await screen.findByText(/already sealed on your first attempt/i)).toBeInTheDocument()
   expect(screen.getByRole('status')).toHaveTextContent(/already sealed on your first attempt/i)
-  expect(screen.getByText(/won't open it/i)).toBeInTheDocument()
+  expect(screen.getByText(/the code from this attempt won't open it/i)).toBeInTheDocument()
   expect(signOut).not.toHaveBeenCalled()
   fireEvent.click(screen.getByRole('button', { name: /^continue$/i }))
   await waitFor(() => expect(signOut).toHaveBeenCalled())
