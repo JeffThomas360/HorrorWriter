@@ -42,6 +42,16 @@ begin
     return false;
   end if;
 
+  -- Sealing again while an earlier seal for the same email is still waiting
+  -- (a member who came back, never unsealed, and is now leaving again) must
+  -- never overwrite it: that bundle holds writing only its own code opens.
+  -- Refuse before anything is deleted; the Edge Function maps HW001 to a 409
+  -- telling the member to unseal first.
+  if p_email_key is not null
+     and exists (select 1 from public.sealed_bundles where email_key = p_email_key) then
+    raise exception 'seal_exists' using errcode = 'HW001';
+  end if;
+
   if p_bundle is not null then
     insert into public.sealed_bundles (email_key, bundle)
     values (p_email_key, p_bundle)
@@ -63,6 +73,6 @@ revoke all on function public.delete_member(uuid, text, bytea) from public, anon
 grant execute on function public.delete_member(uuid, text, bytea) to service_role;
 
 comment on function public.delete_member(uuid, text, bytea) is
-'SECURITY DEFINER, service_role only (delete-account Edge Function). Locks and validates the profile row, stores a sealed bundle when given one, and deletes the profile -- the erase_member_content trigger does the content work. Returns true if it ran, false if the profile was already gone (a retry, or the loser of a concurrent-deletion race).';
+'SECURITY DEFINER, service_role only (delete-account Edge Function). Locks and validates the profile row, stores a sealed bundle when given one, and deletes the profile -- the erase_member_content trigger does the content work. Raises HW001 ''seal_exists'' (deleting nothing) when a seal for the email key is already waiting. Returns true if it ran, false if the profile was already gone (a retry, or the loser of a concurrent-deletion race).';
 
 notify pgrst, 'reload schema';

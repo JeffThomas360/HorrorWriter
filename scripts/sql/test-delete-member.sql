@@ -109,6 +109,34 @@ begin
     raise exception 'FAIL: delete_member stored a seal for a member with no profile row'; end if;
 end $$;
 
+-- I1: sealing again while an earlier seal for the same email is still waiting
+-- must refuse (HW001 'seal_exists') and change nothing: the live profile stays,
+-- and the waiting bundle keeps its original bytes and sealed_at.
+insert into auth.users (id, email, aud, role, instance_id)
+values ('00000000-0000-4000-8000-00000000d004', 'resealer@example.test', 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000');
+insert into public.sealed_bundles (email_key, bundle, sealed_at)
+values ('k-exists', '\xaaaa'::bytea, '2026-01-01T00:00:00Z');
+
+do $$
+declare
+  raised boolean := false;
+begin
+  begin
+    perform public.delete_member('00000000-0000-4000-8000-00000000d004', 'k-exists', '\xbbbb'::bytea);
+  exception when sqlstate 'HW001' then
+    if sqlerrm <> 'seal_exists' then
+      raise exception 'FAIL: seal_exists raised with the wrong message: %', sqlerrm; end if;
+    raised := true;
+  end;
+  if not raised then
+    raise exception 'FAIL: delete_member did not raise seal_exists over a waiting seal'; end if;
+  if not exists (select 1 from public.profiles where id = '00000000-0000-4000-8000-00000000d004') then
+    raise exception 'FAIL: profile was deleted despite seal_exists'; end if;
+  if not exists (select 1 from public.sealed_bundles where email_key = 'k-exists'
+                 and bundle = '\xaaaa'::bytea and sealed_at = '2026-01-01T00:00:00Z') then
+    raise exception 'FAIL: the waiting seal was changed'; end if;
+end $$;
+
 -- No client role may touch sealed_bundles or call delete_member.
 do $$
 begin
