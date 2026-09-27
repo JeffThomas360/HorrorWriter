@@ -1,11 +1,14 @@
 // What goes into a sealed bundle. Moderation-removed ('hidden') stories never do.
 const STORY_FIELDS = ['title', 'lede', 'content', 'cover', 'badge', 'mod_status', 'created_at', 'updated_at', 'version']
 
-export function buildPayload(books, series, seriesBooks) {
+export const PAYLOAD_VERSION = 2
+
+export function buildPayload(books, series, seriesBooks, profile) {
   const kept = books.filter((b) => b.mod_status !== 'hidden')
   const keptIds = new Set(kept.map((b) => b.id))
   return {
-    v: 1,
+    v: PAYLOAD_VERSION,
+    identity: profile ? { handle: profile.handle ?? null, display_name: profile.display_name ?? null } : null,
     stories: kept.map((b) => ({ key: b.id, ...Object.fromEntries(STORY_FIELDS.map((f) => [f, b[f] ?? null])) })),
     series: series.map((s) => ({
       title: s.title,
@@ -19,16 +22,18 @@ export function buildPayload(books, series, seriesBooks) {
 }
 
 export async function collectWriting(supabase, userId) {
-  const [books, series] = await Promise.all([
+  const [books, series, profile] = await Promise.all([
     supabase.from('books').select('id, ' + STORY_FIELDS.join(', ')).eq('author_id', userId),
     supabase.from('series').select('id, title, description, created_at').eq('author_id', userId),
+    supabase.from('profiles').select('handle, display_name').eq('id', userId).maybeSingle(),
   ])
   if (books.error) throw books.error
   if (series.error) throw series.error
+  if (profile.error) throw profile.error
   const ids = (series.data ?? []).map((s) => s.id)
   const parts = ids.length
     ? await supabase.from('series_books').select('series_id, book_id, sort_order').in('series_id', ids)
     : { data: [], error: null }
   if (parts.error) throw parts.error
-  return buildPayload(books.data ?? [], series.data ?? [], parts.data ?? [])
+  return buildPayload(books.data ?? [], series.data ?? [], parts.data ?? [], profile.data ?? null)
 }
