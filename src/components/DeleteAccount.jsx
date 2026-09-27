@@ -101,6 +101,8 @@ export default function DeleteAccount() {
   // committed). The retry must use the same mode: an erase retried as a seal
   // would otherwise be told its writing was "already sealed" when none ever was.
   const [lockedMode, setLockedMode] = useState(null)
+  // True once the server confirms a seal was stored with the code on screen.
+  const [sealedWithThisCode, setSealedWithThisCode] = useState(false)
 
   const signedInAt = Date.parse(session?.user?.last_sign_in_at ?? '')
   const fresh = Number.isFinite(signedInAt) && Date.now() - signedInAt <= FRESH_SIGN_IN_MS
@@ -249,13 +251,16 @@ export default function DeleteAccount() {
           return
         }
         if (body?.partial === true) setLockedMode('seal')
+        if (body?.sealedWithThisCode === true) setSealedWithThisCode(true)
         setError(body?.error || GENERIC_ERROR)
         return
       }
       // A retry of a partial failure: the real seal was stored on the FIRST attempt, and
       // the code shown on THIS attempt was never sent anywhere -- it doesn't open anything.
       // Don't sign out or redirect yet; make the member read that before leaving the page.
-      if (data?.sealAlreadyStored === true) {
+      // Unless an earlier attempt on this page stored the seal with the code still on
+      // screen: then that code is the right one, and the warning would be false.
+      if (data?.sealAlreadyStored === true && !sealedWithThisCode) {
         setBusy(false)
         setStep('sealed-already')
         return

@@ -345,3 +345,23 @@ test('an ordinary (non-partial) failure keeps Back available', async () => {
   expect(await screen.findByRole('alert')).toHaveTextContent(/nothing was deleted/i)
   expect(screen.getByRole('button', { name: /^back$/i })).toBeInTheDocument()
 })
+
+test('a seal retry after a partial failure that stored THIS code signs out without the wrong-code warning', async () => {
+  delete window.location
+  window.location = { href: '' }
+  const message = 'Your writing is sealed, but signing out failed. Please try again — and keep the recovery code from this attempt.'
+  mockInvoke({ deleteResult: { data: null, error: { context: { json: async () => ({ error: message, partial: true, sealedWithThisCode: true }) } } } })
+  render(<DeleteAccount />)
+  fireEvent.click(screen.getByRole('button', { name: /delete my account/i }))
+  fireEvent.click(screen.getByRole('button', { name: /^seal my writing$/i }))
+  fireEvent.change(await screen.findByLabelText(/last 4 characters of your code/i), { target: { value: '7Q4K' } })
+  fireEvent.change(screen.getByLabelText(/type delete/i), { target: { value: 'DELETE' } })
+  fireEvent.click(screen.getByRole('button', { name: /seal and delete/i }))
+  expect(await screen.findByRole('alert')).toHaveTextContent(message)
+
+  mockInvoke({ deleteResult: { data: { deleted: true, sealAlreadyStored: true }, error: null } })
+  fireEvent.click(screen.getByRole('button', { name: /seal and delete/i }))
+  await waitFor(() => expect(window.location.href).toBe('/'))
+  expect(signOut).toHaveBeenCalled()
+  expect(screen.queryByText(/won't open it/i)).toBeNull()
+})

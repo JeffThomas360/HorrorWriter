@@ -112,8 +112,14 @@ serve(async (req) => {
     console.error('[delete-account] deleteUser failed', authError.message)
     // `partial: true` tells the browser the database step has committed, so it locks the
     // member into the same mode for the retry (an erase retried as a seal would otherwise
-    // be told a seal was "already stored" when none ever was).
-    return json({ error: partialFailureMessage(request.mode, ranDeleteMember), partial: true }, 500)
+    // be told a seal was "already stored" when none ever was). `sealedWithThisCode` tells it
+    // the bundle stored is the one sealed with the code on screen, so the retry's
+    // "already stored" answer doesn't send the member hunting for a different code.
+    return json({
+      error: partialFailureMessage(request.mode, ranDeleteMember),
+      partial: true,
+      sealedWithThisCode: ranDeleteMember && request.mode === 'seal',
+    }, 500)
   }
 
   // This call didn't run delete_member (an ordinary retry, or the loser of a concurrent-
