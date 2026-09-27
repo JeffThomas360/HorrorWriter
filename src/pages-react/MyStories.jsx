@@ -123,6 +123,12 @@ function MyStories() {
         <span className="block font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-text-secondary)] mb-2">The Library</span>
         <h2 className="text-3xl font-serif font-black">My <em className="italic text-[var(--color-accent-crimson)] font-serif">stories</em></h2>
         <p className="text-xs text-[var(--color-text-secondary)] font-serif mt-1">Manage your published stories and the series they belong to.</p>
+        <a
+          href="/library/publish/"
+          className="inline-block mt-5 bg-[var(--color-ember)] text-white font-mono text-xs uppercase px-5 py-2.5 hover:opacity-90 transition-opacity"
+        >
+          ✎ Write a new story
+        </a>
       </div>
 
       {/* ── Your Series ── */}
@@ -171,7 +177,13 @@ function MyStories() {
                   <option key={b.id} value={b.id}>{b.title}</option>
                 ))}
               </select>
-              {unassignedBooks.length === 0 && (
+              {books.length === 0 ? (
+                <span className="text-xs font-serif italic text-[var(--color-text-secondary)]">
+                  A series starts with one of your stories.{' '}
+                  <a href="/library/publish/" className="underline not-italic text-[var(--color-ember)]">Write your first story</a>
+                  {' '}and come back to start a series with it.
+                </span>
+              ) : unassignedBooks.length === 0 && (
                 <span className="text-xs font-serif italic text-[var(--color-text-secondary)]">
                   All of your stories are already in a series.
                 </span>
@@ -267,7 +279,8 @@ function MyStories() {
 
         {books.length === 0 ? (
           <p className="font-serif italic text-xs text-[var(--color-text-secondary)]">
-            You haven't published any stories yet.
+            You haven't published any stories yet.{' '}
+            <a href="/library/publish/" className="underline not-italic text-[var(--color-ember)]">Write your first story</a>
           </p>
         ) : (
           <ul className="flex flex-col gap-4">
