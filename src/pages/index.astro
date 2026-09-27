@@ -82,6 +82,7 @@ try {
     const { data } = await supabase
       .from('threads')
       .select('*, categories(name), profiles(handle)')
+      .eq('removed_by_author', false)
       .order('updated_at', { ascending: false })
       .limit(3);
 

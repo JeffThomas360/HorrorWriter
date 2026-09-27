@@ -4,6 +4,7 @@ import { supabase } from '../../supabaseClient'
 import { useAuth } from '../AuthContext'
 import { modCan } from '../../lib/moderation'
 import { fetchUserCaseFile, contentHref } from '../../lib/modActions'
+import { authorLabel } from '../../lib/storyHelpers'
 import ConfirmDialog from './ConfirmDialog'
 
 const GHOST_BTN = 'border border-[var(--color-line-hi)] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-bone)] transition-colors hover:border-[var(--color-bone)] cursor-pointer disabled:opacity-50'
@@ -230,7 +231,7 @@ export default function UserModProfile({ userId, onClose }) {
           ) : caseFile.notes.map((n) => (
             <div key={n.id} className="card-surface p-3 text-xs">
               <div className="flex justify-between mb-1">
-                <strong className="text-[var(--color-blood)]">@{n.profiles?.handle || 'unknown'}</strong>
+                <strong className="text-[var(--color-blood)]">{authorLabel(n.profiles)}</strong>
                 <span className="text-[var(--color-ash)]">{new Date(n.created_at).toLocaleString()}</span>
               </div>
               <div className="text-[var(--color-bone)]">{n.note}</div>

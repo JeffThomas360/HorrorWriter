@@ -4,6 +4,7 @@ import { updateProfile, uploadAvatar } from '../lib/profile'
 import { registerPasskey, deletePasskey } from '../lib/passkey'
 import { supabase } from '../supabaseClient'
 import ProfileHead from '../components/ProfileHead'
+import DeleteAccount from '../components/DeleteAccount'
 import { toast } from 'sonner'
 import { withProviders } from '../components/Providers'
 import RequireAuth from '../components/RequireAuth'
@@ -355,6 +356,8 @@ function Profile() {
             </ol>
           </div>
         </details>
+
+        <DeleteAccount />
       </div>
     </div>
   )

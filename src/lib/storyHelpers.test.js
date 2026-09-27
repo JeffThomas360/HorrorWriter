@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { filterOneExamplePerGroup, isStoryOwner, copyrightNotice } from './storyHelpers'
+import { filterOneExamplePerGroup, isStoryOwner, copyrightNotice, authorLabel, isTombstone, TOMBSTONE_TEXT } from './storyHelpers'
 
 describe('storyHelpers', () => {
   it('passes through all real (non-example) stories', () => {
@@ -75,5 +75,21 @@ describe('copyrightNotice', () => {
 
   it('returns nothing without a story', () => {
     expect(copyrightNotice(null)).toBeNull()
+  })
+})
+
+describe('departed members and tombstones', () => {
+  it('labels a present author by handle', () => {
+    expect(authorLabel({ handle: 'night-owl' })).toBe('@night-owl')
+  })
+  it('labels a missing author as a departed member', () => {
+    expect(authorLabel(null)).toBe('a departed member')
+    expect(authorLabel({ handle: null })).toBe('a departed member')
+  })
+  it('recognises tombstones', () => {
+    expect(isTombstone({ removed_by_author: true })).toBe(true)
+    expect(isTombstone({ removed_by_author: false })).toBe(false)
+    expect(isTombstone(null)).toBe(false)
+    expect(TOMBSTONE_TEXT).toBe('Removed by its author.')
   })
 })

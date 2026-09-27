@@ -19,7 +19,7 @@ import { fetchStorySeriesContext } from '../lib/series'
 import SeriesContextBar from '../components/SeriesContextBar'
 import SeriesSidebar from '../components/SeriesSidebar'
 import { ARCHIVE_STORIES } from '../lib/seedArchives'
-import { isStoryOwner, copyrightNotice } from '../lib/storyHelpers'
+import { isStoryOwner, copyrightNotice, authorLabel, isTombstone, TOMBSTONE_TEXT } from '../lib/storyHelpers'
 
 const AV_COLORS = ['', 'av-1', 'av-2', 'av-3', 'av-4', 'av-5', 'av-6']
 
@@ -289,7 +289,7 @@ function ReadStory({ id }) {
           </button>
 
           <div className="hidden md:block max-w-md truncate text-center font-serif italic text-sm opacity-80">
-            {book?.title}
+            {isTombstone(book) ? TOMBSTONE_TEXT : book?.title}
           </div>
 
           <div className="relative">
@@ -535,32 +535,44 @@ function ReadStory({ id }) {
         >
           {/* Header */}
           <div className="text-center pb-8 mb-10 border-b border-current opacity-70">
-            <p className="font-mono text-xs uppercase tracking-widest mb-3 opacity-60">
-              A story by @{book?.profiles?.handle || 'unknown'}
-            </p>
-            <h1 className="text-3xl md:text-5xl font-serif font-black tracking-tight mb-4 leading-tight">
-              {book?.title}
-            </h1>
-            {book?.lede && (
-              <p className="font-serif italic text-base md:text-lg opacity-80 max-w-xl mx-auto leading-relaxed">
-                {book.lede}
-              </p>
+            {isTombstone(book) ? (
+              <h1 className="text-3xl md:text-5xl font-serif font-black tracking-tight mb-4 leading-tight">
+                {TOMBSTONE_TEXT}
+              </h1>
+            ) : (
+              <>
+                <p className="font-mono text-xs uppercase tracking-widest mb-3 opacity-60">
+                  A story by {authorLabel(book?.profiles)}
+                </p>
+                <h1 className="text-3xl md:text-5xl font-serif font-black tracking-tight mb-4 leading-tight">
+                  {book?.title}
+                </h1>
+                {book?.lede && (
+                  <p className="font-serif italic text-base md:text-lg opacity-80 max-w-xl mx-auto leading-relaxed">
+                    {book.lede}
+                  </p>
+                )}
+              </>
             )}
           </div>
 
           {/* Prose Content */}
-          <article
-            className={`prose-book prose max-w-none ${
-              formatMode === 'novel' ? 'format-novel' : ''
-            }`}
-          >
-            <StoryMarkdown content={book?.content} />
-          </article>
+          {!isTombstone(book) && (
+            <article
+              className={`prose-book prose max-w-none ${
+                formatMode === 'novel' ? 'format-novel' : ''
+              }`}
+            >
+              <StoryMarkdown content={book?.content} />
+            </article>
+          )}
 
           {/* End of story marker */}
           <div className="mt-16 pt-8 border-t border-current opacity-40 text-center font-serif italic text-sm">
             <p className="mb-4">~ Finis ~</p>
-            <p className="mb-4 not-italic font-mono text-xs">{copyrightNotice(book)}</p>
+            {!isTombstone(book) && (
+              <p className="mb-4 not-italic font-mono text-xs">{copyrightNotice(book)}</p>
+            )}
             <button
               type="button"
               onClick={() => {
@@ -577,7 +589,7 @@ function ReadStory({ id }) {
         {/* Bottom Sticky Telemetry HUD */}
         <footer className="kindle-hud fixed bottom-0 inset-x-0 h-10 z-50 flex items-center justify-between px-4 sm:px-8 border-t backdrop-blur-md text-xs font-mono select-none">
           <div className="flex items-center gap-2 opacity-70 truncate max-w-[40%]">
-            <span>@{book?.profiles?.handle || 'author'}</span>
+            <span>{authorLabel(book?.profiles)}</span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -621,7 +633,7 @@ function ReadStory({ id }) {
         paddingRight: '1rem'
       }}>
         <div className="mt-8">
-          <QuoteSharer title={book?.title} />
+          {!isTombstone(book) && <QuoteSharer title={book?.title} />}
 
           {book?.is_artificial && (
             <div className="mb-8 p-4 border border-[var(--color-upside)]/50 bg-[var(--color-upside)]/10 font-mono text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-left">
@@ -643,7 +655,7 @@ function ReadStory({ id }) {
           {/* Title & Author Info */}
           <div className="border-b border-[var(--color-line)] pb-8 mb-12 text-center">
         <div className="flex justify-center items-center gap-4 text-xs font-mono text-[var(--color-text-secondary)] mb-4">
-          <span>A story by @{book?.profiles?.handle || 'unknown'}</span>
+          <span>A story by {authorLabel(book?.profiles)}</span>
           <button 
             onClick={() => setReportTarget({ type: 'story', id: book.id })} 
             className="text-xs uppercase border border-[var(--color-line)] hover:border-[var(--color-blood)] px-2 py-0.5 text-[var(--color-ash)] hover:text-[var(--color-blood)] cursor-pointer"
@@ -667,9 +679,9 @@ function ReadStory({ id }) {
           {book && <InlineModControls targetType="story" targetId={book.id} currentStatus={book.mod_status} authorId={book.author_id} />}
         </div>
         <h1 className="title text-3xl md:text-5xl font-serif font-black uppercase tracking-tight text-[var(--color-text-primary)] mb-6 max-w-3xl mx-auto leading-tight">
-          {book?.title}
+          {isTombstone(book) ? TOMBSTONE_TEXT : book?.title}
         </h1>
-        {book?.lede && (
+        {!isTombstone(book) && book?.lede && (
           <p className="text-base font-serif italic text-[var(--color-text-secondary)] max-w-xl mx-auto mb-6 leading-relaxed">
             {book.lede}
           </p>
@@ -755,28 +767,32 @@ function ReadStory({ id }) {
         </div>
       </div>
 
-      {/* Story Content Block */}
-      <article
-        className={`prose-book prose prose-invert font-serif leading-relaxed text-[var(--color-text-primary)] mb-12 kindle-font-${kindleFont} kindle-leading-${kindleSpacing} ${
-          formatMode === 'novel' ? 'format-novel' : ''
-        }`}
-        style={{ fontSize: `${kindleSize}px` }}
-      >
-        <StoryMarkdown content={book?.content} />
-      </article>
+      {!isTombstone(book) && (
+        <>
+          {/* Story Content Block */}
+          <article
+            className={`prose-book prose prose-invert font-serif leading-relaxed text-[var(--color-text-primary)] mb-12 kindle-font-${kindleFont} kindle-leading-${kindleSpacing} ${
+              formatMode === 'novel' ? 'format-novel' : ''
+            }`}
+            style={{ fontSize: `${kindleSize}px` }}
+          >
+            <StoryMarkdown content={book?.content} />
+          </article>
 
-      {/* Authors keep all rights (House Rules, rule 1); archive classics say public domain. */}
-      <p className="max-w-2xl mx-auto mb-8 text-center font-mono text-xs text-[var(--color-text-secondary)]">
-        {copyrightNotice(book)}{' '}
-        {!book?.is_artificial && (
-          <a href="/rules/#house-rules" className="underline hover:text-[var(--color-ember)]">Creator ownership</a>
-        )}
-      </p>
+          {/* Authors keep all rights (House Rules, rule 1); archive classics say public domain. */}
+          <p className="max-w-2xl mx-auto mb-8 text-center font-mono text-xs text-[var(--color-text-secondary)]">
+            {copyrightNotice(book)}{' '}
+            {!book?.is_artificial && (
+              <a href="/rules/#house-rules" className="underline hover:text-[var(--color-ember)]">Creator ownership</a>
+            )}
+          </p>
 
-      {/* Share Bar */}
-      <div className="max-w-2xl mx-auto border-t border-[var(--color-line)] pt-8">
-        <ShareBar title={book?.title} />
-      </div>
+          {/* Share Bar */}
+          <div className="max-w-2xl mx-auto border-t border-[var(--color-line)] pt-8">
+            <ShareBar title={book?.title} />
+          </div>
+        </>
+      )}
 
       {/* Critiques Section */}
       <div className="max-w-2xl mx-auto border-t border-[var(--color-line)] pt-12 mt-16">
@@ -803,7 +819,7 @@ function ReadStory({ id }) {
                         {initials(handle)}
                       </div>
                       <div className="flex flex-col">
-                        <span className="font-mono text-xs font-bold text-[var(--color-text-primary)]">@{handle}</span>
+                        <span className="font-mono text-xs font-bold text-[var(--color-text-primary)]">{authorLabel(c.profiles)}</span>
                         <span className="font-mono text-xs text-[var(--color-text-secondary)]">{timeAgo(c.created_at)}</span>
                       </div>
                     </div>

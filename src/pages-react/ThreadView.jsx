@@ -10,6 +10,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
 import { withProviders } from '../components/Providers'
+import { authorLabel, isTombstone, TOMBSTONE_TEXT } from '../lib/storyHelpers'
 
 const PAGE_SIZE = 15
 
@@ -192,7 +193,7 @@ function ThreadView({ id }) {
       <div className="border-b border-[var(--color-line)] pb-6 mb-8 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
           <h1 className="title text-2xl md:text-3xl font-serif font-black text-[var(--color-text-primary)] leading-tight mb-2">
-            {thread?.title}
+            {isTombstone(thread) ? TOMBSTONE_TEXT : thread?.title}
           </h1>
           <span className="inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
             <span className="w-1 h-1 rounded-full bg-red-800 animate-pulse"></span>
@@ -213,6 +214,9 @@ function ThreadView({ id }) {
       <div className="flex flex-col gap-6">
         {posts.map((p, index) => {
           const handle = p.profiles?.handle || 'unknown'
+          const postLabel = index === 0
+            ? (isTombstone(thread) ? null : 'Original Post')
+            : `Reply #${index}`
           return (
             <article key={p.id} className="vintage-card flex flex-col gap-4">
               <div className="flex justify-between items-start border-b border-[var(--color-line)] pb-3">
@@ -221,9 +225,9 @@ function ThreadView({ id }) {
                     {initials(handle)}
                   </div>
                   <div className="flex flex-col">
-                    <span className="font-mono text-xs font-bold text-[var(--color-text-primary)]">@{handle}</span>
+                    <span className="font-mono text-xs font-bold text-[var(--color-text-primary)]">{authorLabel(p.profiles)}</span>
                     <span className="font-mono text-xs text-[var(--color-text-secondary)]">
-                      {index === 0 ? 'Original Post' : `Reply #${index}`} · {timeAgo(p.created_at)}
+                      {postLabel ? `${postLabel} · ` : ''}{timeAgo(p.created_at)}
                     </span>
                   </div>
                 </div>

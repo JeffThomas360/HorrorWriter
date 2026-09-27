@@ -433,3 +433,8 @@ entrypoint = "./functions/urgent-report-email/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/urgent-report-email/*.html" ]
+
+# Self-verifies the caller's JWT; see the verify_jwt explanation above the
+# [functions.webauthn-register-begin] block for why this must be false
+[functions.delete-account]
+verify_jwt = false
