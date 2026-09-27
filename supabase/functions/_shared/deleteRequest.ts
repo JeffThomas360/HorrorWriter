@@ -40,6 +40,24 @@ export function partialFailureMessage(mode: 'erase' | 'seal', profileExisted: bo
   return 'Your writing was sealed on your first attempt, but signing out failed. Please try again — keep the recovery code from that first attempt.'
 }
 
+// delete_member returns true when it ran and false when the profile was already gone. Only an
+// explicit false means "this call stored nothing"; anything else (null, an unexpected shape
+// from a future change) fails safe to "it ran", so a seal retry is never told a real,
+// freshly-stored code is worthless.
+export function didRunDeleteMember(ran: unknown): boolean {
+  return ran !== false
+}
+
+// delete_member refuses to overwrite a seal that's still waiting for this email by raising
+// SQLSTATE HW001 ('seal_exists'), before deleting anything.
+export const SEAL_EXISTS_CODE = 'HW001'
+export const SEAL_EXISTS_MESSAGE =
+  'You already have sealed writing waiting from before. Unseal it first (at the top of your profile), then you can seal again.'
+
+export function isSealExistsError(err: { code?: string } | null | undefined): boolean {
+  return err?.code === SEAL_EXISTS_CODE
+}
+
 export function checkDeleteRequest(
   body: unknown,
   lastSignInAt: string | null | undefined,

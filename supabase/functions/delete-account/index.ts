@@ -1,6 +1,13 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { checkDeleteRequest, shouldRunDatabaseStep, partialFailureMessage } from '../_shared/deleteRequest.ts'
+import {
+  checkDeleteRequest,
+  shouldRunDatabaseStep,
+  partialFailureMessage,
+  didRunDeleteMember,
+  isSealExistsError,
+  SEAL_EXISTS_MESSAGE,
+} from '../_shared/deleteRequest.ts'
 import { emailKey } from '../_shared/emailKey.ts'
 import { decodeBundle, toByteaHex } from '../_shared/bundle.ts'
 
@@ -79,11 +86,18 @@ serve(async (req) => {
     // 1. Everything in the database, in one transaction. Returns true if it ran, false
     // if it found the profile already gone (the race-loser case described above).
     const { data: ran, error: dbError } = await admin.rpc('delete_member', { p_user: user.id, p_email_key, p_bundle })
+    // A seal for this email is already waiting (the member came back and never unsealed).
+    // delete_member refused before deleting anything, so stop here too: no avatar removal,
+    // no auth user deletion -- the account is untouched.
+    if (isSealExistsError(dbError)) {
+      return json({ error: 'seal_exists', message: SEAL_EXISTS_MESSAGE }, 409)
+    }
     if (dbError) {
       console.error('[delete-account] delete_member failed', dbError.message)
       return json({ error: 'Nothing was deleted. Please try again.' }, 500)
     }
-    ranDeleteMember = ran === true
+    // Only an explicit false means "didn't run"; anything unexpected fails safe to "ran".
+    ranDeleteMember = didRunDeleteMember(ran)
   }
 
   // 2. Avatar files. Safe to repeat.
@@ -96,7 +110,10 @@ serve(async (req) => {
   const { error: authError } = await admin.auth.admin.deleteUser(user.id)
   if (authError) {
     console.error('[delete-account] deleteUser failed', authError.message)
-    return json({ error: partialFailureMessage(request.mode, ranDeleteMember) }, 500)
+    // `partial: true` tells the browser the database step has committed, so it locks the
+    // member into the same mode for the retry (an erase retried as a seal would otherwise
+    // be told a seal was "already stored" when none ever was).
+    return json({ error: partialFailureMessage(request.mode, ranDeleteMember), partial: true }, 500)
   }
 
   // This call didn't run delete_member (an ordinary retry, or the loser of a concurrent-
