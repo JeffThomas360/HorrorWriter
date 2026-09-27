@@ -28,3 +28,32 @@ export function toByteaHex(bytes: Uint8Array): string {
   for (let i = 0; i < bytes.length; i++) parts[i] = HEX_TABLE[bytes[i]]
   return '\\x' + parts.join('')
 }
+
+const HEX_PAIR_RE = /^(?:[0-9a-fA-F]{2})*$/
+
+// Parses PostgREST's bytea text representation ('\x' + lowercase hex) back into bytes. Returns
+// null for anything malformed instead of throwing, so callers can fail closed on a corrupt row
+// rather than leak partial bytes.
+export function fromByteaHex(value: string): Uint8Array | null {
+  if (typeof value !== 'string' || !value.startsWith('\\x')) return null
+  const hex = value.slice(2)
+  if (hex.length % 2 !== 0) return null
+  if (!HEX_PAIR_RE.test(hex)) return null
+  const bytes = new Uint8Array(hex.length / 2)
+  for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hex.substr(i * 2, 2), 16)
+  return bytes
+}
+
+// btoa(String.fromCharCode(...bytes)) blows the call stack on large bundles (spreading a
+// megabyte-plus array as arguments). Chunking through String.fromCharCode.apply on subarrays
+// keeps each call's argument list bounded.
+const BASE64_CHUNK_SIZE = 32 * 1024
+
+export function bytesToBase64(bytes: Uint8Array): string {
+  let binary = ''
+  for (let offset = 0; offset < bytes.length; offset += BASE64_CHUNK_SIZE) {
+    const chunk = bytes.subarray(offset, offset + BASE64_CHUNK_SIZE)
+    binary += String.fromCharCode.apply(null, Array.from(chunk))
+  }
+  return btoa(binary)
+}

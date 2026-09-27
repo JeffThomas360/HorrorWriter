@@ -438,3 +438,9 @@ entrypoint = "./functions/urgent-report-email/index.ts"
 # [functions.webauthn-register-begin] block for why this must be false
 [functions.delete-account]
 verify_jwt = false
+
+# verify_jwt MUST be false: the function checks the session itself (getUser)
+# and must return CORS-bearing 401s. See the verify_jwt explanation above the
+# [functions.webauthn-register-begin] block.
+[functions.sealed-writing]
+verify_jwt = false
