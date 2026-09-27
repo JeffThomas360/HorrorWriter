@@ -24,10 +24,11 @@ const collectWriting = vi.fn(async () => ({ v: 1, stories: [], series: [] }))
 const sealApi = { generateRecoveryCode: () => RECOVERY_CODE, sealWriting, collectWriting }
 
 beforeEach(() => {
-  authState = { session: { user: { id: 'u1', last_sign_in_at: new Date().toISOString() } } }
+  authState = { session: { user: { id: 'u1', last_sign_in_at: new Date().toISOString(), email_confirmed_at: new Date().toISOString() } } }
   invoke.mockReset().mockResolvedValue({ data: { deleted: true }, error: null })
   signOut.mockReset().mockResolvedValue({})
   loadSealModules.mockReset().mockResolvedValue(sealApi)
+  sealApi.generateRecoveryCode = () => RECOVERY_CODE
   // The component's loaded-module cache is intentionally page-lifetime
   // (module-scoped), which would otherwise leak a resolved/rejected promise
   // from one test into the next.
@@ -132,6 +133,77 @@ test('a failed module load shows the generic error and does not get stuck: click
 
   fireEvent.click(screen.getByRole('button', { name: /^seal my writing$/i }))
   expect(await screen.findByText(RECOVERY_CODE)).toBeInTheDocument()
+})
+
+test('going Back from the seal step and choosing Seal again keeps the same code', async () => {
+  let calls = 0
+  sealApi.generateRecoveryCode = vi.fn(() => (calls++ === 0 ? RECOVERY_CODE : 'DIFFERENT-CODE-0000'))
+  render(<DeleteAccount />)
+  fireEvent.click(screen.getByRole('button', { name: /delete my account/i }))
+  fireEvent.click(screen.getByRole('button', { name: /^seal my writing$/i }))
+  expect(await screen.findByText(RECOVERY_CODE)).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: /^back$/i }))
+  fireEvent.click(screen.getByRole('button', { name: /^seal my writing$/i }))
+  // A member who saved the first code must still see it — not a freshly generated one.
+  expect(await screen.findByText(RECOVERY_CODE)).toBeInTheDocument()
+  expect(screen.queryByText('DIFFERENT-CODE-0000')).toBeNull()
+})
+
+test('members without a confirmed email see Seal disabled with an explanation', () => {
+  authState.session.user.email_confirmed_at = null
+  render(<DeleteAccount />)
+  fireEvent.click(screen.getByRole('button', { name: /delete my account/i }))
+  const sealButton = screen.getByRole('button', { name: /^seal my writing$/i })
+  expect(sealButton).toBeDisabled()
+  expect(screen.getByText(/confirmed email address/i)).toBeInTheDocument()
+  // Erase is still available.
+  expect(screen.getByRole('button', { name: /^erase everything$/i })).not.toBeDisabled()
+})
+
+test('members with a confirmed email can still seal', () => {
+  authState.session.user.email_confirmed_at = new Date().toISOString()
+  render(<DeleteAccount />)
+  fireEvent.click(screen.getByRole('button', { name: /delete my account/i }))
+  expect(screen.getByRole('button', { name: /^seal my writing$/i })).not.toBeDisabled()
+})
+
+test('an oversized sealed bundle is rejected in the browser before uploading', async () => {
+  sealWriting.mockResolvedValueOnce(new Uint8Array(5 * 1024 * 1024 + 1))
+  render(<DeleteAccount />)
+  fireEvent.click(screen.getByRole('button', { name: /delete my account/i }))
+  fireEvent.click(screen.getByRole('button', { name: /^seal my writing$/i }))
+  fireEvent.change(await screen.findByLabelText(/last part of your code/i), { target: { value: '7Q4K' } })
+  fireEvent.change(screen.getByLabelText(/type delete/i), { target: { value: 'DELETE' } })
+  fireEvent.click(screen.getByRole('button', { name: /seal and delete/i }))
+  expect(await screen.findByText(/too large to seal/i)).toBeInTheDocument()
+  expect(invoke).not.toHaveBeenCalled()
+})
+
+test('a signOut failure after a successful erase still redirects home', async () => {
+  signOut.mockRejectedValueOnce(new Error('signout failed'))
+  delete window.location
+  window.location = { href: '' }
+  render(<DeleteAccount />)
+  fireEvent.click(screen.getByRole('button', { name: /delete my account/i }))
+  fireEvent.click(screen.getByRole('button', { name: /^erase everything$/i }))
+  fireEvent.change(screen.getByLabelText(/type delete/i), { target: { value: 'DELETE' } })
+  fireEvent.click(screen.getByRole('button', { name: /erase my account/i }))
+  await waitFor(() => expect(window.location.href).toBe('/'))
+  expect(screen.queryByText(/nothing was deleted/i)).toBeNull()
+})
+
+test('a signOut failure after a successful seal still redirects home', async () => {
+  signOut.mockRejectedValueOnce(new Error('signout failed'))
+  delete window.location
+  window.location = { href: '' }
+  render(<DeleteAccount />)
+  fireEvent.click(screen.getByRole('button', { name: /delete my account/i }))
+  fireEvent.click(screen.getByRole('button', { name: /^seal my writing$/i }))
+  fireEvent.change(await screen.findByLabelText(/last part of your code/i), { target: { value: '7Q4K' } })
+  fireEvent.change(screen.getByLabelText(/type delete/i), { target: { value: 'DELETE' } })
+  fireEvent.click(screen.getByRole('button', { name: /seal and delete/i }))
+  await waitFor(() => expect(window.location.href).toBe('/'))
+  expect(screen.queryByText(/nothing was deleted/i)).toBeNull()
 })
 
 test('a wrong last part of the code keeps Seal and delete disabled', async () => {

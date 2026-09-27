@@ -8,6 +8,11 @@ const GENERIC_ERROR = 'Nothing was deleted. Please try again.'
 const SEAL_ERROR = 'Nothing was deleted. Please try again, or choose Erase everything.'
 const COPY_FAILED = 'Copy failed — select the code and copy it'
 const BASE64_CHUNK = 32 * 1024
+// Kept in sync with MAX_BUNDLE_BYTES in supabase/functions/_shared/deleteRequest.ts. Checking
+// here too — before uploading, not just server-side — means an oversized bundle is rejected
+// without spending a request, and with a clear message instead of a generic server 400.
+const MAX_BUNDLE_BYTES = 5 * 1024 * 1024
+const TOO_LARGE_ERROR = 'Your writing is too large to seal. Nothing was deleted.'
 
 // seal.js pulls in the ~25 KB (gzipped) EFF wordlist, which must not land in
 // the Profile page's main chunk, and must not start loading during SSR. Load
@@ -79,6 +84,7 @@ export default function DeleteAccount() {
 
   const signedInAt = Date.parse(session?.user?.last_sign_in_at ?? '')
   const fresh = Number.isFinite(signedInAt) && Date.now() - signedInAt <= FRESH_SIGN_IN_MS
+  const emailConfirmed = Boolean(session?.user?.email_confirmed_at)
 
   // Kick off the seal chunk fetch as soon as the member is looking at the
   // choose step, so it's normally already cached by the time they click
@@ -102,7 +108,10 @@ export default function DeleteAccount() {
     setStep('preparing')
     try {
       const api = await loadSealApi()
-      setCode(api.generateRecoveryCode())
+      // Keep the code from an earlier visit to this step (e.g. after pressing Back): a
+      // member who already saved or printed the first code must keep seeing that same
+      // one, never a freshly generated replacement they haven't saved.
+      setCode((prev) => prev || api.generateRecoveryCode())
       setStep('seal')
     } catch {
       setError(GENERIC_ERROR)
@@ -201,6 +210,11 @@ export default function DeleteAccount() {
       const api = await loadSealApi()
       const payload = await api.collectWriting(supabase, session.user.id)
       const bundle = await api.sealWriting(payload, code)
+      if (bundle.length > MAX_BUNDLE_BYTES) {
+        setError(TOO_LARGE_ERROR)
+        setBusy(false)
+        return
+      }
       const base64 = bytesToBase64(bundle)
       const { error: fnError } = await supabase.functions.invoke('delete-account', { body: { mode: 'seal', bundle: base64 } })
       if (fnError) {
@@ -208,7 +222,13 @@ export default function DeleteAccount() {
         setBusy(false)
         return
       }
-      await supabase.auth.signOut()
+      // The server has already deleted the account at this point. A signOut failure here
+      // is a client-side loose end, not a reason to tell the member nothing happened.
+      try {
+        await supabase.auth.signOut()
+      } catch {
+        // ignored: fall through to the redirect below regardless
+      }
       window.location.href = '/'
     } catch {
       setError(SEAL_ERROR)
@@ -226,7 +246,13 @@ export default function DeleteAccount() {
         setBusy(false)
         return
       }
-      await supabase.auth.signOut()
+      // The server has already deleted the account at this point. A signOut failure here
+      // is a client-side loose end, not a reason to tell the member nothing happened.
+      try {
+        await supabase.auth.signOut()
+      } catch {
+        // ignored: fall through to the redirect below regardless
+      }
       window.location.href = '/'
     } catch (err) {
       setError(GENERIC_ERROR)
@@ -274,14 +300,19 @@ export default function DeleteAccount() {
               className="border border-[var(--color-ember)] text-[var(--color-ember)] font-mono text-xs uppercase px-4 py-2 cursor-pointer">
               Erase everything
             </button>
-            <button type="button" onClick={beginSeal}
-              className="border border-[var(--color-line)] hover:border-[var(--color-ember)] font-mono text-xs uppercase px-4 py-2 cursor-pointer">
+            <button type="button" onClick={beginSeal} disabled={!emailConfirmed}
+              className="border border-[var(--color-line)] hover:border-[var(--color-ember)] font-mono text-xs uppercase px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">
               Seal my writing
             </button>
             <button type="button" onClick={() => setStep('closed')} className="font-mono text-xs uppercase px-4 py-2 cursor-pointer">
               Cancel
             </button>
           </div>
+          {!emailConfirmed && (
+            <p className="font-serif text-xs text-[var(--color-text-secondary)] mt-3">
+              Sealing needs a confirmed email address, so you can find your seal again.
+            </p>
+          )}
           {error && <p role="alert" className="text-[var(--color-ember)] text-xs font-mono mt-3">{error}</p>}
         </div>
       )}
