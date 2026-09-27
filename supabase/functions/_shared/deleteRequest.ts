@@ -11,6 +11,16 @@ function decodedByteLength(base64: string): number {
   return Math.floor((base64.length * 3) / 4) - padding
 }
 
+// A retry after a partial failure (the rpc committed — seal stored, content erased —
+// but a later step such as deleteUser then failed, or the response never reached the
+// browser) must never re-run the database step. For seal mode in particular, running it
+// again would upsert an empty bundle (there's nothing left to collect) over the real
+// stored seal. The profile row is deleted inside delete_member's own transaction, so its
+// absence is exactly the signal that the database step already committed.
+export function shouldRunDatabaseStep(profileExists: boolean): boolean {
+  return profileExists
+}
+
 export function checkDeleteRequest(
   body: unknown,
   lastSignInAt: string | null | undefined,

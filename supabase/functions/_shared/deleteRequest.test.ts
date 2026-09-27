@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { checkDeleteRequest, FRESH_SIGN_IN_MS, MAX_BUNDLE_BYTES } from './deleteRequest'
+import { checkDeleteRequest, shouldRunDatabaseStep, FRESH_SIGN_IN_MS, MAX_BUNDLE_BYTES } from './deleteRequest'
 
 const now = Date.parse('2026-09-27T12:00:00Z')
 const fresh = new Date(now - 60_000).toISOString()
@@ -51,5 +51,15 @@ describe('checkDeleteRequest seal', () => {
   it('rejects a bundle whose exact decoded size is one byte over the cap', () => {
     const b64 = base64OfByteLength(MAX_BUNDLE_BYTES + 1)
     expect(checkDeleteRequest({ mode: 'seal', bundle: b64 }, fresh, now)).toMatch(/too large/i)
+  })
+})
+
+describe('shouldRunDatabaseStep', () => {
+  it('runs the database step when the profile still exists (first attempt)', () => {
+    expect(shouldRunDatabaseStep(true)).toBe(true)
+  })
+
+  it('skips the database step when the profile is already gone (a retry after a partial failure)', () => {
+    expect(shouldRunDatabaseStep(false)).toBe(false)
   })
 })
