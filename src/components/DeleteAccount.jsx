@@ -13,6 +13,9 @@ const BASE64_CHUNK = 32 * 1024
 // without spending a request, and with a clear message instead of a generic server 400.
 const MAX_BUNDLE_BYTES = 5 * 1024 * 1024
 const TOO_LARGE_ERROR = 'Your writing is too large to seal. Nothing was deleted.'
+// Same text the delete-account Edge Function sends with its 409 seal_exists.
+const SEAL_EXISTS_MESSAGE =
+  'You already have sealed writing waiting from before. Unseal it first (at the top of your profile), then you can seal again.'
 
 // seal.js pulls in the ~25 KB (gzipped) EFF wordlist, which must not land in
 // the Profile page's main chunk, and must not start loading during SSR. Load
@@ -51,17 +54,30 @@ function bytesToBase64(bytes) {
 
 // The Edge Function can fail after partly succeeding (e.g. delete_member
 // committed but signOut/deleteUser then failed), and it says so in the
-// response body. A FunctionsHttpError carries that Response on `.context`;
-// read it and show the server's own message when there is one, falling back
-// to the generic text only when there's nothing readable there.
-async function readErrorMessage(fnError) {
+// response body -- flagged `partial: true`. A FunctionsHttpError carries that
+// Response on `.context`; read it so the caller can show the server's own
+// message, falling back to the generic text only when there's nothing readable.
+async function readErrorBody(fnError) {
   try {
     const body = await fnError?.context?.json?.()
-    if (body?.error) return body.error
+    if (body && typeof body === 'object') return body
   } catch {
-    // context wasn't readable JSON -- fall through to the generic message
+    // context wasn't readable JSON -- the caller falls back to the generic message
   }
-  return GENERIC_ERROR
+  return null
+}
+
+// Is a seal for this email still waiting (the member came back and never
+// unsealed)? Sealing again would be refused, so say so before making a code.
+// Any failure here answers "no": the server's seal_exists check is the backstop,
+// and a flaky check must never stop a member from leaving.
+async function sealIsWaiting() {
+  try {
+    const { data, error } = await supabase.functions.invoke('sealed-writing', { method: 'GET' })
+    return !error && data?.waiting === true
+  } catch {
+    return false
+  }
 }
 
 const ROWS = [
@@ -74,13 +90,19 @@ const ROWS = [
 
 export default function DeleteAccount() {
   const { session } = useAuth()
-  const [step, setStep] = useState('closed') // closed | choose | erase | preparing | seal
+  const [step, setStep] = useState('closed') // closed | choose | erase | preparing | seal | seal-exists | sealed-already
   const [typed, setTyped] = useState('')
   const [lastPart, setLastPart] = useState('')
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [copyStatus, setCopyStatus] = useState('')
+  // Set once a delete attempt reports a partial failure (the database step has
+  // committed). The retry must use the same mode: an erase retried as a seal
+  // would otherwise be told its writing was "already sealed" when none ever was.
+  const [lockedMode, setLockedMode] = useState(null)
+  // True once the server confirms a seal was stored with the code on screen.
+  const [sealedWithThisCode, setSealedWithThisCode] = useState(false)
 
   const signedInAt = Date.parse(session?.user?.last_sign_in_at ?? '')
   const fresh = Number.isFinite(signedInAt) && Date.now() - signedInAt <= FRESH_SIGN_IN_MS
@@ -107,7 +129,11 @@ export default function DeleteAccount() {
     setLastPart('')
     setStep('preparing')
     try {
-      const api = await loadSealApi()
+      const [api, waiting] = await Promise.all([loadSealApi(), sealIsWaiting()])
+      if (waiting) {
+        setStep('seal-exists')
+        return
+      }
       // Keep the code from an earlier visit to this step (e.g. after pressing Back): a
       // member who already saved or printed the first code must keep seeing that same
       // one, never a freshly generated replacement they haven't saved.
@@ -216,10 +242,27 @@ export default function DeleteAccount() {
         return
       }
       const base64 = bytesToBase64(bundle)
-      const { error: fnError } = await supabase.functions.invoke('delete-account', { body: { mode: 'seal', bundle: base64 } })
+      const { data, error: fnError } = await supabase.functions.invoke('delete-account', { body: { mode: 'seal', bundle: base64 } })
       if (fnError) {
-        setError(await readErrorMessage(fnError))
+        const body = await readErrorBody(fnError)
         setBusy(false)
+        if (body?.error === 'seal_exists') {
+          setStep('seal-exists')
+          return
+        }
+        if (body?.partial === true) setLockedMode('seal')
+        if (body?.sealedWithThisCode === true) setSealedWithThisCode(true)
+        setError(body?.error || GENERIC_ERROR)
+        return
+      }
+      // A retry of a partial failure: the real seal was stored on the FIRST attempt, and
+      // the code shown on THIS attempt was never sent anywhere -- it doesn't open anything.
+      // Don't sign out or redirect yet; make the member read that before leaving the page.
+      // Unless an earlier attempt on this page stored the seal with the code still on
+      // screen: then that code is the right one, and the warning would be false.
+      if (data?.sealAlreadyStored === true && !sealedWithThisCode) {
+        setBusy(false)
+        setStep('sealed-already')
         return
       }
       // The server has already deleted the account at this point. A signOut failure here
@@ -236,13 +279,24 @@ export default function DeleteAccount() {
     }
   }
 
+  const continueAfterAlreadySealed = async () => {
+    try {
+      await supabase.auth.signOut()
+    } catch {
+      // ignored: fall through to the redirect below regardless
+    }
+    window.location.href = '/'
+  }
+
   const erase = async () => {
     setBusy(true)
     setError(null)
     try {
       const { error: fnError } = await supabase.functions.invoke('delete-account', { body: { mode: 'erase' } })
       if (fnError) {
-        setError(await readErrorMessage(fnError))
+        const body = await readErrorBody(fnError)
+        if (body?.partial === true) setLockedMode('erase')
+        setError(body?.error || GENERIC_ERROR)
         setBusy(false)
         return
       }
@@ -271,7 +325,7 @@ export default function DeleteAccount() {
         </button>
       )}
 
-      {step !== 'closed' && !fresh && (
+      {step !== 'closed' && step !== 'sealed-already' && !fresh && (
         <p className="font-serif text-sm text-[var(--color-text-secondary)]">
           For your safety, sign in again, then come back here within 10 minutes.{' '}
           <button type="button" onClick={() => supabase.auth.signOut()} className="underline cursor-pointer">Sign out now</button>
@@ -349,8 +403,34 @@ export default function DeleteAccount() {
               className="bg-[var(--color-ember)] text-white font-mono text-xs uppercase px-4 py-2 disabled:opacity-40 cursor-pointer">
               {busy ? 'Sealing…' : 'Seal and delete'}
             </button>
-            <button type="button" disabled={busy} onClick={openChoose}
-              className="font-mono text-xs uppercase px-4 py-2 disabled:opacity-40 cursor-pointer">Back</button>
+            {!lockedMode && (
+              <button type="button" disabled={busy} onClick={openChoose}
+                className="font-mono text-xs uppercase px-4 py-2 disabled:opacity-40 cursor-pointer">Back</button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {step === 'seal-exists' && fresh && (
+        <div className="flex flex-col gap-3">
+          <p role="alert" className="text-[var(--color-ember)] text-sm font-serif">{SEAL_EXISTS_MESSAGE}</p>
+          <div className="flex gap-3">
+            <button type="button" onClick={openChoose} className="font-mono text-xs uppercase px-4 py-2 cursor-pointer">Back</button>
+          </div>
+        </div>
+      )}
+
+      {step === 'sealed-already' && (
+        <div className="flex flex-col gap-3">
+          <p role="status" className="font-serif text-sm">
+            Your writing was already sealed on your first attempt. Keep the recovery code from that
+            attempt — the code from this attempt won't open it.
+          </p>
+          <div className="flex gap-3">
+            <button type="button" onClick={continueAfterAlreadySealed}
+              className="bg-[var(--color-ember)] text-white font-mono text-xs uppercase px-4 py-2 cursor-pointer">
+              Continue
+            </button>
           </div>
         </div>
       )}
@@ -367,7 +447,9 @@ export default function DeleteAccount() {
               className="bg-[var(--color-ember)] text-white font-mono text-xs uppercase px-4 py-2 disabled:opacity-40 cursor-pointer">
               {busy ? 'Erasing…' : 'Erase my account'}
             </button>
-            <button type="button" onClick={openChoose} className="font-mono text-xs uppercase px-4 py-2 cursor-pointer">Back</button>
+            {!lockedMode && (
+              <button type="button" onClick={openChoose} className="font-mono text-xs uppercase px-4 py-2 cursor-pointer">Back</button>
+            )}
           </div>
         </div>
       )}

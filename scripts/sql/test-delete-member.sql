@@ -1,4 +1,4 @@
--- Behaviour test for delete_member (20260927000000). Rolls back; nothing is kept.
+-- Behaviour test for delete_member (20260927000000, 20260928000000). Rolls back; nothing is kept.
 -- Success = final row 'ALL PASS'. Any failure raises 'FAIL: ...'.
 -- Run: npx supabase db query --linked -f scripts/sql/test-delete-member.sql
 begin;
@@ -39,7 +39,11 @@ insert into public.books (id, title, lede, content, author_id) values
 insert into public.book_comments (book_id, author_id, content) values
   ('00000000-0000-4000-8000-0000000b0005', '00000000-0000-4000-8000-00000000d002', 'stayer critique of dashboarded member');
 
-select public.delete_member('00000000-0000-4000-8000-00000000d001', 'k-test', '\x01ff'::bytea);
+do $$
+begin
+  if public.delete_member('00000000-0000-4000-8000-00000000d001', 'k-test', '\x01ff'::bytea) is not true then
+    raise exception 'FAIL: delete_member returned false for a member with a real profile row'; end if;
+end $$;
 
 -- F2: a profile deleted by a path other than delete_member -- here, the auth
 -- user is deleted directly, the way the Supabase dashboard would -- must still
@@ -91,6 +95,46 @@ begin
   if not exists (select 1 from public.books where id = '00000000-0000-4000-8000-0000000b0005'
                  and removed_by_author and author_id is null and title = '' and content is null) then
     raise exception 'FAIL: dashboard-deleted member''s critiqued story is not a tombstone'; end if;
+end $$;
+
+-- F3: delete_member for a uuid with no profile (a retry after the profile's
+-- already gone, or the loser of a concurrent-deletion race) must be a true
+-- no-op -- it must return false, and it must never store a sealed_bundles
+-- row for the email key it was passed.
+do $$
+begin
+  if public.delete_member('00000000-0000-4000-8000-00000000d999', 'k-retry', '\xff01'::bytea) is not false then
+    raise exception 'FAIL: delete_member did not return false for a member with no profile row'; end if;
+  if exists (select 1 from public.sealed_bundles where email_key = 'k-retry') then
+    raise exception 'FAIL: delete_member stored a seal for a member with no profile row'; end if;
+end $$;
+
+-- I1: sealing again while an earlier seal for the same email is still waiting
+-- must refuse (HW001 'seal_exists') and change nothing: the live profile stays,
+-- and the waiting bundle keeps its original bytes and sealed_at.
+insert into auth.users (id, email, aud, role, instance_id)
+values ('00000000-0000-4000-8000-00000000d004', 'resealer@example.test', 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000');
+insert into public.sealed_bundles (email_key, bundle, sealed_at)
+values ('k-exists', '\xaaaa'::bytea, '2026-01-01T00:00:00Z');
+
+do $$
+declare
+  raised boolean := false;
+begin
+  begin
+    perform public.delete_member('00000000-0000-4000-8000-00000000d004', 'k-exists', '\xbbbb'::bytea);
+  exception when sqlstate 'HW001' then
+    if sqlerrm <> 'seal_exists' then
+      raise exception 'FAIL: seal_exists raised with the wrong message: %', sqlerrm; end if;
+    raised := true;
+  end;
+  if not raised then
+    raise exception 'FAIL: delete_member did not raise seal_exists over a waiting seal'; end if;
+  if not exists (select 1 from public.profiles where id = '00000000-0000-4000-8000-00000000d004') then
+    raise exception 'FAIL: profile was deleted despite seal_exists'; end if;
+  if not exists (select 1 from public.sealed_bundles where email_key = 'k-exists'
+                 and bundle = '\xaaaa'::bytea and sealed_at = '2026-01-01T00:00:00Z') then
+    raise exception 'FAIL: the waiting seal was changed'; end if;
 end $$;
 
 -- No client role may touch sealed_bundles or call delete_member.

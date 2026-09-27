@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { decodeBundle, toByteaHex, MIN_BUNDLE_BYTES, BUNDLE_VERSION } from './bundle'
+import { decodeBundle, toByteaHex, fromByteaHex, bytesToBase64, MIN_BUNDLE_BYTES, BUNDLE_VERSION } from './bundle'
 
 function b64FromBytes(bytes: number[]): string {
   return btoa(String.fromCharCode(...bytes))
@@ -43,5 +43,57 @@ describe('decodeBundle', () => {
 describe('toByteaHex', () => {
   it('formats bytes as a lowercase hex bytea literal', () => {
     expect(toByteaHex(new Uint8Array([0x01, 0xab, 0x00]))).toBe('\\x01ab00')
+  })
+})
+
+describe('fromByteaHex', () => {
+  it('round-trips with toByteaHex', () => {
+    const bytes = new Uint8Array([0x01, 0xab, 0x00, 0xff, 0x10])
+    expect(fromByteaHex(toByteaHex(bytes))).toEqual(bytes)
+  })
+
+  it('round-trips an empty byte array', () => {
+    const bytes = new Uint8Array([])
+    expect(fromByteaHex(toByteaHex(bytes))).toEqual(bytes)
+  })
+
+  it('rejects a value missing the leading \\x prefix', () => {
+    expect(fromByteaHex('01ab00')).toBeNull()
+  })
+
+  it('rejects odd-length hex', () => {
+    expect(fromByteaHex('\\x0')).toBeNull()
+    expect(fromByteaHex('\\x01a')).toBeNull()
+  })
+
+  it('rejects non-hex characters', () => {
+    expect(fromByteaHex('\\xzz')).toBeNull()
+    expect(fromByteaHex('\\x01gg')).toBeNull()
+  })
+
+  it('accepts uppercase hex', () => {
+    expect(fromByteaHex('\\x01AB')).toEqual(new Uint8Array([0x01, 0xab]))
+  })
+})
+
+describe('bytesToBase64', () => {
+  it('matches Buffer.from(...).toString("base64") for a small array', () => {
+    const bytes = new Uint8Array([0, 1, 2, 253, 254, 255])
+    expect(bytesToBase64(bytes)).toBe(Buffer.from(bytes).toString('base64'))
+  })
+
+  it('matches a Node Buffer reference for a >100 KB array and does not throw', () => {
+    const length = 100_000 + 777
+    const bytes = new Uint8Array(length)
+    for (let i = 0; i < length; i++) bytes[i] = i % 256
+    let result = ''
+    expect(() => {
+      result = bytesToBase64(bytes)
+    }).not.toThrow()
+    expect(result).toBe(Buffer.from(bytes).toString('base64'))
+  })
+
+  it('handles an empty array', () => {
+    expect(bytesToBase64(new Uint8Array([]))).toBe('')
   })
 })

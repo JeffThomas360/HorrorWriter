@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { checkDeleteRequest, shouldRunDatabaseStep, FRESH_SIGN_IN_MS, MAX_BUNDLE_BYTES } from './deleteRequest'
+import { checkDeleteRequest, shouldRunDatabaseStep, partialFailureMessage, didRunDeleteMember, isSealExistsError, SEAL_EXISTS_MESSAGE, FRESH_SIGN_IN_MS, MAX_BUNDLE_BYTES } from './deleteRequest'
 
 const now = Date.parse('2026-09-27T12:00:00Z')
 const fresh = new Date(now - 60_000).toISOString()
@@ -61,5 +61,57 @@ describe('shouldRunDatabaseStep', () => {
 
   it('skips the database step when the profile is already gone (a retry after a partial failure)', () => {
     expect(shouldRunDatabaseStep(false)).toBe(false)
+  })
+})
+
+describe('partialFailureMessage', () => {
+  it('erase mode never mentions a recovery code, regardless of whether the profile existed', () => {
+    expect(partialFailureMessage('erase', true)).toBe('Your writing is gone, but signing out failed. Please try again.')
+    expect(partialFailureMessage('erase', false)).toBe('Your writing is gone, but signing out failed. Please try again.')
+  })
+
+  it('seal mode, profile existed (this call just sealed it): the code from THIS attempt is real', () => {
+    expect(partialFailureMessage('seal', true)).toMatch(/keep the recovery code from this attempt/i)
+    expect(partialFailureMessage('seal', true)).not.toMatch(/first attempt/i)
+  })
+
+  it('seal mode, profile already gone (this call is a retry): only the FIRST attempt\'s code is real', () => {
+    const msg = partialFailureMessage('seal', false)
+    expect(msg).toMatch(/sealed on your first attempt/i)
+    expect(msg).toMatch(/keep the recovery code from that first attempt/i)
+    expect(msg).not.toMatch(/from this attempt/i)
+  })
+})
+
+describe('didRunDeleteMember', () => {
+  it('is false only for an explicit false (the profile was already gone)', () => {
+    expect(didRunDeleteMember(false)).toBe(false)
+  })
+
+  it('fails safe on true and on any unexpected return (null, undefined, a string): treat it as having run', () => {
+    expect(didRunDeleteMember(true)).toBe(true)
+    expect(didRunDeleteMember(null)).toBe(true)
+    expect(didRunDeleteMember(undefined)).toBe(true)
+    expect(didRunDeleteMember('false')).toBe(true)
+  })
+})
+
+describe('isSealExistsError', () => {
+  it('recognises delete_member\'s HW001 seal_exists refusal', () => {
+    expect(isSealExistsError({ code: 'HW001', message: 'seal_exists' })).toBe(true)
+  })
+
+  it('does not match other database errors, or nothing', () => {
+    expect(isSealExistsError({ code: 'P0001', message: 'delete_member: p_user is required' })).toBe(false)
+    expect(isSealExistsError(null)).toBe(false)
+    expect(isSealExistsError(undefined)).toBe(false)
+  })
+})
+
+describe('SEAL_EXISTS_MESSAGE', () => {
+  it('tells the member to unseal first', () => {
+    expect(SEAL_EXISTS_MESSAGE).toBe(
+      'You already have sealed writing waiting from before. Unseal it first (at the top of your profile), then you can seal again.',
+    )
   })
 })

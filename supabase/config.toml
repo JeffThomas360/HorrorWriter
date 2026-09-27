@@ -216,7 +216,9 @@ enable_signup = true
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true
 # If enabled, users need to confirm their email address before signing in.
-enable_confirmations = false
+# Matches production (checked 2026-09-26). Sealed-writing relies on a confirmed email:
+# it's how a returning member's seal is found again.
+enable_confirmations = true
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
 secure_password_change = false
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
@@ -437,4 +439,10 @@ entrypoint = "./functions/urgent-report-email/index.ts"
 # Self-verifies the caller's JWT; see the verify_jwt explanation above the
 # [functions.webauthn-register-begin] block for why this must be false
 [functions.delete-account]
+verify_jwt = false
+
+# verify_jwt MUST be false: the function checks the session itself (getUser)
+# and must return CORS-bearing 401s. See the verify_jwt explanation above the
+# [functions.webauthn-register-begin] block.
+[functions.sealed-writing]
 verify_jwt = false

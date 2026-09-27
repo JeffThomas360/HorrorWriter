@@ -176,7 +176,7 @@ test('an oversized sealed bundle is rejected in the browser before uploading', a
   fireEvent.change(screen.getByLabelText(/type delete/i), { target: { value: 'DELETE' } })
   fireEvent.click(screen.getByRole('button', { name: /seal and delete/i }))
   expect(await screen.findByText(/too large to seal/i)).toBeInTheDocument()
-  expect(invoke).not.toHaveBeenCalled()
+  expect(invoke).not.toHaveBeenCalledWith('delete-account', expect.anything())
 })
 
 test('a signOut failure after a successful erase still redirects home', async () => {
@@ -206,6 +206,22 @@ test('a signOut failure after a successful seal still redirects home', async () 
   expect(screen.queryByText(/nothing was deleted/i)).toBeNull()
 })
 
+test('a seal retry that already stored the seal warns before redirecting', async () => {
+  mockInvoke({ deleteResult: { data: { deleted: true, sealAlreadyStored: true }, error: null } })
+  render(<DeleteAccount />)
+  fireEvent.click(screen.getByRole('button', { name: /delete my account/i }))
+  fireEvent.click(screen.getByRole('button', { name: /^seal my writing$/i }))
+  fireEvent.change(await screen.findByLabelText(/last 4 characters of your code/i), { target: { value: '7Q4K' } })
+  fireEvent.change(screen.getByLabelText(/type delete/i), { target: { value: 'DELETE' } })
+  fireEvent.click(screen.getByRole('button', { name: /seal and delete/i }))
+  expect(await screen.findByText(/already sealed on your first attempt/i)).toBeInTheDocument()
+  expect(screen.getByRole('status')).toHaveTextContent(/already sealed on your first attempt/i)
+  expect(screen.getByText(/the code from this attempt won't open it/i)).toBeInTheDocument()
+  expect(signOut).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: /^continue$/i }))
+  await waitFor(() => expect(signOut).toHaveBeenCalled())
+})
+
 test('a wrong last part of the code keeps Seal and delete disabled', async () => {
   render(<DeleteAccount />)
   fireEvent.click(screen.getByRole('button', { name: /delete my account/i }))
@@ -214,4 +230,138 @@ test('a wrong last part of the code keeps Seal and delete disabled', async () =>
   fireEvent.change(screen.getByLabelText(/last 4 characters of your code/i), { target: { value: 'ZZZZ' } })
   fireEvent.change(screen.getByLabelText(/type delete/i), { target: { value: 'DELETE' } })
   expect(screen.getByRole('button', { name: /seal and delete/i })).toBeDisabled()
+})
+
+const SEAL_EXISTS_MESSAGE =
+  'You already have sealed writing waiting from before. Unseal it first (at the top of your profile), then you can seal again.'
+
+// Routes the sealed-writing GET separately from the delete-account call.
+function mockInvoke({ waiting = false, getFails = false, deleteResult = { data: { deleted: true }, error: null } } = {}) {
+  invoke.mockImplementation(async (name) => {
+    if (name === 'sealed-writing') {
+      if (getFails === 'throw') throw new Error('network')
+      if (getFails) return { data: null, error: { message: 'boom' } }
+      return { data: waiting ? { waiting: true, bundle: 'AQID', sealed_at: 'x' } : { waiting: false }, error: null }
+    }
+    return typeof deleteResult === 'function' ? deleteResult() : deleteResult
+  })
+}
+
+function partialFailure(message) {
+  return { data: null, error: { context: { json: async () => ({ error: message, partial: true }) } } }
+}
+
+test('picking Seal while an earlier seal is still waiting says to unseal first, without making a code', async () => {
+  mockInvoke({ waiting: true })
+  render(<DeleteAccount />)
+  fireEvent.click(screen.getByRole('button', { name: /delete my account/i }))
+  fireEvent.click(screen.getByRole('button', { name: /^seal my writing$/i }))
+  const alert = await screen.findByRole('alert')
+  expect(alert).toHaveTextContent(SEAL_EXISTS_MESSAGE)
+  expect(invoke).toHaveBeenCalledWith('sealed-writing', { method: 'GET' })
+  expect(screen.queryByText(RECOVERY_CODE)).toBeNull()
+  expect(screen.queryByRole('button', { name: /seal and delete/i })).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: /^back$/i }))
+  expect(screen.getByRole('button', { name: /^erase everything$/i })).toBeInTheDocument()
+})
+
+test('a failed check for a waiting seal does not block sealing', async () => {
+  mockInvoke({ getFails: true })
+  render(<DeleteAccount />)
+  fireEvent.click(screen.getByRole('button', { name: /delete my account/i }))
+  fireEvent.click(screen.getByRole('button', { name: /^seal my writing$/i }))
+  expect(await screen.findByText(RECOVERY_CODE)).toBeInTheDocument()
+})
+
+test('a check for a waiting seal that throws does not block sealing', async () => {
+  mockInvoke({ getFails: 'throw' })
+  render(<DeleteAccount />)
+  fireEvent.click(screen.getByRole('button', { name: /delete my account/i }))
+  fireEvent.click(screen.getByRole('button', { name: /^seal my writing$/i }))
+  expect(await screen.findByText(RECOVERY_CODE)).toBeInTheDocument()
+})
+
+test('a 409 seal_exists from the server shows the unseal-first message', async () => {
+  mockInvoke({
+    deleteResult: {
+      data: null,
+      error: { context: { json: async () => ({ error: 'seal_exists', message: SEAL_EXISTS_MESSAGE }) } },
+    },
+  })
+  render(<DeleteAccount />)
+  fireEvent.click(screen.getByRole('button', { name: /delete my account/i }))
+  fireEvent.click(screen.getByRole('button', { name: /^seal my writing$/i }))
+  fireEvent.change(await screen.findByLabelText(/last 4 characters of your code/i), { target: { value: '7Q4K' } })
+  fireEvent.change(screen.getByLabelText(/type delete/i), { target: { value: 'DELETE' } })
+  fireEvent.click(screen.getByRole('button', { name: /seal and delete/i }))
+  const alert = await screen.findByRole('alert')
+  expect(alert).toHaveTextContent(SEAL_EXISTS_MESSAGE)
+  expect(screen.queryByText('seal_exists')).toBeNull()
+  expect(signOut).not.toHaveBeenCalled()
+})
+
+test('after an erase partial failure the mode is locked: no Back, and the retry erases again', async () => {
+  const message = 'Your writing is gone, but signing out failed. Please try again.'
+  mockInvoke({ deleteResult: partialFailure(message) })
+  render(<DeleteAccount />)
+  fireEvent.click(screen.getByRole('button', { name: /delete my account/i }))
+  fireEvent.click(screen.getByRole('button', { name: /^erase everything$/i }))
+  fireEvent.change(screen.getByLabelText(/type delete/i), { target: { value: 'DELETE' } })
+  fireEvent.click(screen.getByRole('button', { name: /erase my account/i }))
+  expect(await screen.findByRole('alert')).toHaveTextContent(message)
+  expect(screen.queryByRole('button', { name: /^back$/i })).toBeNull()
+
+  mockInvoke()
+  fireEvent.click(screen.getByRole('button', { name: /erase my account/i }))
+  await waitFor(() => expect(signOut).toHaveBeenCalled())
+  const deleteCalls = invoke.mock.calls.filter(([name]) => name === 'delete-account')
+  expect(deleteCalls).toEqual([
+    ['delete-account', { body: { mode: 'erase' } }],
+    ['delete-account', { body: { mode: 'erase' } }],
+  ])
+})
+
+test('after a seal partial failure the mode is locked: no Back', async () => {
+  const message = 'Your writing is sealed, but signing out failed. Please try again — and keep the recovery code from this attempt.'
+  mockInvoke({ deleteResult: partialFailure(message) })
+  render(<DeleteAccount />)
+  fireEvent.click(screen.getByRole('button', { name: /delete my account/i }))
+  fireEvent.click(screen.getByRole('button', { name: /^seal my writing$/i }))
+  fireEvent.change(await screen.findByLabelText(/last 4 characters of your code/i), { target: { value: '7Q4K' } })
+  fireEvent.change(screen.getByLabelText(/type delete/i), { target: { value: 'DELETE' } })
+  fireEvent.click(screen.getByRole('button', { name: /seal and delete/i }))
+  expect(await screen.findByRole('alert')).toHaveTextContent(message)
+  expect(screen.queryByRole('button', { name: /^back$/i })).toBeNull()
+  expect(screen.getByText(RECOVERY_CODE)).toBeInTheDocument()
+})
+
+test('an ordinary (non-partial) failure keeps Back available', async () => {
+  mockInvoke({ deleteResult: { data: null, error: { context: { json: async () => ({ error: 'Nothing was deleted. Please try again.' }) } } } })
+  render(<DeleteAccount />)
+  fireEvent.click(screen.getByRole('button', { name: /delete my account/i }))
+  fireEvent.click(screen.getByRole('button', { name: /^erase everything$/i }))
+  fireEvent.change(screen.getByLabelText(/type delete/i), { target: { value: 'DELETE' } })
+  fireEvent.click(screen.getByRole('button', { name: /erase my account/i }))
+  expect(await screen.findByRole('alert')).toHaveTextContent(/nothing was deleted/i)
+  expect(screen.getByRole('button', { name: /^back$/i })).toBeInTheDocument()
+})
+
+test('a seal retry after a partial failure that stored THIS code signs out without the wrong-code warning', async () => {
+  delete window.location
+  window.location = { href: '' }
+  const message = 'Your writing is sealed, but signing out failed. Please try again — and keep the recovery code from this attempt.'
+  mockInvoke({ deleteResult: { data: null, error: { context: { json: async () => ({ error: message, partial: true, sealedWithThisCode: true }) } } } })
+  render(<DeleteAccount />)
+  fireEvent.click(screen.getByRole('button', { name: /delete my account/i }))
+  fireEvent.click(screen.getByRole('button', { name: /^seal my writing$/i }))
+  fireEvent.change(await screen.findByLabelText(/last 4 characters of your code/i), { target: { value: '7Q4K' } })
+  fireEvent.change(screen.getByLabelText(/type delete/i), { target: { value: 'DELETE' } })
+  fireEvent.click(screen.getByRole('button', { name: /seal and delete/i }))
+  expect(await screen.findByRole('alert')).toHaveTextContent(message)
+
+  mockInvoke({ deleteResult: { data: { deleted: true, sealAlreadyStored: true }, error: null } })
+  fireEvent.click(screen.getByRole('button', { name: /seal and delete/i }))
+  await waitFor(() => expect(window.location.href).toBe('/'))
+  expect(signOut).toHaveBeenCalled()
+  expect(screen.queryByText(/won't open it/i)).toBeNull()
 })
