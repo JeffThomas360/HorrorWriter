@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { checkDeleteRequest } from '../_shared/deleteRequest.ts'
+import { emailKey } from '../_shared/emailKey.ts'
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -26,8 +27,24 @@ serve(async (req) => {
 
   const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '')
 
+  const request = body as { mode: 'erase' | 'seal'; bundle?: string } // validated by checkDeleteRequest
+  let p_email_key: string | null = null
+  let p_bundle: string | null = null
+  if (request.mode === 'seal') {
+    if (!user.email || !user.email_confirmed_at) return json({ error: 'Confirm your email before sealing.' }, 400)
+    try {
+      p_email_key = await emailKey(user.email, Deno.env.get('SEAL_EMAIL_KEY_SECRET') ?? '')
+    } catch (err) {
+      console.error('[delete-account] emailKey failed', err instanceof Error ? err.message : err)
+      return json({ error: 'Nothing was deleted. Please try again.' }, 500)
+    }
+    // bytea from base64: PostgREST accepts '\\x<hex>'
+    const raw = Uint8Array.from(atob(request.bundle ?? ''), (c) => c.charCodeAt(0))
+    p_bundle = '\\x' + Array.from(raw, (x) => x.toString(16).padStart(2, '0')).join('')
+  }
+
   // 1. Everything in the database, in one transaction.
-  const { error: dbError } = await admin.rpc('delete_member', { p_user: user.id })
+  const { error: dbError } = await admin.rpc('delete_member', { p_user: user.id, p_email_key, p_bundle })
   if (dbError) {
     console.error('[delete-account] delete_member failed', dbError.message)
     return json({ error: 'Nothing was deleted. Please try again.' }, 500)
