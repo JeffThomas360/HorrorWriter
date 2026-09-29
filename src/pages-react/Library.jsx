@@ -126,7 +126,7 @@ function Library() {
       {!loading && !error && books.length === 0 && (
         <div className="vintage-card py-12 text-center mb-12">
           <p className="font-serif italic text-base text-[var(--color-text-primary)] mb-2">No community stories published yet.</p>
-          <p className="font-serif italic text-xs text-[var(--color-text-secondary)] mb-6">Be the first writer in the coven to place your tape on the shelf.</p>
+          <p className="font-serif italic text-xs text-[var(--color-text-secondary)] mb-6">Be the first writer to place your tape on the shelf.</p>
           {session ? (
             <a href="/library/publish/" className="bg-[var(--color-blood)] hover:bg-red-800 text-white font-mono text-xs uppercase px-5 py-3 transition-colors inline-block">
               Publish the First Story

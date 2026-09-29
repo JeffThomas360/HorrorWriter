@@ -159,7 +159,7 @@ export default function MidnightRitual() {
                 Signal Recorded Into The Crypt
               </h4>
               <p className="font-serif italic text-sm text-[var(--color-text-secondary)] mb-4">
-                Your flash piece has been cast into the dark. The coven will read your transmission.
+                Your flash piece is finished. It isn't saved anywhere yet, so copy it before you leave.
               </p>
               <button
                 type="button"
@@ -210,7 +210,7 @@ export default function MidnightRitual() {
                     disabled={wordCount === 0 || wordCount > 250}
                     className="btn-vhs disabled:opacity-40 cursor-pointer"
                   >
-                    Transcribe to Coven
+                    Finish Draft
                   </button>
                 </div>
               </div>

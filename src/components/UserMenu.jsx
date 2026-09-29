@@ -6,7 +6,7 @@ function UserMenu() {
   const { session, profile, isLoading } = useAuth();
   
   if (isLoading) {
-    return <span className="text-xs text-[var(--color-text-secondary)] font-mono">▸ Reading coven...</span>;
+    return <span className="text-xs text-[var(--color-text-secondary)] font-mono">▸ Loading...</span>;
   }
 
   return (

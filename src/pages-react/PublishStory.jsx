@@ -307,7 +307,7 @@ function PublishStory({ bookId }) {
             {/* Critique Feedback Wanted */}
             <div className="flex flex-col gap-2">
               <label className="text-xs font-mono text-[var(--color-ash)] uppercase">
-                What feedback do you want from the coven?
+                What feedback do you want from other writers?
               </label>
               <div className="flex flex-wrap gap-2">
                 {CRITIQUE_TAGS.map((tag) => (

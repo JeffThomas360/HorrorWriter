@@ -241,7 +241,7 @@ export default function SignInModal({ isOpen, onClose }) {
           <div className="text-center">
             <h2 className="text-2xl font-serif mb-3">The Door Stays <em className="text-[var(--color-accent-crimson)] not-italic">Shut</em></h2>
             <p className="text-sm font-serif text-[var(--color-text-secondary)] leading-relaxed">
-              You must be at least {MIN_AGE} to join this coven. Come back when the years have caught up.
+              You must be at least {MIN_AGE} to join Horror Writer. Come back when the years have caught up.
             </p>
             <p className="text-xs font-serif text-[var(--color-text-secondary)] mt-6">
               The <a href="/rules/" className="underline hover:text-[var(--color-accent-crimson)]" onClick={onClose}>House Rules</a> explain why.
