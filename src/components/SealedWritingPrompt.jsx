@@ -175,6 +175,9 @@ export default function SealedWritingPrompt() {
 
   if (done) {
     const lines = []
+    if (done.counts?.drafts > 0) {
+      lines.push(`${done.counts.drafts === 1 ? '1 private ritual draft is' : `${done.counts.drafts} private ritual drafts are`} back.`)
+    }
     if (done.identity.handle === 'restored') lines.push(`Your handle @${done.oldHandle} is yours again.`)
     else if (done.identity.handle === 'taken') {
       lines.push(`Your old handle @${done.oldHandle} is taken now, so you're still @${done.currentHandle}.`)

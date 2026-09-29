@@ -176,6 +176,18 @@ test('uses singular story/series counts', async () => {
   expect(await screen.findByText(/1 story and 0 series are back, live/i)).toBeInTheDocument()
 })
 
+test('mentions restored private ritual drafts', async () => {
+  invoke.mockImplementation(async (name, opts) => opts?.method === 'DELETE'
+    ? { data: { removed: true }, error: null }
+    : { data: { waiting: true, bundle: 'AQID', sealed_at: SEALED_AT }, error: null })
+  unsealWriting.mockResolvedValue({ v: 3, stories: [], series: [], rituals: [] })
+  restoreWriting.mockResolvedValue({ stories: 1, series: 0, drafts: 2, skipped: 0 })
+  render(<SealedWritingPrompt />)
+  fireEvent.change(await screen.findByLabelText(/recovery code/i), { target: { value: 'pale-hound' } })
+  fireEvent.click(screen.getByRole('button', { name: /unseal/i }))
+  expect(await screen.findByText(/2 private ritual drafts are back/i)).toBeInTheDocument()
+})
+
 test('a malformed bundle (bad base64) is reported as damaged, not a wrong code', async () => {
   invoke.mockResolvedValue({ data: { waiting: true, bundle: '!!!not-base64!!!', sealed_at: SEALED_AT }, error: null })
   render(<SealedWritingPrompt />)
