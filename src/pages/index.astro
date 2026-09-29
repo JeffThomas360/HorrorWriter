@@ -51,7 +51,7 @@ const FALLBACK_TILES = [
   {
     tag: '▸ LIBRARY',
     title: 'New shorts this week',
-    body: 'Fresh pieces from the coven — left in the dark for others to find.',
+    body: 'Fresh pieces from fellow writers — left in the dark for others to find.',
     meta: 'Read the library',
   },
 ];
@@ -137,7 +137,7 @@ const isFallback = tiles === FALLBACK_TILES;
     </h1>
     <p class="text-base md:text-lg font-serif italic text-[var(--color-text-secondary)] max-w-2xl mb-8 leading-relaxed">
       A spot for aspiring horror writers — forums, critique,
-      and a coven that takes the craft as seriously as you do.
+      and fellow writers who take the craft as seriously as you do.
     </p>
 
     <div class="flex flex-wrap gap-6 items-center">
@@ -155,7 +155,7 @@ const isFallback = tiles === FALLBACK_TILES;
         Start Writing!
       </button>
       <a id="cta-enter" href="/forum/" class="hidden border border-[var(--color-upside)] text-[var(--color-upside)] font-mono text-xs uppercase px-6 py-3.5 tracking-wider shadow-[0_0_20px_rgba(25,165,184,0.25)] hover:bg-[var(--color-upside)] hover:text-[var(--color-void)] transition-colors">
-        Yes, Click Me
+        Start Writing!
       </a>
       <a href="/library/" class="font-mono text-xs uppercase tracking-wider text-[var(--color-text-secondary)] hover:text-[var(--color-ember)] transition-colors">
         Read the Library →
@@ -264,19 +264,19 @@ const isFallback = tiles === FALLBACK_TILES;
   >
     <h2 class="text-2xl md:text-3xl font-serif font-black mb-4">Be one of the first names in the dark.</h2>
     <p class="font-serif italic text-[var(--color-text-secondary)] text-base mb-9">
-      No cost. No algorithm deciding who sees you. Just a coven and a blank page.
+      No cost. No algorithm deciding who sees you. Just other writers and a blank page.
     </p>
     <button id="cta-join-closing" class="border border-[var(--color-upside)] text-[var(--color-upside)] font-mono text-xs uppercase px-8 py-4 tracking-wider shadow-[0_0_20px_rgba(25,165,184,0.25)] hover:bg-[var(--color-upside)] hover:text-[var(--color-void)] transition-colors cursor-pointer">
-      Join the Coven
+      Start Writing!
     </button>
   </section>
 
 </MainLayout>
 
 <script>
-  // Progressive enhancement only. "Join the Coven" is rendered visible from the
+  // Progressive enhancement only. The sign-up CTA (#cta-join) is rendered visible from the
   // server and is the correct CTA for the signed-out majority of landings; this
-  // merely *upgrades* it to "Enter the Crypt" once a Supabase session is
+  // merely *upgrades* it to the members' link (#cta-enter) once a Supabase session is
   // confirmed. Every failure path — missing env var, unavailable localStorage,
   // a thrown error, or this script never executing at all — must leave the
   // signed-out CTA standing. Never make the visible CTA depend on JS running.

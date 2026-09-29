@@ -88,7 +88,7 @@ export default function UsersTab() {
   }
 
   if (isLoading) {
-    return <p className="font-mono text-xs uppercase tracking-widest text-[var(--color-ash)] animate-pulse">Counting the coven…</p>
+    return <p className="font-mono text-xs uppercase tracking-widest text-[var(--color-ash)] animate-pulse">Counting members…</p>
   }
 
   if (error) {

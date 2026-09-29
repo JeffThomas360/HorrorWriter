@@ -57,7 +57,7 @@ export default function WitchingHourBar() {
   }, [])
 
   return (
-    <aside aria-label="Coven atmospheric telemetry" className="w-full border-b border-[var(--color-line)] bg-[#0c050a]/90 text-[var(--color-text-secondary)] font-mono text-[11px] py-2 px-4 -mx-4 sm:mx-0 sm:px-6 mb-6 flex flex-wrap items-center justify-between gap-3 select-none">
+    <aside aria-label="Witching hour and moon phase" className="w-full border-b border-[var(--color-line)] bg-[#0c050a]/90 text-[var(--color-text-secondary)] font-mono text-[11px] py-2 px-4 -mx-4 sm:mx-0 sm:px-6 mb-6 flex flex-wrap items-center justify-between gap-3 select-none">
       {/* Witching Hour Countdown */}
       <div className="flex items-center gap-2">
         <span className="w-2 h-2 rounded-full bg-[var(--color-ember)] animate-pulse shadow-[0_0_8px_var(--color-ember)]" aria-hidden="true" />

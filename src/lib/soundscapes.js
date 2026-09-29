@@ -1,5 +1,5 @@
 /**
- * Web Audio API synthesizer for the HorrorWriter Coven Sanctuary Editor.
+ * Web Audio API synthesizer for the HorrorWriter Sanctuary Editor.
  * 100% client-side, synthesized in real-time with zero external audio assets.
  */
 

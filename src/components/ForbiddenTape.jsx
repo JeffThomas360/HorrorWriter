@@ -72,7 +72,7 @@ export default function ForbiddenTape() {
           <p className="font-serif italic text-sm sm:text-base text-white leading-relaxed">
             "If you are listening to this, you are one of the few who still understands why stories must bleed. 
             The algorithm wants you to write comfort. The market wants formula. 
-            We built this coven so the dark has a place to breathe."
+            We built this site so the dark has a place to breathe."
           </p>
 
           <div className="p-4 bg-[#14060c] border border-red-900/60 text-[var(--color-text-primary)]">
@@ -80,8 +80,8 @@ export default function ForbiddenTape() {
               THE PACT OF THE TAPE:
             </span>
             <p className="font-serif text-xs leading-relaxed">
-              Those who sign their names while the coven is young will be remembered as Founding Members.
-              The mark is recognition, not privilege: it opens no door the rest of the coven cannot walk through.
+              Those who sign their names while the site is young will be remembered as Founding Members.
+              The mark is recognition, not privilege: it opens no door other members cannot walk through.
             </p>
           </div>
 
