@@ -214,6 +214,90 @@ grant execute on function public.ritual_reject_prompt(uuid)     to authenticated
 revoke all on function public.ritual_next_unlock() from public;
 grant execute on function public.ritual_next_unlock() to anon, authenticated;
 
--- @@DRAFTS@@
+-- ── 5. Private drafts ──────────────────────────────────────────────────────
+-- One draft per writer per prompt. Owner-only. Erased with the account (FK
+-- cascade from profiles); sealed on "Seal my writing" by the client
+-- (src/lib/sealCollect.js, payload v3).
+create table public.ritual_drafts (
+  id         uuid primary key default gen_random_uuid(),
+  author_id  uuid not null default auth.uid() references public.profiles(id) on delete cascade,
+  prompt_id  uuid not null references public.ritual_prompts(id) on delete restrict,
+  content    text not null check (
+               regexp_count(content, '\S+') between 1 and 500
+               and char_length(content) <= 6000),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (author_id, prompt_id)
+);
+create index ritual_drafts_prompt_id_idx on public.ritual_drafts (prompt_id);
+
+create trigger ritual_drafts_set_updated_at
+  before update on public.ritual_drafts
+  for each row execute function public.touch_profile_updated_at();
+
+alter table public.ritual_drafts enable row level security;
+
+create policy ritual_drafts_owner_read on public.ritual_drafts
+  for select to authenticated
+  using (author_id = (select auth.uid()));
+create policy ritual_drafts_owner_insert on public.ritual_drafts
+  for insert to authenticated
+  with check (
+    author_id = (select auth.uid())
+    and not public.is_banned(author_id)
+    and exists (select 1 from public.ritual_prompts p
+                where p.id = prompt_id and p.status = 'scheduled' and p.goes_live_at <= now()));
+create policy ritual_drafts_owner_update on public.ritual_drafts
+  for update to authenticated
+  using (author_id = (select auth.uid()))
+  with check (
+    author_id = (select auth.uid())
+    and not public.is_banned(author_id)
+    and exists (select 1 from public.ritual_prompts p
+                where p.id = prompt_id and p.status = 'scheduled' and p.goes_live_at <= now()));
+create policy ritual_drafts_owner_delete on public.ritual_drafts
+  for delete to authenticated
+  using (author_id = (select auth.uid()));
+
+revoke all on public.ritual_drafts from anon;
+
+-- ── 6. Stories written for a prompt ────────────────────────────────────────
+alter table public.books
+  add column prompt_id uuid references public.ritual_prompts(id) on delete restrict;
+create index books_prompt_id_idx on public.books (prompt_id) where prompt_id is not null;
+
+-- ── 7. Share: a draft becomes a normal story, atomically ───────────────────
+-- SECURITY INVOKER on purpose: the insert passes through exactly the same books
+-- INSERT policy (author = caller, not banned) and triggers (rate limit) as
+-- PublishStory. The client then calls moderate-content, as PublishStory does.
+create function public.share_ritual_draft(p_draft_id uuid, p_title text)
+returns uuid
+language plpgsql security invoker
+set search_path = ''
+as $$
+declare
+  v_draft public.ritual_drafts;
+  v_title text := btrim(coalesce(p_title, ''));
+  v_book  uuid;
+begin
+  if char_length(v_title) not between 1 and 200 then
+    raise exception 'bad_title' using errcode = 'HW013';
+  end if;
+  select * into v_draft from public.ritual_drafts
+  where id = p_draft_id and author_id = auth.uid();
+  if not found then raise exception 'not_found' using errcode = 'P0002'; end if;
+
+  insert into public.books (title, lede, content, author_id, version, prompt_id)
+  values (v_title,
+          left(regexp_replace(btrim(v_draft.content), '\s+', ' ', 'g'), 160),
+          v_draft.content, auth.uid(), 1, v_draft.prompt_id)
+  returning id into v_book;
+
+  delete from public.ritual_drafts where id = v_draft.id;
+  return v_book;
+end $$;
+
+revoke all on function public.share_ritual_draft(uuid, text) from public, anon;
+grant execute on function public.share_ritual_draft(uuid, text) to authenticated;
 
 notify pgrst, 'reload schema';
