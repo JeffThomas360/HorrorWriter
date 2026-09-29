@@ -205,6 +205,28 @@ do $$ begin
     raise exception 'FAIL: drafted to a future prompt';
   exception when insufficient_privilege then null; end;
 end $$;
+
+-- Stories can't be tagged to an unreleased prompt either (prompt ids are public in
+-- the transparency log, so this must be enforced, not just unlikely).
+do $$
+declare bk uuid;
+begin
+  begin
+    insert into public.books (title, lede, content, author_id, prompt_id)
+    values ('Early', 'L', 'C', '00000000-0000-4000-8000-00000000e103', current_setting('test.future_prompt')::uuid);
+    raise exception 'FAIL: tagged a new story to an unreleased prompt';
+  exception when sqlstate 'HW014' then null; end;
+
+  insert into public.books (title, lede, content, author_id)
+  values ('Plain', 'L', 'C', '00000000-0000-4000-8000-00000000e103') returning id into bk;
+  begin
+    update public.books set prompt_id = current_setting('test.future_prompt')::uuid where id = bk;
+    raise exception 'FAIL: retagged a story to an unreleased prompt';
+  exception when sqlstate 'HW014' then null; end;
+
+  -- A released prompt is fine.
+  update public.books set prompt_id = '00000000-0000-4000-8000-0000000f0001' where id = bk;
+end $$;
 reset role;
 
 -- ── Share: atomic, becomes a normal story ──────────────────────────────────

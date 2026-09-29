@@ -12,6 +12,11 @@ $testSql = Get-Content -Raw $Test
 $migSql  = Get-Content -Raw $Migration
 if ($testSql -notmatch '(?m)^begin;\r?$') { throw "$Test has no line 'begin;' to splice after" }
 if ($testSql -notmatch '(?m)^rollback;\r?\s*$') { throw "$Test does not end in rollback; refusing to run" }
+# A transaction-ending statement inside the migration would commit it to production
+# mid-rehearsal (and drift schema_migrations). Migrations here never need one.
+if ($migSql -match '(?im)^\s*(commit|end|rollback)\s*;') { throw "$Migration ends the transaction itself (commit/end/rollback); refusing to run" }
+# Note: the rehearsal holds the migration's locks (e.g. ACCESS EXCLUSIVE from ALTER TABLE)
+# on the live database until the final rollback -- keep test scripts fast.
 # A MatchEvaluator, not a replacement string: in a replacement string `$$` means a
 # literal `$`, which would mangle every `as $$` body in the migration.
 $splice = "begin;`n$migSql`n"

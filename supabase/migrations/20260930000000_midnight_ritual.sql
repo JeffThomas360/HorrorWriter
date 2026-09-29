@@ -266,6 +266,31 @@ alter table public.books
   add column prompt_id uuid references public.ritual_prompts(id) on delete restrict;
 create index books_prompt_id_idx on public.books (prompt_id) where prompt_id is not null;
 
+-- The books INSERT/UPDATE policies only check the author, and the FK ignores RLS,
+-- so without this a writer could tag a story to a pending or future prompt (ids are
+-- public via get_transparency_log): an "early" response, or an FK that blocks a
+-- keeper's reject. Only a released prompt can be newly attached.
+create function public.books_check_prompt_released()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if new.prompt_id is not null
+     and (tg_op = 'INSERT' or new.prompt_id is distinct from old.prompt_id)
+     and not exists (select 1 from public.ritual_prompts p
+                     where p.id = new.prompt_id and p.status = 'scheduled' and p.goes_live_at <= now()) then
+    raise exception 'prompt_not_released' using errcode = 'HW014';
+  end if;
+  return new;
+end $$;
+
+create trigger books_prompt_released
+  before insert or update of prompt_id on public.books
+  for each row execute function public.books_check_prompt_released();
+
+revoke all on function public.books_check_prompt_released() from public, anon, authenticated;
+
 -- ── 7. Share: a draft becomes a normal story, atomically ───────────────────
 -- SECURITY INVOKER on purpose: the insert passes through exactly the same books
 -- INSERT policy (author = caller, not banned) and triggers (rate limit) as
