@@ -23,14 +23,14 @@ const faqs = [
   },
   {
     question: "What is The Midnight Ritual writing challenge?",
-    answer: "The Midnight Ritual is an interactive prompt receiver broadcasting weekly and instant micro-fiction prompts across cosmic dread, analog horror, folk occult, and psychological terror. Writers can answer prompts directly in an instant 250-word flash writing terminal."
+    answer: "The Midnight Ritual is a set of micro-fiction prompts across cosmic dread, analog horror, folk horror, and psychological terror. Pick one and write up to 250 words right on the page, no account needed. Drafts are not saved yet, so copy yours before you leave."
   }
 ];
 
 const websiteSchema = buildWebSiteSchema({
   url: 'https://horrorwriter.org',
   name: 'Horror Writer — Horror Fiction Community, Critique & Prompts',
-  description: 'A community for serious or just aspiring horror writers alike: publish stories in The Library, get real critique in The Crypt, and answer weekly dark-fiction prompts.'
+  description: 'A community for serious or just aspiring horror writers alike: publish stories in The Library, get real critique in The Crypt, and write to dark-fiction prompts.'
 });
 
 const faqSchema = buildFAQSchema(faqs);
@@ -104,7 +104,7 @@ const [heroTile, ...restTiles] = tiles;
 const isFallback = tiles === FALLBACK_TILES;
 ---
 
-<MainLayout title="Horror Writer — Horror Fiction Community, Critique & Prompts" description="A community for serious horror writers: publish stories in The Library, get real critique in The Crypt, and answer weekly dark-fiction prompts.">
+<MainLayout title="Horror Writer — Horror Fiction Community, Critique & Prompts" description="A community for serious horror writers: publish stories in The Library, get real critique in The Crypt, and write to dark-fiction prompts.">
   <StructuredData data={websiteSchema} />
   <StructuredData data={faqSchema} />
 

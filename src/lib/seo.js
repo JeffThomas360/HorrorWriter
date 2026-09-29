@@ -4,7 +4,7 @@
  * and high-ranking search appearance.
  */
 
-export const SITE_DESCRIPTION = 'A community for serious horror writers: publish stories in The Library, get real critique in The Crypt, and answer weekly dark-fiction prompts.';
+export const SITE_DESCRIPTION = 'A community for serious horror writers: publish stories in The Library, get real critique in The Crypt, and write to dark-fiction prompts.';
 
 /**
  * Build a meta description from free text (a story lede, a bio, a series blurb).
