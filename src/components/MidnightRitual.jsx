@@ -5,9 +5,9 @@ const FREQUENCIES = [
   {
     id: 'weekly',
     freq: 'CH 13.0',
-    name: 'Weekly Ritual Broadcast',
+    name: 'The Ritual Broadcast',
     prompt: 'The voicemail on the answering machine is dated tomorrow at 3:17 AM. It is your voice, begging you not to open the refrigerator.',
-    category: 'Ritual of the Week',
+    category: 'Featured Ritual',
     constraint: 'Max 250 words',
   },
   {
@@ -22,7 +22,7 @@ const FREQUENCIES = [
     id: 'folk',
     freq: 'CH 13.2',
     name: 'Folk & Ritual',
-    prompt: 'Every year, the village buries a carved wooden effigy of the oldest resident. This year, the wood bleed.',
+    prompt: 'Every year, the village buries a carved wooden effigy of the oldest resident. This year, the wood bled.',
     category: 'Folk Horror',
     constraint: 'Max 250 words',
   },
