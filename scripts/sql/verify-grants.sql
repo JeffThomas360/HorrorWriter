@@ -37,6 +37,10 @@ with allow(name, role, why) as (values
   ('get_transparency_log',    'authenticated', 'public moderation transparency (20260907000000)'),
   -- Signed-in user RPC. Binds author_id to auth.uid() internally.
   ('create_thread_with_post', 'authenticated', 'atomic thread+post create, author = auth.uid()'),
+  -- Forum editing (20261001000000). Author-only, checked against auth.uid();
+  -- banned members refused; touches only text and edited_at.
+  ('edit_forum_post',         'authenticated', 'edit own reply, author = auth.uid()'),
+  ('edit_forum_thread',       'authenticated', 'edit own thread title + opening post, author = auth.uid()'),
   -- Moderator / Keeper RPCs. Each enforces mod_can(...) or a Keeper check
   -- internally and logs to mod_actions. anon is deliberately NOT here.
   ('resolve_report',          'authenticated', 'mod RPC, checks mod_can(handle_report, area)'),
