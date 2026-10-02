@@ -78,4 +78,13 @@ describe('no fabricated engagement metrics', () => {
     const src = read('../pages/index.astro')
     expect(src).not.toMatch(/Founding Member/i)
   })
+
+  // The Midnight Ritual prompts are five hardcoded strings that never change,
+  // yet the FAQ, meta descriptions and channel labels all promised "weekly"
+  // prompts. When prompts really rotate, update this test with that change.
+  it('no page promises weekly prompts while the prompts are hardcoded', () => {
+    for (const f of ['MidnightRitual.jsx', '../pages/index.astro', '../layouts/MainLayout.astro', '../lib/seo.js']) {
+      expect(read(f), `${f} should not promise weekly prompts`).not.toMatch(/weekly (dark-fiction )?prompts|broadcasting weekly|of the Week'|Weekly Ritual/i)
+    }
+  })
 })
