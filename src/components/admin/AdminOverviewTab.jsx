@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { fetchSiteStats } from '../../lib/modActions'
 import { fetchSiteSettings } from '../../lib/siteSettings'
+import { countFutureScheduled } from '../../lib/ritualAdmin'
 
 const STAT_TILES = [
   { key: 'totalUsers', label: 'Registered users', jump: 'users' },
@@ -46,6 +47,13 @@ export default function AdminOverviewTab({ onNavigate }) {
     queryFn: fetchSiteSettings,
   })
 
+  // Undefined until loaded, and on error: never warn from a failed read.
+  const { data: futureRituals } = useQuery({
+    queryKey: ['admin', 'ritual-future-count'],
+    queryFn: countFutureScheduled,
+    refetchInterval: 60_000,
+  })
+
   const s = stats ?? { totalUsers: 0, liveStories: 0, liveThreads: 0, liveCritiques: 0, reportsHandled: 0, activeSanctions: 0 }
 
   return (
@@ -66,6 +74,24 @@ export default function AdminOverviewTab({ onNavigate }) {
             className="self-start mt-1 font-mono text-xs uppercase underline text-[var(--color-ash)] hover:text-[var(--color-bone)] cursor-pointer"
           >
             Manage in Site settings
+          </button>
+        </div>
+      )}
+
+      {typeof futureRituals === 'number' && futureRituals < 2 && (
+        <div className="card-surface border border-[var(--color-ember)] p-4 flex flex-col gap-1">
+          <span className="font-mono text-xs uppercase tracking-widest text-[var(--color-ember)]">▸ Midnight Ritual queue running dry</span>
+          <p className="text-sm text-[var(--color-bone)] font-serif">
+            {futureRituals === 0
+              ? 'No Midnight Ritual prompts are scheduled. Add and approve some in the Rituals tab.'
+              : 'Only 1 Midnight Ritual prompt is scheduled ahead.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => onNavigate?.('rituals')}
+            className="self-start mt-1 font-mono text-xs uppercase underline text-[var(--color-ash)] hover:text-[var(--color-bone)] cursor-pointer"
+          >
+            Review rituals
           </button>
         </div>
       )}

@@ -7,6 +7,7 @@ import RequireAuth from '../components/RequireAuth'
 import AdminOverviewTab from '../components/admin/AdminOverviewTab'
 import UsersTab from '../components/admin/UsersTab'
 import SiteTab from '../components/admin/SiteTab'
+import RitualsTab from '../components/admin/RitualsTab'
 import AuditTab from '../components/admin/AuditTab'
 
 /**
@@ -61,6 +62,7 @@ function Admin() {
     { id: 'overview', label: 'Overview', show: isKeeper },
     { id: 'users',    label: 'Users',    show: isKeeper },
     { id: 'site',     label: 'Site',     show: isKeeper },
+    { id: 'rituals',  label: 'Rituals',  show: isKeeper },
     { id: 'audit',    label: 'Audit',    show: canReadAudit },
   ].filter((t) => t.show)
 
@@ -146,6 +148,7 @@ function Admin() {
           {activeId === 'overview' && <AdminOverviewTab profile={profile} onNavigate={setTab} />}
           {activeId === 'users' && <UsersTab />}
           {activeId === 'site' && <SiteTab />}
+          {activeId === 'rituals' && <RitualsTab />}
           {activeId === 'audit' && <AuditTab />}
         </IslandErrorBoundary>
       </div>

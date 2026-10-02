@@ -22,7 +22,7 @@ It lines up with three things already on record in the vault:
 | Question | Decision |
 |---|---|
 | Where a finished piece goes | **Writer chooses:** private by default, with an option to share under the prompt |
-| Where prompts come from | **AI drafts, Jeff approves**, from a review queue in the admin panel. Jeff can also add his own |
+| Where prompts come from | **Jeff writes every prompt** in the admin panel's queue and approves it into a slot. **No AI from the site** (Jeff, 2026-10-01; this replaces the original "AI drafts, Jeff approves") |
 | Cadence | **One shared prompt a week.** Past prompts stay open |
 | Accounts | **Write first, sign in to save.** The draft survives the sign-in |
 | Word limit | **500 words** |
@@ -35,7 +35,6 @@ Defaults Claude chose that Jeff has not explicitly confirmed. Change them at rev
 - **Weekly slot: Friday 03:00, `America/New_York`.** One fixed instant for everyone, because a
   shared prompt can't unlock at each visitor's local 3 a.m. The existing `WitchingHourBar`
   countdown stays local-time; it is a mood clock, not the prompt schedule.
-- **Model for drafting prompts:** `claude-sonnet-5`. A batch of 8 costs well under a cent.
 
 ## What writers see
 
@@ -89,14 +88,7 @@ Midnight Ritual of <date>", linking to the prompt page.
 
 ## Keeper review queue (admin panel)
 
-There is a new **Rituals** tab in `Admin.jsx`, visible only when `isKeeper`. It has four parts.
-
-**Draft 8 prompts:**
-
-- The button invokes the Edge Function `draft-ritual-prompts`, which inserts 8 rows as `pending`.
-- The prompt given to the model asks for one- or two-sentence horror sparks in the tone of the
-  current five, varied across subgenres (cosmic, folk, analog/found footage, psychological, body,
-  domestic, and so on). It passes the last 30 prompts so the model avoids repeats.
+There is a new **Rituals** tab in `Admin.jsx`, visible only when `isKeeper`. It has four parts: the live prompt (locked), **Add a prompt**, the pending list and the schedule.
 
 **Pending list:** each prompt can be edited inline, approved or rejected.
 
@@ -109,13 +101,12 @@ There is a new **Rituals** tab in `Admin.jsx`, visible only when `isKeeper`. It 
 - **Un-schedule** returns a prompt to pending, and later prompts move up to close the gap.
 - Released prompts (`goes_live_at <= now()`) are locked: no edit, no un-schedule, no delete.
 
-**Add prompt:** a text box that creates a `pending` prompt with `source = 'keeper'`.
+**Add a prompt:** a text box that creates a `pending` prompt with `source = 'keeper'`. This is the only way prompts are created.
 
 **Overview tab:** shows a warning tile when fewer than 2 prompts are scheduled in the future.
 
 **Audit:** every action writes to `mod_actions` with `target_type = 'ritual_prompt'`:
 
-- `ritual_prompts_drafted` (metadata: count)
 - `ritual_prompt_added`
 - `ritual_prompt_edited`
 - `ritual_prompt_approved` (metadata: `goes_live_at`)
@@ -225,23 +216,6 @@ limit 1
 
 RLS alone makes this safe for anon.
 
-### Edge Function `draft-ritual-prompts`
-
-1. Verify the JWT, then call `mod_can('configure','all')` as the user. It refuses with 403
-   otherwise.
-2. Refuse if 40 or more prompts are already pending (a cost and clutter guard).
-3. Read the last 30 prompts (released and scheduled) using the service role.
-4. Call the Anthropic Messages API (`claude-sonnet-5`), asking for a JSON array of exactly 8
-   strings. Validate the length rules and drop duplicates.
-5. Insert the prompts as `pending, source='ai'` and write one `mod_actions` row.
-
-**Secret:** `ANTHROPIC_API_KEY`. It does not exist yet. **Jeff adds it** in the Supabase dashboard
-(Edge Functions → Secrets); Claude never handles the key. Without it, the function returns a clear
-error and the tab shows it.
-
-**Deploy:** by hand, `npx supabase functions deploy draft-ritual-prompts --use-api`, after PR 2's
-migration is live.
-
 ## Sealing on account deletion
 
 These changes are in `src/lib/sealCollect.js`. The Edge Functions and `_shared` stay unchanged,
@@ -267,7 +241,6 @@ since they never read bundle contents.
 | Over 500 words | Save is disabled client-side; the DB CHECK rejects it anyway |
 | No localStorage | Writing works; autosave and the sign-in hand-off are skipped (Save then saves only if already signed in) |
 | `supabase` is null (unconfigured env) | The box shows the static "being prepared" state; no query is made |
-| Model down, or key missing | The Draft button shows the error; the queue and live prompt are unaffected |
 | A shared piece is hidden or removed | It disappears from the prompt page and counts, via the existing `content_visible` RLS |
 | Banned member | Save and share are refused by RLS (`is_banned`), and the UI shows the standard message |
 | Keeper edits a released prompt | Refused by the function; the UI shows it as locked |
@@ -312,9 +285,8 @@ save, sign in, the draft is saved, share, and the piece appears on the prompt pa
    - The SQL rehearsal.
    - Nothing visible changes.
 2. **Admin:**
-   - The Rituals tab, the Overview warning and the `draft-ritual-prompts` function.
-   - After merge: Jeff adds `ANTHROPIC_API_KEY`, the function is deployed by hand, and Jeff
-     drafts and approves the first prompts.
+   - The Rituals tab and the Overview warning. No Edge Function, no AI (Jeff, 2026-10-01).
+   - After merge: Jeff writes and approves the first prompts.
 3. **Writers:**
    - The new home box, saving and the sign-in hand-off, My Rituals, sharing, the `/ritual/`
      pages, the reader link and the honesty-guard swap.
@@ -327,3 +299,5 @@ save, sign in, the draft is saved, share, and the piece appears on the prompt pa
 - Notifications ("a new ritual is live").
 - More than one prompt per week, and genre channels.
 - AI help with the writing itself. Never, by decision.
+- AI drafting of prompts from the site. Dropped 2026-10-01; Jeff writes them himself. The
+  `source` column keeps its `'ai'` value only because it is in the live CHECK.
