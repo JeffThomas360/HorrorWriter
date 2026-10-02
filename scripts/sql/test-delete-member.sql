@@ -29,6 +29,11 @@ insert into public.posts (thread_id, author_id, content) values
 insert into public.series (title, author_id) values ('Leaver series', '00000000-0000-4000-8000-00000000d001');
 insert into public.mod_notes (target_user_id, author_id, note) values
   ('00000000-0000-4000-8000-00000000d002', '00000000-0000-4000-8000-00000000d001', 'leaver flagged the stayer for review');
+-- A released prompt and a private ritual draft for the leaver (20260930000000).
+insert into public.ritual_prompts (id, body, status, goes_live_at, source) values
+  ('00000000-0000-4000-8000-0000000f00d1', 'A prompt the leaver drafted to, for testing.', 'scheduled', now() - interval '1 day', 'keeper');
+insert into public.ritual_drafts (author_id, prompt_id, content) values
+  ('00000000-0000-4000-8000-00000000d001', '00000000-0000-4000-8000-0000000f00d1', 'A private draft that must go with the account.');
 
 -- Dashboarded member: never touches delete_member. Their auth.users row gets
 -- deleted directly (as the Supabase dashboard would do), which cascades to
@@ -74,6 +79,9 @@ begin
     raise exception 'FAIL: leaver''s posts survived'; end if;
   if exists (select 1 from public.series where title = 'Leaver series') then
     raise exception 'FAIL: series survived'; end if;
+  if exists (select 1 from public.ritual_drafts where author_id = '00000000-0000-4000-8000-00000000d001'
+             or content = 'A private draft that must go with the account.') then
+    raise exception 'FAIL: ritual draft survived account erasure'; end if;
   if not exists (select 1 from public.sealed_bundles where email_key = 'k-test'
                  and expires_at > now() + interval '6 years 11 months') then
     raise exception 'FAIL: sealed bundle missing or wrong expiry'; end if;
