@@ -6,7 +6,7 @@ vi.mock('../supabaseClient', () => ({
   supabase: { rpc: (...a) => rpc(...a), functions: { invoke: (...a) => invoke(...a) } },
 }))
 
-const { editPost, editThread, forumEditErrorMessage } = await import('./forumEditing')
+const { editPost, editThread, forumEditErrorMessage, isOpeningPost } = await import('./forumEditing')
 
 beforeEach(() => {
   rpc.mockReset()
@@ -56,4 +56,20 @@ test('a failed re-screen never fails the save', async () => {
   const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
   await expect(editPost('p1', 'New words')).resolves.toBeUndefined()
   spy.mockRestore()
+})
+
+describe('isOpeningPost', () => {
+  const thread = { id: 't1', author_id: 'a', removed_by_author: false }
+  test('the first post by the thread author is the opening post', () => {
+    expect(isOpeningPost(0, { author_id: 'a' }, thread)).toBe(true)
+  })
+  test('later posts are replies', () => {
+    expect(isOpeningPost(1, { author_id: 'a' }, thread)).toBe(false)
+  })
+  test('in a tombstoned thread the first remaining post is a reply', () => {
+    expect(isOpeningPost(0, { author_id: 'b' }, { id: 't1', author_id: null, removed_by_author: true })).toBe(false)
+  })
+  test('if the opening post was deleted, the first remaining post is a reply', () => {
+    expect(isOpeningPost(0, { author_id: 'b' }, thread)).toBe(false)
+  })
 })

@@ -7,6 +7,7 @@ import CommunityGuidelines from '../components/CommunityGuidelines'
 import InlineModControls from '../components/mod/InlineModControls'
 import MarkdownEditor from '../components/MarkdownEditor'
 import PostCard from '../components/forum/PostCard'
+import { isOpeningPost } from '../lib/forumEditing'
 import { withProviders } from '../components/Providers'
 import { isTombstone, TOMBSTONE_TEXT } from '../lib/storyHelpers'
 
@@ -199,7 +200,7 @@ function ThreadView({ id }) {
             key={p.id}
             post={p}
             label={index === 0 ? (isTombstone(thread) ? null : 'Original Post') : `Reply #${index}`}
-            isOpening={index === 0}
+            isOpening={isOpeningPost(index, p, thread)}
             thread={thread}
             currentUserId={userId}
             onReport={() => setReportTarget({ type: 'post', id: p.id })}

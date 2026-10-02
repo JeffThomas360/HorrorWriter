@@ -43,3 +43,14 @@ export async function editThread({ threadId, openingPostId, title, content }) {
   rescreen('thread', threadId)
   if (openingPostId) rescreen('post', openingPostId)
 }
+
+/**
+ * Whether a post on a thread page is the thread's opening post. The first post
+ * shown is only the opening post if the thread's author wrote it: after the
+ * author erases their account (a tombstone, author_id null) or deletes their
+ * opening post, the first remaining post is somebody's reply, and its author
+ * must still be able to edit it as one.
+ */
+export function isOpeningPost(index, post, thread) {
+  return index === 0 && !!thread?.author_id && post?.author_id === thread.author_id
+}
