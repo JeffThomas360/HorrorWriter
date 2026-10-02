@@ -36,6 +36,8 @@ test('says so plainly when none are scheduled', async () => {
   future = 0
   renderIt()
   expect(await screen.findByText(/no midnight ritual prompts are scheduled/i)).toBeInTheDocument()
+  // Before the first release there is no "current" prompt, so never claim one.
+  expect(screen.queryByText(/current one/i)).toBeNull()
 })
 
 test('stays quiet at 2 or more', async () => {

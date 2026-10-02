@@ -83,8 +83,8 @@ export default function AdminOverviewTab({ onNavigate }) {
           <span className="font-mono text-xs uppercase tracking-widest text-[var(--color-ember)]">▸ Midnight Ritual queue running dry</span>
           <p className="text-sm text-[var(--color-bone)] font-serif">
             {futureRituals === 0
-              ? 'No Midnight Ritual prompts are scheduled. The current one stays up until you approve more.'
-              : 'Only 1 Midnight Ritual prompt is scheduled after the current one.'}
+              ? 'No Midnight Ritual prompts are scheduled. Add and approve some in the Rituals tab.'
+              : 'Only 1 Midnight Ritual prompt is scheduled ahead.'}
           </p>
           <button
             type="button"
