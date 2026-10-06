@@ -22,6 +22,10 @@ describe('registry', () => {
     expect(describeTask(t)).toBe('from_the_future')
     expect(actionsFor(t)).toEqual([])
   })
+  it('does not resolve inherited object keys as task types', () => {
+    expect(typeInfo('constructor').label).toBe('Unknown task')
+    expect(describeTask({ type: 'constructor', payload: {} })).toBe('constructor')
+  })
   it('copes with a missing payload', () => {
     expect(describeTask(task({ payload: null }))).toBe('Untitled task')
   })

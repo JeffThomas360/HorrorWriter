@@ -28,7 +28,7 @@ const UNKNOWN = {
   actions: [],
 }
 
-export const typeInfo = (type) => TASK_TYPES[type] ?? UNKNOWN
+export const typeInfo = (type) => (Object.hasOwn(TASK_TYPES, type) ? TASK_TYPES[type] : UNKNOWN)
 export const describeTask = (t) => typeInfo(t.type).describe(t)
 export const actionsFor = (t) => typeInfo(t.type).actions
 
