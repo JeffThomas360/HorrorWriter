@@ -55,7 +55,12 @@ with allow(name, role, why) as (values
   ('ritual_reject_prompt',     'authenticated', 'keeper RPC, mod_can(configure, all)'),
   -- Public by design: the next unlock TIME, never the prompt text.
   ('ritual_next_unlock',       'anon',          'next weekly unlock time for the home countdown'),
-  ('ritual_next_unlock',       'authenticated', 'next weekly unlock time for the home countdown')
+  ('ritual_next_unlock',       'authenticated', 'next weekly unlock time for the home countdown'),
+  -- Keeper work queue (20261005000000). Keeper RPCs: each calls
+  -- keeper_task_require_keeper() = mod_can(configure, all) and logs to mod_actions.
+  ('resolve_keeper_task',      'authenticated', 'keeper RPC, mod_can(configure, all)'),
+  ('snooze_keeper_task',       'authenticated', 'keeper RPC, mod_can(configure, all)'),
+  ('keeper_add_task',          'authenticated', 'keeper RPC, mod_can(configure, all)')
 ),
 grants as (
   select

@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { fetchSiteStats } from '../../lib/modActions'
 import { fetchSiteSettings } from '../../lib/siteSettings'
 import { countFutureScheduled } from '../../lib/ritualAdmin'
+import { fetchOpenTasks } from '../../lib/keeperTaskApi'
+import { openCount } from '../../lib/keeperTasks'
 
 const STAT_TILES = [
   { key: 'totalUsers', label: 'Registered users', jump: 'users' },
@@ -54,6 +56,13 @@ export default function AdminOverviewTab({ onNavigate }) {
     refetchInterval: 60_000,
   })
 
+  const { data: queueTasks } = useQuery({
+    queryKey: ['admin', 'keeper-tasks'],
+    queryFn: fetchOpenTasks,
+    refetchInterval: 60_000,
+  })
+  const waiting = queueTasks ? openCount(queueTasks) : 0
+
   const s = stats ?? { totalUsers: 0, liveStories: 0, liveThreads: 0, liveCritiques: 0, reportsHandled: 0, activeSanctions: 0 }
 
   return (
@@ -74,6 +83,22 @@ export default function AdminOverviewTab({ onNavigate }) {
             className="self-start mt-1 font-mono text-xs uppercase underline text-[var(--color-ash)] hover:text-[var(--color-bone)] cursor-pointer"
           >
             Manage in Site settings
+          </button>
+        </div>
+      )}
+
+      {waiting > 0 && (
+        <div className="card-surface border border-[var(--color-ember)] p-4 flex flex-col gap-1">
+          <span className="font-mono text-xs uppercase tracking-widest text-[var(--color-ember)]">▸ Work queue</span>
+          <p className="text-sm text-[var(--color-bone)] font-serif">
+            {waiting} {waiting === 1 ? 'task' : 'tasks'} waiting.
+          </p>
+          <button
+            type="button"
+            onClick={() => onNavigate?.('queue')}
+            className="self-start mt-1 font-mono text-xs uppercase underline text-[var(--color-ash)] hover:text-[var(--color-bone)] cursor-pointer"
+          >
+            Open the work queue
           </button>
         </div>
       )}

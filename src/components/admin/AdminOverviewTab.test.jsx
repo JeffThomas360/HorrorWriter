@@ -12,6 +12,14 @@ vi.mock('../../lib/ritualAdmin', () => ({
     return future
   }),
 }))
+let openTasks = []
+let tasksFail = false
+vi.mock('../../lib/keeperTaskApi', () => ({
+  fetchOpenTasks: vi.fn(async () => {
+    if (tasksFail) throw new Error('read failed')
+    return openTasks
+  }),
+}))
 
 const AdminOverviewTab = (await import('./AdminOverviewTab')).default
 
@@ -21,7 +29,7 @@ function renderIt(onNavigate = vi.fn()) {
   return onNavigate
 }
 
-beforeEach(() => { future = 0; countFails = false })
+beforeEach(() => { future = 0; countFails = false; openTasks = []; tasksFail = false })
 afterEach(() => cleanup())
 
 test('warns when fewer than 2 rituals are scheduled, and links to the tab', async () => {
@@ -54,4 +62,28 @@ test('never warns from a failed read', async () => {
   await screen.findByText(/site stats/i)
   await new Promise((r) => setTimeout(r, 0))
   expect(screen.queryByText(/midnight ritual/i)).toBeNull()
+})
+
+test('shows how many work-queue tasks are waiting, and links to the queue', async () => {
+  openTasks = [
+    { id: '1', type: 'manual', status: 'open', snoozed_until: null, created_at: '2026-10-01T00:00:00Z' },
+    { id: '2', type: 'manual', status: 'open', snoozed_until: null, created_at: '2026-10-02T00:00:00Z' },
+  ]
+  const nav = renderIt()
+  expect(await screen.findByText(/2 tasks waiting/i)).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: /open the work queue/i }))
+  expect(nav).toHaveBeenCalledWith('queue')
+})
+
+test('says nothing when the queue is empty or the read fails', async () => {
+  renderIt()
+  await screen.findByText(/site stats/i)
+  await new Promise((r) => setTimeout(r, 0))
+  expect(screen.queryByText(/waiting/i)).toBeNull()
+  cleanup()
+  tasksFail = true
+  renderIt()
+  await screen.findByText(/site stats/i)
+  await new Promise((r) => setTimeout(r, 0))
+  expect(screen.queryByText(/waiting/i)).toBeNull()
 })
