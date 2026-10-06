@@ -1,6 +1,8 @@
 // supabase/functions/moderate-content/index.ts
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { judge } from '../_shared/typesafe.ts'
+import { SCREEN_QUESTIONS, buildState, parseAnswers, decide } from '../_shared/screening.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -69,99 +71,38 @@ serve(async (req) => {
       return new Response(JSON.stringify({ flagged: false, reason: 'empty content' }), { headers: corsHeaders })
     }
 
-    // ── Stage 1: OpenAI Moderation endpoint (free, runs on everything) ──
-    const openaiKey = Deno.env.get('OPENAI_API_KEY')
-    if (!openaiKey) {
-      console.error('[moderate-content] OPENAI_API_KEY not set — skipping stage 1')
-      return new Response(JSON.stringify({ flagged: false, reason: 'stage 1 unavailable' }), { headers: corsHeaders })
+    // ── One TypeSafe call: four yes/no judgments, each with its own threshold ──
+    // See _shared/screening.ts. Fails closed: if we can't get a judgment, a person looks.
+    const screen = (reason: string) =>
+      supabaseAdmin.rpc('apply_automated_mod_status', {
+        p_target_type: targetType, p_target_id: targetId, p_status: 'screening', p_reason: reason,
+      })
+
+    let decision
+    try {
+      const raw = await judge({
+        apiKey: Deno.env.get('TYPESAFE_API_KEY') ?? '',
+        state: buildState(targetType, content),
+        questions: SCREEN_QUESTIONS,
+      })
+      decision = decide(parseAnswers(raw))
+    } catch (err: any) {
+      console.error('[moderate-content] TypeSafe judgment failed — screening for human review', err)
+      const { error } = await screen('Automated screening unavailable; held for human review')
+      if (error) throw error
+      return new Response(JSON.stringify({ flagged: true, confirmed: null }), { headers: corsHeaders })
     }
 
-    const modRes = await fetch('https://api.openai.com/v1/moderations', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openaiKey}` },
-      body: JSON.stringify({ model: 'omni-moderation-latest', input: content }),
-    })
-    if (!modRes.ok) {
-      console.error('[moderate-content] OpenAI moderation call failed', await modRes.text())
-      return new Response(JSON.stringify({ flagged: false, reason: 'stage 1 error' }), { headers: corsHeaders })
-    }
-    const modJson = await modRes.json()
-    const result = modJson.results?.[0]
-    if (!result?.flagged) {
+    if (decision.action === 'pass') {
       return new Response(JSON.stringify({ flagged: false }), { headers: corsHeaders })
     }
 
-    const flaggedCategories = Object.entries(result.categories ?? {})
-      .filter(([, v]) => v)
-      .map(([k]) => k)
-    // OpenAI's closest taxonomy match to CSAM-adjacent content.
-    const isWorstTierCandidate = flaggedCategories.includes('sexual/minors')
-
-    // ── Stage 2: Claude Haiku 4.5 confirms or dismisses the flag ────────
-    const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY')
-    if (!anthropicKey) {
-      console.error('[moderate-content] ANTHROPIC_API_KEY not set — cannot confirm stage 1 flag; screening conservatively')
-      await supabaseAdmin.rpc('apply_automated_mod_status', {
-        p_target_type: targetType, p_target_id: targetId, p_status: 'screening',
-        p_reason: `Automated pre-screening: flagged by stage 1 (${flaggedCategories.join(', ')}), stage 2 unavailable`,
-      })
-      return new Response(JSON.stringify({ flagged: true, confirmed: null }), { headers: corsHeaders })
-    }
-
-    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': anthropicKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5',
-        max_tokens: 256,
-        output_config: {
-          format: {
-            type: 'json_schema',
-            schema: {
-              type: 'object',
-              properties: {
-                confirmed: { type: 'boolean', description: 'true if this content genuinely violates community guidelines around harassment, hate speech, or sexual content involving minors' },
-                explanation: { type: 'string' },
-              },
-              required: ['confirmed', 'explanation'],
-              additionalProperties: false,
-            },
-          },
-        },
-        messages: [{
-          role: 'user',
-          content: `A content-safety classifier flagged the following user-submitted text for these categories: ${flaggedCategories.join(', ')}.\n\nText:\n"""\n${content}\n"""\n\nConfirm whether this genuinely violates community guidelines (harassment, hate speech, or sexual content involving minors), or whether it's a false positive (e.g. horror-genre fiction describing violence, which is expected content on this site and not itself a violation). This is a horror-writing community — dark, violent, and disturbing *fictional* content is normal and should not be confirmed on that basis alone.`,
-        }],
-      }),
-    })
-    if (!claudeRes.ok) {
-      console.error('[moderate-content] Claude confirmation call failed', await claudeRes.text())
-      await supabaseAdmin.rpc('apply_automated_mod_status', {
-        p_target_type: targetType, p_target_id: targetId, p_status: 'screening',
-        p_reason: `Automated pre-screening: flagged by stage 1 (${flaggedCategories.join(', ')}), stage 2 call failed`,
-      })
-      return new Response(JSON.stringify({ flagged: true, confirmed: null }), { headers: corsHeaders })
-    }
-    const claudeJson = await claudeRes.json()
-    const parsed = JSON.parse(claudeJson.content?.[0]?.text ?? '{}')
-
-    if (!parsed.confirmed) {
-      return new Response(JSON.stringify({ flagged: true, confirmed: false }), { headers: corsHeaders })
-    }
-
-    const reasonPrefix = isWorstTierCandidate ? '[URGENT — WORST TIER] ' : ''
-    await supabaseAdmin.rpc('apply_automated_mod_status', {
-      p_target_type: targetType,
-      p_target_id: targetId,
-      p_status: 'screening',
-      p_reason: `${reasonPrefix}Automated pre-screening confirmed: ${parsed.explanation}`,
-    })
-
-    return new Response(JSON.stringify({ flagged: true, confirmed: true, worstTierCandidate: isWorstTierCandidate }), { headers: corsHeaders })
+    const { error: screenError } = await screen(decision.reason)
+    if (screenError) throw screenError
+    return new Response(
+      JSON.stringify({ flagged: true, confirmed: true, worstTierCandidate: decision.worstTier }),
+      { headers: corsHeaders }
+    )
   } catch (err: any) {
     console.error('[moderate-content] error', err)
     return new Response(JSON.stringify({ error: err.message }), { status: 400, headers: corsHeaders })
