@@ -46,8 +46,7 @@ Primary key `(book_id, tag, source)`. A tag shows to readers when any row for it
 | `queued_at` | set by trigger on insert and on any change to `content` |
 | `checked_at` | set when a check completes; the row is pending while null or `< queued_at` |
 | `last_attempt_at`, `attempts`, `last_error` | for retry and diagnosis |
-| `gave_up_at` | set after the 10th failed attempt; non-null means the story is in the keeper work queue. Cleared by Retry or by an edit |
-| `dismissed_at` | set when the keeper accepts the story untagged; the story leaves the queue until its content next changes |
+| `gave_up_at` | set after the 10th failed attempt, which also creates a `tag_check_failed` task in the keeper work queue. Cleared by the task's Retry action or by an edit |
 
 **Access.**
 - Public read of `applied` rows only.
@@ -55,6 +54,43 @@ Primary key `(book_id, tag, source)`. A tag shows to readers when any row for it
 - No client write path for `system` or `keeper` rows. All keeper changes go through `set_content_warning()`, which logs to `mod_actions` (same pattern as `set_site_setting`).
 - Possible and dismissed rows and all scores are visible to the keeper only.
 - Every new function gets an explicit `GRANT EXECUTE`. Run `scripts/sql/verify-grants.sql` after the migration; it must return zero rows.
+
+## Keeper work queue (general)
+
+A single inbox for anything that needs the keeper's attention and is not already covered by Reports, Appeals, Support or Storms. It is built so a new kind of task needs no new table. Modeled on Discourse's review queue (one table, a type per task, a target), Reddit's modqueue (filter, snooze) and the dead-letter-queue pattern from job systems (work that exhausted its retries lands where a human sees it, with the error and a replay button).
+
+`keeper_tasks`
+
+| column | notes |
+|---|---|
+| `id` | uuid |
+| `type` | e.g. `tag_review`, `tag_appeal`, `tag_check_failed` |
+| `target_type`, `target_id` | what the task is about (`story`, ...); no FK, so the queue outlives its target |
+| `payload` | jsonb, type-specific facts (scores, last error, appeal text) |
+| `priority` | 0 normal, 1 high; sort is priority, then oldest |
+| `status` | `open` · `resolved` · `dismissed` |
+| `dedupe_key` | unique over all statuses. Includes a generation (e.g. the story's `updated_at`), so a *new* problem makes a new task but a resolved task never reopens (Discourse shipped that bug) |
+| `snoozed_until` | hidden until then |
+| `created_at`, `resolved_at`, `resolved_by`, `resolution` | |
+
+**Server side.**
+- `create_keeper_task(type, target_type, target_id, payload, priority, dedupe_key)`: idempotent, `service_role` only, called by Edge Functions and triggers.
+- `resolve_keeper_task(task_id, action, note)`: keeper only. A per-type handler runs the action (e.g. Retry resets `book_warning_checks`), then the call is logged to `mod_actions`.
+- `snooze_keeper_task(task_id, until)`: keeper only.
+- `close_keeper_tasks_for(type, target_id)`: system auto-resolve when the condition clears by itself (a re-check succeeds, a story is deleted).
+- RLS: keeper only. No client write path. Explicit grants; `verify-grants.sql` must return zero rows.
+
+**Client side.** `src/lib/keeperTasks.js` is a registry: each task type declares its label, a one-line description built from the payload, its link, and its actions (id, label, danger flag). The Work queue tab renders any task from that registry. **To add a task type:** one registry entry, one server handler, and a call to `create_keeper_task`. The tab filters by type, shows counts per type, snoozes for 1 or 7 days, and the admin Overview shows the open, un-snoozed count (nothing when zero). No claiming: there is one keeper.
+
+**First task types.**
+
+| type | created when | actions |
+|---|---|---|
+| `tag_review` | the system saves a `possible` tag | Promote to applied · Dismiss |
+| `tag_appeal` | an author appeals a system tag | Uphold · Remove tag (writes `keeper` row, logs, notifies the author) |
+| `tag_check_failed` | a story's check fails 10 times | Retry · Accept untagged |
+
+**Existing queues** (Reports, Appeals, Support, Storms) are left alone. They could move into the work queue later, one at a time.
 
 ## How a story gets tagged
 
@@ -68,7 +104,7 @@ Primary key `(book_id, tag, source)`. A tag shows to readers when any row for it
 
 **Self-healing, with a human backstop.**
 (a) Transient failures heal themselves: retries every 6 hours for up to 10 attempts.
-(b) Retries do stop. A story that exhausts them lands in the **keeper work queue** ("Tag check failed"), showing the story, the attempt count and `last_error`. The keeper can **Retry** (resets attempts to 0 and re-queues) or **Dismiss** (accept the story untagged). It never retries forever on its own.
+(b) Retries do stop. A story that exhausts them creates a `tag_check_failed` task in the **keeper work queue** (see below), showing the story, the attempt count and `last_error`. The keeper can **Retry** (resets attempts to 0 and re-queues) or **Accept untagged**. It never retries forever on its own.
 (c) A daily sweep re-queues any live story with no check row, or whose `checked_at` is older than its last `content` change, so nothing a trigger missed stays missed. It skips stories already in the work queue, so it cannot loop.
 (d) An edit to a story re-queues it and resets its attempts, so a given-up story gets a fresh start when the writer edits it.
 (e) The admin Overview shows a count of work-queue items, and nothing when there are none.
@@ -95,8 +131,8 @@ Exact question wording lives in `supabase/functions/_shared/contentWarnings.ts` 
 
 - **Writer (publish and edit):** five optional checkboxes, "Content warnings", with a note that the site may add more after publishing. Nothing blocks submission.
 - **Reader:** chips at the top of the story and on its Library card, writer and system tags alike, each linking to the Rules page's Content Warnings section. Series pages show the union.
-- **Author, on their own story:** system-added tags are marked as added by the site, with an **Appeal** button per tag (existing appeal flow).
-- **Keeper:** a new "Content warnings" tab with two lists. **Review:** `possible` and recently `applied` system tags with story link, score and level; actions promote, dismiss, remove (via `set_content_warning`). **Work queue:** stories whose tag check failed 10 times, with the last error; actions Retry or Dismiss (via `retry_content_warning_check` and `dismiss_content_warning_check`, both keeper-only and logged to `mod_actions`).
+- **Author, on their own story:** system-added tags are marked as added by the site, with an **Appeal** button per tag. It calls `appeal_content_warning(book_id, tag, message)`, which opens a `tag_appeal` task. This does not depend on the existing Appeals tab.
+- **Keeper:** everything arrives in the **work queue** below as three task types: `tag_review`, `tag_appeal`, `tag_check_failed`. There is no separate content-warnings tab.
 
 ## Security and privacy
 
@@ -115,16 +151,18 @@ Exact question wording lives in `supabase/functions/_shared/contentWarnings.ts` 
 
 ## Delivery
 
-Two PRs.
+Three PRs, in order.
 
-1. **Backend:** migration, `contentWarnings.ts` (questions + rules), `tag-content` function, trigger, `pg_cron` worker and sweep, `set_content_warning()`.
-2. **Front end:** publish/edit checkboxes, chips (story page, Library card, series), author view with appeal, keeper tab, Overview warning.
+1. **Work queue (no TypeSafe):** `keeper_tasks` migration and functions, `keeperTasks.js` registry, Work queue tab, Overview count. Useful on its own and testable by creating a task by hand.
+2. **Backend:** tags and checks migration, `contentWarnings.ts` (questions + rules), `tag-content` function, trigger, `pg_cron` worker and sweep, `set_content_warning()`, the three task types' server handlers.
+3. **Front end:** publish/edit checkboxes, chips (story page, Library card, series), author view with appeal, the three task types' registry entries.
 
 **One-time setup (Jeff):** store the worker secret in Vault, set it as a function secret, then deploy `tag-content` (`npx supabase functions deploy tag-content --use-api`).
 
 ## Open items
 
-- Verify the existing appeal flow works end to end. A survey flagged that `ReadStory` may pass a book id where `resolve_appeal` expects a moderation-action id. Fix it if so; tag appeals depend on it.
+- The existing Appeals flow may be broken (a survey flagged that `ReadStory` may pass a book id where `resolve_appeal` expects a moderation-action id; unverified). Tag appeals no longer depend on it, but it is worth checking separately.
+- Whether Reports, Appeals, Support and Storms should migrate into the work queue later.
 - Calibrate bands on real stories before enabling system tags publicly.
 - `moderate-content` still relies on the browser to trigger it. The same queue-and-worker could serve it later. Out of scope here.
 - Not in scope: reader-side filtering or hiding by tag, per-series checking, tagging drafts.
