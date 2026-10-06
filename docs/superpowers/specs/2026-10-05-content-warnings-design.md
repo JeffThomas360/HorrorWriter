@@ -46,6 +46,8 @@ Primary key `(book_id, tag, source)`. A tag shows to readers when any row for it
 | `queued_at` | set by trigger on insert and on any change to `content` |
 | `checked_at` | set when a check completes; the row is pending while null or `< queued_at` |
 | `last_attempt_at`, `attempts`, `last_error` | for retry and diagnosis |
+| `gave_up_at` | set after the 10th failed attempt; non-null means the story is in the keeper work queue. Cleared by Retry or by an edit |
+| `dismissed_at` | set when the keeper accepts the story untagged; the story leaves the queue until its content next changes |
 
 **Access.**
 - Public read of `applied` rows only.
@@ -59,14 +61,19 @@ Primary key `(book_id, tag, source)`. A tag shows to readers when any row for it
 1. **Trigger.** On story insert, or any update that changes `content`, upsert the story's `book_warning_checks` row (`queued_at = now()`, `attempts` unchanged).
 2. **Fast path.** The publish and edit pages call `tag-content` for that story (author JWT, author-only) and wait up to 4 s via `screenContent`-style helper. Usually tags appear immediately.
 3. **Worker.** `pg_cron` runs every 5 minutes. It calls `tag-content` through `pg_net`, authenticated by a shared secret kept in Vault. The function processes up to 5 pending stories per run, oldest first.
-4. **Eligibility.** A pending story is picked up if it has never been attempted, or its last attempt was more than **6 hours** ago. Retries never stop: a story that keeps failing is tried every 6 hours until TypeSafe works.
+4. **Eligibility.** A pending story is picked up if it has never been attempted, or its last attempt was more than **6 hours** ago, and it has fewer than **10 attempts** (about 2.5 days). After the 10th failure the retries stop and the story goes to the **keeper work queue** (`gave_up_at` is set).
 5. **Check.** One TypeSafe request: the whole story as state (up to 10,000 words fits; ~13.5k tokens) with five Score questions.
 6. **Save.** Tags are written to the database once; they are not re-asked unless the story changes. `checked_at` is set.
 7. **Notify.** For each newly applied system tag, send the author a notification with a link to appeal.
 
-**Self-healing.** (a) Retries never give up. (b) A daily sweep re-queues any live story with no check row, or whose `checked_at` is older than its last `content` change, so nothing a trigger missed stays missed. (c) The admin Overview shows a warning only if a story has been pending over 24 hours; it clears itself.
+**Self-healing, with a human backstop.**
+(a) Transient failures heal themselves: retries every 6 hours for up to 10 attempts.
+(b) Retries do stop. A story that exhausts them lands in the **keeper work queue** ("Tag check failed"), showing the story, the attempt count and `last_error`. The keeper can **Retry** (resets attempts to 0 and re-queues) or **Dismiss** (accept the story untagged). It never retries forever on its own.
+(c) A daily sweep re-queues any live story with no check row, or whose `checked_at` is older than its last `content` change, so nothing a trigger missed stays missed. It skips stories already in the work queue, so it cannot loop.
+(d) An edit to a story re-queues it and resets its attempts, so a given-up story gets a fresh start when the writer edits it.
+(e) The admin Overview shows a count of work-queue items, and nothing when there are none.
 
-**Failures.** A TypeSafe outage, a missing field in the response, a timeout or a bad key all count as a failed attempt: increment `attempts`, store `last_error`, leave the story untagged and published. We never guess a tag.
+**Failures.** A TypeSafe outage, a missing field in the response, a timeout or a bad key all count as a failed attempt: increment `attempts`, store `last_error`, leave the story untagged and published. We never guess a tag. After 10 failures the story goes to the keeper work queue (above).
 
 ## The TypeSafe questions
 
@@ -89,7 +96,7 @@ Exact question wording lives in `supabase/functions/_shared/contentWarnings.ts` 
 - **Writer (publish and edit):** five optional checkboxes, "Content warnings", with a note that the site may add more after publishing. Nothing blocks submission.
 - **Reader:** chips at the top of the story and on its Library card, writer and system tags alike, each linking to the Rules page's Content Warnings section. Series pages show the union.
 - **Author, on their own story:** system-added tags are marked as added by the site, with an **Appeal** button per tag (existing appeal flow).
-- **Keeper:** a new review tab listing `possible` and recently `applied` system tags with story link, score and level. Actions: promote, dismiss, remove (all via `set_content_warning`).
+- **Keeper:** a new "Content warnings" tab with two lists. **Review:** `possible` and recently `applied` system tags with story link, score and level; actions promote, dismiss, remove (via `set_content_warning`). **Work queue:** stories whose tag check failed 10 times, with the last error; actions Retry or Dismiss (via `retry_content_warning_check` and `dismiss_content_warning_check`, both keeper-only and logged to `mod_actions`).
 
 ## Security and privacy
 
