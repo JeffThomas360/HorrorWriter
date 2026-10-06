@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { supabase } from '../supabaseClient'
+import { screenContent } from '../lib/screenContent'
 import { useAuth } from '../components/AuthContext'
 import MarkdownEditor from '../components/MarkdownEditor'
 import VhsSleeveCustomizer from '../components/VhsSleeveCustomizer'
@@ -171,11 +172,7 @@ function PublishStory({ bookId }) {
       queryClient.invalidateQueries({ queryKey: ['books'] })
       queryClient.invalidateQueries({ queryKey: ['book', bookId] })
 
-      if (data?.id) {
-        supabase.functions.invoke('moderate-content', {
-          body: { targetType: 'story', targetId: data.id },
-        }).catch(console.error)
-      }
+      await screenContent(supabase, 'story', data?.id)
 
       let seriesAttachFailed = false
       if (seriesId && data?.id) {
