@@ -21,6 +21,14 @@ const ACTION_LABEL = {
   appeal_resolved: 'resolved an appeal on',
   pile_on_flag: 'flagged a pile-on pattern on',
   site_setting_changed: 'changed a site setting',
+  ritual_prompt_added: 'added a ritual prompt',
+  ritual_prompt_edited: 'edited a ritual prompt',
+  ritual_prompt_approved: 'scheduled a ritual prompt',
+  ritual_prompt_unscheduled: 'un-scheduled a ritual prompt',
+  ritual_prompt_rejected: 'deleted a ritual prompt',
+  keeper_task_added: 'added a work-queue to-do',
+  keeper_task_resolved: 'resolved a work-queue task',
+  keeper_task_snoozed: 'snoozed a work-queue task',
 }
 
 const LIMIT = 200

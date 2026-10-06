@@ -7,7 +7,9 @@ import RequireAuth from '../components/RequireAuth'
 import AdminOverviewTab from '../components/admin/AdminOverviewTab'
 import UsersTab from '../components/admin/UsersTab'
 import SiteTab from '../components/admin/SiteTab'
+import RitualsTab from '../components/admin/RitualsTab'
 import AuditTab from '../components/admin/AuditTab'
+import WorkQueueTab from '../components/admin/WorkQueueTab'
 
 /**
  * Site administration. Distinct from /moderation by design: the Terminal
@@ -59,8 +61,10 @@ function Admin() {
 
   const tabs = [
     { id: 'overview', label: 'Overview', show: isKeeper },
+    { id: 'queue',    label: 'Work queue', show: isKeeper },
     { id: 'users',    label: 'Users',    show: isKeeper },
     { id: 'site',     label: 'Site',     show: isKeeper },
+    { id: 'rituals',  label: 'Rituals',  show: isKeeper },
     { id: 'audit',    label: 'Audit',    show: canReadAudit },
   ].filter((t) => t.show)
 
@@ -144,8 +148,10 @@ function Admin() {
       >
         <IslandErrorBoundary key={activeId}>
           {activeId === 'overview' && <AdminOverviewTab profile={profile} onNavigate={setTab} />}
+          {activeId === 'queue' && <WorkQueueTab />}
           {activeId === 'users' && <UsersTab />}
           {activeId === 'site' && <SiteTab />}
+          {activeId === 'rituals' && <RitualsTab />}
           {activeId === 'audit' && <AuditTab />}
         </IslandErrorBoundary>
       </div>

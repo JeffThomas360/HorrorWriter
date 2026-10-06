@@ -45,7 +45,22 @@ with allow(name, role, why) as (values
   ('set_content_mod_status',  'authenticated', 'mod RPC, checks mod_can(hide|screen, area)'),
   ('set_site_setting',        'authenticated', 'keeper RPC, checks mod_can(configure, all)'),
   ('set_mod_role',            'authenticated', 'keeper RPC, explicit keeper check'),
-  ('set_role_badge',          'authenticated', 'keeper RPC, explicit keeper check')
+  ('set_role_badge',          'authenticated', 'keeper RPC, explicit keeper check'),
+  -- Midnight Ritual (20260930000000). Keeper RPCs: each calls ritual_require_keeper()
+  -- = mod_can(configure, all) and logs to mod_actions.
+  ('ritual_add_prompt',        'authenticated', 'keeper RPC, mod_can(configure, all)'),
+  ('ritual_edit_prompt',       'authenticated', 'keeper RPC, mod_can(configure, all)'),
+  ('ritual_approve_prompt',    'authenticated', 'keeper RPC, mod_can(configure, all)'),
+  ('ritual_unschedule_prompt', 'authenticated', 'keeper RPC, mod_can(configure, all)'),
+  ('ritual_reject_prompt',     'authenticated', 'keeper RPC, mod_can(configure, all)'),
+  -- Public by design: the next unlock TIME, never the prompt text.
+  ('ritual_next_unlock',       'anon',          'next weekly unlock time for the home countdown'),
+  ('ritual_next_unlock',       'authenticated', 'next weekly unlock time for the home countdown'),
+  -- Keeper work queue (20261005000000). Keeper RPCs: each calls
+  -- keeper_task_require_keeper() = mod_can(configure, all) and logs to mod_actions.
+  ('resolve_keeper_task',      'authenticated', 'keeper RPC, mod_can(configure, all)'),
+  ('snooze_keeper_task',       'authenticated', 'keeper RPC, mod_can(configure, all)'),
+  ('keeper_add_task',          'authenticated', 'keeper RPC, mod_can(configure, all)')
 ),
 grants as (
   select

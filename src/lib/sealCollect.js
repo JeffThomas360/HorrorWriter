@@ -1,9 +1,11 @@
 // What goes into a sealed bundle. Moderation-removed ('hidden') stories never do.
-const STORY_FIELDS = ['title', 'lede', 'content', 'cover', 'badge', 'mod_status', 'created_at', 'updated_at', 'version']
+const STORY_FIELDS = ['title', 'lede', 'content', 'cover', 'badge', 'mod_status', 'created_at', 'updated_at', 'version', 'prompt_id']
+// Private Midnight Ritual drafts (20260930000000). Sealed so a returning writer gets their notebook back.
+const RITUAL_FIELDS = ['prompt_id', 'content', 'created_at', 'updated_at']
 
-export const PAYLOAD_VERSION = 2
+export const PAYLOAD_VERSION = 3
 
-export function buildPayload(books, series, seriesBooks, profile) {
+export function buildPayload(books, series, seriesBooks, profile, drafts = []) {
   const kept = books.filter((b) => b.mod_status !== 'hidden')
   const keptIds = new Set(kept.map((b) => b.id))
   return {
@@ -18,30 +20,33 @@ export function buildPayload(books, series, seriesBooks, profile) {
         .filter((sb) => sb.series_id === s.id && keptIds.has(sb.book_id))
         .map((sb) => ({ story_key: sb.book_id, sort_order: sb.sort_order })),
     })),
+    rituals: drafts.map((d) => Object.fromEntries(RITUAL_FIELDS.map((f) => [f, d[f] ?? null]))),
   }
 }
 
 export async function collectWriting(supabase, userId) {
-  const [books, series, profile] = await Promise.all([
+  const [books, series, profile, drafts] = await Promise.all([
     supabase.from('books').select('id, ' + STORY_FIELDS.join(', ')).eq('author_id', userId),
     supabase.from('series').select('id, title, description, created_at').eq('author_id', userId),
     supabase.from('profiles').select('handle, display_name').eq('id', userId).maybeSingle(),
+    supabase.from('ritual_drafts').select(RITUAL_FIELDS.join(', ')).eq('author_id', userId),
   ])
   if (books.error) throw books.error
   if (series.error) throw series.error
   if (profile.error) throw profile.error
+  if (drafts.error) throw drafts.error
   const ids = (series.data ?? []).map((s) => s.id)
   const parts = ids.length
     ? await supabase.from('series_books').select('series_id, book_id, sort_order').in('series_id', ids)
     : { data: [], error: null }
   if (parts.error) throw parts.error
-  return buildPayload(books.data ?? [], series.data ?? [], parts.data ?? [], profile.data ?? null)
+  return buildPayload(books.data ?? [], series.data ?? [], parts.data ?? [], profile.data ?? null, drafts.data ?? [])
 }
 
 const bookDupKey = (title, created_at) => `${title}\u0000${created_at}`
 
 function checkPayloadVersion(payload) {
-  if (payload.v !== 1 && payload.v !== 2) throw new Error('unsupported-payload')
+  if (![1, 2, 3].includes(payload.v)) throw new Error('unsupported-payload')
 }
 
 async function readExistingBooks(supabase, userId) {
@@ -54,6 +59,12 @@ async function readExistingSeries(supabase, userId) {
   const { data, error } = await supabase.from('series').select('id, title').eq('author_id', userId)
   if (error) throw error
   return new Map((data ?? []).map((s) => [s.title, s.id]))
+}
+
+async function readExistingDraftPrompts(supabase, userId) {
+  const { data, error } = await supabase.from('ritual_drafts').select('prompt_id').eq('author_id', userId)
+  if (error) throw error
+  return new Set((data ?? []).map((d) => d.prompt_id))
 }
 
 /**
@@ -72,11 +83,15 @@ export async function planRestore(supabase, userId, payload) {
   const seriesTitles = new Set((payload.series ?? []).map((s) => s.title))
   const missingStories = stories.filter((s) => !books.has(bookDupKey(s.title, s.created_at))).length
   const missingSeries = [...seriesTitles].filter((t) => !series.has(t)).length
+  const rituals = payload.rituals ?? []
+  const draftPrompts = rituals.length ? await readExistingDraftPrompts(supabase, userId) : new Set()
+  const missingDrafts = rituals.filter((d) => d?.prompt_id && !draftPrompts.has(d.prompt_id)).length
   return {
     missingStories,
     missingSeries,
-    missing: missingStories + missingSeries > 0,
-    empty: stories.length === 0 && seriesTitles.size === 0,
+    missingDrafts,
+    missing: missingStories + missingSeries + missingDrafts > 0,
+    empty: stories.length === 0 && seriesTitles.size === 0 && rituals.length === 0,
   }
 }
 
@@ -86,7 +101,8 @@ export async function planRestore(supabase, userId, payload) {
  * existing id is still linked into any series parts); a series already
  * present with the same title is skipped the same way, with only its
  * missing parts linked. Safe to run more than once against the same payload
- * — e.g. a retry after a partial failure.
+ * — e.g. a retry after a partial failure. Ritual drafts are skipped when a
+ * draft for the same prompt already exists.
  */
 export async function restoreWriting(supabase, userId, payload) {
   checkPayloadVersion(payload)
@@ -140,7 +156,28 @@ export async function restoreWriting(supabase, userId, payload) {
     }
   }
 
-  return { stories, series, skipped }
+  // Drafts last: one per prompt, so an existing draft for the same prompt wins
+  // (never overwritten), and a unique-key race on insert counts as skipped.
+  let drafts = 0
+  const rituals = payload.rituals ?? []
+  const draftPrompts = rituals.length ? await readExistingDraftPrompts(supabase, userId) : new Set()
+  for (const d of rituals) {
+    if (!d?.prompt_id || draftPrompts.has(d.prompt_id)) {
+      skipped++
+      continue
+    }
+    const row = Object.fromEntries(RITUAL_FIELDS.filter((f) => f in d).map((f) => [f, d[f]]))
+    const { error } = await supabase.from('ritual_drafts').insert({ ...row, author_id: userId })
+    if (error && error.code !== '23505') throw error
+    if (error) {
+      skipped++
+      continue
+    }
+    draftPrompts.add(d.prompt_id)
+    drafts++
+  }
+
+  return { stories, series, drafts, skipped }
 }
 
 /**

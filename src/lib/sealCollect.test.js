@@ -16,8 +16,10 @@ function fakeRestoreClient({
   profile = {},
   conflictingPartBookIds = [],
   readHandleError = false,
+  existingDrafts = [],
+  conflictingDraftPromptIds = [],
 } = {}) {
-  const inserted = { books: [], series: [], series_books: [] }
+  const inserted = { books: [], series: [], series_books: [], ritual_drafts: [] }
   const profileUpdates = []
   let profileRow = { handle: null, display_name: null, ...profile }
   let n = 0
@@ -55,6 +57,18 @@ function fakeRestoreClient({
             }
             const withId = { id: `series_books-${++n}`, ...row }
             inserted.series_books.push(withId)
+            return { then: (resolve) => resolve({ error: null }) }
+          },
+        }
+      }
+      if (table === 'ritual_drafts') {
+        return {
+          select: () => ({ eq: () => Promise.resolve({ data: existingDrafts, error: null }) }),
+          insert: (row) => {
+            if (conflictingDraftPromptIds.includes(row.prompt_id)) {
+              return { then: (resolve) => resolve({ error: { code: '23505', message: 'duplicate key' } }) }
+            }
+            inserted.ritual_drafts.push({ id: `ritual_drafts-${++n}`, ...row })
             return { then: (resolve) => resolve({ error: null }) }
           },
         }
@@ -106,7 +120,7 @@ describe('buildPayload', () => {
     expect(p.series).toEqual([{ title: 'Cycle', description: 'd', created_at: 't0', parts: [{ story_key: 'b1', sort_order: 1 }] }])
   })
   it('is versioned', () => {
-    expect(buildPayload([], [], [], null).v).toBe(2)
+    expect(buildPayload([], [], [], null).v).toBe(3)
   })
   it('carries identity when a profile is given', () => {
     const p = buildPayload([], [], [], { handle: 'night-owl', display_name: 'Night Owl' })
@@ -118,7 +132,7 @@ describe('buildPayload', () => {
 })
 
 describe('collectWriting', () => {
-  function makeSupabase({ profileData = { handle: 'h', display_name: 'H' }, profileError = null } = {}) {
+  function makeSupabase({ profileData = { handle: 'h', display_name: 'H' }, profileError = null, drafts = [] } = {}) {
     const eq = vi.fn().mockReturnValue({ maybeSingle: vi.fn().mockResolvedValue({ data: profileData, error: profileError }) })
     const profilesSelect = vi.fn().mockReturnValue({ eq })
     return {
@@ -131,6 +145,9 @@ describe('collectWriting', () => {
         }
         if (table === 'series_books') {
           return { select: () => ({ in: () => Promise.resolve({ data: [], error: null }) }) }
+        }
+        if (table === 'ritual_drafts') {
+          return { select: () => ({ eq: () => Promise.resolve({ data: drafts, error: null }) }) }
         }
         if (table === 'profiles') {
           return { select: profilesSelect }
@@ -151,6 +168,58 @@ describe('collectWriting', () => {
     const supabase = makeSupabase({ profileData: null, profileError: new Error('boom') })
     await expect(collectWriting(supabase, 'user-1')).rejects.toThrow('boom')
   })
+
+  it('collects the member\'s ritual drafts', async () => {
+    const supabase = makeSupabase({ drafts: [{ prompt_id: 'p1', content: 'C', created_at: 't1', updated_at: 't2' }] })
+    const payload = await collectWriting(supabase, 'user-1')
+    expect(payload.rituals).toHaveLength(1)
+    expect(supabase.from).toHaveBeenCalledWith('ritual_drafts')
+  })
+})
+
+describe('seal v3: ritual drafts', () => {
+  const draft = { prompt_id: 'p1', content: 'The mirror blinked first.', created_at: 't1', updated_at: 't2', id: 'd1', author_id: 'u' }
+
+  it('buildPayload carries drafts with only allowlisted fields', () => {
+    const p = buildPayload([], [], [], null, [draft])
+    expect(p.rituals).toEqual([{ prompt_id: 'p1', content: 'The mirror blinked first.', created_at: 't1', updated_at: 't2' }])
+  })
+
+  it('buildPayload keeps a story\'s prompt link', () => {
+    const p = buildPayload([{ id: 'b1', title: 'T', mod_status: 'live', prompt_id: 'p1' }], [], [], null)
+    expect(p.stories[0].prompt_id).toBe('p1')
+  })
+
+  it('restores drafts and reports them', async () => {
+    const client = fakeRestoreClient()
+    const result = await restoreWriting(client, 'new-user', { v: 3, stories: [], series: [], rituals: [{ prompt_id: 'p1', content: 'C', created_at: 't1', updated_at: 't2', author_id: 'attacker', id: 'x' }] })
+    expect(result).toEqual({ stories: 0, series: 0, drafts: 1, skipped: 0 })
+    expect(client.inserted.ritual_drafts[0]).toEqual({ id: expect.any(String), prompt_id: 'p1', content: 'C', created_at: 't1', updated_at: 't2', author_id: 'new-user' })
+  })
+
+  it('skips a draft whose prompt the writer already has a draft for', async () => {
+    const client = fakeRestoreClient({ existingDrafts: [{ prompt_id: 'p1' }] })
+    const result = await restoreWriting(client, 'new-user', { v: 3, stories: [], series: [], rituals: [{ prompt_id: 'p1', content: 'C', created_at: 't1', updated_at: 't2' }] })
+    expect(result).toEqual({ stories: 0, series: 0, drafts: 0, skipped: 1 })
+    expect(client.inserted.ritual_drafts).toEqual([])
+  })
+
+  it('treats a duplicate-key race on insert as skipped, not an error', async () => {
+    const client = fakeRestoreClient({ conflictingDraftPromptIds: ['p1'] })
+    const result = await restoreWriting(client, 'new-user', { v: 3, stories: [], series: [], rituals: [{ prompt_id: 'p1', content: 'C', created_at: 't1', updated_at: 't2' }] })
+    expect(result).toEqual({ stories: 0, series: 0, drafts: 0, skipped: 1 })
+  })
+
+  it('planRestore counts missing drafts, and a drafts-only seal is not empty', async () => {
+    const plan = await planRestore(fakeRestoreClient(), 'new-user', { v: 3, stories: [], series: [], rituals: [{ prompt_id: 'p1', content: 'C' }] })
+    expect(plan).toEqual({ missingStories: 0, missingSeries: 0, missingDrafts: 1, missing: true, empty: false })
+  })
+
+  it('a v2 payload (no rituals) still restores', async () => {
+    const client = fakeRestoreClient()
+    const result = await restoreWriting(client, 'new-user', { v: 2, stories: [], series: [] })
+    expect(result).toEqual({ stories: 0, series: 0, drafts: 0, skipped: 0 })
+  })
 })
 
 describe('restoreWriting', () => {
@@ -164,7 +233,7 @@ describe('restoreWriting', () => {
   it('restores stories live as they were, then series with their parts', async () => {
     const client = fakeRestoreClient()
     const result = await restoreWriting(client, 'new-user', v2Payload)
-    expect(result).toEqual({ stories: 1, series: 1, skipped: 0 })
+    expect(result).toEqual({ stories: 1, series: 1, drafts: 0, skipped: 0 })
     expect(client.inserted.books[0]).toMatchObject({ title: 'T', author_id: 'new-user', mod_status: 'live', created_at: 't1', version: 2 })
     expect(client.inserted.series_books[0]).toMatchObject({ book_id: client.inserted.books[0].id, sort_order: 1 })
   })
@@ -197,18 +266,18 @@ describe('restoreWriting', () => {
     void identity
     const client = fakeRestoreClient()
     const result = await restoreWriting(client, 'new-user', v1Payload)
-    expect(result).toEqual({ stories: 1, series: 1, skipped: 0 })
+    expect(result).toEqual({ stories: 1, series: 1, drafts: 0, skipped: 0 })
   })
 
   it('throws on an unrecognized payload version', async () => {
     const client = fakeRestoreClient()
-    await expect(restoreWriting(client, 'new-user', { v: 3, stories: [], series: [] })).rejects.toThrow('unsupported-payload')
+    await expect(restoreWriting(client, 'new-user', { v: 4, stories: [], series: [] })).rejects.toThrow('unsupported-payload')
   })
 
   it('is idempotent: a second run against the same account inserts nothing new and reports it as skipped', async () => {
     const firstClient = fakeRestoreClient()
     const first = await restoreWriting(firstClient, 'new-user', v2Payload)
-    expect(first).toEqual({ stories: 1, series: 1, skipped: 0 })
+    expect(first).toEqual({ stories: 1, series: 1, drafts: 0, skipped: 0 })
 
     // Re-seed "existing" rows from what the first run actually inserted, the
     // way a fresh restoreWriting call would see them on a real retry.
@@ -217,7 +286,7 @@ describe('restoreWriting', () => {
       existingSeries: firstClient.inserted.series.map((s) => ({ id: s.id, title: s.title })),
     })
     const second = await restoreWriting(secondClient, 'new-user', v2Payload)
-    expect(second).toEqual({ stories: 0, series: 0, skipped: 2 })
+    expect(second).toEqual({ stories: 0, series: 0, drafts: 0, skipped: 2 })
     expect(secondClient.inserted.books).toEqual([])
     expect(secondClient.inserted.series).toEqual([])
   })
@@ -225,7 +294,7 @@ describe('restoreWriting', () => {
   it('links a missing series part into an already-restored series instead of re-inserting the series', async () => {
     const client = fakeRestoreClient({ existingSeries: [{ id: 'existing-series', title: 'S' }] })
     const result = await restoreWriting(client, 'new-user', v2Payload)
-    expect(result).toEqual({ stories: 1, series: 0, skipped: 1 })
+    expect(result).toEqual({ stories: 1, series: 0, drafts: 0, skipped: 1 })
     expect(client.inserted.series).toEqual([])
     expect(client.inserted.series_books[0]).toMatchObject({ series_id: 'existing-series' })
   })
@@ -246,7 +315,7 @@ describe('restoreWriting', () => {
     const result = await restoreWriting(client, 'new-user', twoSeriesPayload)
     // Both payload "series" entries share a title; the second must link to
     // the series the first one just created, not insert a duplicate series.
-    expect(result).toEqual({ stories: 2, series: 1, skipped: 1 })
+    expect(result).toEqual({ stories: 2, series: 1, drafts: 0, skipped: 1 })
     expect(client.inserted.series).toHaveLength(1)
     expect(client.inserted.series_books).toHaveLength(2)
     expect(client.inserted.series_books.every((sb) => sb.series_id === client.inserted.series[0].id)).toBe(true)
@@ -268,7 +337,7 @@ describe('restoreWriting', () => {
     const firstBookId = 'books-1'
     const conflictClient = fakeRestoreClient({ conflictingPartBookIds: [firstBookId] })
     const result = await restoreWriting(conflictClient, 'new-user', payload)
-    expect(result).toEqual({ stories: 2, series: 1, skipped: 0 })
+    expect(result).toEqual({ stories: 2, series: 1, drafts: 0, skipped: 0 })
     expect(conflictClient.inserted.series_books).toHaveLength(1)
     expect(conflictClient.inserted.series_books[0]).toMatchObject({ book_id: 'books-2', sort_order: 2 })
     void client
@@ -288,7 +357,7 @@ describe('planRestore', () => {
 
   it('reports everything missing on a fresh account', async () => {
     const plan = await planRestore(fakeRestoreClient(), 'new-user', payload)
-    expect(plan).toEqual({ missingStories: 1, missingSeries: 1, missing: true, empty: false })
+    expect(plan).toEqual({ missingStories: 1, missingSeries: 1, missingDrafts: 0, missing: true, empty: false })
   })
 
   it('reports nothing missing once every story and series is already there', async () => {
@@ -296,21 +365,21 @@ describe('planRestore', () => {
       existingBooks: [{ id: 'b', title: 'T', created_at: 't1' }],
       existingSeries: [{ id: 's', title: 'S' }],
     })
-    expect(await planRestore(client, 'new-user', payload)).toEqual({ missingStories: 0, missingSeries: 0, missing: false, empty: false })
+    expect(await planRestore(client, 'new-user', payload)).toEqual({ missingStories: 0, missingSeries: 0, missingDrafts: 0, missing: false, empty: false })
   })
 
   it('reports a half-finished restore (stories back, series not) as missing', async () => {
     const client = fakeRestoreClient({ existingBooks: [{ id: 'b', title: 'T', created_at: 't1' }] })
-    expect(await planRestore(client, 'new-user', payload)).toEqual({ missingStories: 0, missingSeries: 1, missing: true, empty: false })
+    expect(await planRestore(client, 'new-user', payload)).toEqual({ missingStories: 0, missingSeries: 1, missingDrafts: 0, missing: true, empty: false })
   })
 
   it('flags a payload with no stories and no series as empty', async () => {
     const plan = await planRestore(fakeRestoreClient(), 'new-user', { v: 2, identity: null, stories: [], series: [] })
-    expect(plan).toEqual({ missingStories: 0, missingSeries: 0, missing: false, empty: true })
+    expect(plan).toEqual({ missingStories: 0, missingSeries: 0, missingDrafts: 0, missing: false, empty: true })
   })
 
   it('throws on an unrecognized payload version', async () => {
-    await expect(planRestore(fakeRestoreClient(), 'new-user', { v: 3, stories: [], series: [] })).rejects.toThrow('unsupported-payload')
+    await expect(planRestore(fakeRestoreClient(), 'new-user', { v: 4, stories: [], series: [] })).rejects.toThrow('unsupported-payload')
   })
 })
 

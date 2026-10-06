@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
+import { screenContent } from '../lib/screenContent'
 import { useAuth } from '../components/AuthContext'
 import MarkdownEditor from '../components/MarkdownEditor'
 import CommunityGuidelines from '../components/CommunityGuidelines'
@@ -49,13 +50,9 @@ function CreateThread() {
       if (error) throw error
       return { id: data }
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['threads'] })
-      if (data?.id) {
-        supabase.functions.invoke('moderate-content', {
-          body: { targetType: 'thread', targetId: data.id },
-        }).catch(console.error)
-      }
+      await screenContent(supabase, 'thread', data?.id)
       window.location.replace('/forum/')
     },
     onError: (err) => {
