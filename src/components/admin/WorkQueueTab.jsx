@@ -78,10 +78,11 @@ export default function WorkQueueTab() {
   const shown = sortTasks(visibleTasks(tasks, { type, showSnoozed }))
 
   if (isLoading) return <p className="font-mono text-xs uppercase tracking-widest text-[var(--color-ash)] animate-pulse">Reading the queue…</p>
-  if (error) return <p className="text-sm text-[var(--color-ember)]">{error.message}</p>
+  if (error && !tasks.length) return <p className="text-sm text-[var(--color-ember)]">{error.message}</p>
 
   return (
     <div className="flex flex-col gap-6">
+      {error && <p role="alert" className="text-sm text-[var(--color-ember)]">{error.message}</p>}
       <div className="flex flex-wrap items-center gap-3">
         <label className="font-mono text-xs uppercase text-[var(--color-ash)]">
           <span className="sr-only">Filter by type</span>

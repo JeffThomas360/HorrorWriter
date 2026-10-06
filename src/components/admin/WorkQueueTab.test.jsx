@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, cleanup, within, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { test, expect, vi, beforeEach, afterEach } from 'vitest'
+import { toast } from 'sonner'
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
@@ -31,6 +32,7 @@ beforeEach(() => {
   vi.setSystemTime(NOW)
   rows = []
   Object.values(api).forEach((f) => f.mockClear())
+  toast.error.mockClear()
 })
 afterEach(() => { cleanup(); vi.useRealTimers() })
 
@@ -86,9 +88,41 @@ test('the type filter narrows the list', async () => {
   rows = [task('a'), task('t', { type: 'tag_review', payload: {} })]
   renderTab()
   await screen.findByText('Task a')
+  // unknown types describe themselves by their type string
+  expect(screen.getByText('tag_review')).toBeInTheDocument()
   fireEvent.change(screen.getByLabelText(/filter by type/i), { target: { value: 'manual' } })
   expect(screen.getByText('Task a')).toBeInTheDocument()
   expect(screen.queryByText('tag_review')).toBeNull()
+})
+
+const GONE = 'That task is no longer open. The list has been refreshed.'
+
+test('a failed resolve shows the error and refreshes the list', async () => {
+  rows = [task('a')]
+  api.resolveTask.mockRejectedValueOnce(new Error(GONE))
+  renderTab()
+  fireEvent.click(await screen.findByRole('button', { name: 'Done' }))
+  await waitFor(() => expect(toast.error).toHaveBeenCalledWith(GONE))
+  await waitFor(() => expect(api.fetchOpenTasks).toHaveBeenCalledTimes(2))
+})
+
+test('a failed snooze shows the error and refreshes the list', async () => {
+  rows = [task('a')]
+  api.snoozeTask.mockRejectedValueOnce(new Error(GONE))
+  renderTab()
+  fireEvent.click(await screen.findByRole('button', { name: /snooze 1 day/i }))
+  await waitFor(() => expect(toast.error).toHaveBeenCalledWith(GONE))
+  await waitFor(() => expect(api.fetchOpenTasks).toHaveBeenCalledTimes(2))
+})
+
+test('a failed background refetch keeps the list and shows the error above it', async () => {
+  rows = [task('a')]
+  renderTab()
+  await screen.findByText('Task a')
+  api.fetchOpenTasks.mockRejectedValueOnce(new Error('Network down'))
+  fireEvent.click(screen.getByRole('button', { name: /snooze 1 day/i }))
+  expect(await screen.findByText('Network down')).toBeInTheDocument()
+  expect(screen.getByText('Task a')).toBeInTheDocument()
 })
 
 test('adding a to-do needs a title, then calls the API', async () => {
