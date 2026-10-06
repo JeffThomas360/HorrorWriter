@@ -66,17 +66,81 @@ begin
   end if;
 end $$;
 
--- A non-keeper must be refused everything.
+-- A non-keeper must be refused everything. Uses a real ordinary profile if the
+-- database has one; otherwise a random uuid with no profile (mod_can must refuse
+-- that too). Either way the block executes and asserts refusal.
 do $$
-declare plain uuid;
+declare plain uuid; n int;
 begin
   select id into plain from public.profiles where mod_role is null limit 1;
-  if plain is null then return; end if;  -- no ordinary profile to test with
+  if plain is null then
+    plain := gen_random_uuid();
+    raise notice 'non-keeper check: no ordinary profile, using profile-less uuid';
+  end if;
   perform set_config('request.jwt.claims', json_build_object('sub', plain, 'role', 'authenticated')::text, true);
   set local role authenticated;
   begin perform public.keeper_add_task('nope'); raise exception 'non-keeper add accepted';
   exception when sqlstate '42501' then null; end;
-  if (select count(*) from public.keeper_tasks) <> 0 then raise exception 'non-keeper can read tasks'; end if;
+  begin perform public.resolve_keeper_task(gen_random_uuid(), 'done'); raise exception 'non-keeper resolve accepted';
+  exception when sqlstate '42501' then null; end;
+  select count(*) into n from public.keeper_tasks;
+  if n <> 0 then raise exception 'non-keeper can read % tasks', n; end if;
+  reset role;
+  raise notice 'non-keeper check ran: refused';
+  perform set_config('rehearsal.checks', coalesce(current_setting('rehearsal.checks', true), '') || 'non-keeper;', true);
 end $$;
 
-select 'rehearsal passed' as result;
+-- Logged-out visitors: EXECUTE revoked, and no readable rows.
+do $$
+declare n int;
+begin
+  perform set_config('request.jwt.claims', '{"role":"anon"}', true);
+  set local role anon;
+  begin perform public.keeper_add_task('nope'); raise exception 'anon add accepted';
+  exception when sqlstate '42501' then null; end;
+  begin
+    select count(*) into n from public.keeper_tasks;
+    if n <> 0 then raise exception 'anon can read % tasks', n; end if;
+  exception when sqlstate '42501' then null; end;  -- no SELECT grant is also a refusal
+  reset role;
+  raise notice 'anon check ran: refused';
+  perform set_config('rehearsal.checks', coalesce(current_setting('rehearsal.checks', true), '') || 'anon;', true);
+end $$;
+
+-- A moderator (any mod tier below keeper) must be refused too.
+do $$
+declare m uuid; n int;
+begin
+  select id into m from public.profiles where mod_role in ('sentinel', 'moderator', 'warden') limit 1;
+  if m is null then
+    raise notice 'moderator check skipped: no moderator profile';
+    perform set_config('rehearsal.checks', coalesce(current_setting('rehearsal.checks', true), '') || 'moderator-SKIPPED;', true);
+    return;
+  end if;
+  perform set_config('request.jwt.claims', json_build_object('sub', m, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  begin perform public.keeper_add_task('nope'); raise exception 'moderator add accepted';
+  exception when sqlstate '42501' then null; end;
+  select count(*) into n from public.keeper_tasks;
+  if n <> 0 then raise exception 'moderator can read % tasks', n; end if;
+  reset role;
+  raise notice 'moderator check ran: refused';
+  perform set_config('rehearsal.checks', coalesce(current_setting('rehearsal.checks', true), '') || 'moderator;', true);
+end $$;
+
+-- service_role-only functions must be closed to authenticated callers.
+do $$
+begin
+  perform set_config('request.jwt.claims', json_build_object('sub', gen_random_uuid(), 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  begin perform public.create_keeper_task('manual', 'rehearsal:denied'); raise exception 'authenticated create_keeper_task accepted';
+  exception when sqlstate '42501' then null; end;
+  begin perform public.close_keeper_tasks_for('manual', gen_random_uuid()); raise exception 'authenticated close_keeper_tasks_for accepted';
+  exception when sqlstate '42501' then null; end;
+  reset role;
+  raise notice 'service_role-only check ran: refused';
+  perform set_config('rehearsal.checks', coalesce(current_setting('rehearsal.checks', true), '') || 'service_role-only;', true);
+end $$;
+
+-- `checks` is the proof the refusal blocks executed (notices are not shown by the CLI).
+select 'rehearsal passed' as result, current_setting('rehearsal.checks', true) as checks;

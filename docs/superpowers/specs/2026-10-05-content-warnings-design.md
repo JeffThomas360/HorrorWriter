@@ -74,7 +74,7 @@ A single inbox for anything that needs the keeper's attention and is not already
 | `created_at`, `resolved_at`, `resolved_by`, `resolution` | |
 
 **Server side.**
-- `create_keeper_task(type, target_type, target_id, payload, priority, dedupe_key)`: idempotent, `service_role` only, called by Edge Functions and triggers.
+- `create_keeper_task(type, dedupe_key, target_type, target_id, payload, priority)` (callers should use named arguments): idempotent, `service_role` only, called by Edge Functions and triggers.
 - `resolve_keeper_task(task_id, action, note)`: keeper only. A per-type handler runs the action (e.g. Retry resets `book_warning_checks`), then the call is logged to `mod_actions`.
 - `snooze_keeper_task(task_id, until)`: keeper only.
 - `close_keeper_tasks_for(type, target_id)`: system auto-resolve when the condition clears by itself (a re-check succeeds, a story is deleted).

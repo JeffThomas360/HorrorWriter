@@ -43,7 +43,8 @@ create policy keeper_tasks_keeper_read on public.keeper_tasks
   for select to authenticated
   using (public.mod_can('configure', 'all'));
 
-revoke insert, update, delete on public.keeper_tasks from anon, authenticated;
+revoke all on public.keeper_tasks from anon, authenticated;
+grant select on public.keeper_tasks to authenticated;
 
 -- ── 2. Internal helpers ────────────────────────────────────────────────────
 create function public.keeper_task_require_keeper()
@@ -78,6 +79,8 @@ begin
 end $$;
 
 -- ── 3. System functions (service_role only) ────────────────────────────────
+-- Assumes READ COMMITTED (the PostgREST / Edge Function default): the dedupe
+-- fallback select relies on seeing the concurrent winner's committed row.
 create function public.create_keeper_task(
   p_type        text,
   p_dedupe_key  text,
