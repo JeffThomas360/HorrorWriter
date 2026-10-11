@@ -18,8 +18,7 @@ import QuoteSharer from '../components/QuoteSharer'
 import { fetchStorySeriesContext } from '../lib/series'
 import SeriesContextBar from '../components/SeriesContextBar'
 import SeriesSidebar from '../components/SeriesSidebar'
-import { ARCHIVE_STORIES } from '../lib/seedArchives'
-import { isStoryOwner, copyrightNotice, authorLabel, isTombstone, TOMBSTONE_TEXT } from '../lib/storyHelpers'
+import { isStoryOwner, copyrightNotice, authorLabel, isTombstone, TOMBSTONE_TEXT, isArchive, storyAuthorLabel, storyKeyColumn } from '../lib/storyHelpers'
 
 const AV_COLORS = ['', 'av-1', 'av-2', 'av-3', 'av-4', 'av-5', 'av-6']
 
@@ -152,6 +151,8 @@ function ReadStory({ id }) {
   useEffect(() => {
     let cancelled = false
     async function loadSeriesContext() {
+      // Classics are addressed by slug and belong to no series.
+      if (storyKeyColumn(id) !== 'id') return
       try {
         const context = await fetchStorySeriesContext(id)
         if (cancelled) return
@@ -175,15 +176,11 @@ function ReadStory({ id }) {
   const { data: book, isLoading: loading, error: queryError } = useQuery({
     queryKey: ['book', id],
     queryFn: async () => {
-      if (typeof id === 'string' && id.startsWith('archive-')) {
-        const found = ARCHIVE_STORIES.find(s => s.id === id)
-        if (found) return found
-      }
       if (!supabase) return null
       const { data, error } = await supabase
         .from('books')
         .select('*, profiles(handle)')
-        .eq('id', id)
+        .eq(storyKeyColumn(id), id)
         .single()
       if (error) throw error
       return data
@@ -191,13 +188,16 @@ function ReadStory({ id }) {
   })
 
   const { data: comments = [], isLoading: commentsLoading } = useQuery({
-    queryKey: ['book_comments', id],
+    // Keyed on the row's uuid: a classic's URL key is its slug, which
+    // book_comments.book_id (a uuid) can't match.
+    queryKey: ['book_comments', book?.id],
+    enabled: Boolean(book?.id),
     queryFn: async () => {
       if (!supabase) return []
       const { data, error } = await supabase
         .from('book_comments')
         .select('*, profiles(handle)')
-        .eq('book_id', id)
+        .eq('book_id', book.id)
         .order('created_at', { ascending: true })
       if (error) throw error
       return data || []
@@ -209,7 +209,7 @@ function ReadStory({ id }) {
       const { data, error } = await supabase
         .from('book_comments')
         .insert({
-          book_id: id,
+          book_id: book.id,
           author_id: session.user.id,
           content: content.trim()
         })
@@ -220,7 +220,7 @@ function ReadStory({ id }) {
     },
     onSuccess: (newComment) => {
       setCommentContent('')
-      queryClient.invalidateQueries({ queryKey: ['book_comments', id] })
+      queryClient.invalidateQueries({ queryKey: ['book_comments', book?.id] })
       queryClient.invalidateQueries({ queryKey: ['book', id] })
       queryClient.invalidateQueries({ queryKey: ['books'] })
       if (newComment?.id) {
@@ -542,7 +542,7 @@ function ReadStory({ id }) {
             ) : (
               <>
                 <p className="font-mono text-xs uppercase tracking-widest mb-3 opacity-60">
-                  A story by {authorLabel(book?.profiles)}
+                  A story by {storyAuthorLabel(book)}
                 </p>
                 <h1 className="text-3xl md:text-5xl font-serif font-black tracking-tight mb-4 leading-tight">
                   {book?.title}
@@ -589,7 +589,7 @@ function ReadStory({ id }) {
         {/* Bottom Sticky Telemetry HUD */}
         <footer className="kindle-hud fixed bottom-0 inset-x-0 h-10 z-50 flex items-center justify-between px-4 sm:px-8 border-t backdrop-blur-md text-xs font-mono select-none">
           <div className="flex items-center gap-2 opacity-70 truncate max-w-[40%]">
-            <span>{authorLabel(book?.profiles)}</span>
+            <span>{storyAuthorLabel(book)}</span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -635,14 +635,14 @@ function ReadStory({ id }) {
         <div className="mt-8">
           {!isTombstone(book) && <QuoteSharer title={book?.title} />}
 
-          {book?.is_artificial && (
+          {isArchive(book) && (
             <div className="mb-8 p-4 border border-[var(--color-upside)]/50 bg-[var(--color-upside)]/10 font-mono text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-left">
               <div className="flex items-center gap-2.5 text-[var(--color-upside)]">
                 <span className="text-xl">📼</span>
                 <div>
-                  <strong className="tracking-wider uppercase">Public Archive Sample (Artificial / Pre-Seeded)</strong>
+                  <strong className="tracking-wider uppercase">Public Domain Classic</strong>
                   <p className="text-[11px] text-[var(--color-text-secondary)] font-serif italic mt-0.5">
-                    This piece is a public-domain horror masterwork preserved as an archival showcase.
+                    A public-domain horror masterwork, not a member submission. Critique it like any other story.
                   </p>
                 </div>
               </div>
@@ -655,7 +655,7 @@ function ReadStory({ id }) {
           {/* Title & Author Info */}
           <div className="border-b border-[var(--color-line)] pb-8 mb-12 text-center">
         <div className="flex justify-center items-center gap-4 text-xs font-mono text-[var(--color-text-secondary)] mb-4">
-          <span>A story by {authorLabel(book?.profiles)}</span>
+          <span>A story by {storyAuthorLabel(book)}</span>
           <button 
             onClick={() => setReportTarget({ type: 'story', id: book.id })} 
             className="text-xs uppercase border border-[var(--color-line)] hover:border-[var(--color-blood)] px-2 py-0.5 text-[var(--color-ash)] hover:text-[var(--color-blood)] cursor-pointer"
@@ -782,7 +782,7 @@ function ReadStory({ id }) {
           {/* Authors keep all rights (House Rules, rule 1); archive classics say public domain. */}
           <p className="max-w-2xl mx-auto mb-8 text-center font-mono text-xs text-[var(--color-text-secondary)]">
             {copyrightNotice(book)}{' '}
-            {!book?.is_artificial && (
+            {!isArchive(book) && (
               <a href="/rules/#house-rules" className="underline hover:text-[var(--color-ember)]">Creator ownership</a>
             )}
           </p>

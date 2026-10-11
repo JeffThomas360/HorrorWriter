@@ -7,40 +7,33 @@ import StructuredData from '../../../components/StructuredData.astro';
 import ReadStory from '../../../pages-react/ReadStory.jsx';
 import { supabase } from '../../../supabaseClient';
 import { buildCreativeWorkSchema, buildBreadcrumbSchema, metaDescription } from '../../../lib/seo';
-import { ARCHIVE_STORIES } from '../../../lib/seedArchives';
+import { isArchive, storyKeyColumn } from '../../../lib/storyHelpers';
+import { storyPath } from '../../../lib/urls';
 
 const { id } = Astro.params;
 
 let book = null;
 // 'unknown' until a lookup answers definitively; only 'missing' becomes a 404.
 let outcome = 'unknown';
-const archiveMatch = ARCHIVE_STORIES.find(a => a.id === id);
-
-if (archiveMatch) {
-  outcome = 'found';
-  book = {
-    title: archiveMatch.title,
-    lede: archiveMatch.lede,
-    created_at: archiveMatch.created_at,
-    profiles: {
-      handle: archiveMatch.profiles?.display_name || archiveMatch.profiles?.handle || 'Classic Author'
-    }
-  };
-} else {
-  try {
-    const isTest = typeof process !== 'undefined' && process.env.PLAYWRIGHT_TEST === 'true';
-    if (supabase && !isTest) {
-      const result = await supabase
-        .from('books')
-        .select('title, lede, created_at, removed_by_author, profiles(handle)')
-        .eq('id', id)
-        .maybeSingle();
-      book = result.data;
-      outcome = lookupOutcome(result);
-    }
-  } catch (e) {
-    console.error('Error fetching book details for SEO:', e);
+try {
+  const isTest = typeof process !== 'undefined' && process.env.PLAYWRIGHT_TEST === 'true';
+  if (supabase && !isTest) {
+    // Classics are addressed by slug, everything else by uuid.
+    const result = await supabase
+      .from('books')
+      .select('id, slug, title, lede, created_at, removed_by_author, archive_author, profiles(handle)')
+      .eq(storyKeyColumn(id), id)
+      .maybeSingle();
+    book = result.data;
+    outcome = lookupOutcome(result);
   }
+} catch (e) {
+  console.error('Error fetching book details for SEO:', e);
+}
+
+// A classic reached by its uuid: send it to the one canonical slug URL.
+if (book?.slug && id !== book.slug) {
+  return Astro.redirect(storyPath(book.slug), 301);
 }
 
 // A record that definitely doesn't exist gets a real 404 and stays out of search results.
@@ -48,7 +41,7 @@ const notFound = outcome === 'missing';
 if (notFound) Astro.response.status = 404;
 
 const isTombstone = Boolean(book?.removed_by_author);
-const authorHandle = book?.profiles?.handle || 'Unknown';
+const authorHandle = isArchive(book) ? book.archive_author : (book?.profiles?.handle || 'Unknown');
 const title = isTombstone
   ? 'Removed by its author | Horror Writer'
   : book ? `${book.title} by ${authorHandle} | Horror Writer` : 'Story | Horror Writer';
@@ -67,7 +60,7 @@ const creativeWorkSchema = book && !isTombstone ? buildCreativeWorkSchema({
   datePublished: book.created_at,
   type: 'ShortStory',
   // Authors keep all rights; the public-domain archive classics claim none.
-  copyrightYear: archiveMatch || !book.created_at ? undefined : new Date(book.created_at).getUTCFullYear()
+  copyrightYear: isArchive(book) || !book.created_at ? undefined : new Date(book.created_at).getUTCFullYear()
 }) : null;
 
 const breadcrumbSchema = book && !isTombstone ? buildBreadcrumbSchema([
