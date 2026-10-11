@@ -60,6 +60,12 @@ main.shell {
   word-break: break-word;
 }
 
+/* Reader font-size buttons set font-size on the container; prose-book text
+   must inherit it (em-based) rather than pin its own rem size. */
+.prose-book p {
+  font-size: inherit;
+}
+
 /* Ensure no trailing margin on final paragraph */
 .prose-book p:last-child,
 .prose p:last-child {
@@ -108,6 +114,11 @@ main.shell {
   color: var(--color-bone);
   line-height: 1.35;
 }
+
+/* Headings scale with the reader size (2rem/1.6rem/1.3rem at the 18px default) */
+.prose-book h1 { font-size: 1.78em; }
+.prose-book h2 { font-size: 1.42em; }
+.prose-book h3 { font-size: 1.16em; }
 
 /* Blockquotes & Inner Monologues */
 .prose-book blockquote,
