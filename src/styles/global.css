@@ -490,3 +490,161 @@ a:hover {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* ==========================================================================
+   Worn VHS tape cards (Library). Per-story values arrive as CSS custom
+   properties from src/lib/tapeWear.js: --tape-tilt, --tape-wear (0-4).
+   ========================================================================== */
+.tape {
+  display: block;
+  transform: rotate(var(--tape-tilt, 0deg));
+  transition: transform 160ms ease;
+}
+.tape:hover,
+.tape:focus-visible {
+  transform: rotate(0deg) translateY(-4px);
+}
+.tape:focus-visible {
+  outline: 2px solid var(--color-ember);
+  outline-offset: 4px;
+}
+.tape-case {
+  padding: 7px;
+  background: #050608;
+  border-radius: 5px;
+  box-shadow: inset 0 0 0 1px var(--color-line), inset 0 0 18px rgba(232, 228, 218, 0.05), 0 12px 26px rgba(0, 0, 0, 0.7);
+  position: relative;
+}
+.tape-sleeve {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 11 / 20;
+  display: flex;
+  flex-direction: column;
+  filter: saturate(calc(0.92 - var(--tape-wear, 0) * 0.05)) contrast(1.05);
+  clip-path: polygon(0 0, 100% 0, 100% 97%, 97% 100%, 0 100%, 0 3%, 1% 1.5%);
+}
+/* Worn versions of the four cover colours an author picks when publishing. */
+.tape-cover-blood { background: #A8172C; color: var(--color-bone); }
+.tape-cover-cyan  { background: #2B8E9A; color: var(--color-void); }
+.tape-cover-bone  { background: #D9D2BF; color: var(--color-void); }
+.tape-cover-void  { background: var(--color-raised); color: var(--color-bone); box-shadow: inset 0 0 0 1px var(--color-line-hi); }
+
+/* Film grain: inline SVG noise (img-src allows data:). */
+.tape-sleeve::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: multiply;
+  opacity: calc(0.14 + var(--tape-wear, 0) * 0.05);
+}
+/* Print lines, a shrink-wrap glint, and edge sun-fade that grows with wear. */
+.tape-texture {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.07) 0 1px, transparent 1px 3px),
+    linear-gradient(105deg, transparent 62%, rgba(232, 228, 218, 0.1) 63%, transparent 64%),
+    linear-gradient(var(--tape-fade-dir, 90deg), rgba(232, 228, 218, calc(var(--tape-wear, 0) * 0.04)), transparent 35%),
+    radial-gradient(ellipse at 90% 96%, rgba(8, 9, 12, calc(0.15 + var(--tape-wear, 0) * 0.08)), transparent 42%);
+}
+.tape-scuff {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(8, 9, 12, 0.32);
+  pointer-events: none;
+}
+.tape-residue {
+  position: absolute;
+  width: 58px;
+  height: 16px;
+  background: rgba(214, 200, 160, 0.35);
+  box-shadow: 0 0 0 1px rgba(214, 200, 160, 0.2);
+  pointer-events: none;
+}
+.tape-crack {
+  position: absolute;
+  top: 0;
+  right: 18px;
+  width: 1px;
+  height: 46px;
+  background: rgba(232, 228, 218, 0.35);
+  transform: rotate(24deg);
+  transform-origin: top;
+  pointer-events: none;
+}
+.tape-sticker {
+  position: absolute;
+  top: 12px;
+  right: 10px;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 8px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  clip-path: polygon(0 0, 100% 0, 100% 78%, 84% 100%, 0 100%);
+}
+.tape-sticker-new     { background: var(--color-ember); color: var(--color-void); }
+.tape-sticker-series  { background: var(--color-void); color: var(--color-upside); box-shadow: inset 0 0 0 1px var(--color-upside); }
+.tape-sticker-archive { background: var(--color-bone); color: var(--color-void); }
+.tape-barcode {
+  height: 14px;
+  width: 54px;
+  background: repeating-linear-gradient(90deg, var(--color-bone) 0 1px, transparent 1px 3px, var(--color-bone) 3px 5px, transparent 5px 6px);
+  opacity: 0.55;
+}
+
+/* Hover: VHS tracking glitch. */
+.tape-roll {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -20%;
+  height: 18%;
+  background: linear-gradient(to bottom, transparent, rgba(232, 228, 218, 0.12), transparent);
+  pointer-events: none;
+  opacity: 0;
+}
+.tape:hover .tape-roll {
+  opacity: 1;
+  animation: tape-roll 900ms linear infinite;
+}
+.tape:hover .tape-title {
+  animation: tape-split 600ms steps(2, end) infinite;
+}
+.tape:hover .tape-sleeve {
+  animation: tape-jitter 300ms steps(3, end) 2;
+}
+@keyframes tape-roll {
+  from { top: -20%; }
+  to { top: 110%; }
+}
+@keyframes tape-split {
+  0%, 100% { text-shadow: none; }
+  50% { text-shadow: -2px 0 rgba(255, 59, 47, 0.75), 2px 0 rgba(25, 165, 184, 0.75); }
+}
+@keyframes tape-jitter {
+  0% { transform: translateX(0); }
+  33% { transform: translateX(-1px); }
+  66% { transform: translateX(1px); }
+  100% { transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tape,
+  .tape:hover,
+  .tape:focus-visible { transition: none; transform: rotate(var(--tape-tilt, 0deg)); }
+  .tape:hover .tape-roll,
+  .tape:hover .tape-title,
+  .tape:hover .tape-sleeve { animation: none; }
+}
