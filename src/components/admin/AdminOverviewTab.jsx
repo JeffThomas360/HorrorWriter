@@ -43,7 +43,7 @@ function StatTile({ label, value, tone = 'default', onJump }) {
 }
 
 export default function AdminOverviewTab({ onNavigate }) {
-  const { data: stats, isLoading } = useQuery({
+  const { data: stats, isLoading, error: statsError } = useQuery({
     queryKey: ['admin', 'site-stats'],
     queryFn: fetchSiteStats,
     refetchInterval: 60_000,
@@ -130,6 +130,8 @@ export default function AdminOverviewTab({ onNavigate }) {
         <h3 className="font-mono text-xs uppercase tracking-widest text-[var(--color-ash)] mb-3">Site stats</h3>
         {isLoading ? (
           <p className="font-mono text-xs uppercase tracking-widest text-[var(--color-ash)] animate-pulse">Reading the ledger…</p>
+        ) : statsError ? (
+          <p role="alert" className="font-mono text-xs uppercase tracking-widest text-[var(--color-ember)]">Couldn't read the site stats: {statsError.message}</p>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {STAT_TILES.map((t) => (
