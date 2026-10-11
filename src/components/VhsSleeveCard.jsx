@@ -1,3 +1,5 @@
+import { storyAuthorLabel, storyUrlKey } from '../lib/storyHelpers'
+
 function postedAgo(dateString) {
   if (!dateString) return null
   const d = new Date(dateString)
@@ -21,13 +23,13 @@ export default function VhsSleeveCard({ story }) {
     sort_order: seriesLink.sort_order || 1
   } : null
 
-  const handle = story.profiles?.handle || 'unknown'
+  const byline = storyAuthorLabel(story)
   const critiqueCount = story.comments_count || 0
   const isExample = Boolean(story.badge || story.is_example)
 
   return (
     <a
-      href={`/library/read/${story.id}/`}
+      href={`/library/read/${storyUrlKey(story)}/`}
       className="group relative flex flex-col w-full aspect-[4/5] bg-[var(--color-surface)] border border-[var(--color-line)] hover:border-[var(--color-line-hi)] transition-all duration-200 hover:-translate-y-1 overflow-hidden shadow-md"
     >
       {/* Tape Spine (Left Column) */}
@@ -86,7 +88,7 @@ export default function VhsSleeveCard({ story }) {
 
         {/* Bottom Footer Details */}
         <div className="border-t border-[var(--color-line)] pt-2 mt-3 flex justify-between items-center text-[10px] font-mono text-[var(--color-ash)]">
-          <span className="font-bold text-[var(--color-bone)]">@{handle}</span>
+          <span className="font-bold text-[var(--color-bone)]">{byline}</span>
           <span>{postedAgo(story.created_at)}</span>
         </div>
       </div>

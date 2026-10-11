@@ -4,7 +4,7 @@ export async function fetchLiveStoryUrls() {
   if (!supabase) return []
   const { data, error } = await supabase
     .from('books')
-    .select('id, created_at')
+    .select('id, slug, created_at, updated_at, archive_author')
     .eq('mod_status', 'live')
     .eq('removed_by_author', false)
   if (error || !data) return []

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { playWhisperEcho, playTypewriterKey } from '../lib/soundscapes'
 
 // Authored writing prompts, not user submissions. Labelled SEED in the UI, the same way
-// seedArchives.js labels its public-domain tapes ARCHIVE SAMPLE.
+// the public-domain classics are labelled ARCHIVE SAMPLE.
 const SEED_WHISPERS = [
   {
     id: 'seed-1',

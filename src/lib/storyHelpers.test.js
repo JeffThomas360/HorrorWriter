@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { filterOneExamplePerGroup, isStoryOwner, copyrightNotice, authorLabel, isTombstone, TOMBSTONE_TEXT } from './storyHelpers'
+import { filterOneExamplePerGroup, isStoryOwner, copyrightNotice, authorLabel, isTombstone, TOMBSTONE_TEXT, isArchive, storyAuthorLabel, storyKeyColumn, storyUrlKey } from './storyHelpers'
 
 describe('storyHelpers', () => {
   it('passes through all real (non-example) stories', () => {
@@ -61,9 +61,9 @@ describe('copyrightNotice', () => {
       .toBe('© 2026 @beetlebub. All rights reserved.')
   })
 
-  // The seeded classics are public domain: claiming copyright would be false.
+  // The classics are public domain: claiming copyright would be false.
   it('marks archive stories as public domain, never copyrighted', () => {
-    const notice = copyrightNotice({ is_artificial: true, created_at: '1843-01-01T00:00:00Z', profiles: { handle: 'edgar_allan_poe' } })
+    const notice = copyrightNotice({ archive_author: 'Edgar Allan Poe', author_id: null, created_at: '1843-01-01T00:00:00Z', profiles: null })
     expect(notice).toBe('Public domain · first published 1843')
     expect(notice).not.toMatch(/©|rights reserved/i)
   })
@@ -91,5 +91,30 @@ describe('departed members and tombstones', () => {
     expect(isTombstone({ removed_by_author: false })).toBe(false)
     expect(isTombstone(null)).toBe(false)
     expect(TOMBSTONE_TEXT).toBe('Removed by its author.')
+  })
+})
+
+describe('archive classics', () => {
+  const poe = { id: 'a4c1e000-0000-4000-8000-000000000001', slug: 'archive-tell-tale-heart', archive_author: 'Edgar Allan Poe', author_id: null, profiles: null }
+  const departed = { id: 'b0000000-0000-4000-8000-000000000009', slug: null, archive_author: null, author_id: null, profiles: null }
+
+  // Both have author_id null; only one is a departed member's story.
+  it('tells a classic from a departed member', () => {
+    expect(isArchive(poe)).toBe(true)
+    expect(isArchive(departed)).toBe(false)
+    expect(storyAuthorLabel(poe)).toBe('Edgar Allan Poe')
+    expect(storyAuthorLabel(departed)).toBe('a departed member')
+    expect(storyAuthorLabel({ profiles: { handle: 'night-owl' } })).toBe('@night-owl')
+  })
+
+  // A slug sent to the uuid column is a PostgREST 400: the old archive-id bug.
+  it('picks the lookup column from the URL key', () => {
+    expect(storyKeyColumn('a4c1e000-0000-4000-8000-000000000001')).toBe('id')
+    expect(storyKeyColumn('archive-tell-tale-heart')).toBe('slug')
+  })
+
+  it('links classics by slug and everything else by id', () => {
+    expect(storyUrlKey(poe)).toBe('archive-tell-tale-heart')
+    expect(storyUrlKey(departed)).toBe(departed.id)
   })
 })

@@ -6,7 +6,6 @@ import { withProviders } from '../components/Providers'
 import VhsSleeveCard from '../components/VhsSleeveCard'
 import ForbiddenTape from '../components/ForbiddenTape'
 import { filterOneExamplePerGroup } from '../lib/storyHelpers'
-import { ARCHIVE_STORIES } from '../lib/seedArchives'
 
 const COVER_SVG = (
   <svg viewBox="0 0 260 320" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" className="w-full h-full text-white/20">
@@ -43,6 +42,7 @@ function Library() {
         .from('books')
         .select('*, profiles(handle), series_books(sort_order, series(id, title))')
         .eq('removed_by_author', false)
+        .is('archive_author', null)
         .order('created_at', { ascending: false })
 
       if (feedMode === 'following' && session) {
@@ -60,6 +60,21 @@ function Library() {
       const { data, error } = await query
       if (error) throw error
       return filterOneExamplePerGroup(data || [])
+    }
+  })
+
+  // The public-domain classics: their own shelf, shown in every feed mode.
+  const { data: archives = [] } = useQuery({
+    queryKey: ['archive_books'],
+    queryFn: async () => {
+      if (!supabase) return []
+      const { data, error } = await supabase
+        .from('books')
+        .select('*')
+        .not('archive_author', 'is', null)
+        .order('created_at', { ascending: true })
+      if (error) throw error
+      return data || []
     }
   })
 
@@ -157,26 +172,26 @@ function Library() {
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 mb-6">
             <div>
               <span className="font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-upside)] block mb-1">
-                The Archives • Pre-Seeded Showcase Tapes
+                The Archives • Public Domain Classics
               </span>
               <h3 className="text-xl font-serif font-black text-[var(--color-text-primary)]">
                 Public Domain <em className="italic text-[var(--color-ember)] font-serif">Masterworks</em>
               </h3>
             </div>
             <span className="font-mono text-[11px] text-[var(--color-text-secondary)]">
-              Flagged as Archival Samples
+              Not member submissions
             </span>
           </div>
 
           <div className="p-3.5 mb-6 border border-[var(--color-upside)]/30 bg-[var(--color-upside)]/5 font-mono text-[11px] text-[var(--color-text-secondary)] flex items-center gap-3">
             <span className="text-base">📼</span>
             <span>
-              <strong>Showcase Preservation:</strong> These 4 classic tapes illustrate the VHS reader format. They are public-domain showcase samples rather than community user submissions.
+              These public-domain classics are not member submissions. Read them in full, and critique them like any other story.
             </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {ARCHIVE_STORIES.map((story) => (
+            {archives.map((story) => (
               <VhsSleeveCard key={story.id} story={story} />
             ))}
           </div>
