@@ -120,6 +120,26 @@ export function buildCreativeWorkSchema({ url, title, description, authorName, d
   }
 }
 
+// Craft pages. The author is a person with a profile on the site: these pages are
+// human-written by policy, and the byline says whose experience they carry.
+export function buildArticleSchema({ url, title, description, authorName, authorUrl, datePublished, dateModified, image = 'https://horrorwriter.org/og.png' }) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    url,
+    mainEntityOfPage: url,
+    headline: title,
+    description,
+    // Google's Article guidelines ask for an image; the site card until pages carry their own.
+    image: [image],
+    inLanguage: 'en-US',
+    datePublished,
+    dateModified: dateModified || datePublished,
+    author: { '@type': 'Person', name: authorName, ...(authorUrl ? { url: authorUrl } : {}) },
+    publisher: { '@type': 'Organization', name: 'Horror Writer', url: 'https://horrorwriter.org' },
+  }
+}
+
 export function buildDiscussionForumPostingSchema({ url, headline, authorName, datePublished, interactionCount = 0 }) {
   return {
     '@context': 'https://schema.org',
