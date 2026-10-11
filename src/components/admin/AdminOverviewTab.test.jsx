@@ -87,3 +87,9 @@ test('says nothing when the queue is empty or the read fails', async () => {
   await new Promise((r) => setTimeout(r, 0))
   expect(screen.queryByText(/waiting/i)).toBeNull()
 })
+
+// Under vitest nothing is baked in, so the stamp says so instead of inventing one.
+test('shows the build stamp, honestly unknown outside a real build', async () => {
+  renderIt()
+  expect(await screen.findByTestId('build-stamp')).toHaveTextContent('Live build unknown build')
+})

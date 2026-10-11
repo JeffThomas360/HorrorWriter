@@ -3,6 +3,16 @@ import react from '@astrojs/react';
 import cloudflare from '@astrojs/cloudflare';
 import sitemap from '@astrojs/sitemap';
 import tailwindcss from '@tailwindcss/vite';
+import { execSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { collectBuildInfo } from './src/lib/buildInfo.js';
+
+// Which build is live, shown on the admin Overview (src/lib/buildInfo.js).
+const BUILD_INFO = collectBuildInfo({
+  version: JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version,
+  env: process.env,
+  run: (cmd) => execSync(cmd, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(),
+});
 
 // https://astro.build/config
 export default defineConfig({
@@ -32,6 +42,9 @@ export default defineConfig({
   },
   vite: {
     envPrefix: ['PUBLIC_', 'VITE_'],
+    define: {
+      __BUILD_INFO__: JSON.stringify(BUILD_INFO),
+    },
     plugins: [tailwindcss()],
     resolve: {
       // Required if Vite 8 is hoisted by npm; forces the compiler to accept resolution pathways
