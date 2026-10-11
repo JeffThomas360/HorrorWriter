@@ -65,9 +65,18 @@ export async function collectBuildInfo({ version, env = {}, run, fetchImpl, now 
   return { version, build, sha, branch, ci, builtAt: now.toISOString() }
 }
 
-/** "0.1.0+142.5c99ccc", dropping whatever is unknown. */
-export function formatBuildStamp(info) {
+/**
+ * "v0.1.398": major.minor from package.json, the build number as the third
+ * part. Without a build number it stops at "v0.1" rather than inventing one.
+ */
+export function formatVersion(info) {
   if (!info?.version) return 'unknown build'
-  const meta = [info.build, info.sha].filter((x) => x != null && x !== '').join('.')
-  return meta ? `${info.version}+${meta}` : info.version
+  const [major = '0', minor = '0'] = String(info.version).split('.')
+  return info.build != null ? `v${major}.${minor}.${info.build}` : `v${major}.${minor}`
+}
+
+/** "v0.1.398 · bb7489d": the version plus the commit it was built from. */
+export function formatBuildStamp(info) {
+  const v = formatVersion(info)
+  return info?.version && info.sha ? `${v} · ${info.sha}` : v
 }
