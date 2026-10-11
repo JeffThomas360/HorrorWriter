@@ -1,5 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { fetchSiteStats } from '../../lib/modActions'
+import { formatBuildStamp } from '../../lib/buildInfo'
+
+// Baked in at build time by astro.config.mjs; absent under vitest.
+// eslint-disable-next-line no-undef
+const BUILD = typeof __BUILD_INFO__ !== 'undefined' ? __BUILD_INFO__ : null
 import { fetchSiteSettings } from '../../lib/siteSettings'
 import { countFutureScheduled } from '../../lib/ritualAdmin'
 import { fetchOpenTasks } from '../../lib/keeperTaskApi'
@@ -142,6 +147,12 @@ export default function AdminOverviewTab({ onNavigate }) {
 
       <div>
         <h3 className="font-mono text-xs uppercase tracking-widest text-[var(--color-ash)] mb-3">Infrastructure</h3>
+        <p data-testid="build-stamp" className="font-mono text-xs text-[var(--color-ash)] mb-3">
+          Live build <span className="text-[var(--color-bone)]">{formatBuildStamp(BUILD)}</span>
+          {BUILD?.branch && BUILD.branch !== 'main' && <> · branch {BUILD.branch}</>}
+          {BUILD?.builtAt && <> · built {new Date(BUILD.builtAt).toLocaleString()}</>}
+          {BUILD && !BUILD.ci && <> · local build</>}
+        </p>
         <div className="grid sm:grid-cols-3 gap-3">
           {EXTERNAL_LINKS.map((l) => (
             <a
