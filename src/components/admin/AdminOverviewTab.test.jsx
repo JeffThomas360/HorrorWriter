@@ -2,7 +2,13 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { test, expect, vi, beforeEach, afterEach } from 'vitest'
 
-vi.mock('../../lib/modActions', () => ({ fetchSiteStats: vi.fn(async () => ({})) }))
+let statsFail = false
+vi.mock('../../lib/modActions', () => ({
+  fetchSiteStats: vi.fn(async () => {
+    if (statsFail) throw new Error('column books.status does not exist')
+    return {}
+  }),
+}))
 vi.mock('../../lib/siteSettings', () => ({ fetchSiteSettings: vi.fn(async () => ({})) }))
 let future = 0
 let countFails = false
@@ -29,7 +35,7 @@ function renderIt(onNavigate = vi.fn()) {
   return onNavigate
 }
 
-beforeEach(() => { future = 0; countFails = false; openTasks = []; tasksFail = false })
+beforeEach(() => { future = 0; countFails = false; openTasks = []; tasksFail = false; statsFail = false })
 afterEach(() => cleanup())
 
 test('warns when fewer than 2 rituals are scheduled, and links to the tab', async () => {
@@ -92,4 +98,10 @@ test('says nothing when the queue is empty or the read fails', async () => {
 test('shows the build stamp, honestly unknown outside a real build', async () => {
   renderIt()
   expect(await screen.findByTestId('build-stamp')).toHaveTextContent('Live build unknown build')
+})
+
+test('says so when the site stats fail, instead of showing zeros', async () => {
+  statsFail = true
+  renderIt()
+  expect(await screen.findByRole('alert')).toHaveTextContent(/couldn't read the site stats/i)
 })

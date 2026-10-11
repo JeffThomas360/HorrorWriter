@@ -246,12 +246,18 @@ export async function fetchSiteStats() {
 
   const [users, stories, threads, critiques, reportsHandled, sanctioned] = await Promise.all([
     supabase.from('profiles').select('id', { count: 'exact', head: true }),
-    supabase.from('books').select('id', { count: 'exact', head: true }).eq('status', 'live'),
-    supabase.from('threads').select('id', { count: 'exact', head: true }).eq('status', 'live'),
-    supabase.from('book_comments').select('id', { count: 'exact', head: true }).eq('status', 'live'),
+    // Member stories only: since #70 the classics are books rows too (archive_author set).
+    supabase.from('books').select('id', { count: 'exact', head: true }).eq('mod_status', 'live').is('archive_author', null),
+    supabase.from('threads').select('id', { count: 'exact', head: true }).eq('mod_status', 'live'),
+    supabase.from('book_comments').select('id', { count: 'exact', head: true }).eq('mod_status', 'live'),
     supabase.from('reports').select('id', { count: 'exact', head: true }).neq('status', 'open'),
     supabase.from('profiles').select('id', { count: 'exact', head: true }).gt('banned_until', new Date().toISOString()),
   ])
+
+  // A failed count used to render as 0 (the `status` column never existed, so three tiles
+  // read 0 from the day they shipped). Fail loudly instead.
+  const failed = [users, stories, threads, critiques, reportsHandled, sanctioned].find((r) => r.error)
+  if (failed) throw failed.error
 
   return {
     totalUsers: users.count ?? 0,
