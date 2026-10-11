@@ -8,10 +8,15 @@ import { readFileSync } from 'node:fs';
 import { collectBuildInfo } from './src/lib/buildInfo.js';
 
 // Which build is live, shown on the admin Overview (src/lib/buildInfo.js).
-const BUILD_INFO = collectBuildInfo({
+const BUILD_INFO = await collectBuildInfo({
   version: JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version,
   env: process.env,
-  run: (cmd) => execSync(cmd, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(),
+  // No credential prompts and a time limit, so the unshallow attempt can never hang a build.
+  run: (cmd) => execSync(cmd, {
+    stdio: ['ignore', 'pipe', 'ignore'],
+    timeout: 60_000,
+    env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+  }).toString().trim(),
 });
 
 // https://astro.build/config
