@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { collectBuildInfo, formatBuildStamp, githubRepoFromUrl, countCommitsOnGitHub } from './buildInfo'
+import { collectBuildInfo, formatBuildStamp, formatVersion, githubRepoFromUrl, countCommitsOnGitHub } from './buildInfo'
 
 const NOW = new Date('2026-10-11T03:00:00Z')
 const CI_ENV = { WORKERS_CI: '1', WORKERS_CI_COMMIT_SHA: '7219de5abcdef0', WORKERS_CI_BRANCH: 'main' }
@@ -94,13 +94,15 @@ describe('helpers', () => {
   })
 })
 
-describe('formatBuildStamp', () => {
-  it('joins version, build and commit', () => {
-    expect(formatBuildStamp({ version: '0.1.0', build: 397, sha: '7219de5' })).toBe('0.1.0+397.7219de5')
+describe('formatVersion / formatBuildStamp', () => {
+  it('is v<major>.<minor>.<build>, with the commit beside it', () => {
+    expect(formatVersion({ version: '0.1.0', build: 398 })).toBe('v0.1.398')
+    expect(formatVersion({ version: '1.1.0', build: 234 })).toBe('v1.1.234')
+    expect(formatBuildStamp({ version: '0.1.0', build: 398, sha: 'bb7489d' })).toBe('v0.1.398 · bb7489d')
   })
-  it('drops what is unknown', () => {
-    expect(formatBuildStamp({ version: '0.1.0', build: null, sha: '7219de5' })).toBe('0.1.0+7219de5')
-    expect(formatBuildStamp({ version: '0.1.0', build: null, sha: null })).toBe('0.1.0')
+  it('never invents a build number', () => {
+    expect(formatBuildStamp({ version: '0.1.0', build: null, sha: 'bb7489d' })).toBe('v0.1 · bb7489d')
+    expect(formatBuildStamp({ version: '0.1.0', build: null, sha: null })).toBe('v0.1')
     expect(formatBuildStamp(null)).toBe('unknown build')
   })
 })
