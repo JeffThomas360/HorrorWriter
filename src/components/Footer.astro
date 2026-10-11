@@ -1,5 +1,9 @@
 ---
 const year = new Date().getFullYear();
+import { getCollection } from 'astro:content'
+import { visibleCraft } from '../lib/craft.js'
+// Link only once a page is published, never to an empty section.
+const hasCraft = visibleCraft(await getCollection('craft')).length > 0
 ---
 
 <footer class="border-t border-[var(--color-line)] bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] py-12 mt-20">
@@ -34,6 +38,7 @@ const year = new Date().getFullYear();
       <ul class="text-xs font-serif flex flex-col gap-1">
         <li><a href="/rules/#house-rules" class="inline-block py-2 hover:text-[var(--color-ember)]">House Rules</a></li>
         <li><a href="/rules/#critique-code" class="inline-block py-2 hover:text-[var(--color-ember)]">Critique Code</a></li>
+        {hasCraft && <li><a href="/craft/" class="inline-block py-2 hover:text-[var(--color-ember)]">Craft Guides</a></li>}
         <li><a href="/rules/#content-warnings" class="inline-block py-2 hover:text-[var(--color-ember)]">Content Warnings</a></li>
         <li><a href="/transparency/" class="inline-block py-2 hover:text-[var(--color-ember)]">Transparency Log</a></li>
       </ul>

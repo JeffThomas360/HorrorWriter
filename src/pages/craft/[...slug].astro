@@ -1,0 +1,94 @@
+---
+// /craft/ and /craft/<page>/: human-written guides. Prerendered from src/content/craft/.
+// While no page is published, nothing here is built: no empty index for Google to find.
+import { getCollection, render } from 'astro:content'
+import MainLayout from '../../layouts/MainLayout.astro'
+import StructuredData from '../../components/StructuredData.astro'
+import { visibleCraft } from '../../lib/craft.js'
+import { buildArticleSchema, buildBreadcrumbSchema } from '../../lib/seo.js'
+
+export async function getStaticPaths() {
+  const pages = visibleCraft(await getCollection('craft'), { dev: import.meta.env.DEV })
+  if (pages.length === 0) return []
+  return [
+    { params: { slug: undefined }, props: { pages } },
+    ...pages.map((entry) => ({ params: { slug: entry.id }, props: { entry, pages } })),
+  ]
+}
+
+const { entry, pages } = Astro.props
+const site = 'https://horrorwriter.org'
+const isoDate = (d) => (d ? d.toISOString().slice(0, 10) : undefined)
+const longDate = (d) => d?.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })
+
+let Content, article, crumbs
+if (entry) {
+  ;({ Content } = await render(entry))
+  const url = `${site}/craft/${entry.id}/`
+  article = buildArticleSchema({
+    url,
+    title: entry.data.title,
+    description: entry.data.description,
+    authorName: entry.data.author,
+    authorUrl: `${site}/u/${entry.data.author}/`,
+    datePublished: isoDate(entry.data.published),
+    dateModified: isoDate(entry.data.updated),
+  })
+  crumbs = buildBreadcrumbSchema([
+    { name: 'Home', url: `${site}/` },
+    { name: 'Craft', url: `${site}/craft/` },
+    { name: entry.data.title, url },
+  ])
+}
+const others = entry ? pages.filter((p) => p.id !== entry.id) : []
+---
+
+{entry ? (
+  <MainLayout title={`${entry.data.title} | Horror Writer`} description={entry.data.description} noindex={entry.data.draft}>
+    <StructuredData data={article} />
+    <StructuredData data={crumbs} />
+    <article class="prose-book mt-8">
+      {entry.data.draft && (
+        <p class="font-mono text-xs uppercase tracking-widest text-[var(--color-ember)] mb-4">▸ Draft: only visible in npm run dev</p>
+      )}
+      <a href="/craft/" class="inline-block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-text-secondary)] mb-4 hover:text-[var(--color-ember)]">▸ Craft</a>
+      <h1 class="title text-4xl font-serif font-black mb-4">{entry.data.title}</h1>
+      <p class="font-mono text-xs uppercase tracking-widest text-[var(--color-text-secondary)] mb-10">
+        By <a href={`/u/${entry.data.author}/`} class="hover:text-[var(--color-ember)]">{entry.data.author}</a>
+        {entry.data.published && <> · <time datetime={isoDate(entry.data.published)}>{longDate(entry.data.published)}</time></>}
+        {entry.data.updated && <> · updated <time datetime={isoDate(entry.data.updated)}>{longDate(entry.data.updated)}</time></>}
+      </p>
+      <Content />
+      <aside class="border-t border-[var(--color-line)] mt-12 pt-8">
+        <p class="font-serif mb-4">
+          Ready to try it? <a href="/library/" class="text-[var(--color-ember)]">Pick a story in the Library</a> and leave a critique,
+          or <a href="/library/publish/" class="text-[var(--color-ember)]">post your own</a>. The <a href="/rules/#critique-code" class="text-[var(--color-ember)]">Critique Code</a> has the house rules.
+        </p>
+        {others.length > 0 && (
+          <ul class="font-serif flex flex-col gap-2">
+            {others.map((p) => <li><a href={`/craft/${p.id}/`} class="hover:text-[var(--color-ember)]">{p.data.title}</a></li>)}
+          </ul>
+        )}
+      </aside>
+    </article>
+  </MainLayout>
+) : (
+  <MainLayout title="Craft — Critique and Horror Writing Guides | Horror Writer" description="Guides on giving and taking critique and on the craft of horror, written by the people who run and write for Horror Writer.">
+    <div class="prose-book mt-8">
+      <span class="inline-block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-text-secondary)] mb-4">▸ Craft</span>
+      <h1 class="title text-4xl font-serif font-black mb-6">Craft</h1>
+      <p class="text-lg font-serif italic text-[var(--color-text-secondary)] mb-12 leading-relaxed">
+        How to give a critique worth reading, how to take one, and how horror works on the page.
+      </p>
+      <ul class="flex flex-col gap-8">
+        {pages.map((p) => (
+          <li class="border-t border-[var(--color-line)] pt-6">
+            <a href={`/craft/${p.id}/`} class="font-serif font-bold text-xl text-[var(--color-text-primary)] hover:text-[var(--color-ember)]">{p.data.title}</a>
+            {p.data.draft && <span class="font-mono text-xs text-[var(--color-ember)] ml-2">DRAFT</span>}
+            <p class="font-serif text-sm text-[var(--color-text-secondary)] mt-2">{p.data.description}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </MainLayout>
+)}

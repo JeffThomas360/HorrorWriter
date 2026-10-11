@@ -8,6 +8,7 @@ import {
   buildSitemapXml,
   buildFAQSchema,
   buildBreadcrumbSchema,
+  buildArticleSchema,
   buildSitemapIndexXml,
   metaDescription,
   SITE_DESCRIPTION
@@ -204,5 +205,22 @@ describe('buildCreativeWorkSchema copyright', () => {
     const s = buildCreativeWorkSchema(base)
     expect(s).not.toHaveProperty('copyrightHolder')
     expect(s).not.toHaveProperty('copyrightYear')
+  })
+})
+
+describe('buildArticleSchema', () => {
+  const a = buildArticleSchema({
+    url: 'https://horrorwriter.org/craft/x/', title: 'T', description: 'D',
+    authorName: 'beetlebub', authorUrl: 'https://horrorwriter.org/u/beetlebub/', datePublished: '2026-10-11',
+  })
+  it('is an Article by a person with a profile', () => {
+    expect(a['@type']).toBe('Article')
+    expect(a.author).toEqual({ '@type': 'Person', name: 'beetlebub', url: 'https://horrorwriter.org/u/beetlebub/' })
+  })
+  it('falls back to the publish date when never updated', () => {
+    expect(a.dateModified).toBe('2026-10-11')
+  })
+  it('carries an image, which Google asks Articles for', () => {
+    expect(a.image).toEqual(['https://horrorwriter.org/og.png'])
   })
 })
