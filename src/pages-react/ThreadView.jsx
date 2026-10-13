@@ -6,29 +6,12 @@ import ReportModal from '../components/ReportModal'
 import CommunityGuidelines from '../components/CommunityGuidelines'
 import InlineModControls from '../components/mod/InlineModControls'
 import MarkdownEditor from '../components/MarkdownEditor'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import remarkBreaks from 'remark-breaks'
+import PostCard from '../components/forum/PostCard'
+import { isOpeningPost } from '../lib/forumEditing'
 import { withProviders } from '../components/Providers'
-import { authorLabel, isTombstone, TOMBSTONE_TEXT } from '../lib/storyHelpers'
+import { isTombstone, TOMBSTONE_TEXT } from '../lib/storyHelpers'
 
 const PAGE_SIZE = 15
-
-function initials(handle) {
-  if (!handle) return '??'
-  return handle.split('-').map(w => w[0].toUpperCase()).slice(0, 2).join('')
-}
-
-function timeAgo(dateString) {
-  if (!dateString) return ''
-  const d = new Date(dateString)
-  const now = new Date()
-  const diff = (now - d) / 1000
-  if (diff < 60) return 'just now'
-  if (diff < 3600) return `${Math.floor(diff / 60)}m`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h`
-  return `${Math.floor(diff / 86400)}d`
-}
 
 function ThreadView({ id }) {
   const { session } = useAuth()
@@ -212,41 +195,22 @@ function ThreadView({ id }) {
       </div>
 
       <div className="flex flex-col gap-6">
-        {posts.map((p, index) => {
-          const handle = p.profiles?.handle || 'unknown'
-          const postLabel = index === 0
-            ? (isTombstone(thread) ? null : 'Original Post')
-            : `Reply #${index}`
-          return (
-            <article key={p.id} className="vintage-card flex flex-col gap-4">
-              <div className="flex justify-between items-start border-b border-[var(--color-line)] pb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[var(--color-bg-primary)] border border-[var(--color-line)] flex items-center justify-center font-mono text-xs text-[var(--color-text-secondary)]">
-                    {initials(handle)}
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="font-mono text-xs font-bold text-[var(--color-text-primary)]">{authorLabel(p.profiles)}</span>
-                    <span className="font-mono text-xs text-[var(--color-text-secondary)]">
-                      {postLabel ? `${postLabel} · ` : ''}{timeAgo(p.created_at)}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex gap-3 items-center text-xs font-mono">
-                  <button 
-                    onClick={() => setReportTarget({ type: 'post', id: p.id })} 
-                    className="text-[var(--color-text-secondary)] hover:text-[var(--color-accent-crimson)] cursor-pointer"
-                  >
-                    Report
-                  </button>
-                  <InlineModControls targetType="post" targetId={p.id} currentStatus={p.mod_status} authorId={p.author_id} />
-                </div>
-              </div>
-              <div className="prose prose-invert font-serif text-lg leading-relaxed text-[var(--color-text-primary)]">
-                <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{p.content}</ReactMarkdown>
-              </div>
-            </article>
-          )
-        })}
+        {posts.map((p, index) => (
+          <PostCard
+            key={p.id}
+            post={p}
+            label={index === 0 ? (isTombstone(thread) ? null : 'Original Post') : `Reply #${index}`}
+            isOpening={isOpeningPost(index, p, thread)}
+            thread={thread}
+            currentUserId={userId}
+            onReport={() => setReportTarget({ type: 'post', id: p.id })}
+            onSaved={() => {
+              queryClient.invalidateQueries({ queryKey: ['thread', id] })
+              queryClient.invalidateQueries({ queryKey: ['posts', id] })
+              queryClient.invalidateQueries({ queryKey: ['threads'] })
+            }}
+          />
+        ))}
 
         {hasNextPage && (
           <div className="text-center mt-6">
