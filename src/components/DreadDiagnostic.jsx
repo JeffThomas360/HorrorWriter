@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { playTypewriterKey, playDreadTone } from '../lib/soundscapes'
 
 const QUESTIONS = [
@@ -105,11 +105,53 @@ const ARCHETYPES = {
   }
 }
 
+const DREAD_STORAGE_KEY = 'hw.dread.diagnostic'
+
+function getSavedDiagnostic() {
+  try {
+    const raw = window.localStorage.getItem(DREAD_STORAGE_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+function saveDiagnostic(data) {
+  try {
+    window.localStorage.setItem(DREAD_STORAGE_KEY, JSON.stringify(data))
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+function clearSavedDiagnostic() {
+  try {
+    window.localStorage.removeItem(DREAD_STORAGE_KEY)
+  } catch {
+    /* storage unavailable */
+  }
+}
+
 export default function DreadDiagnostic() {
   const [currentStep, setCurrentStep] = useState(0)
   const [answers, setAnswers] = useState([])
   const [result, setResult] = useState(null)
   const [copied, setCopied] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(false)
+
+  // Load saved progress or finished archetype on mount
+  useEffect(() => {
+    const saved = getSavedDiagnostic()
+    if (!saved) return
+
+    if (saved.archetype && ARCHETYPES[saved.archetype]) {
+      setResult(ARCHETYPES[saved.archetype])
+      setIsCollapsed(true)
+    } else if (Array.isArray(saved.answers) && typeof saved.currentStep === 'number') {
+      setAnswers(saved.answers)
+      setCurrentStep(Math.min(saved.currentStep, QUESTIONS.length - 1))
+    }
+  }, [])
 
   function handleSelect(archetype) {
     playTypewriterKey(false)
@@ -117,7 +159,9 @@ export default function DreadDiagnostic() {
     setAnswers(nextAnswers)
 
     if (currentStep + 1 < QUESTIONS.length) {
-      setCurrentStep(currentStep + 1)
+      const nextStep = currentStep + 1
+      setCurrentStep(nextStep)
+      saveDiagnostic({ currentStep: nextStep, answers: nextAnswers })
     } else {
       // Calculate winner
       const counts = nextAnswers.reduce((acc, a) => {
@@ -134,15 +178,19 @@ export default function DreadDiagnostic() {
       })
       playDreadTone()
       setResult(ARCHETYPES[topArch])
+      setIsCollapsed(false)
+      saveDiagnostic({ archetype: topArch, completed: true })
     }
   }
 
   function handleReset() {
     playTypewriterKey(true)
+    clearSavedDiagnostic()
     setCurrentStep(0)
     setAnswers([])
     setResult(null)
     setCopied(false)
+    setIsCollapsed(false)
   }
 
   function handleCopyDossier() {
@@ -166,7 +214,7 @@ export default function DreadDiagnostic() {
       />
 
       <div className="relative z-10">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--color-line)] pb-4 mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--color-line)] pb-4 mb-6">
           <div>
             <span className="block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-upside)] mb-1">
               ▸ Psychological Alignment · Channel 13 Diagnostic
@@ -180,7 +228,50 @@ export default function DreadDiagnostic() {
           </span>
         </div>
 
-        {!result ? (
+        {/* Compact / Minimized View for returning users */}
+        {result && isCollapsed ? (
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 p-4 sm:p-6 bg-[var(--color-surface)] border border-[var(--color-line)]">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-xs uppercase text-[var(--color-ember)] tracking-widest">
+                  Alignment:
+                </span>
+                <span className="font-serif font-bold text-white text-base">
+                  {result.name}
+                </span>
+                <span className="font-mono text-xs text-[var(--color-accent-crimson)] font-bold ml-1">
+                  {result.seal}
+                </span>
+              </div>
+              <p className="font-serif italic text-xs text-[var(--color-text-secondary)] line-clamp-1">
+                &ldquo;{result.prompt}&rdquo;
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setIsCollapsed(false)}
+                className="font-mono text-xs uppercase px-4 py-2 border border-[var(--color-line)] text-[var(--color-text-primary)] hover:border-white transition-colors cursor-pointer"
+              >
+                View Dossier
+              </button>
+              <a
+                href={`/library/publish/?prompt=${encodeURIComponent(result.prompt)}`}
+                className="font-mono text-xs uppercase px-4 py-2 bg-[var(--color-accent-crimson)] text-white hover:bg-red-700 transition-colors inline-block font-bold"
+              >
+                Write in Studio →
+              </a>
+              <button
+                type="button"
+                onClick={handleReset}
+                className="font-mono text-xs uppercase text-[var(--color-text-secondary)] hover:text-white transition-colors cursor-pointer underline ml-1"
+              >
+                Retake
+              </button>
+            </div>
+          </div>
+        ) : !result ? (
           <div>
             <div className="mb-6">
               <span className="font-mono text-xs text-[var(--color-accent-crimson)] uppercase tracking-widest block mb-1">
@@ -254,6 +345,7 @@ export default function DreadDiagnostic() {
             <div className="flex flex-wrap gap-4 items-center justify-between pt-2">
               <div className="flex flex-wrap gap-3">
                 <button
+                  type="button"
                   onClick={handleCopyDossier}
                   className="font-mono text-xs uppercase px-5 py-3 border border-[var(--color-upside)] text-[var(--color-upside)] hover:bg-[var(--color-upside)] hover:text-black transition-colors cursor-pointer"
                 >
@@ -265,8 +357,16 @@ export default function DreadDiagnostic() {
                 >
                   Write in Studio →
                 </a>
+                <button
+                  type="button"
+                  onClick={() => setIsCollapsed(true)}
+                  className="font-mono text-xs uppercase px-4 py-3 border border-[var(--color-line)] text-[var(--color-text-secondary)] hover:border-white transition-colors cursor-pointer"
+                >
+                  Minimize
+                </button>
               </div>
               <button
+                type="button"
                 onClick={handleReset}
                 className="font-mono text-xs uppercase tracking-wider text-[var(--color-text-secondary)] hover:text-white transition-colors cursor-pointer underline"
               >
