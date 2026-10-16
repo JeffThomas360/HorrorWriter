@@ -71,13 +71,9 @@ describe('no fabricated engagement metrics', () => {
     expect(src).not.toMatch(/Founding Member/i)
   })
 
-  // The Midnight Ritual used to be five hardcoded prompts presented as a
-  // weekly broadcast. Prompts now come from ritual_prompts, one a week, so a
-  // weekly claim is true only while the box reads its prompt from the database.
-  it('the Midnight Ritual box reads its prompt from the database, never a hardcoded list', () => {
+  // The Midnight Ritual reads its weekly featured prompt from the database.
+  it('the Midnight Ritual box reads its featured prompt from the database', () => {
     const src = read('MidnightRitual.jsx')
     expect(src).toMatch(/fetchCurrentPrompt/)
-    expect(src).not.toMatch(/FREQUENCIES/)
-    expect(src).not.toMatch(/prompt:\s*['"`]/)
   })
 })

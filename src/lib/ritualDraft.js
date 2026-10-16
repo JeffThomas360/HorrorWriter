@@ -84,7 +84,7 @@ export async function fetchMyDraft(promptId, userId) {
   if (!supabase) return null
   const { data, error } = await supabase
     .from('ritual_drafts')
-    .select('content, updated_at')
+    .select('id, content, updated_at')
     .eq('prompt_id', promptId)
     .eq('author_id', userId)
     .maybeSingle()
@@ -100,8 +100,28 @@ export function ritualSaveErrorMessage(error) {
 
 export async function saveRitualDraft({ promptId, userId, content }) {
   if (!supabase) throw new Error(ritualSaveErrorMessage(null))
-  const { error } = await supabase
+  const query = supabase
     .from('ritual_drafts')
     .upsert({ prompt_id: promptId, author_id: userId, content }, { onConflict: 'author_id,prompt_id' })
-  if (error) throw new Error(ritualSaveErrorMessage(error))
+  const result = typeof query?.select === 'function' ? await query.select('id').maybeSingle() : await query
+  if (result?.error) throw new Error(ritualSaveErrorMessage(result.error))
+  return result?.data?.id
+}
+
+export async function shareRitualDraft({ draftId, title }) {
+  if (!supabase) throw new Error("Could not share draft.")
+  const trimmed = (title || '').trim()
+  if (!trimmed || trimmed.length > 200) {
+    throw new Error('A story title must be between 1 and 200 characters.')
+  }
+  const { data, error } = await supabase.rpc('share_ritual_draft', {
+    p_draft_id: draftId,
+    p_title: trimmed,
+  })
+  if (error) {
+    if (error?.code === 'HW013') throw new Error('A story title must be between 1 and 200 characters.')
+    if (error?.code === '42501') throw new Error('You do not have permission to publish this draft.')
+    throw new Error(error?.message || 'Failed to publish draft for critique.')
+  }
+  return data
 }

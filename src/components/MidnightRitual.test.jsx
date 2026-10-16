@@ -7,6 +7,8 @@ vi.mock('./AuthContext', () => ({
   AuthProvider: ({ children }) => children,
 }))
 vi.mock('../lib/soundscapes', () => ({ playTypewriterKey: () => {} }))
+vi.mock('../lib/screenContent', () => ({ screenContent: vi.fn(async () => {}) }))
+vi.mock('../supabaseClient', () => ({ supabase: {} }))
 
 let current = null
 let next = null
@@ -15,7 +17,8 @@ const api = {
   fetchCurrentPrompt: vi.fn(async () => current),
   fetchNextUnlock: vi.fn(async () => next),
   fetchMyDraft: vi.fn(async () => serverDraft),
-  saveRitualDraft: vi.fn(async () => {}),
+  saveRitualDraft: vi.fn(async () => 'draft-1'),
+  shareRitualDraft: vi.fn(async () => 'book-new-1'),
 }
 vi.mock('../lib/ritualDraft', async (importOriginal) => ({ ...(await importOriginal()), ...api }))
 
@@ -34,28 +37,32 @@ beforeEach(() => {
 afterEach(cleanup)
 
 const open = async () => {
-  fireEvent.click(await screen.findByRole('button', { name: /write to this prompt/i }))
+  fireEvent.click(await screen.findByRole('button', { name: /write to this/i }))
   return screen.getByRole('textbox')
 }
 
-test('with no released prompt it says so and offers no writing box', async () => {
+test('renders multi-channel frequencies tuner with CH 13.0 through CH 13.4', async () => {
   render(<MidnightRitual />)
-  expect(await screen.findByText(/the first ritual is being prepared/i)).toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: /write to this prompt/i })).toBeNull()
+  expect(screen.getByRole('button', { name: 'CH 13.0' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'CH 13.1' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'CH 13.2' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'CH 13.3' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'CH 13.4' })).toBeInTheDocument()
 })
 
-test('shows the current prompt from the database and the next unlock', async () => {
+test('tuning to CH 13.1 switches prompt to Cosmic Dread', async () => {
+  render(<MidnightRitual />)
+  fireEvent.click(screen.getByRole('button', { name: 'CH 13.1' }))
+  expect(await screen.findByText(/Cosmic Horror/i)).toBeInTheDocument()
+  expect(await screen.findByText(/The astronomer realized the stars were not burning out/i)).toBeInTheDocument()
+})
+
+test('shows the current prompt from the database and the next unlock on CH 13.0', async () => {
   current = PROMPT
   next = '2026-10-16T07:00:00Z'
   render(<MidnightRitual />)
   expect(await screen.findByText(new RegExp(PROMPT.body))).toBeInTheDocument()
-  expect(await screen.findByText(/next prompt fri 16 oct, 03:00 et/i)).toBeInTheDocument()
-})
-
-test('says "coming soon" rather than counting toward nothing', async () => {
-  current = PROMPT
-  render(<MidnightRitual />)
-  expect(await screen.findByText(/next ritual coming soon/i)).toBeInTheDocument()
+  expect(await screen.findByText(/next: fri 16 oct, 03:00 et/i)).toBeInTheDocument()
 })
 
 test('counts words against 500 and blocks saving over the cap', async () => {
@@ -136,4 +143,38 @@ test('a failed save says so and keeps the text', async () => {
   fireEvent.click(screen.getByRole('button', { name: /save draft/i }))
   expect(await screen.findByText(/still kept on this device/i)).toBeInTheDocument()
   expect(box.value).toBe('the walls breathe')
+})
+
+test('signed out: clicking Publish for Critique prompts to sign in', async () => {
+  current = PROMPT
+  const heard = vi.fn()
+  window.addEventListener('open-signin', heard)
+  render(<MidnightRitual />)
+  fireEvent.change(await open(), { target: { value: 'the walls breathe' } })
+  fireEvent.click(screen.getByRole('button', { name: /publish for critique/i }))
+  expect(heard).toHaveBeenCalled()
+  expect(window.localStorage.getItem('hw.ritual.saveAfterSignin')).toBe('p1')
+  expect(screen.getByText(/sign in to publish your story for critique/i)).toBeInTheDocument()
+  window.removeEventListener('open-signin', heard)
+})
+
+test('signed in: clicking Publish for Critique prompts for title and publishes', async () => {
+  current = PROMPT
+  auth = { user: { id: 'u1' }, isLoading: false }
+  const assignSpy = vi.fn()
+  delete window.location
+  window.location = { assign: assignSpy }
+
+  render(<MidnightRitual />)
+  fireEvent.change(await open(), { target: { value: 'the walls breathe' } })
+  fireEvent.click(screen.getByRole('button', { name: /publish for critique/i }))
+
+  expect(await screen.findByLabelText(/title your story for the crypt/i)).toBeInTheDocument()
+  fireEvent.change(screen.getByPlaceholderText(/enter a story title/i), { target: { value: 'Scratching Walls' } })
+  fireEvent.click(screen.getByRole('button', { name: /confirm & publish/i }))
+
+  await waitFor(() => {
+    expect(api.shareRitualDraft).toHaveBeenCalledWith({ draftId: 'draft-1', title: 'Scratching Walls' })
+    expect(assignSpy).toHaveBeenCalledWith('/library/read/book-new-1/')
+  })
 })

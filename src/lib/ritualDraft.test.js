@@ -18,6 +18,7 @@ const {
   takeSaveAfterSignin,
   fetchCurrentPrompt,
   saveRitualDraft,
+  shareRitualDraft,
   ritualSaveErrorMessage,
 } = await import('./ritualDraft')
 
@@ -116,5 +117,31 @@ describe('ritualSaveErrorMessage', () => {
   it('explains the word limit and refusals without database jargon', () => {
     expect(ritualSaveErrorMessage({ code: '23514' })).toMatch(/500 words/)
     expect(ritualSaveErrorMessage({ code: '42501' })).not.toMatch(/row-level/i)
+  })
+})
+
+describe('shareRitualDraft', () => {
+  it('calls share_ritual_draft rpc with trimmed title', async () => {
+    state.client = {
+      rpc: vi.fn(async () => ({ data: 'book-123', error: null })),
+    }
+    const bookId = await shareRitualDraft({ draftId: 'd1', title: '  Haunted Shadows  ' })
+    expect(state.client.rpc).toHaveBeenCalledWith('share_ritual_draft', {
+      p_draft_id: 'd1',
+      p_title: 'Haunted Shadows',
+    })
+    expect(bookId).toBe('book-123')
+  })
+
+  it('rejects empty title or title over 200 chars', async () => {
+    await expect(shareRitualDraft({ draftId: 'd1', title: '' })).rejects.toThrow(/title must be between 1 and 200/i)
+    await expect(shareRitualDraft({ draftId: 'd1', title: 'a'.repeat(201) })).rejects.toThrow(/title must be between 1 and 200/i)
+  })
+
+  it('translates HW013 into title error', async () => {
+    state.client = {
+      rpc: vi.fn(async () => ({ data: null, error: { code: 'HW013', message: 'bad_title' } })),
+    }
+    await expect(shareRitualDraft({ draftId: 'd1', title: 'Title' })).rejects.toThrow(/title must be between 1 and 200/i)
   })
 })
