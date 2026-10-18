@@ -1,0 +1,70 @@
+---
+export const prerender = false;
+
+import MainLayout from '../../layouts/MainLayout.astro';
+import StructuredData from '../../components/StructuredData.astro';
+import { fetchPromptArchive, OPEN_PROMPTS } from '../../lib/promptArchive';
+import { buildBreadcrumbSchema } from '../../lib/seo';
+import { threadPath } from '../../lib/urls';
+
+let archive = null;
+try {
+  const isTest = typeof process !== 'undefined' && process.env.PLAYWRIGHT_TEST === 'true';
+  if (!isTest) archive = await fetchPromptArchive();
+} catch (e) {
+  console.error('Error fetching the prompt archive:', e);
+}
+
+const siteUrl = Astro.site ? new URL(Astro.site).origin : 'https://horrorwriter.org';
+const breadcrumbSchema = buildBreadcrumbSchema([
+  { name: 'Home', url: `${siteUrl}/` },
+  { name: 'Horror Writing Prompts', url: `${siteUrl}/prompts/` },
+]);
+
+// Fixed locale and zone so every visitor and crawler sees the same date.
+const fmt = (iso) => new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+const entryLabel = (n) => `${n} ${n === 1 ? 'entry' : 'entries'}`;
+---
+
+<MainLayout
+  title="Horror Writing Prompts — The Midnight Ritual Archive | Horror Writer"
+  description="Every Midnight Ritual horror writing prompt: one new dark-fiction prompt each week, with the flash fiction writers wrote to it and the critique it drew."
+>
+  <StructuredData data={breadcrumbSchema} />
+  <div class="mt-8 max-w-3xl mx-auto">
+    <span class="inline-block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-text-secondary)] mb-4">▸ The Midnight Ritual</span>
+    <h1 class="title text-4xl font-serif font-black mb-6">Horror Writing <em class="italic text-[var(--color-accent-crimson)] font-serif">Prompts</em></h1>
+    <div class="prose mb-10 font-serif text-[var(--color-text-secondary)] leading-relaxed">
+      <p>A new prompt unlocks every Friday at 3 a.m. Eastern. Write to it in flash fiction, publish it to the Critique Room, and read what everyone else did with the same seed. The newest {OPEN_PROMPTS} prompts take entries; older ones stay here to read.</p>
+      <p><a href="/#midnight-ritual" class="underline hover:text-[var(--color-ember)]">Write to this week's prompt →</a></p>
+    </div>
+
+    {archive === null && (
+      <p class="font-serif text-[var(--color-text-secondary)]">The archive couldn't be loaded. Try again in a moment.</p>
+    )}
+    {archive && archive.length === 0 && (
+      <p class="font-serif text-[var(--color-text-secondary)]">The first prompt hasn't unlocked yet.</p>
+    )}
+
+    {archive && archive.length > 0 && (
+      <ol class="flex flex-col gap-6">
+        {archive.map((p) => (
+          <li class="border-t border-[var(--color-line)] pt-6">
+            <article>
+              <div class="flex flex-wrap items-center gap-2 font-mono text-xs uppercase tracking-wider text-[var(--color-text-secondary)] mb-3">
+                <time datetime={p.goesLiveAt}>{fmt(p.goesLiveAt)}</time>
+                {p.open && <span class="text-[var(--color-upside)]">· Open for entries</span>}
+              </div>
+              <h2 class="font-serif text-lg leading-relaxed text-[var(--color-text-primary)] mb-3">{p.body}</h2>
+              <div class="font-mono text-xs uppercase tracking-wider">
+                {p.threadId && p.entries > 0
+                  ? <a href={threadPath(p.threadId)} class="text-[var(--color-ember)] hover:underline">Read {entryLabel(p.entries)} →</a>
+                  : <span class="text-[var(--color-text-secondary)]">No entries yet{p.open ? ' — be the first' : ''}</span>}
+              </div>
+            </article>
+          </li>
+        ))}
+      </ol>
+    )}
+  </div>
+</MainLayout>

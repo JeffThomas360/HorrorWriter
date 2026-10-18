@@ -50,8 +50,14 @@ const authorHandle = thread?.profiles?.handle || (isRitual ? 'Horror Writer' : '
 const promptSnippet = isRitual
   ? (thread.ritual_prompts.body.length > 110 ? `${thread.ritual_prompts.body.slice(0, 107).trimEnd()}…` : thread.ritual_prompts.body)
   : '';
+// A Ritual thread's title is the whole prompt (up to 200 chars), too long for a
+// title tag; lead with what people search for and a short cut of the prompt.
+const ritualTitleCut = isRitual
+  ? (thread.ritual_prompts.body.length > 60 ? `${thread.ritual_prompts.body.slice(0, 57).trimEnd()}…` : thread.ritual_prompts.body)
+  : '';
 const title = isTombstone
   ? 'Removed by its author | Horror Writer'
+  : isRitual ? `Horror Writing Prompt: ${ritualTitleCut} | Horror Writer`
   : thread ? `${thread.title} — The Crypt | Horror Writer` : 'Thread — The Crypt | Horror Writer';
 const description = isRitual
   ? `Horror flash fiction written to the Midnight Ritual prompt "${promptSnippet}", with critique, on Horror Writer.`
@@ -68,7 +74,9 @@ const postingSchema = thread && !isTombstone ? buildDiscussionForumPostingSchema
 
 const breadcrumbSchema = thread && !isTombstone ? buildBreadcrumbSchema([
   { name: 'Home', url: `${siteUrl}/` },
-  { name: 'The Crypt Forum', url: `${siteUrl}/forum/` },
+  isRitual
+    ? { name: 'Horror Writing Prompts', url: `${siteUrl}/prompts/` }
+    : { name: 'The Crypt Forum', url: `${siteUrl}/forum/` },
   { name: thread.title, url: pageUrl }
 ]) : null;
 ---
