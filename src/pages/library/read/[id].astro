@@ -21,7 +21,7 @@ try {
     // Classics are addressed by slug, everything else by uuid.
     const result = await supabase
       .from('books')
-      .select('id, slug, title, lede, created_at, removed_by_author, archive_author, profiles(handle)')
+      .select('*, profiles(handle)')
       .eq(storyKeyColumn(id), id)
       .maybeSingle();
     book = result.data;
@@ -73,5 +73,5 @@ const breadcrumbSchema = book && !isTombstone ? buildBreadcrumbSchema([
 <MainLayout noindex={notFound || isTombstone} title={title} description={description} ogImage={ogImage}>
   {breadcrumbSchema && <StructuredData data={breadcrumbSchema} />}
   {creativeWorkSchema && <StructuredData data={creativeWorkSchema} />}
-  <ReadStory id={id} client:load />
+  <ReadStory id={id} initialBook={book && !isTombstone ? book : undefined} client:load />
 </MainLayout>

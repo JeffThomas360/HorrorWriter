@@ -11,6 +11,7 @@ import { buildDiscussionForumPostingSchema, buildBreadcrumbSchema } from '../../
 const { id } = Astro.params;
 
 let thread = null;
+let initialPosts = undefined;
 // 'unknown' until a lookup answers definitively; only 'missing' becomes a 404.
 let outcome = 'unknown';
 try {
@@ -18,11 +19,22 @@ try {
   if (supabase && !isTest) {
     const result = await supabase
       .from('threads')
-      .select('title, created_at, removed_by_author, profiles(handle)')
+      .select('*, profiles(handle), categories(name), ritual_prompts(id, body, goes_live_at)')
       .eq('id', id)
       .maybeSingle();
     thread = result.data;
     outcome = lookupOutcome(result);
+    // First page of posts, so the writing is in the HTML Google first sees
+    // (same query and page size as ThreadView's first page).
+    if (thread && !thread.removed_by_author) {
+      const posts = await supabase
+        .from('posts')
+        .select('*, profiles(handle)')
+        .eq('thread_id', id)
+        .order('created_at', { ascending: true })
+        .range(0, 14);
+      if (!posts.error) initialPosts = posts.data || [];
+    }
   }
 } catch (e) {
   console.error('Error fetching thread for SEO:', e);
@@ -33,11 +45,17 @@ const notFound = outcome === 'missing';
 if (notFound) Astro.response.status = 404;
 
 const isTombstone = Boolean(thread?.removed_by_author);
-const authorHandle = thread?.profiles?.handle || 'Unknown Author';
+const isRitual = Boolean(thread?.ritual_prompts?.body);
+const authorHandle = thread?.profiles?.handle || (isRitual ? 'Horror Writer' : 'Unknown Author');
+const promptSnippet = isRitual
+  ? (thread.ritual_prompts.body.length > 110 ? `${thread.ritual_prompts.body.slice(0, 107).trimEnd()}…` : thread.ritual_prompts.body)
+  : '';
 const title = isTombstone
   ? 'Removed by its author | Horror Writer'
   : thread ? `${thread.title} — The Crypt | Horror Writer` : 'Thread — The Crypt | Horror Writer';
-const description = thread ? `A discussion started by ${authorHandle} in The Crypt, the horror writing forum on Horror Writer.` : 'Horror writing discussion in The Crypt on Horror Writer.';
+const description = isRitual
+  ? `Horror flash fiction written to the Midnight Ritual prompt "${promptSnippet}", with critique, on Horror Writer.`
+  : thread ? `A discussion started by ${authorHandle} in The Crypt, the horror writing forum on Horror Writer.` : 'Horror writing discussion in The Crypt on Horror Writer.';
 const siteUrl = Astro.site ? new URL(Astro.site).origin : 'https://horrorwriter.org';
 const pageUrl = new URL(Astro.url.pathname, siteUrl).toString();
 
@@ -58,5 +76,5 @@ const breadcrumbSchema = thread && !isTombstone ? buildBreadcrumbSchema([
 <MainLayout noindex={notFound || isTombstone} title={title} description={description}>
   {breadcrumbSchema && <StructuredData data={breadcrumbSchema} />}
   {postingSchema && <StructuredData data={postingSchema} />}
-  <ThreadView id={id} client:load />
+  <ThreadView id={id} initialThread={thread && !isTombstone ? thread : undefined} initialPosts={initialPosts} client:load />
 </MainLayout>

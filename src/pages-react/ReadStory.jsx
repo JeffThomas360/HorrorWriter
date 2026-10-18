@@ -45,7 +45,7 @@ function readingTime(text) {
   return mins === 1 ? '~1 min read' : `~${mins} min read`
 }
 
-function ReadStory({ id }) {
+function ReadStory({ id, initialBook }) {
   const { session } = useAuth()
   const queryClient = useQueryClient()
 
@@ -184,7 +184,9 @@ function ReadStory({ id }) {
         .single()
       if (error) throw error
       return data
-    }
+    },
+    // Server-rendered first paint so the story text is in the HTML (SEO).
+    initialData: initialBook ?? undefined,
   })
 
   const { data: comments = [], isLoading: commentsLoading } = useQuery({
