@@ -60,7 +60,7 @@ export async function fetchStorySeriesContext(bookId) {
     .from('series_books')
     .select('series_id')
     .eq('book_id', bookId)
-    .single()
+    .maybeSingle() // most stories have no series; .single() made that a 406
 
   if (error || !seriesBooksData) {
     return null
