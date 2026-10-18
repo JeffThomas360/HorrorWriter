@@ -25,6 +25,8 @@ export default defineConfig({
   integrations: [
     react(),
     sitemap({
+      // Server-rendered pages aren't discovered at build time; list the public ones.
+      customPages: ['https://horrorwriter.org/prompts/'],
       // Exclude auth-gated / private / technical / demo routes — they have no SEO value
       // and shouldn't be advertised as crawlable public content.
       filter: (page) =>

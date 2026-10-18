@@ -258,7 +258,7 @@ function MidnightRitual() {
   }
 
   return (
-    <div className="midnight-ritual relative border border-[var(--color-upside)] bg-[var(--color-void)] p-6 my-10 overflow-hidden shadow-[0_0_30px_rgba(25,165,184,0.15)]">
+    <div id="midnight-ritual" className="midnight-ritual relative border border-[var(--color-upside)] bg-[var(--color-void)] p-6 my-10 overflow-hidden shadow-[0_0_30px_rgba(25,165,184,0.15)]">
       {/* CRT Scanline Overlay */}
       <div
         className="pointer-events-none absolute inset-0 opacity-15"
