@@ -30,7 +30,7 @@ function timeAgo(dateString) {
   return `${Math.floor(diff / 86400)}d`
 }
 
-function ThreadView({ id }) {
+function ThreadView({ id, initialThread, initialPosts }) {
   const { session } = useAuth()
   const queryClient = useQueryClient()
 
@@ -55,7 +55,9 @@ function ThreadView({ id }) {
         .single()
       if (error) throw error
       return data
-    }
+    },
+    // Server-rendered first paint (SEO); refetched on mount like before.
+    initialData: initialThread ?? undefined,
   })
 
   const {
@@ -81,6 +83,7 @@ function ThreadView({ id }) {
       return data || []
     },
     initialPageParam: 0,
+    initialData: initialPosts ? { pages: [initialPosts], pageParams: [0] } : undefined,
     getNextPageParam: (lastPage, allPages) => {
       return lastPage.length === PAGE_SIZE ? allPages.length : undefined
     }
