@@ -72,6 +72,22 @@ export async function fetchCurrentPrompt(now = new Date()) {
   return data
 }
 
+/**
+ * The 5 most recent released prompts (rotating weekly, staying active for 5 weeks).
+ */
+export async function fetchActivePrompts(limit = 5, now = new Date()) {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('ritual_prompts')
+    .select('id, body, goes_live_at, created_at')
+    .eq('status', 'scheduled')
+    .lte('goes_live_at', now.toISOString())
+    .order('goes_live_at', { ascending: false })
+    .limit(limit)
+  if (error) throw error
+  return data || []
+}
+
 /** When the next prompt unlocks, without its text. Null when nothing is scheduled. */
 export async function fetchNextUnlock() {
   if (!supabase) return null
@@ -123,5 +139,25 @@ export async function shareRitualDraft({ draftId, title }) {
     if (error?.code === '42501') throw new Error('You do not have permission to publish this draft.')
     throw new Error(error?.message || 'Failed to publish draft for critique.')
   }
+  return data
+}
+
+export async function publishRitualToForum({ title, content, promptId }) {
+  if (!supabase) throw new Error('Could not publish to The Crypt.')
+  const trimmedTitle = (title || '').trim()
+  if (!trimmedTitle || trimmedTitle.length > 200) {
+    throw new Error('A thread title must be between 1 and 200 characters.')
+  }
+  const trimmedContent = (content || '').trim()
+  if (!trimmedContent) {
+    throw new Error('Content is required.')
+  }
+  const { data, error } = await supabase.rpc('create_thread_with_post', {
+    p_title: trimmedTitle,
+    p_category_id: 'rituals',
+    p_content: trimmedContent,
+    p_prompt_id: promptId || null,
+  })
+  if (error) throw error
   return data
 }

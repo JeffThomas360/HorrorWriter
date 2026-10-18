@@ -45,7 +45,7 @@ function ThreadView({ id }) {
       if (!supabase) return null
       const { data, error } = await supabase
         .from('threads')
-        .select('*, profiles(handle), categories(name)')
+        .select('*, profiles(handle), categories(name), ritual_prompts(id, body, goes_live_at)')
         .eq('id', id)
         .single()
       if (error) throw error
@@ -184,10 +184,10 @@ function ThreadView({ id }) {
   return (
     <div className="mt-8 max-w-2xl mx-auto">
       <a
-        href="/forum/"
+        href={thread?.category_id === 'rituals' ? '/forum/?cat=rituals' : '/forum/'}
         className="inline-block font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-text-secondary)] mb-4 hover:text-[var(--color-accent-crimson)] hover:underline transition-colors"
       >
-        ← Back to {thread?.categories?.name?.split('·')[0].trim() || 'The Crypt'}
+        ← Back to {thread?.categories?.name?.split('·')[0].trim() || (thread?.category_id === 'rituals' ? 'Midnight Rituals' : 'The Crypt')}
       </a>
 
       <div className="border-b border-[var(--color-line)] pb-6 mb-8 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
@@ -210,6 +210,24 @@ function ThreadView({ id }) {
           {thread && <InlineModControls targetType="thread" targetId={thread.id} currentStatus={thread.mod_status} authorId={thread.author_id} />}
         </div>
       </div>
+
+      {thread?.ritual_prompts?.body && (
+        <div className="vintage-card p-4 border-l-4 border-l-[var(--color-upside)] mb-6 bg-[var(--color-void)]">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <span className="font-mono text-xs uppercase tracking-widest text-[var(--color-upside)] font-bold">
+              ◈ Midnight Ritual Prompt
+            </span>
+            {thread.ritual_prompts.goes_live_at && (
+              <span className="font-mono text-[10px] text-[var(--color-text-secondary)] uppercase">
+                {new Date(thread.ritual_prompts.goes_live_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+              </span>
+            )}
+          </div>
+          <p className="font-serif italic text-sm text-[var(--color-text-primary)] leading-relaxed">
+            &ldquo;{thread.ritual_prompts.body}&rdquo;
+          </p>
+        </div>
+      )}
 
       <div className="flex flex-col gap-6">
         {posts.map((p, index) => {

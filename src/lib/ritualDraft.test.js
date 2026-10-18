@@ -17,8 +17,10 @@ const {
   setSaveAfterSignin,
   takeSaveAfterSignin,
   fetchCurrentPrompt,
+  fetchActivePrompts,
   saveRitualDraft,
   shareRitualDraft,
+  publishRitualToForum,
   ritualSaveErrorMessage,
 } = await import('./ritualDraft')
 
@@ -143,5 +145,49 @@ describe('shareRitualDraft', () => {
       rpc: vi.fn(async () => ({ data: null, error: { code: 'HW013', message: 'bad_title' } })),
     }
     await expect(shareRitualDraft({ draftId: 'd1', title: 'Title' })).rejects.toThrow(/title must be between 1 and 200/i)
+  })
+})
+
+describe('fetchActivePrompts', () => {
+  it('queries released prompts up to limit ordered by goes_live_at desc', async () => {
+    const fakePrompts = [{ id: 'p1', body: 'Prompt 1' }, { id: 'p2', body: 'Prompt 2' }]
+    const limitFn = vi.fn().mockResolvedValue({ data: fakePrompts, error: null })
+    const orderFn = vi.fn(() => ({ limit: limitFn }))
+    const lteFn = vi.fn(() => ({ order: orderFn }))
+    const eqFn = vi.fn(() => ({ lte: lteFn }))
+    const selectFn = vi.fn(() => ({ eq: eqFn }))
+    state.client = {
+      from: vi.fn(() => ({ select: selectFn }))
+    }
+
+    const res = await fetchActivePrompts(5)
+    expect(state.client.from).toHaveBeenCalledWith('ritual_prompts')
+    expect(limitFn).toHaveBeenCalledWith(5)
+    expect(res).toEqual(fakePrompts)
+  })
+})
+
+describe('publishRitualToForum', () => {
+  it('calls create_thread_with_post with category rituals and promptId', async () => {
+    state.client = {
+      rpc: vi.fn(async () => ({ data: 'thread-999', error: null })),
+    }
+    const threadId = await publishRitualToForum({
+      title: '  The Midnight Bell  ',
+      content: 'Deep in the crypt...',
+      promptId: 'p-123'
+    })
+    expect(state.client.rpc).toHaveBeenCalledWith('create_thread_with_post', {
+      p_title: 'The Midnight Bell',
+      p_category_id: 'rituals',
+      p_content: 'Deep in the crypt...',
+      p_prompt_id: 'p-123'
+    })
+    expect(threadId).toBe('thread-999')
+  })
+
+  it('rejects empty title or empty content', async () => {
+    await expect(publishRitualToForum({ title: '', content: 'words' })).rejects.toThrow(/title must be between 1 and 200/i)
+    await expect(publishRitualToForum({ title: 'Valid', content: '   ' })).rejects.toThrow(/Content is required/i)
   })
 })

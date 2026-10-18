@@ -14,52 +14,31 @@ import {
   setSaveAfterSignin,
   takeSaveAfterSignin,
   fetchCurrentPrompt,
+  fetchActivePrompts,
   fetchNextUnlock,
   fetchMyDraft,
   saveRitualDraft,
   shareRitualDraft,
+  publishRitualToForum,
 } from '../lib/ritualDraft'
 
-const STATIC_CHANNELS = [
-  {
-    id: 'cosmic',
-    freq: 'CH 13.1',
-    name: 'Cosmic Dread',
-    prompt: 'The astronomer realized the stars were not burning out—something vast was standing between the telescope and the sky.',
-    category: 'Cosmic Horror',
-  },
-  {
-    id: 'folk',
-    freq: 'CH 13.2',
-    name: 'Folk & Ritual',
-    prompt: 'Every year, the village buries a carved wooden effigy of the oldest resident. This year, the wood bled.',
-    category: 'Folk Horror',
-  },
-  {
-    id: 'analog',
-    freq: 'CH 13.3',
-    name: 'Found Footage / VHS',
-    prompt: 'You bought a blank VHS cassette at an estate sale. The footage is from inside your childhood bedroom, filmed last night.',
-    category: 'Analog Horror',
-  },
-  {
-    id: 'psychological',
-    freq: 'CH 13.4',
-    name: 'Psychological Unease',
-    prompt: 'For three weeks, your reflection in the bathroom mirror has been blinking half a second after you do.',
-    category: 'Psychological',
-  },
+const ROTATING_FALLBACK_PROMPTS = [
+  'The astronomer realized the stars were not burning out—something vast was standing between the telescope and the sky.',
+  'Every year, the village buries a carved wooden effigy of the oldest resident. This year, the wood bled.',
+  'You bought a blank VHS cassette at an estate sale. The footage is from inside your bedroom, filmed last night.',
+  'For three weeks, your reflection in the bathroom mirror has been blinking half a second after you do.',
+  'The radio emergency broadcast system activated at 3:17 AM. It repeated only three words: Do not look.',
 ]
 
 /**
- * The Midnight Ritual home box: multi-channel horror tuner featuring the weekly
- * database broadcast (CH 13.0) and genre frequencies (CH 13.1–13.4).
+ * The Midnight Ritual home box: 5 weekly rotating prompt frequencies (CH 13.0–13.4).
+ * Each prompt stays active for 5 weeks as new ones unlock weekly.
  * Writers can tune frequencies, autosave drafts locally per channel, save to account,
- * and publish directly to The Library & The Crypt for critique.
+ * and publish directly to The Crypt for community feedback and critique.
  */
 function MidnightRitual() {
   const { user, isLoading: authLoading } = useAuth()
-  const [prompt, setPrompt] = useState(undefined) // undefined = loading, null = none released
+  const [activePrompts, setActivePrompts] = useState(undefined)
   const [nextUnlock, setNextUnlock] = useState(null)
   const [activeChannelIndex, setActiveChannelIndex] = useState(0)
   const [isWriting, setIsWriting] = useState(false)
@@ -71,18 +50,23 @@ function MidnightRitual() {
   const savingRef = useRef(false)
 
   const channels = useMemo(() => {
-    const featured = {
-      id: prompt?.id || 'weekly',
-      dbPromptId: prompt?.id || null,
-      freq: 'CH 13.0',
-      name: 'Featured Broadcast',
-      prompt: prompt?.body || (prompt === undefined ? 'Tuning into the weekly broadcast…' : 'The first weekly ritual is being prepared.'),
-      category: 'Featured Ritual',
-      isDbPrompt: Boolean(prompt?.id),
-      goes_live_at: prompt?.goes_live_at,
-    }
-    return [featured, ...STATIC_CHANNELS]
-  }, [prompt])
+    return Array.from({ length: 5 }, (_, i) => {
+      const dbP = activePrompts?.[i]
+      const freq = `CH 13.${i}`
+      const isDbPrompt = Boolean(dbP?.id)
+      const weekLabel = i === 0 ? 'Current Transmission' : `Signal ${i + 1} (Week ${i + 1} of 5)`
+      return {
+        id: dbP?.id || `channel-${i}`,
+        dbPromptId: dbP?.id || null,
+        freq,
+        name: weekLabel,
+        prompt: dbP?.body || ROTATING_FALLBACK_PROMPTS[i],
+        category: i === 0 ? 'Latest Prompt' : `Active Prompt ${i + 1}`,
+        isDbPrompt,
+        goes_live_at: dbP?.goes_live_at,
+      }
+    })
+  }, [activePrompts])
 
   const activeChannel = channels[activeChannelIndex] || channels[0]
   const wordCount = countWords(text)
@@ -90,16 +74,18 @@ function MidnightRitual() {
 
   useEffect(() => {
     let alive = true
-    fetchCurrentPrompt()
-      .then((p) => {
+    // Reads featured prompt via fetchCurrentPrompt / fetchActivePrompts
+    fetchCurrentPrompt().catch(() => {})
+    fetchActivePrompts(5)
+      .then((prompts) => {
         if (!alive) return
-        setPrompt(p ?? null)
-        if (p && activeChannelIndex === 0) {
-          const local = readLocalDraft(p.id)
+        setActivePrompts(prompts || [])
+        if (prompts?.[0]?.id && activeChannelIndex === 0) {
+          const local = readLocalDraft(prompts[0].id)
           if (local) setText(local)
         }
       })
-      .catch(() => alive && setPrompt(null))
+      .catch(() => alive && setActivePrompts([]))
     fetchNextUnlock().then((t) => alive && setNextUnlock(t))
     return () => {
       alive = false
@@ -163,7 +149,7 @@ function MidnightRitual() {
 
   // Back from sign-in (including OAuth and passkey redirects): finish the save.
   useEffect(() => {
-    if (prompt === undefined || !user || authLoading) return
+    if (activePrompts === undefined || !user || authLoading) return
     const flagged = takeSaveAfterSignin()
     if (!flagged) return
 
@@ -186,7 +172,7 @@ function MidnightRitual() {
         })
         .catch((err) => setStatus({ kind: 'error', message: err.message }))
     }
-  }, [prompt, user, authLoading, channels, activeChannelIndex])
+  }, [activePrompts, user, authLoading, channels, activeChannelIndex])
 
   const handleChange = (value) => {
     setText(value)
@@ -227,31 +213,32 @@ function MidnightRitual() {
     setStatus({ kind: 'saving', message: 'Publishing to The Crypt…' })
 
     try {
-      let bookId
+      let threadId
       if (activeChannel.isDbPrompt) {
         const savedId = await saveRitualDraft({ promptId: activeChannel.dbPromptId, userId: user.id, content: text })
         const activeDraftId = savedId || draftId
-        if (!activeDraftId) {
-          throw new Error('Could not identify saved draft to publish.')
+        if (activeDraftId) {
+          threadId = await shareRitualDraft({ draftId: activeDraftId, title: trimmedTitle })
+        } else {
+          threadId = await publishRitualToForum({
+            title: trimmedTitle,
+            content: text,
+            promptId: activeChannel.dbPromptId,
+          })
         }
-        bookId = await shareRitualDraft({ draftId: activeDraftId, title: trimmedTitle })
       } else {
-        const { data: newBook, error: bookErr } = await supabase.from('books').insert({
+        threadId = await publishRitualToForum({
           title: trimmedTitle,
-          lede: text.trim().replace(/\s+/g, ' ').slice(0, 160),
           content: text,
-          author_id: user.id,
-          version: 1,
-        }).select('id').single()
-        if (bookErr) throw bookErr
-        bookId = newBook.id
+          promptId: null,
+        })
       }
 
-      await screenContent(supabase, 'story', bookId)
+      await screenContent(supabase, 'thread', threadId)
       clearLocalDraft(activeChannel.id)
       playTypewriterKey(true)
       setStatus({ kind: 'published' })
-      window.location.assign(`/library/read/${bookId}/`)
+      window.location.assign(`/forum/thread/${threadId}/`)
     } catch (err) {
       setStatus({ kind: 'error', message: err.message || 'Failed to publish draft.' })
     } finally {
@@ -379,7 +366,7 @@ function MidnightRitual() {
                 className="w-full bg-[var(--color-void)] text-[var(--color-text-primary)] border border-[var(--color-line)] p-3 font-serif text-sm focus:border-[var(--color-upside)] outline-none mb-3"
               />
               <p className="font-serif italic text-xs text-[var(--color-text-secondary)] mb-4">
-                Publishing turns your draft into a story in The Library. Members will be able to read and critique it in The Crypt.
+                Your piece will be published as an open critique thread under Midnight Rituals in The Crypt. Community writers can read and comment on your submission.
               </p>
               <div className="flex items-center justify-end gap-2">
                 <button
@@ -396,7 +383,7 @@ function MidnightRitual() {
                   disabled={!storyTitle.trim() || status.kind === 'saving'}
                   className="btn-vhs bg-[var(--color-accent-crimson)] text-white hover:bg-red-700 border-red-800 disabled:opacity-40 cursor-pointer"
                 >
-                  {status.kind === 'saving' ? 'Publishing…' : 'Confirm & Publish to The Crypt'}
+                  {status.kind === 'saving' ? 'Publishing…' : 'Summon to The Crypt →'}
                 </button>
               </div>
             </div>
