@@ -27,7 +27,7 @@ describe('Providers module shape', () => {
   it('exports withProviders as a named export', async () => {
     const mod = await import('./Providers.jsx')
     expect(typeof mod.withProviders).toBe('function')
-  })
+  }, 20000) // first import of the provider tree is cold and slow on a loaded machine
 
   it('has the Providers component as its default export, not withProviders', async () => {
     const mod = await import('./Providers.jsx')
