@@ -37,12 +37,7 @@ export function buildWebSiteSchema({ url = 'https://horrorwriter.org', name = 'H
         publisher: {
           '@id': `${url}/#organization`
         },
-        inLanguage: 'en-US',
-        potentialAction: {
-          '@type': 'SearchAction',
-          target: `${url}/forum?q={search_term_string}`,
-          'query-input': 'required name=search_term_string'
-        }
+        inLanguage: 'en-US'
       },
       {
         '@type': 'Organization',
@@ -54,10 +49,7 @@ export function buildWebSiteSchema({ url = 'https://horrorwriter.org', name = 'H
           url: `${url}/og.png`,
           width: 1200,
           height: 630
-        },
-        sameAs: [
-          'https://horrorwriter.org'
-        ]
+        }
       }
     ]
   }

@@ -16,7 +16,7 @@ vi.mock('../supabaseClient', () => ({
   get supabase() { return mockSupabase }
 }))
 
-const { fetchLiveStoryUrls, fetchLiveThreadUrls, fetchPublicProfileHandles } = await import('./sitemapQueries')
+const { fetchLiveStoryUrls, fetchLiveThreadUrls, fetchPublicProfileHandles, hasPublicWork } = await import('./sitemapQueries')
 
 beforeEach(() => {
   mockSupabase.from.mockReset()
@@ -51,14 +51,91 @@ describe('fetchLiveThreadUrls', () => {
   })
 })
 
+// fetchPublicProfileHandles / hasPublicWork query profiles, books, threads, posts — in that order.
+function mockTables(results) {
+  const queries = {}
+  for (const [table, result] of Object.entries(results)) queries[table] = makeQuery(result)
+  mockSupabase.from.mockImplementation((table) => queries[table])
+  return queries
+}
+
 describe('fetchPublicProfileHandles', () => {
-  it('returns handle/updated_at for non-shadowbanned profiles with a handle', async () => {
-    mockSupabase.from.mockReturnValueOnce(makeQuery({
-      data: [{ handle: 'jeff-the-writer', updated_at: '2026-01-03T00:00:00Z' }],
-      error: null
-    }))
-    const result = await fetchPublicProfileHandles()
-    expect(result).toEqual([{ handle: 'jeff-the-writer', updated_at: '2026-01-03T00:00:00Z' }])
-    expect(mockSupabase.from).toHaveBeenCalledWith('profiles')
+  const profiles = {
+    data: [
+      { id: 'u1', handle: 'has-story', updated_at: '2026-01-03T00:00:00Z' },
+      { id: 'u2', handle: 'has-reply', updated_at: '2026-01-04T00:00:00Z' },
+      { id: 'u3', handle: 'empty', updated_at: '2026-01-05T00:00:00Z' },
+    ],
+    error: null
+  }
+
+  it('returns only profiles with a live story, thread or reply', async () => {
+    mockTables({
+      profiles,
+      books: { data: [{ author_id: 'u1' }], error: null },
+      threads: { data: [], error: null },
+      posts: { data: [{ author_id: 'u2' }], error: null },
+    })
+    expect(await fetchPublicProfileHandles()).toEqual([
+      { handle: 'has-story', updated_at: '2026-01-03T00:00:00Z' },
+      { handle: 'has-reply', updated_at: '2026-01-04T00:00:00Z' },
+    ])
+  })
+
+  it('does not filter posts on removed_by_author (the column does not exist there)', async () => {
+    const q = mockTables({
+      profiles,
+      books: { data: [], error: null },
+      threads: { data: [], error: null },
+      posts: { data: [], error: null },
+    })
+    await fetchPublicProfileHandles()
+    expect(q.posts.eq).not.toHaveBeenCalledWith('removed_by_author', false)
+    expect(q.books.eq).toHaveBeenCalledWith('removed_by_author', false)
+    expect(q.threads.eq).toHaveBeenCalledWith('removed_by_author', false)
+  })
+
+  it('returns an empty array when any lookup fails', async () => {
+    mockTables({
+      profiles,
+      books: { data: null, error: { message: 'boom' } },
+      threads: { data: [], error: null },
+      posts: { data: [], error: null },
+    })
+    expect(await fetchPublicProfileHandles()).toEqual([])
+  })
+})
+
+describe('hasPublicWork', () => {
+  it('is true when any table has live work', async () => {
+    mockTables({
+      books: { count: 0, error: null },
+      threads: { count: 0, error: null },
+      posts: { count: 2, error: null },
+    })
+    expect(await hasPublicWork('u1')).toBe(true)
+  })
+
+  it('is false when every table answers zero', async () => {
+    mockTables({
+      books: { count: 0, error: null },
+      threads: { count: 0, error: null },
+      posts: { count: 0, error: null },
+    })
+    expect(await hasPublicWork('u1')).toBe(false)
+  })
+
+  it('is null (unknown) when a lookup fails, so a real writer is never noindexed by an error', async () => {
+    mockTables({
+      books: { count: null, error: { message: 'boom' } },
+      threads: { count: 0, error: null },
+      posts: { count: 0, error: null },
+    })
+    expect(await hasPublicWork('u1')).toBeNull()
+  })
+
+  it('is null without an author id', async () => {
+    expect(await hasPublicWork(undefined)).toBeNull()
+    expect(mockSupabase.from).not.toHaveBeenCalled()
   })
 })
