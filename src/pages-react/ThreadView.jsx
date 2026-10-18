@@ -193,27 +193,62 @@ function ThreadView({ id }) {
   const childrenOf = {}
   if (isRitual) posts.forEach((p) => { if (p.parent_post_id) (childrenOf[p.parent_post_id] ||= []).push(p) })
 
+  const openReply = (parentId) => {
+    if (!session) { window.dispatchEvent(new CustomEvent('open-signin')); return }
+    setCommentFor(parentId); setCommentContent(''); setCommentError(null)
+  }
+
+  // Compact critique/reply: name · time, text, then quiet text actions.
+  const commentBlock = (p, { size, replyTo }) => (
+    <div key={p.id} id={`post-${p.id}`} className="group flex flex-col gap-1.5">
+      <div className="flex items-baseline gap-2 font-mono text-xs">
+        <span className="font-bold text-[var(--color-text-primary)]">{authorLabel(p.profiles)}</span>
+        <span className="text-[var(--color-text-secondary)]">{timeAgo(p.created_at)}</span>
+      </div>
+      <div className={`prose prose-invert font-serif ${size} leading-relaxed text-[var(--color-text-primary)]`}>
+        <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{p.content}</ReactMarkdown>
+      </div>
+      <div className="flex flex-wrap items-center gap-4 font-mono text-[11px] uppercase tracking-wider text-[var(--color-text-secondary)]">
+        {replyTo && (
+          <button type="button" onClick={() => openReply(replyTo)} className="hover:text-[var(--color-text-primary)] cursor-pointer">
+            Reply
+          </button>
+        )}
+        <button type="button" onClick={() => setReportTarget({ type: 'post', id: p.id })} className="hover:text-[var(--color-ember)] cursor-pointer">
+          Report
+        </button>
+        <span className="md:opacity-0 md:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+          <InlineModControls targetType="post" targetId={p.id} currentStatus={p.mod_status} authorId={p.author_id} />
+        </span>
+      </div>
+    </div>
+  )
+
+  const replyForm = (parentId, submit, placeholder) => (
+    <form onSubmit={(e) => handleComment(e, parentId)} className="flex flex-col gap-3">
+      <MarkdownEditor
+        value={commentContent}
+        onChange={(e) => setCommentContent(e.target.value)}
+        placeholder={placeholder}
+        rows={3}
+        disabled={isSubmitting}
+      />
+      <div className="flex items-center gap-3">
+        <button type="submit" disabled={isSubmitting} className="bg-[var(--color-accent-crimson)] text-white font-mono text-xs uppercase px-4 py-2 hover:bg-red-700 transition-colors cursor-pointer">
+          {isSubmitting ? 'Summoning…' : submit}
+        </button>
+        <button type="button" onClick={() => { setCommentFor(null); setCommentError(null) }} className="font-mono text-xs uppercase text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] cursor-pointer">
+          Cancel
+        </button>
+        {commentError && <span className="form-err font-mono text-xs text-[var(--color-ember)]">{commentError}</span>}
+      </div>
+    </form>
+  )
+
   const replyBox = (parentId, { open, signedOut, submit, placeholder }) =>
     session ? (
       commentFor === parentId ? (
-        <form onSubmit={(e) => handleComment(e, parentId)} className="flex flex-col gap-3">
-          <MarkdownEditor
-            value={commentContent}
-            onChange={(e) => setCommentContent(e.target.value)}
-            placeholder={placeholder}
-            rows={4}
-            disabled={isSubmitting}
-          />
-          <div className="flex items-center gap-3">
-            <button type="submit" disabled={isSubmitting} className="bg-[var(--color-accent-crimson)] text-white font-mono text-xs uppercase px-4 py-2 hover:bg-red-700 transition-colors cursor-pointer">
-              {isSubmitting ? 'Summoning…' : submit}
-            </button>
-            <button type="button" onClick={() => { setCommentFor(null); setCommentError(null) }} className="font-mono text-xs uppercase text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] cursor-pointer">
-              Cancel
-            </button>
-            {commentError && <span className="form-err font-mono text-xs text-[var(--color-ember)]">{commentError}</span>}
-          </div>
-        </form>
+        replyForm(parentId, submit, placeholder)
       ) : (
         <button type="button" onClick={() => { setCommentFor(parentId); setCommentContent(''); setCommentError(null) }} className="self-start font-mono text-xs uppercase border border-[var(--color-line)] hover:border-white px-3 py-1.5 transition-colors cursor-pointer">
           {open}
@@ -329,30 +364,24 @@ function ThreadView({ id }) {
                   <h3 className="font-mono text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
                     {comments.length === 0 ? 'No critique yet' : `${comments.length} ${comments.length === 1 ? 'critique' : 'critiques'}`}
                   </h3>
-                  {comments.map((c) => {
-                    const replies = childrenOf[c.id] || []
-                    return (
-                      <div key={c.id} id={`post-${c.id}`} className="pl-4 border-l-2 border-[var(--color-line)] flex flex-col gap-2">
-                        {postMeta(c, null)}
-                        <div className="prose prose-invert font-serif text-base leading-relaxed text-[var(--color-text-primary)]">
-                          <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{c.content}</ReactMarkdown>
-                        </div>
-                        {replies.length > 0 && (
-                          <div className="pl-4 border-l border-[var(--color-line)] flex flex-col gap-3 mt-1">
-                            {replies.map((r) => (
-                              <div key={r.id} id={`post-${r.id}`} className="flex flex-col gap-1">
-                                {postMeta(r, 'Reply')}
-                                <div className="prose prose-invert font-serif text-sm leading-relaxed text-[var(--color-text-primary)]">
-                                  <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{r.content}</ReactMarkdown>
-                                </div>
+                  {comments.length > 0 && (
+                    <div className="flex flex-col divide-y divide-[var(--color-line)]">
+                      {comments.map((c) => {
+                        const replies = childrenOf[c.id] || []
+                        return (
+                          <div key={c.id} className="py-4 first:pt-0 flex flex-col gap-3">
+                            {commentBlock(c, { size: 'text-base', replyTo: c.id })}
+                            {replies.length > 0 && (
+                              <div className="ml-1 pl-4 border-l border-[var(--color-line)] flex flex-col gap-4">
+                                {replies.map((r) => commentBlock(r, { size: 'text-sm', replyTo: c.id }))}
                               </div>
-                            ))}
+                            )}
+                            {commentFor === c.id && replyForm(c.id, 'Post reply', 'Reply to this critique…')}
                           </div>
-                        )}
-                        {replyBox(c.id, { open: 'Reply', signedOut: 'Sign in to reply', submit: 'Post reply', placeholder: 'Reply to this critique…' })}
-                      </div>
-                    )
-                  })}
+                        )
+                      })}
+                    </div>
+                  )}
                   {replyBox(entry.id, { open: 'Critique this entry', signedOut: 'Sign in to critique', submit: 'Post critique', placeholder: "What works, what doesn't, and why…" })}
                 </section>
               </article>
