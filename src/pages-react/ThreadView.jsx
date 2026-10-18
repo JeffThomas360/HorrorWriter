@@ -39,6 +39,8 @@ function ThreadView({ id }) {
   const [commentFor, setCommentFor] = useState(null)
   const [commentContent, setCommentContent] = useState('')
   const [commentError, setCommentError] = useState(null)
+  const [collapsed, setCollapsed] = useState(() => new Set())
+  const toggleCollapsed = (pid) => setCollapsed((s) => { const n = new Set(s); n.has(pid) ? n.delete(pid) : n.add(pid); return n })
   const [activeReadersCount, setActiveReadersCount] = useState(1)
   const [reportTarget, setReportTarget] = useState(null)
 
@@ -198,31 +200,59 @@ function ThreadView({ id }) {
     setCommentFor(parentId); setCommentContent(''); setCommentError(null)
   }
 
-  // Compact critique/reply: name · time, text, then quiet text actions.
-  const commentBlock = (p, { size, replyTo }) => (
-    <div key={p.id} id={`post-${p.id}`} className="group flex flex-col gap-1.5">
-      <div className="flex items-baseline gap-2 font-mono text-xs">
-        <span className="font-bold text-[var(--color-text-primary)]">{authorLabel(p.profiles)}</span>
-        <span className="text-[var(--color-text-secondary)]">{timeAgo(p.created_at)}</span>
-      </div>
-      <div className={`prose prose-invert font-serif ${size} leading-relaxed text-[var(--color-text-primary)]`}>
-        <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{p.content}</ReactMarkdown>
-      </div>
-      <div className="flex flex-wrap items-center gap-4 font-mono text-[11px] uppercase tracking-wider text-[var(--color-text-secondary)]">
-        {replyTo && (
-          <button type="button" onClick={() => openReply(replyTo)} className="hover:text-[var(--color-text-primary)] cursor-pointer">
-            Reply
+  // old.reddit-style comment: [–] name · time, plain text, small lowercase actions.
+  // Children render inside the box so collapsing hides the whole branch.
+  const commentBlock = (p, { replyTo, children = [], childForm = null }) => {
+    const isCollapsed = collapsed.has(p.id)
+    const n = children.length
+    return (
+      <div key={p.id} id={`post-${p.id}`} className="group border border-[var(--color-line)] bg-[var(--color-surface)] px-3 py-2">
+        <div className="flex flex-wrap items-baseline gap-x-2 text-xs">
+          <button
+            type="button"
+            onClick={() => toggleCollapsed(p.id)}
+            aria-expanded={!isCollapsed}
+            aria-label={isCollapsed ? 'Expand comment' : 'Collapse comment'}
+            className="font-mono text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] cursor-pointer"
+          >
+            [{isCollapsed ? '+' : '–'}]
           </button>
+          <span className="font-bold text-[var(--color-upside)]">{authorLabel(p.profiles)}</span>
+          <span className="text-[var(--color-text-secondary)]">{timeAgo(p.created_at)}</span>
+          {isCollapsed && n > 0 && (
+            <span className="text-[var(--color-text-secondary)] italic">({n} {n === 1 ? 'reply' : 'replies'})</span>
+          )}
+        </div>
+        {!isCollapsed && (
+          <>
+            <div className="prose prose-invert max-w-none text-[15px] leading-relaxed text-[var(--color-text-primary)] mt-1 [&_p]:my-1">
+              <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{p.content}</ReactMarkdown>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-[11px] font-bold lowercase text-[var(--color-text-secondary)]">
+              <a href={`#post-${p.id}`} className="hover:underline">permalink</a>
+              {replyTo && (
+                <button type="button" onClick={() => openReply(replyTo)} className="hover:underline cursor-pointer">reply</button>
+              )}
+              <button type="button" onClick={() => setReportTarget({ type: 'post', id: p.id })} className="hover:underline cursor-pointer">report</button>
+              <span className="md:opacity-0 md:group-hover:opacity-100 focus-within:opacity-100 transition-opacity normal-case font-normal">
+                <InlineModControls targetType="post" targetId={p.id} currentStatus={p.mod_status} authorId={p.author_id} />
+              </span>
+            </div>
+            {(n > 0 || childForm) && (
+              <div className="mt-2 flex flex-col gap-2">
+                {children.map((c) => (
+                  <div key={c.id} className="[&>div]:bg-[var(--color-void)]">
+                    {commentBlock(c, { replyTo })}
+                  </div>
+                ))}
+                {childForm}
+              </div>
+            )}
+          </>
         )}
-        <button type="button" onClick={() => setReportTarget({ type: 'post', id: p.id })} className="hover:text-[var(--color-ember)] cursor-pointer">
-          Report
-        </button>
-        <span className="md:opacity-0 md:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-          <InlineModControls targetType="post" targetId={p.id} currentStatus={p.mod_status} authorId={p.author_id} />
-        </span>
       </div>
-    </div>
-  )
+    )
+  }
 
   const replyForm = (parentId, submit, placeholder) => (
     <form onSubmit={(e) => handleComment(e, parentId)} className="flex flex-col gap-3">
@@ -365,21 +395,12 @@ function ThreadView({ id }) {
                     {comments.length === 0 ? 'No critique yet' : `${comments.length} ${comments.length === 1 ? 'critique' : 'critiques'}`}
                   </h3>
                   {comments.length > 0 && (
-                    <div className="flex flex-col divide-y divide-[var(--color-line)]">
-                      {comments.map((c) => {
-                        const replies = childrenOf[c.id] || []
-                        return (
-                          <div key={c.id} className="py-4 first:pt-0 flex flex-col gap-3">
-                            {commentBlock(c, { size: 'text-base', replyTo: c.id })}
-                            {replies.length > 0 && (
-                              <div className="ml-1 pl-4 border-l border-[var(--color-line)] flex flex-col gap-4">
-                                {replies.map((r) => commentBlock(r, { size: 'text-sm', replyTo: c.id }))}
-                              </div>
-                            )}
-                            {commentFor === c.id && replyForm(c.id, 'Post reply', 'Reply to this critique…')}
-                          </div>
-                        )
-                      })}
+                    <div className="flex flex-col gap-2">
+                      {comments.map((c) => commentBlock(c, {
+                        replyTo: c.id,
+                        children: childrenOf[c.id] || [],
+                        childForm: commentFor === c.id ? replyForm(c.id, 'Post reply', 'Reply to this critique…') : null,
+                      }))}
                     </div>
                   )}
                   {replyBox(entry.id, { open: 'Critique this entry', signedOut: 'Sign in to critique', submit: 'Post critique', placeholder: "What works, what doesn't, and why…" })}
