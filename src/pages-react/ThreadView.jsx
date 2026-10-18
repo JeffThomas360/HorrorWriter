@@ -189,8 +189,41 @@ function ThreadView({ id }) {
   const isRitual = thread?.category_id === 'rituals'
   const opId = isRitual && posts[0] && !posts[0].author_id ? posts[0].id : null
   const entries = isRitual ? posts.filter((p) => !p.parent_post_id && p.id !== opId) : []
-  const commentsByEntry = {}
-  if (isRitual) posts.forEach((p) => { if (p.parent_post_id) (commentsByEntry[p.parent_post_id] ||= []).push(p) })
+  // childrenOf[entryId] = critiques; childrenOf[critiqueId] = replies to it.
+  const childrenOf = {}
+  if (isRitual) posts.forEach((p) => { if (p.parent_post_id) (childrenOf[p.parent_post_id] ||= []).push(p) })
+
+  const replyBox = (parentId, { open, signedOut, submit, placeholder }) =>
+    session ? (
+      commentFor === parentId ? (
+        <form onSubmit={(e) => handleComment(e, parentId)} className="flex flex-col gap-3">
+          <MarkdownEditor
+            value={commentContent}
+            onChange={(e) => setCommentContent(e.target.value)}
+            placeholder={placeholder}
+            rows={4}
+            disabled={isSubmitting}
+          />
+          <div className="flex items-center gap-3">
+            <button type="submit" disabled={isSubmitting} className="bg-[var(--color-accent-crimson)] text-white font-mono text-xs uppercase px-4 py-2 hover:bg-red-700 transition-colors cursor-pointer">
+              {isSubmitting ? 'Summoning…' : submit}
+            </button>
+            <button type="button" onClick={() => { setCommentFor(null); setCommentError(null) }} className="font-mono text-xs uppercase text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] cursor-pointer">
+              Cancel
+            </button>
+            {commentError && <span className="form-err font-mono text-xs text-[var(--color-ember)]">{commentError}</span>}
+          </div>
+        </form>
+      ) : (
+        <button type="button" onClick={() => { setCommentFor(parentId); setCommentContent(''); setCommentError(null) }} className="self-start font-mono text-xs uppercase border border-[var(--color-line)] hover:border-white px-3 py-1.5 transition-colors cursor-pointer">
+          {open}
+        </button>
+      )
+    ) : (
+      <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('open-signin'))} className="self-start font-mono text-xs uppercase border border-[var(--color-line)] hover:border-white px-3 py-1.5 transition-colors cursor-pointer">
+        {signedOut}
+      </button>
+    )
 
   const postMeta = (p, label) => (
     <div className="flex justify-between items-start gap-3">
@@ -279,7 +312,7 @@ function ThreadView({ id }) {
             <p className="font-serif italic text-sm text-[var(--color-text-secondary)]">No entries yet.</p>
           )}
           {entries.map((entry, i) => {
-            const comments = commentsByEntry[entry.id] || []
+            const comments = childrenOf[entry.id] || []
             return (
               <article key={entry.id} id={`post-${entry.id}`} className="vintage-card flex flex-col gap-4">
                 <div className="border-b border-[var(--color-line)] pb-3 flex flex-col gap-3">
@@ -296,44 +329,31 @@ function ThreadView({ id }) {
                   <h3 className="font-mono text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
                     {comments.length === 0 ? 'No critique yet' : `${comments.length} ${comments.length === 1 ? 'critique' : 'critiques'}`}
                   </h3>
-                  {comments.map((c) => (
-                    <div key={c.id} id={`post-${c.id}`} className="pl-4 border-l-2 border-[var(--color-line)] flex flex-col gap-2">
-                      {postMeta(c, null)}
-                      <div className="prose prose-invert font-serif text-base leading-relaxed text-[var(--color-text-primary)]">
-                        <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{c.content}</ReactMarkdown>
-                      </div>
-                    </div>
-                  ))}
-                  {session ? (
-                    commentFor === entry.id ? (
-                      <form onSubmit={(e) => handleComment(e, entry.id)} className="flex flex-col gap-3">
-                        <MarkdownEditor
-                          value={commentContent}
-                          onChange={(e) => setCommentContent(e.target.value)}
-                          placeholder="What works, what doesn't, and why…"
-                          rows={4}
-                          disabled={isSubmitting}
-                        />
-                        <div className="flex items-center gap-3">
-                          <button type="submit" disabled={isSubmitting} className="bg-[var(--color-accent-crimson)] text-white font-mono text-xs uppercase px-4 py-2 hover:bg-red-700 transition-colors cursor-pointer">
-                            {isSubmitting ? 'Summoning…' : 'Post critique'}
-                          </button>
-                          <button type="button" onClick={() => { setCommentFor(null); setCommentError(null) }} className="font-mono text-xs uppercase text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] cursor-pointer">
-                            Cancel
-                          </button>
-                          {commentError && <span className="form-err font-mono text-xs text-[var(--color-ember)]">{commentError}</span>}
+                  {comments.map((c) => {
+                    const replies = childrenOf[c.id] || []
+                    return (
+                      <div key={c.id} id={`post-${c.id}`} className="pl-4 border-l-2 border-[var(--color-line)] flex flex-col gap-2">
+                        {postMeta(c, null)}
+                        <div className="prose prose-invert font-serif text-base leading-relaxed text-[var(--color-text-primary)]">
+                          <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{c.content}</ReactMarkdown>
                         </div>
-                      </form>
-                    ) : (
-                      <button type="button" onClick={() => { setCommentFor(entry.id); setCommentContent(''); setCommentError(null) }} className="self-start font-mono text-xs uppercase border border-[var(--color-line)] hover:border-white px-3 py-1.5 transition-colors cursor-pointer">
-                        Critique this entry
-                      </button>
+                        {replies.length > 0 && (
+                          <div className="pl-4 border-l border-[var(--color-line)] flex flex-col gap-3 mt-1">
+                            {replies.map((r) => (
+                              <div key={r.id} id={`post-${r.id}`} className="flex flex-col gap-1">
+                                {postMeta(r, 'Reply')}
+                                <div className="prose prose-invert font-serif text-sm leading-relaxed text-[var(--color-text-primary)]">
+                                  <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{r.content}</ReactMarkdown>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {replyBox(c.id, { open: 'Reply', signedOut: 'Sign in to reply', submit: 'Post reply', placeholder: 'Reply to this critique…' })}
+                      </div>
                     )
-                  ) : (
-                    <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('open-signin'))} className="self-start font-mono text-xs uppercase border border-[var(--color-line)] hover:border-white px-3 py-1.5 transition-colors cursor-pointer">
-                      Sign in to critique
-                    </button>
-                  )}
+                  })}
+                  {replyBox(entry.id, { open: 'Critique this entry', signedOut: 'Sign in to critique', submit: 'Post critique', placeholder: "What works, what doesn't, and why…" })}
                 </section>
               </article>
             )
