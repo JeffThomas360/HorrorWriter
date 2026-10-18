@@ -11,6 +11,9 @@ import { buildProfilePageSchema, buildBreadcrumbSchema, metaDescription } from '
 
 const { handle } = Astro.params;
 
+// Only what the public profile renders: this object is serialized into the page.
+const PUBLIC_PROFILE_COLUMNS = 'id, handle, display_name, bio, created_at, location, pronouns, website_url, avatar_url, mod_role';
+
 let profile = null;
 // 'unknown' until a lookup answers definitively; only 'missing' becomes a 404.
 let outcome = 'unknown';
@@ -21,7 +24,7 @@ try {
   if (supabase && handle && !isTest) {
     const result = await supabase
       .from('profiles')
-      .select('id, display_name, bio')
+      .select(PUBLIC_PROFILE_COLUMNS)
       .eq('handle', handle)
       .maybeSingle();
     profile = result.data;
@@ -54,5 +57,5 @@ const breadcrumbSchema = buildBreadcrumbSchema([
 <MainLayout noindex={notFound || thinProfile} title={title} description={description}>
   <StructuredData data={breadcrumbSchema} />
   <StructuredData data={profileSchema} />
-  <UserProfile handle={handle} client:load />
+  <UserProfile handle={handle} initialProfile={profile ?? undefined} client:load />
 </MainLayout>
