@@ -7,7 +7,7 @@ import { supabase } from '../supabaseClient'
  * banned members (20260930000000_midnight_ritual.sql).
  */
 
-export const WORD_LIMIT = 500
+export const WORD_LIMIT = 2000
 
 /** \S+ tokens: the same rule as the ritual_drafts CHECK. */
 export function countWords(text) {

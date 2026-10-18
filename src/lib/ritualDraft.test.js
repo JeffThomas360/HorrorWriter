@@ -37,7 +37,7 @@ describe('countWords', () => {
     expect(countWords('  the  walls\nbreathe\tat night ')).toBe(5)
   })
   it('caps at 500', () => {
-    expect(WORD_LIMIT).toBe(500)
+    expect(WORD_LIMIT).toBe(2000)
   })
 })
 
@@ -117,7 +117,7 @@ describe('saveRitualDraft', () => {
 
 describe('ritualSaveErrorMessage', () => {
   it('explains the word limit and refusals without database jargon', () => {
-    expect(ritualSaveErrorMessage({ code: '23514' })).toMatch(/500 words/)
+    expect(ritualSaveErrorMessage({ code: '23514' })).toMatch(/2000 words/)
     expect(ritualSaveErrorMessage({ code: '42501' })).not.toMatch(/row-level/i)
   })
 })

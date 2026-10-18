@@ -68,13 +68,13 @@ test('shows the current prompt from the database and the next unlock on CH 13.0'
   expect(await screen.findByText(/next: fri 16 oct, 03:00 et/i)).toBeInTheDocument()
 })
 
-test('counts words against 500 and blocks saving over the cap', async () => {
+test('counts words against 2000 and blocks saving over the cap', async () => {
   current = PROMPT
   render(<MidnightRitual />)
   const box = await open()
-  expect(screen.getByText('0 / 500 words')).toBeInTheDocument()
-  fireEvent.change(box, { target: { value: Array(501).fill('w').join(' ') } })
-  expect(screen.getByText('501 / 500 words')).toBeInTheDocument()
+  expect(screen.getByText('0 / 2000 words')).toBeInTheDocument()
+  fireEvent.change(box, { target: { value: Array(2001).fill('w').join(' ') } })
+  expect(screen.getByText('2001 / 2000 words')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /save draft/i })).toBeDisabled()
 })
 
