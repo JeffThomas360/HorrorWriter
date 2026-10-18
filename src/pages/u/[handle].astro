@@ -7,6 +7,8 @@ import StructuredData from '../../components/StructuredData.astro';
 import UserProfile from '../../pages-react/UserProfile.jsx';
 import { supabase } from '../../supabaseClient';
 import { hasPublicWork } from '../../lib/sitemapQueries';
+import { fetchAuthorStories } from '../../lib/authorStories';
+import { storyPath } from '../../lib/urls';
 import { buildProfilePageSchema, buildBreadcrumbSchema, metaDescription } from '../../lib/seo';
 
 const { handle } = Astro.params;
@@ -19,6 +21,7 @@ let profile = null;
 let outcome = 'unknown';
 // null = unknown; only a definite false keeps an existing profile out of search.
 let hasWork = null;
+let stories = [];
 try {
   const isTest = typeof process !== 'undefined' && process.env.PLAYWRIGHT_TEST === 'true';
   if (supabase && handle && !isTest) {
@@ -29,7 +32,7 @@ try {
       .maybeSingle();
     profile = result.data;
     outcome = lookupOutcome(result);
-    if (profile?.id) hasWork = await hasPublicWork(profile.id);
+    if (profile?.id) [hasWork, stories] = await Promise.all([hasPublicWork(profile.id), fetchAuthorStories(profile.id)]);
   }
 } catch (e) {
   console.error('Error fetching user profile details for SEO:', e);
@@ -52,10 +55,25 @@ const breadcrumbSchema = buildBreadcrumbSchema([
   { name: 'Writers', url: `${siteUrl}/forum/` },
   { name: displayName, url: pageUrl }
 ]);
+const fmtDate = (iso) => new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' });
 ---
 
 <MainLayout noindex={notFound || thinProfile} title={title} description={description}>
   <StructuredData data={breadcrumbSchema} />
   <StructuredData data={profileSchema} />
   <UserProfile handle={handle} initialProfile={profile ?? undefined} client:load />
+  {stories.length > 0 && (
+    <section class="mt-10 max-w-2xl mx-auto" aria-labelledby="stories-heading">
+      <h2 id="stories-heading" class="font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-text-secondary)] mb-4">Stories by {displayName}</h2>
+      <ul class="flex flex-col">
+        {stories.map((b) => (
+          <li class="border-t border-[var(--color-line)] py-4">
+            <a href={storyPath(b.id)} class="font-serif text-lg font-bold text-[var(--color-text-primary)] hover:text-[var(--color-ember)] transition-colors">{b.title}</a>
+            <div class="font-mono text-xs text-[var(--color-text-secondary)] mt-1"><time datetime={b.created_at}>{fmtDate(b.created_at)}</time></div>
+            {b.lede && <p class="font-serif text-sm text-[var(--color-text-secondary)] mt-2 leading-relaxed">{metaDescription(b.lede, { max: 200 })}</p>}
+          </li>
+        ))}
+      </ul>
+    </section>
+  )}
 </MainLayout>
