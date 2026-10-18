@@ -22,6 +22,7 @@ function makeQuery(result) {
     in: vi.fn(() => q),
     order: vi.fn(() => Promise.resolve(result)),
     single: vi.fn(() => Promise.resolve(result)),
+    maybeSingle: vi.fn(() => Promise.resolve(result)),
     then: (resolve, reject) => Promise.resolve(result).then(resolve, reject)
   }
   return q
