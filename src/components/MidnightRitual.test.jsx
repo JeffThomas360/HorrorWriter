@@ -15,10 +15,12 @@ let next = null
 let serverDraft = null
 const api = {
   fetchCurrentPrompt: vi.fn(async () => current),
+  fetchActivePrompts: vi.fn(async () => current ? [current] : []),
   fetchNextUnlock: vi.fn(async () => next),
   fetchMyDraft: vi.fn(async () => serverDraft),
   saveRitualDraft: vi.fn(async () => 'draft-1'),
-  shareRitualDraft: vi.fn(async () => 'book-new-1'),
+  shareRitualDraft: vi.fn(async () => 'thread-new-1'),
+  publishRitualToForum: vi.fn(async () => 'thread-new-1'),
 }
 vi.mock('../lib/ritualDraft', async (importOriginal) => ({ ...(await importOriginal()), ...api }))
 
@@ -50,11 +52,11 @@ test('renders multi-channel frequencies tuner with CH 13.0 through CH 13.4', asy
   expect(screen.getByRole('button', { name: 'CH 13.4' })).toBeInTheDocument()
 })
 
-test('tuning to CH 13.1 switches prompt to Cosmic Dread', async () => {
+test('tuning to CH 13.1 switches prompt to second rotating frequency', async () => {
   render(<MidnightRitual />)
   fireEvent.click(screen.getByRole('button', { name: 'CH 13.1' }))
-  expect(await screen.findByText(/Cosmic Horror/i)).toBeInTheDocument()
-  expect(await screen.findByText(/The astronomer realized the stars were not burning out/i)).toBeInTheDocument()
+  expect(await screen.findByText(/Active Prompt 2/i)).toBeInTheDocument()
+  expect(await screen.findByText(/Every year, the village buries a carved wooden effigy/i)).toBeInTheDocument()
 })
 
 test('shows the current prompt from the database and the next unlock on CH 13.0', async () => {
@@ -171,10 +173,10 @@ test('signed in: clicking Publish for Critique prompts for title and publishes',
 
   expect(await screen.findByLabelText(/title your story for the crypt/i)).toBeInTheDocument()
   fireEvent.change(screen.getByPlaceholderText(/enter a story title/i), { target: { value: 'Scratching Walls' } })
-  fireEvent.click(screen.getByRole('button', { name: /confirm & publish/i }))
+  fireEvent.click(screen.getByRole('button', { name: /summon to the crypt/i }))
 
   await waitFor(() => {
     expect(api.shareRitualDraft).toHaveBeenCalledWith({ draftId: 'draft-1', title: 'Scratching Walls' })
-    expect(assignSpy).toHaveBeenCalledWith('/library/read/book-new-1/')
+    expect(assignSpy).toHaveBeenCalledWith('/forum/thread/thread-new-1/')
   })
 })
