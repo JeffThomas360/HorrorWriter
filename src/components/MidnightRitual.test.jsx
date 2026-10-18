@@ -22,6 +22,7 @@ const api = {
   shareRitualDraft: vi.fn(async () => 'thread-new-1'),
   publishRitualToForum: vi.fn(async () => 'thread-new-1'),
   fetchMyLatestEntryId: vi.fn(async () => 'post-9'),
+  fetchEntryCounts: vi.fn(async () => ({ p1: 3 })),
 }
 vi.mock('../lib/ritualDraft', async (importOriginal) => ({ ...(await importOriginal()), ...api }))
 
@@ -66,6 +67,13 @@ test('shows the current prompt from the database and the next unlock on CH 13.0'
   render(<MidnightRitual />)
   expect(await screen.findByText(new RegExp(PROMPT.body))).toBeInTheDocument()
   expect(await screen.findByText(/next: fri 16 oct, 03:00 et/i)).toBeInTheDocument()
+})
+
+test('shows a red entry count on a channel that has entries', async () => {
+  current = PROMPT
+  render(<MidnightRitual />)
+  expect(await screen.findByRole('button', { name: 'CH 13.0, 3 entries' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'CH 13.1' })).toBeInTheDocument()
 })
 
 test('counts words against 2000 and blocks saving over the cap', async () => {
