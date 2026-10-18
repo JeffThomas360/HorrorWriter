@@ -36,6 +36,9 @@ function ThreadView({ id }) {
 
   const [replyContent, setReplyContent] = useState('')
   const [replyError, setReplyError] = useState(null)
+  const [commentFor, setCommentFor] = useState(null)
+  const [commentContent, setCommentContent] = useState('')
+  const [commentError, setCommentError] = useState(null)
   const [activeReadersCount, setActiveReadersCount] = useState(1)
   const [reportTarget, setReportTarget] = useState(null)
 
@@ -128,21 +131,22 @@ function ThreadView({ id }) {
   }, [id, userId, queryClient])
 
   const replyMutation = useMutation({
-    mutationFn: async (content) => {
+    mutationFn: async ({ content, parentId = null }) => {
       const { data, error } = await supabase
         .from('posts')
         .insert({
           thread_id: id,
           author_id: session.user.id,
-          content: content.trim()
+          content: content.trim(),
+          parent_post_id: parentId,
         })
         .select('*, profiles(handle)')
         .single()
       if (error) throw error
       return data
     },
-    onSuccess: (newPost) => {
-      setReplyContent('')
+    onSuccess: (newPost, vars) => {
+      if (vars?.parentId) { setCommentContent(''); setCommentFor(null) } else setReplyContent('')
       queryClient.invalidateQueries({ queryKey: ['posts', id] })
       queryClient.invalidateQueries({ queryKey: ['threads'] })
       if (newPost?.id) {
@@ -151,8 +155,9 @@ function ThreadView({ id }) {
         }).catch(console.error)
       }
     },
-    onError: (err) => {
-      setReplyError(err.message || 'Failed to post reply.')
+    onError: (err, vars) => {
+      const msg = err.message || 'Failed to post reply.'
+      if (vars?.parentId) setCommentError(msg); else setReplyError(msg)
     }
   })
 
@@ -163,10 +168,49 @@ function ThreadView({ id }) {
       setReplyError('Cannot speak nothingness.')
       return
     }
-    replyMutation.mutate(replyContent)
+    replyMutation.mutate({ content: replyContent })
+  }
+
+  const handleComment = (e, entryId) => {
+    e.preventDefault()
+    setCommentError(null)
+    if (!commentContent.trim()) {
+      setCommentError('Cannot speak nothingness.')
+      return
+    }
+    replyMutation.mutate({ content: commentContent, parentId: entryId })
   }
 
   const isSubmitting = replyMutation.isPending
+
+  // Midnight Rituals Critique Room: one thread per prompt. The system-authored
+  // opening post is the prompt (already shown in the banner), top-level posts
+  // are entries, and posts with parent_post_id are critique on one entry.
+  const isRitual = thread?.category_id === 'rituals'
+  const opId = isRitual && posts[0] && !posts[0].author_id ? posts[0].id : null
+  const entries = isRitual ? posts.filter((p) => !p.parent_post_id && p.id !== opId) : []
+  const commentsByEntry = {}
+  if (isRitual) posts.forEach((p) => { if (p.parent_post_id) (commentsByEntry[p.parent_post_id] ||= []).push(p) })
+
+  const postMeta = (p, label) => (
+    <div className="flex justify-between items-start gap-3">
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-full bg-[var(--color-bg-primary)] border border-[var(--color-line)] flex items-center justify-center font-mono text-xs text-[var(--color-text-secondary)]">
+          {initials(p.profiles?.handle || 'unknown')}
+        </div>
+        <div className="flex flex-col">
+          <span className="font-mono text-xs font-bold text-[var(--color-text-primary)]">{authorLabel(p.profiles)}</span>
+          <span className="font-mono text-xs text-[var(--color-text-secondary)]">{label ? `${label} · ` : ''}{timeAgo(p.created_at)}</span>
+        </div>
+      </div>
+      <div className="flex gap-3 items-center text-xs font-mono">
+        <button onClick={() => setReportTarget({ type: 'post', id: p.id })} className="text-[var(--color-text-secondary)] hover:text-[var(--color-accent-crimson)] cursor-pointer">
+          Report
+        </button>
+        <InlineModControls targetType="post" targetId={p.id} currentStatus={p.mod_status} authorId={p.author_id} />
+      </div>
+    </div>
+  )
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center min-h-[40vh]">
@@ -229,8 +273,76 @@ function ThreadView({ id }) {
         </div>
       )}
 
+      {isRitual && (
+        <div className="flex flex-col gap-8">
+          {entries.length === 0 && (
+            <p className="font-serif italic text-sm text-[var(--color-text-secondary)]">No entries yet.</p>
+          )}
+          {entries.map((entry, i) => {
+            const comments = commentsByEntry[entry.id] || []
+            return (
+              <article key={entry.id} id={`post-${entry.id}`} className="vintage-card flex flex-col gap-4">
+                <div className="border-b border-[var(--color-line)] pb-3 flex flex-col gap-3">
+                  <h2 className="font-serif font-black text-xl text-[var(--color-text-primary)] leading-tight">
+                    {entry.title || `Entry #${i + 1}`}
+                  </h2>
+                  {postMeta(entry, `Entry #${i + 1}`)}
+                </div>
+                <div className="prose prose-invert font-serif text-lg leading-relaxed text-[var(--color-text-primary)]">
+                  <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{entry.content}</ReactMarkdown>
+                </div>
+
+                <section aria-label={`Critique of ${entry.title || `entry ${i + 1}`}`} className="border-t border-[var(--color-line)] pt-4 flex flex-col gap-4">
+                  <h3 className="font-mono text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
+                    {comments.length === 0 ? 'No critique yet' : `${comments.length} ${comments.length === 1 ? 'critique' : 'critiques'}`}
+                  </h3>
+                  {comments.map((c) => (
+                    <div key={c.id} id={`post-${c.id}`} className="pl-4 border-l-2 border-[var(--color-line)] flex flex-col gap-2">
+                      {postMeta(c, null)}
+                      <div className="prose prose-invert font-serif text-base leading-relaxed text-[var(--color-text-primary)]">
+                        <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{c.content}</ReactMarkdown>
+                      </div>
+                    </div>
+                  ))}
+                  {session ? (
+                    commentFor === entry.id ? (
+                      <form onSubmit={(e) => handleComment(e, entry.id)} className="flex flex-col gap-3">
+                        <MarkdownEditor
+                          value={commentContent}
+                          onChange={(e) => setCommentContent(e.target.value)}
+                          placeholder="What works, what doesn't, and why…"
+                          rows={4}
+                          disabled={isSubmitting}
+                        />
+                        <div className="flex items-center gap-3">
+                          <button type="submit" disabled={isSubmitting} className="bg-[var(--color-accent-crimson)] text-white font-mono text-xs uppercase px-4 py-2 hover:bg-red-700 transition-colors cursor-pointer">
+                            {isSubmitting ? 'Summoning…' : 'Post critique'}
+                          </button>
+                          <button type="button" onClick={() => { setCommentFor(null); setCommentError(null) }} className="font-mono text-xs uppercase text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] cursor-pointer">
+                            Cancel
+                          </button>
+                          {commentError && <span className="form-err font-mono text-xs text-[var(--color-ember)]">{commentError}</span>}
+                        </div>
+                      </form>
+                    ) : (
+                      <button type="button" onClick={() => { setCommentFor(entry.id); setCommentContent(''); setCommentError(null) }} className="self-start font-mono text-xs uppercase border border-[var(--color-line)] hover:border-white px-3 py-1.5 transition-colors cursor-pointer">
+                        Critique this entry
+                      </button>
+                    )
+                  ) : (
+                    <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('open-signin'))} className="self-start font-mono text-xs uppercase border border-[var(--color-line)] hover:border-white px-3 py-1.5 transition-colors cursor-pointer">
+                      Sign in to critique
+                    </button>
+                  )}
+                </section>
+              </article>
+            )
+          })}
+        </div>
+      )}
+
       <div className="flex flex-col gap-6">
-        {posts.map((p, index) => {
+        {!isRitual && posts.map((p, index) => {
           const handle = p.profiles?.handle || 'unknown'
           const postLabel = index === 0
             ? (isTombstone(thread) ? null : 'Original Post')
@@ -279,7 +391,14 @@ function ThreadView({ id }) {
         )}
       </div>
 
-      {session ? (
+      {isRitual ? (
+        <div className="vintage-card text-center py-8 mt-12">
+          <p className="font-serif italic text-sm text-[var(--color-text-secondary)] mb-4">Entries are written against the prompt in the Midnight Ritual.</p>
+          <a href="/" className="font-mono text-xs uppercase border border-[var(--color-line)] hover:border-white px-4 py-2 transition-colors">
+            Write an entry →
+          </a>
+        </div>
+      ) : session ? (
         <div className="mt-12 border-t border-[var(--color-line)] pt-8">
           <h3 className="font-serif font-bold text-sm text-[var(--color-text-primary)] mb-4 uppercase tracking-wide">
             Leave a reply

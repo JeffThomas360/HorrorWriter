@@ -124,6 +124,30 @@ export async function saveRitualDraft({ promptId, userId, content }) {
   return result?.data?.id
 }
 
+export function ritualPublishErrorMessage(error) {
+  if (error?.code === 'HW013') return 'A story title must be between 1 and 200 characters.'
+  if (error?.code === 'HW014') return 'Your story needs some words before it can be published.'
+  if (error?.code === 'P0002') return "This channel's prompt isn't live yet, so it can't take entries."
+  if (error?.code === '42501') return 'You do not have permission to publish this story.'
+  return error?.message || 'Failed to publish for critique.'
+}
+
+/** The signed-in writer's newest entry in a thread — used to screen it and link to it. */
+export async function fetchMyLatestEntryId(threadId, userId) {
+  if (!supabase || !threadId || !userId) return null
+  const { data, error } = await supabase
+    .from('posts')
+    .select('id')
+    .eq('thread_id', threadId)
+    .eq('author_id', userId)
+    .is('parent_post_id', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) return null
+  return data?.id ?? null
+}
+
 export async function shareRitualDraft({ draftId, title }) {
   if (!supabase) throw new Error("Could not share draft.")
   const trimmed = (title || '').trim()
@@ -134,11 +158,7 @@ export async function shareRitualDraft({ draftId, title }) {
     p_draft_id: draftId,
     p_title: trimmed,
   })
-  if (error) {
-    if (error?.code === 'HW013') throw new Error('A story title must be between 1 and 200 characters.')
-    if (error?.code === '42501') throw new Error('You do not have permission to publish this draft.')
-    throw new Error(error?.message || 'Failed to publish draft for critique.')
-  }
+  if (error) throw new Error(ritualPublishErrorMessage(error))
   return data
 }
 
@@ -158,6 +178,6 @@ export async function publishRitualToForum({ title, content, promptId }) {
     p_content: trimmedContent,
     p_prompt_id: promptId || null,
   })
-  if (error) throw error
+  if (error) throw new Error(ritualPublishErrorMessage(error))
   return data
 }

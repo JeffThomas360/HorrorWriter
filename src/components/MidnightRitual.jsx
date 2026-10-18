@@ -20,6 +20,7 @@ import {
   saveRitualDraft,
   shareRitualDraft,
   publishRitualToForum,
+  fetchMyLatestEntryId,
 } from '../lib/ritualDraft'
 
 const ROTATING_FALLBACK_PROMPTS = [
@@ -195,6 +196,10 @@ function MidnightRitual() {
 
   const handleStartPublish = () => {
     if (!activeChannel || wordCount === 0 || overLimit) return
+    if (!activeChannel.isDbPrompt) {
+      setStatus({ kind: 'error', message: "This channel's prompt isn't live yet. Save your draft; you can publish once it airs." })
+      return
+    }
     if (!user) {
       writeLocalDraft(activeChannel.id, text)
       setSaveAfterSignin(activeChannel.id)
@@ -227,18 +232,15 @@ function MidnightRitual() {
           })
         }
       } else {
-        threadId = await publishRitualToForum({
-          title: trimmedTitle,
-          content: text,
-          promptId: null,
-        })
+        throw new Error("This channel's prompt isn't live yet, so it can't take entries.")
       }
 
-      await screenContent(supabase, 'thread', threadId)
+      const entryId = await fetchMyLatestEntryId(threadId, user.id)
+      await screenContent(supabase, 'post', entryId)
       clearLocalDraft(activeChannel.id)
       playTypewriterKey(true)
       setStatus({ kind: 'published' })
-      window.location.assign(`/forum/thread/${threadId}/`)
+      window.location.assign(`/forum/thread/${threadId}/${entryId ? `#post-${entryId}` : ''}`)
     } catch (err) {
       setStatus({ kind: 'error', message: err.message || 'Failed to publish draft.' })
     } finally {

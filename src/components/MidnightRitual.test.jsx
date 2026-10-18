@@ -21,6 +21,7 @@ const api = {
   saveRitualDraft: vi.fn(async () => 'draft-1'),
   shareRitualDraft: vi.fn(async () => 'thread-new-1'),
   publishRitualToForum: vi.fn(async () => 'thread-new-1'),
+  fetchMyLatestEntryId: vi.fn(async () => 'post-9'),
 }
 vi.mock('../lib/ritualDraft', async (importOriginal) => ({ ...(await importOriginal()), ...api }))
 
@@ -177,6 +178,6 @@ test('signed in: clicking Publish for Critique prompts for title and publishes',
 
   await waitFor(() => {
     expect(api.shareRitualDraft).toHaveBeenCalledWith({ draftId: 'draft-1', title: 'Scratching Walls' })
-    expect(assignSpy).toHaveBeenCalledWith('/forum/thread/thread-new-1/')
+    expect(assignSpy).toHaveBeenCalledWith('/forum/thread/thread-new-1/#post-post-9')
   })
 })
