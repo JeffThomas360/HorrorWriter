@@ -6,6 +6,7 @@ import { lookupOutcome } from '../../lib/lookup';
 import StructuredData from '../../components/StructuredData.astro';
 import UserProfile from '../../pages-react/UserProfile.jsx';
 import { supabase } from '../../supabaseClient';
+import { hasPublicWork } from '../../lib/sitemapQueries';
 import { buildProfilePageSchema, buildBreadcrumbSchema, metaDescription } from '../../lib/seo';
 
 const { handle } = Astro.params;
@@ -13,16 +14,19 @@ const { handle } = Astro.params;
 let profile = null;
 // 'unknown' until a lookup answers definitively; only 'missing' becomes a 404.
 let outcome = 'unknown';
+// null = unknown; only a definite false keeps an existing profile out of search.
+let hasWork = null;
 try {
   const isTest = typeof process !== 'undefined' && process.env.PLAYWRIGHT_TEST === 'true';
   if (supabase && handle && !isTest) {
     const result = await supabase
       .from('profiles')
-      .select('display_name, bio')
+      .select('id, display_name, bio')
       .eq('handle', handle)
       .maybeSingle();
     profile = result.data;
     outcome = lookupOutcome(result);
+    if (profile?.id) hasWork = await hasPublicWork(profile.id);
   }
 } catch (e) {
   console.error('Error fetching user profile details for SEO:', e);
@@ -31,6 +35,8 @@ try {
 // A record that definitely doesn't exist gets a real 404 and stays out of search results.
 const notFound = outcome === 'missing';
 if (notFound) Astro.response.status = 404;
+// A profile with no live story, thread or reply is a thin page: reachable, not indexed.
+const thinProfile = hasWork === false;
 
 const displayName = profile?.display_name || `@${handle}`;
 const title = `${displayName} | Horror Writer`;
@@ -45,7 +51,7 @@ const breadcrumbSchema = buildBreadcrumbSchema([
 ]);
 ---
 
-<MainLayout noindex={notFound} title={title} description={description}>
+<MainLayout noindex={notFound || thinProfile} title={title} description={description}>
   <StructuredData data={breadcrumbSchema} />
   <StructuredData data={profileSchema} />
   <UserProfile handle={handle} client:load />
