@@ -9,7 +9,8 @@ import ModBadge from './ModBadge'
  * load (broken image, 404, CORS). The fallback survives even after the URL
  * gets set, as long as the image element keeps erroring.
  */
-export default function ProfileHead({ profile, children }) {
+// `as` sets the name's heading level: the public profile page makes it the h1.
+export default function ProfileHead({ profile, children, as: Heading = 'h3' }) {
   const [imageBroken, setImageBroken] = useState(false)
   const initial = (profile.display_name?.[0] || profile.handle?.[0] || '?').toUpperCase()
   const showImage = profile.avatar_url && !imageBroken
@@ -27,10 +28,10 @@ export default function ProfileHead({ profile, children }) {
         <div className="profile-avatar">{initial}</div>
       )}
       <div className="profile-info">
-        <h3>
+        <Heading>
           {profile.display_name || profile.handle}
           <ModBadge role={profile.mod_role} />
-        </h3>
+        </Heading>
         <div className="handle">@{profile.handle}</div>
         {children}
       </div>

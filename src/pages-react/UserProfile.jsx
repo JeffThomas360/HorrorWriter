@@ -6,12 +6,16 @@ import FollowButton from '../components/FollowButton'
 import BlockButton from '../components/BlockButton'
 import { withProviders } from '../components/Providers'
 
-function UserProfile({ handle }) {
-  const [profile, setProfile] = useState(null)
-  const [status, setStatus] = useState('loading')
+// initialProfile comes from the page's server-side lookup, so the profile is in
+// the HTML search engines see instead of a loading placeholder.
+function UserProfile({ handle, initialProfile }) {
+  const seeded = initialProfile?.handle === handle ? initialProfile : null
+  const [profile, setProfile] = useState(seeded)
+  const [status, setStatus] = useState(seeded ? 'found' : 'loading')
   const [reportTarget, setReportTarget] = useState(null)
 
   useEffect(() => {
+    if (seeded) return
     let cancelled = false
     setStatus('loading')
     getProfileByHandle(handle)
@@ -56,8 +60,9 @@ function UserProfile({ handle }) {
   }
 
   const joinedFmt = profile.created_at
-    ? new Date(profile.created_at).toLocaleDateString(undefined, {
-        year: 'numeric', month: 'short', day: 'numeric',
+    // Fixed locale and zone: the server and the browser must render the same text.
+    ? new Date(profile.created_at).toLocaleDateString('en-US', {
+        year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC',
       })
     : null
 
@@ -71,7 +76,7 @@ function UserProfile({ handle }) {
       </div>
 
       <div className="vintage-card p-6">
-        <ProfileHead profile={profile} />
+        <ProfileHead profile={profile} as="h1" />
         
         <div className="mt-6 border-t border-[var(--color-line)] pt-6 flex flex-col gap-4 font-serif text-sm">
           {profile.pronouns && (
