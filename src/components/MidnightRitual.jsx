@@ -21,6 +21,7 @@ import {
   shareRitualDraft,
   publishRitualToForum,
   fetchMyLatestEntryId,
+  fetchEntryCounts,
 } from '../lib/ritualDraft'
 
 const ROTATING_FALLBACK_PROMPTS = [
@@ -40,6 +41,7 @@ const ROTATING_FALLBACK_PROMPTS = [
 function MidnightRitual() {
   const { user, isLoading: authLoading } = useAuth()
   const [activePrompts, setActivePrompts] = useState(undefined)
+  const [entryCounts, setEntryCounts] = useState({})
   const [nextUnlock, setNextUnlock] = useState(null)
   const [activeChannelIndex, setActiveChannelIndex] = useState(0)
   const [isWriting, setIsWriting] = useState(false)
@@ -92,6 +94,13 @@ function MidnightRitual() {
       alive = false
     }
   }, [])
+
+  useEffect(() => {
+    if (!activePrompts?.length) return
+    let alive = true
+    fetchEntryCounts(activePrompts.map((p) => p.id)).then((c) => alive && setEntryCounts(c)).catch(() => {})
+    return () => { alive = false }
+  }, [activePrompts])
 
   // Load draft on mount / channel tune
   useEffect(() => {
@@ -273,11 +282,14 @@ function MidnightRitual() {
           <span className="font-mono text-[10px] uppercase text-[var(--color-text-secondary)] mr-1">
             Signal:
           </span>
-          {channels.map((ch, idx) => (
+          {channels.map((ch, idx) => {
+            const count = ch.dbPromptId ? entryCounts[ch.dbPromptId] || 0 : 0
+            return (
             <button
               key={ch.freq}
               type="button"
               onClick={() => handleTune(idx)}
+              aria-label={count ? `${ch.freq}, ${count} ${count === 1 ? 'entry' : 'entries'}` : ch.freq}
               className={`font-mono text-[10px] px-2 py-0.5 border transition-all cursor-pointer ${
                 activeChannelIndex === idx
                   ? 'bg-[var(--color-upside)] text-[var(--color-void)] border-[var(--color-upside)] font-black shadow-[0_0_10px_rgba(25,165,184,0.3)]'
@@ -285,8 +297,14 @@ function MidnightRitual() {
               }`}
             >
               {ch.freq}
+              {count > 0 && (
+                <span aria-hidden="true" className="ml-1 px-1 bg-[var(--color-void)] text-[var(--color-ember)] font-bold">
+                  {count}
+                </span>
+              )}
             </button>
-          ))}
+            )
+          })}
         </div>
       </div>
 

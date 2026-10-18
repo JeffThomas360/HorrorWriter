@@ -132,6 +132,20 @@ export function ritualPublishErrorMessage(error) {
   return error?.message || 'Failed to publish for critique.'
 }
 
+/** Published entries per prompt: { [promptId]: n }. Prompts with no thread are absent. */
+export async function fetchEntryCounts(promptIds) {
+  const ids = (promptIds || []).filter(Boolean)
+  if (!supabase || ids.length === 0) return {}
+  const { data, error } = await supabase
+    .from('threads')
+    .select('prompt_id, posts(count)')
+    .in('prompt_id', ids)
+    .is('posts.parent_post_id', null)
+    .not('posts.author_id', 'is', null)
+  if (error || !data) return {}
+  return Object.fromEntries(data.map((t) => [t.prompt_id, t.posts?.[0]?.count ?? 0]))
+}
+
 /** The signed-in writer's newest entry in a thread — used to screen it and link to it. */
 export async function fetchMyLatestEntryId(threadId, userId) {
   if (!supabase || !threadId || !userId) return null
