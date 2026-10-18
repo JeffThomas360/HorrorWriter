@@ -3,7 +3,6 @@ import MainLayout from '../layouts/MainLayout.astro';
 import StructuredData from '../components/StructuredData.astro';
 import MidnightRitual from '../components/MidnightRitual.jsx';
 import WitchingHourBar from '../components/WitchingHourBar.jsx';
-import DreadDiagnostic from '../components/DreadDiagnostic.jsx';
 import VoidWhispers from '../components/VoidWhispers.jsx';
 import { supabase } from '../supabaseClient';
 import { buildWebSiteSchema, buildFAQSchema } from '../lib/seo';
@@ -165,9 +164,6 @@ const isFallback = tiles === FALLBACK_TILES;
 
   <!-- The Midnight Ritual: Interactive Flash Prompt Terminal -->
   <MidnightRitual client:load />
-
-  <!-- The Dread Spectrum: Horror Archetype Psychological Diagnostic -->
-  <DreadDiagnostic client:load />
 
   <!-- Content Grid Section -->
   <section class="mb-20">
