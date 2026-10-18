@@ -3,7 +3,7 @@ import { useState } from 'react'
 export default function ShareBar({ title, text, url }) {
   const [copied, setCopied] = useState(false)
 
-  const shareUrl = url || window.location.href
+  const shareUrl = url || (typeof window !== 'undefined' ? window.location.href : '') // safe during server render
   const shareText = text ? `"${text}"\n\n— ${title}` : `Read "${title}" on Horror Writer.`
 
   const copyLink = async () => {
