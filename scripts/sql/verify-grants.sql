@@ -53,6 +53,9 @@ with allow(name, role, why) as (values
   ('ritual_approve_prompt',    'authenticated', 'keeper RPC, mod_can(configure, all)'),
   ('ritual_unschedule_prompt', 'authenticated', 'keeper RPC, mod_can(configure, all)'),
   ('ritual_reject_prompt',     'authenticated', 'keeper RPC, mod_can(configure, all)'),
+  -- Ritual publish (20261018000000). Binds author to auth.uid(), checks ban and
+  -- that the prompt is live; get-or-creates the prompt's Crypt thread.
+  ('ritual_publish_entry',     'authenticated', 'publish entry, author = auth.uid(), prompt must be live'),
   -- Public by design: the next unlock TIME, never the prompt text.
   ('ritual_next_unlock',       'anon',          'next weekly unlock time for the home countdown'),
   ('ritual_next_unlock',       'authenticated', 'next weekly unlock time for the home countdown'),
