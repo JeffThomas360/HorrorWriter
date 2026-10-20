@@ -138,6 +138,10 @@ const ogImageURL = ogImage ? new URL(ogImage, Astro.site) : new URL('/og.png', A
 </html>
 
 <script>
+  // Report uncaught browser errors to public.client_errors (see errorReporter.js).
+  import { installErrorReporter } from '../lib/errorReporter';
+  installErrorReporter();
+
   // Sign in modal. This inline module script runs (deferred) before the React
   // islands hydrate, so its listener reliably catches `open-signin` even when
   // the SignInModalWrapper island hasn't attached its own listener yet. Record

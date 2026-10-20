@@ -63,7 +63,11 @@ with allow(name, role, why) as (values
   -- keeper_task_require_keeper() = mod_can(configure, all) and logs to mod_actions.
   ('resolve_keeper_task',      'authenticated', 'keeper RPC, mod_can(configure, all)'),
   ('snooze_keeper_task',       'authenticated', 'keeper RPC, mod_can(configure, all)'),
-  ('keeper_add_task',          'authenticated', 'keeper RPC, mod_can(configure, all)')
+  ('keeper_add_task',          'authenticated', 'keeper RPC, mod_can(configure, all)'),
+  -- Client error capture (20261020010000). Write-only, truncated, capped at
+  -- 300 rows/hour; visitors who crash are often signed out, so anon too.
+  ('log_client_error',         'anon',          'error capture, write-only, rate-capped'),
+  ('log_client_error',         'authenticated', 'error capture, write-only, rate-capped')
 ),
 grants as (
   select
