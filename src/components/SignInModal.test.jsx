@@ -105,4 +105,41 @@ describe('SignInModal age gate', () => {
     await waitFor(() => expect(signInWithOAuth).toHaveBeenCalled())
     expect(signInWithOAuth.mock.calls[0][0].options.queryParams).toEqual({ prompt: 'select_account' })
   })
+
+  // Opened after an await, the popup is blocked by Safari, Firefox and phones.
+  test('Google opens its popup inside the click, before the OAuth request', async () => {
+    localStorage.setItem(GATE_KEY, PASSED)
+    const order = []
+    const popup = { closed: false, location: { href: '' }, close: vi.fn() }
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => { order.push('open'); return popup })
+    signInWithOAuth.mockImplementation(async () => { order.push('oauth'); return { data: { url: 'https://accounts.google.com/x' }, error: null } })
+    open()
+    fireEvent.click(await screen.findByRole('button', { name: /continue with google/i }))
+    await waitFor(() => expect(popup.location.href).toBe('https://accounts.google.com/x'))
+    expect(order).toEqual(['open', 'oauth'])
+    openSpy.mockRestore()
+  })
+
+  test('a blocked popup falls back to signing in in the same tab', async () => {
+    localStorage.setItem(GATE_KEY, PASSED)
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+    const assign = vi.fn()
+    const realLocation = window.location
+    Object.defineProperty(window, 'location', { configurable: true, value: { ...realLocation, origin: realLocation.origin, pathname: '/forum/', search: '', hash: '', assign } })
+    signInWithOAuth.mockResolvedValue({ data: { url: 'https://accounts.google.com/y' }, error: null })
+    open()
+    fireEvent.click(await screen.findByRole('button', { name: /continue with google/i }))
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('https://accounts.google.com/y'))
+    expect(JSON.parse(localStorage.getItem('hw_return_to')).p).toBe('/forum/')
+    Object.defineProperty(window, 'location', { configurable: true, value: realLocation })
+    openSpy.mockRestore()
+  })
+
+  test('email is the main path: a real button, and passkey is still offered', async () => {
+    localStorage.setItem(GATE_KEY, PASSED)
+    open()
+    expect(await screen.findByRole('button', { name: /email me a sign-in link/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /sign in with passkey/i })).toBeInTheDocument()
+  })
 })
+
