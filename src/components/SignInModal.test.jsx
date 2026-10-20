@@ -20,6 +20,12 @@ function open() {
   return render(<SignInModal isOpen onClose={() => {}} />)
 }
 
+// The email field is collapsed behind a link until the writer asks for it.
+async function revealEmail() {
+  fireEvent.click(await screen.findByRole('button', { name: /email me a sign-in link/i }))
+  return screen.findByLabelText(/email address/i)
+}
+
 function passGate() {
   fireEvent.change(screen.getByLabelText('Month'), { target: { value: '1' } })
   fireEvent.change(screen.getByLabelText('Year'), { target: { value: '1980' } })
@@ -41,15 +47,16 @@ afterEach(() => {
 describe('SignInModal age gate', () => {
   test('a browser with no verdict opens on sign-in, not the birth-date screen', async () => {
     open()
-    expect(await screen.findByLabelText(/email address/i)).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /continue with google/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /sign in with passkey/i })).toBeInTheDocument()
+    expect(screen.queryByLabelText(/email address/i)).toBeNull()
     expect(screen.queryByLabelText('Month')).toBeNull()
   })
 
   test('without a verdict, the email link can only sign in, never create an account', async () => {
     open()
-    fireEvent.change(await screen.findByLabelText(/email address/i), { target: { value: 'member@example.com' } })
-    fireEvent.click(screen.getByRole('button', { name: /email me a sign-in link/i }))
+    fireEvent.change(await revealEmail(), { target: { value: 'member@example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: /^email me a sign-in link$/i }))
     await waitFor(() => expect(signInWithOtp).toHaveBeenCalled())
     expect(signInWithOtp.mock.calls[0][0].options.shouldCreateUser).toBe(false)
   })
@@ -57,8 +64,8 @@ describe('SignInModal age gate', () => {
   test('an unknown email is pointed to account creation', async () => {
     signInWithOtp.mockResolvedValue({ error: { code: 'otp_disabled', message: 'Signups not allowed for otp' } })
     open()
-    fireEvent.change(await screen.findByLabelText(/email address/i), { target: { value: 'new@example.com' } })
-    fireEvent.click(screen.getByRole('button', { name: /email me a sign-in link/i }))
+    fireEvent.change(await revealEmail(), { target: { value: 'new@example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: /^email me a sign-in link$/i }))
     expect(await screen.findByText(/no account uses that email/i)).toBeInTheDocument()
   })
 
@@ -74,8 +81,8 @@ describe('SignInModal age gate', () => {
     fireEvent.click(await screen.findByRole('button', { name: /create an account/i }))
     expect(await screen.findByLabelText('Month')).toBeInTheDocument()
     passGate()
-    fireEvent.change(await screen.findByLabelText(/email address/i), { target: { value: 'new@example.com' } })
-    fireEvent.click(screen.getByRole('button', { name: /email me a sign-in link/i }))
+    fireEvent.change(await revealEmail(), { target: { value: 'new@example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: /^email me a sign-in link$/i }))
     await waitFor(() => expect(signInWithOtp).toHaveBeenCalled())
     expect(signInWithOtp.mock.calls[0][0].options.shouldCreateUser).toBe(true)
     expect(localStorage.getItem(GATE_KEY)).toBe(PASSED)
@@ -135,11 +142,15 @@ describe('SignInModal age gate', () => {
     openSpy.mockRestore()
   })
 
-  test('email is the main path: a real button, and passkey is still offered', async () => {
+  test('order is Google, passkey, then the email link; the field appears only on request', async () => {
     localStorage.setItem(GATE_KEY, PASSED)
     open()
-    expect(await screen.findByRole('button', { name: /email me a sign-in link/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /sign in with passkey/i })).toBeInTheDocument()
+    const buttons = (await screen.findAllByRole('button')).map((b) => b.textContent.trim())
+    const idx = (re) => buttons.findIndex((t) => re.test(t))
+    expect(idx(/continue with google/i)).toBeLessThan(idx(/sign in with passkey/i))
+    expect(idx(/sign in with passkey/i)).toBeLessThan(idx(/email me a sign-in link/i))
+    expect(screen.queryByLabelText(/email address/i)).toBeNull()
+    expect(await revealEmail()).toBeInTheDocument()
   })
 })
 
