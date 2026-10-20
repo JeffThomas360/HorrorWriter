@@ -199,7 +199,7 @@ export async function fetchOverviewCounts() {
     supabase.from('reports').select('id', { count: 'exact', head: true }).eq('status', 'open').eq('target_type', 'appeal'),
     supabase.from('reports').select('id', { count: 'exact', head: true }).eq('status', 'open').eq('target_type', 'site'),
     supabase.from('storm_alerts').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-    supabase.from('profiles').select('id', { count: 'exact', head: true }).gt('banned_until', new Date().toISOString()),
+    supabase.rpc('mod_active_sanctions'),
   ])
 
   return {
@@ -207,7 +207,7 @@ export async function fetchOverviewCounts() {
     openAppeals: appeals.count ?? 0,
     openSupport: support.count ?? 0,
     pendingStorms: storms.count ?? 0,
-    activeSanctions: sanctioned.count ?? 0,
+    activeSanctions: sanctioned.data?.length ?? 0,
   }
 }
 
@@ -226,11 +226,7 @@ export async function fetchRecentModActions(limit = 12) {
 /** All currently-active sanctions, for the Sanctions tab's roster view. */
 export async function fetchActiveSanctions() {
   if (!supabase) throw new Error('Supabase not configured')
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, handle, banned_until')
-    .gt('banned_until', new Date().toISOString())
-    .order('banned_until', { ascending: false })
+  const { data, error } = await supabase.rpc('mod_active_sanctions')
   if (error) throw new Error(error.message)
   return data ?? []
 }
@@ -251,7 +247,7 @@ export async function fetchSiteStats() {
     supabase.from('threads').select('id', { count: 'exact', head: true }).eq('mod_status', 'live'),
     supabase.from('book_comments').select('id', { count: 'exact', head: true }).eq('mod_status', 'live'),
     supabase.from('reports').select('id', { count: 'exact', head: true }).neq('status', 'open'),
-    supabase.from('profiles').select('id', { count: 'exact', head: true }).gt('banned_until', new Date().toISOString()),
+    supabase.rpc('mod_active_sanctions'),
   ])
 
   // A failed count used to render as 0 (the `status` column never existed, so three tiles
@@ -265,6 +261,6 @@ export async function fetchSiteStats() {
     liveThreads: threads.count ?? 0,
     liveCritiques: critiques.count ?? 0,
     reportsHandled: reportsHandled.count ?? 0,
-    activeSanctions: sanctioned.count ?? 0,
+    activeSanctions: sanctioned.data?.length ?? 0,
   }
 }

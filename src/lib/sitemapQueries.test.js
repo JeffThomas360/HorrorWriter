@@ -10,7 +10,7 @@ function makeQuery(result) {
   return q
 }
 
-const mockSupabase = { from: vi.fn() }
+const mockSupabase = { from: vi.fn(), rpc: vi.fn() }
 
 vi.mock('../supabaseClient', () => ({
   get supabase() { return mockSupabase }
@@ -20,6 +20,7 @@ const { fetchLiveStoryUrls, fetchLiveThreadUrls, fetchPublicProfileHandles, hasP
 
 beforeEach(() => {
   mockSupabase.from.mockReset()
+  mockSupabase.rpc.mockReset()
 })
 
 describe('fetchLiveStoryUrls', () => {
@@ -51,11 +52,13 @@ describe('fetchLiveThreadUrls', () => {
   })
 })
 
-// fetchPublicProfileHandles / hasPublicWork query profiles, books, threads, posts — in that order.
-function mockTables(results) {
+// profiles come from the public_profile_handles() RPC (the shadowban flag is
+// private since 20261020020000); the work tables are still read directly.
+function mockTables({ profiles, ...results }) {
   const queries = {}
   for (const [table, result] of Object.entries(results)) queries[table] = makeQuery(result)
   mockSupabase.from.mockImplementation((table) => queries[table])
+  mockSupabase.rpc.mockImplementation((fn) => fn === 'public_profile_handles' ? Promise.resolve(profiles) : Promise.resolve({ data: null, error: { message: `unknown rpc ${fn}` } }))
   return queries
 }
 

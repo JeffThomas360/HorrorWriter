@@ -1,6 +1,15 @@
 import { supabase } from '../supabaseClient'
 
 /**
+ * Every profiles column a signed-in member may read. Sanction state
+ * (is_shadowbanned, banned_until, ban_reason, requires_screening) is private
+ * to moderators since 20261020020000, so `select('*')` on profiles fails:
+ * always select these instead.
+ */
+export const PROFILE_COLUMNS =
+  'id, handle, display_name, bio, location, pronouns, website_url, avatar_url, mod_role, mod_scope, created_at, updated_at'
+
+/**
  * Fetch a profile row by handle. Returns `null` if no row matches (vs.
  * `.single()` which would throw on zero rows).
  */
@@ -8,7 +17,7 @@ export async function getProfileByHandle(handle) {
   if (!supabase) throw new Error('Supabase not configured')
   const { data, error } = await supabase
     .from('profiles')
-    .select('*')
+    .select(PROFILE_COLUMNS)
     .eq('handle', handle)
     .maybeSingle()
   if (error) throw error
@@ -30,7 +39,7 @@ export async function updateProfile(userId, fields) {
     .from('profiles')
     .update(fields)
     .eq('id', userId)
-    .select()
+    .select(PROFILE_COLUMNS)
     .single()
   if (error) throw error
   return data
