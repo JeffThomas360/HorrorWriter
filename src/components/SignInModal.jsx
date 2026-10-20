@@ -41,6 +41,7 @@ export default function SignInModal({ isOpen, onClose }) {
   // existing accounts. 'signup' shows the gate until this browser has passed.
   const [mode, setMode] = useState('signin')
   const [noAccount, setNoAccount] = useState(false)
+  const [showEmail, setShowEmail] = useState(false)
   const [birthMonth, setBirthMonth] = useState('')
   const [birthYear, setBirthYear] = useState('')
   const [gateError, setGateError] = useState(null)
@@ -84,6 +85,7 @@ export default function SignInModal({ isOpen, onClose }) {
       setMessage(null)
       setMode('signin')
       setNoAccount(false)
+      setShowEmail(false)
     }
   }, [isOpen])
 
@@ -237,6 +239,7 @@ export default function SignInModal({ isOpen, onClose }) {
       })
       if (error && (error.code === 'otp_disabled' || /signups not allowed/i.test(error.message || ''))) {
         setNoAccount(true)
+        setShowEmail(true)
         return
       }
       if (error) throw error
@@ -327,7 +330,7 @@ export default function SignInModal({ isOpen, onClose }) {
         {gate !== BLOCKED && (gate === PASSED || mode === 'signin') && (<>
         <div className="mb-6 text-center">
           <h2 className="text-2xl font-serif mb-2">Summon <em className="text-[var(--color-accent-crimson)] not-italic">Yourself</em></h2>
-          <p className="text-xs text-[var(--color-text-secondary)] font-serif">No password needed. Use Google, or we’ll email you a link.</p>
+          <p className="text-xs text-[var(--color-text-secondary)] font-serif">No password needed.</p>
           {error   && <div className="text-[var(--color-ember)] text-xs mt-3 font-mono">{error}</div>}
           {message && <div className="text-[var(--color-text-primary)] text-xs mt-3 font-mono">{message}</div>}
           {noAccount && (
@@ -352,7 +355,7 @@ export default function SignInModal({ isOpen, onClose }) {
             />
           </div>
 
-          {enableGoogle && (<>
+          {enableGoogle && (
             <button
               type="button"
               className="w-full bg-[var(--color-text-primary)] text-[var(--color-bg-primary)] font-mono text-xs uppercase py-3 flex items-center justify-center gap-2 hover:bg-white cursor-pointer"
@@ -364,44 +367,52 @@ export default function SignInModal({ isOpen, onClose }) {
               </svg>
               {isGoogleSubmitting ? 'Opening Google…' : 'Continue with Google'}
             </button>
-
-            <div className="flex items-center gap-3 my-1" aria-hidden="true">
-              <div className="flex-1 border-t border-[var(--color-line)]"></div>
-              <span className="font-mono text-xs text-[var(--color-text-secondary)] uppercase">or</span>
-              <div className="flex-1 border-t border-[var(--color-line)]"></div>
-            </div>
-          </>)}
-
-          <div className="flex flex-col gap-2">
-            <label htmlFor="email" className="text-xs font-mono text-[var(--color-text-secondary)]">Email Address</label>
-            <input
-              id="email"
-              type="email"
-              autoComplete="email webauthn"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="writer@thedark.com"
-              required
-              className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="w-full border border-[var(--color-line)] text-[var(--color-text-primary)] font-mono text-xs uppercase py-3 cursor-pointer hover:border-white"
-            disabled={anyBusy}
-          >
-            {isSubmitting ? 'Sending…' : 'Email me a sign-in link'}
-          </button>
+          )}
 
           <button
             type="button"
             onClick={handlePasskey}
             disabled={anyBusy}
-            className="self-center font-mono text-xs text-[var(--color-text-secondary)] underline hover:text-[var(--color-ember)] cursor-pointer bg-transparent"
+            className="w-full border border-[var(--color-line)] text-[var(--color-text-primary)] font-mono text-xs uppercase py-3 flex items-center justify-center gap-2 cursor-pointer hover:border-white"
           >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+              </svg>
             {isPasskeySubmitting ? 'Awaiting your device…' : 'Sign in with passkey'}
           </button>
+
+          {/* Email link: the fallback, kept small and below the main two. */}
+          {showEmail ? (
+            <div className="flex flex-col gap-2 border-t border-[var(--color-line)] pt-4">
+              <label htmlFor="email" className="text-xs font-mono text-[var(--color-text-secondary)]">Email Address</label>
+              <input
+                id="email"
+                type="email"
+                autoComplete="email webauthn"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="writer@thedark.com"
+                required
+                autoFocus
+                className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
+              />
+              <button
+                type="submit"
+                className="w-full border border-[var(--color-line)] text-[var(--color-text-primary)] font-mono text-xs uppercase py-3 cursor-pointer hover:border-white"
+                disabled={anyBusy}
+              >
+                {isSubmitting ? 'Sending…' : 'Email me a sign-in link'}
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowEmail(true)}
+              className="self-center font-mono text-xs text-[var(--color-text-secondary)] underline hover:text-[var(--color-ember)] cursor-pointer bg-transparent"
+            >
+              No Google or passkey? Email me a sign-in link
+            </button>
+          )}
         </form>
 
         {gate !== PASSED && (
