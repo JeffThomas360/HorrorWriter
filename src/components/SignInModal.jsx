@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
-import { signInWithPasskey } from '../lib/passkey'
+import { signInWithPasskey, prefetchPasskeyChallenge } from '../lib/passkey'
 import { rememberReturnPath } from '../lib/returnPath'
 import { MIN_AGE, PASSED, BLOCKED, meetsMinimumAge, selectableYears, readGate, writeGate } from '../lib/ageGate'
 
@@ -76,6 +76,12 @@ export default function SignInModal({ isOpen, onClose }) {
     window.addEventListener('message', handleMessage)
     return () => window.removeEventListener('message', handleMessage)
   }, [onClose])
+
+  // Start the passkey handshake as soon as the modal opens, so the button
+  // click goes straight to the device instead of waiting on a cold function.
+  useEffect(() => {
+    if (isOpen && gate !== BLOCKED) prefetchPasskeyChallenge()
+  }, [isOpen, gate])
 
   // Reset state when modal closes
   useEffect(() => {

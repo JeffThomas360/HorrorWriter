@@ -12,7 +12,7 @@ const signInWithOAuth = vi.fn()
 vi.mock('../supabaseClient', () => ({
   supabase: { auth: { signInWithOtp: (...a) => signInWithOtp(...a), signInWithOAuth: (...a) => signInWithOAuth(...a) } },
 }))
-vi.mock('../lib/passkey', () => ({ signInWithPasskey: vi.fn() }))
+vi.mock('../lib/passkey', () => ({ signInWithPasskey: vi.fn(), prefetchPasskeyChallenge: vi.fn() }))
 
 const SignInModal = (await import('./SignInModal')).default
 
