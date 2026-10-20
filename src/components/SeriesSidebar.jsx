@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { storyPath } from '../lib/urls'
 
 export default function SeriesSidebar({ seriesContext, isOpen, onClose, isMobile }) {
   if (!seriesContext) return null
@@ -68,7 +69,7 @@ export default function SeriesSidebar({ seriesContext, isOpen, onClose, isMobile
                 }}
               >
                 <a
-                  href={`/library/read/${book.id}/`}
+                  href={storyPath(book.id)}
                   style={{
                     color: isCurrentPart ? 'var(--color-blood)' : 'var(--color-bone)',
                     textDecoration: 'none',
@@ -93,7 +94,7 @@ export default function SeriesSidebar({ seriesContext, isOpen, onClose, isMobile
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           {currentIndex > 0 && (
             <a
-              href={`/library/read/${allBooks[currentIndex - 1].id}`}
+              href={storyPath(allBooks[currentIndex - 1].id)}
               style={{
                 flex: 1,
                 padding: '0.5rem',
@@ -118,7 +119,7 @@ export default function SeriesSidebar({ seriesContext, isOpen, onClose, isMobile
           )}
           {currentIndex < allBooks.length - 1 && (
             <a
-              href={`/library/read/${allBooks[currentIndex + 1].id}`}
+              href={storyPath(allBooks[currentIndex + 1].id)}
               style={{
                 flex: 1,
                 padding: '0.5rem',
@@ -223,7 +224,7 @@ export default function SeriesSidebar({ seriesContext, isOpen, onClose, isMobile
                   }}
                 >
                   <a
-                    href={`/library/read/${book.id}/`}
+                    href={storyPath(book.id)}
                     onClick={onClose}
                     style={{
                       color: isCurrentPart ? 'var(--color-blood)' : 'var(--color-bone)',
@@ -249,7 +250,7 @@ export default function SeriesSidebar({ seriesContext, isOpen, onClose, isMobile
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             {currentIndex > 0 && (
               <a
-                href={`/library/read/${allBooks[currentIndex - 1].id}`}
+                href={storyPath(allBooks[currentIndex - 1].id)}
                 onClick={onClose}
                 style={{
                   flex: 1,
@@ -267,7 +268,7 @@ export default function SeriesSidebar({ seriesContext, isOpen, onClose, isMobile
             )}
             {currentIndex < allBooks.length - 1 && (
               <a
-                href={`/library/read/${allBooks[currentIndex + 1].id}`}
+                href={storyPath(allBooks[currentIndex + 1].id)}
                 onClick={onClose}
                 style={{
                   flex: 1,

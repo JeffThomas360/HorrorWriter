@@ -38,6 +38,9 @@ test.describe('Forum Flows', () => {
       req.url().includes('/rpc/create_thread_with_post') && req.method() === 'POST'
     );
 
+    // The form opens on the Midnight Rituals pseudo-category; this is an ordinary thread.
+    await page.getByLabel('Category').selectOption('cat-1');
+
     // Fill the title and content
     await page.locator('input[placeholder="A chilling subject…"]').fill('The New Haunted Mansion');
     await page.locator('textarea.md-textarea').fill('I think there is something in the attic...');
@@ -53,12 +56,13 @@ test.describe('Forum Flows', () => {
     expect(postData).toEqual({
       p_title: 'The New Haunted Mansion',
       p_category_id: 'cat-1',
-      p_content: 'I think there is something in the attic...'
+      p_content: 'I think there is something in the attic...',
+      p_prompt_id: null
     });
 
-    // Verify it redirects back to the forum
-    await page.waitForURL('**/forum/');
-    await expect(page.locator('.forum-grid')).toBeVisible();
+    // Lands on the new thread (the RPC mock answers with thread-1).
+    await page.waitForURL('**/forum/thread/thread-1/');
+    await expect(page.getByText(MOCK_THREADS[0].title).first()).toBeVisible();
   });
 
   test('Create a new thread fails - error handling', async ({ page }) => {

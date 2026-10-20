@@ -8,7 +8,7 @@ test.describe('Codex (Rules & Disclaimers) Flows', () => {
 
   test('Navigate to Codex page directly', async ({ page }) => {
     await page.goto('/rules');
-    await expect(page.locator('h2.title')).toContainText('The Codex');
+    await expect(page.locator('h1.title')).toContainText('The Codex');
     await expect(page.locator('#house-rules')).toBeVisible();
     await expect(page.locator('#critique-code')).toBeVisible();
   });
@@ -19,7 +19,7 @@ test.describe('Codex (Rules & Disclaimers) Flows', () => {
     // Click "House Rules" in footer (scoped to footer to avoid conflicts)
     await page.locator('footer').getByRole('link', { name: 'House Rules' }).click();
     await page.waitForURL('**/rules/#house-rules');
-    await expect(page.locator('h2.title')).toContainText('The Codex');
+    await expect(page.locator('h1.title')).toContainText('The Codex');
     
     // Verify target header is visible
     await expect(page.locator('#house-rules')).toBeVisible();

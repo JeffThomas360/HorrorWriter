@@ -6,11 +6,11 @@ import StructuredData from '../../components/StructuredData.astro';
 import { fetchPromptArchive, OPEN_PROMPTS } from '../../lib/promptArchive';
 import { buildBreadcrumbSchema } from '../../lib/seo';
 import { threadPath } from '../../lib/urls';
+import { isPlaywrightTest } from '../../lib/testMode';
 
 let archive = null;
 try {
-  const isTest = typeof process !== 'undefined' && process.env.PLAYWRIGHT_TEST === 'true';
-  if (!isTest) archive = await fetchPromptArchive();
+  if (!isPlaywrightTest()) archive = await fetchPromptArchive();
 } catch (e) {
   console.error('Error fetching the prompt archive:', e);
 }

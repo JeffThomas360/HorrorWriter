@@ -1,6 +1,13 @@
 import { test, expect } from '@playwright/test';
 import { setupMockAuth, setupSupabaseMocks, MOCK_BOOKS, MOCK_BOOK_COMMENTS, MOCK_SERIES } from './mocks';
 
+// Stories must be at least 50 words (src/lib/storyValidation.js). Sixty, from Poe.
+const STORY =
+  'During the whole of a dull, dark, and soundless day in the autumn of the year, when the clouds hung ' +
+  'oppressively low in the heavens, I had been passing alone, on horseback, through a singularly dreary ' +
+  'tract of country; and at length found myself, as the shades of the evening drew on, within view of the ' +
+  'melancholy House of Usher.';
+
 test.describe('Library Flows', () => {
   test.beforeEach(async ({ page }) => {
     // Enable Supabase REST and profiles mocking
@@ -10,12 +17,12 @@ test.describe('Library Flows', () => {
   test('Navigate to library, view book lists and open book reader', async ({ page }) => {
     await page.goto('/library');
     
-    // Check main title
-    await expect(page.locator('h2')).toContainText('Shared work', { ignoreCase: true });
+    // Check main title (scoped by name: Astro's dev toolbar adds its own headings)
+    await expect(page.getByRole('heading', { level: 1, name: /The Library/ })).toBeVisible();
 
-    // Check book card is visible
+    // Check book card is visible (the same story can sit in more than one shelf)
     await expect(page.getByText(MOCK_BOOKS[0].title).first()).toBeVisible();
-    await expect(page.getByText(MOCK_BOOKS[0].lede)).toBeVisible();
+    await expect(page.getByText(MOCK_BOOKS[0].lede).first()).toBeVisible();
 
     // Click the book card to read
     await page.getByText(MOCK_BOOKS[0].title).first().click();
@@ -40,9 +47,9 @@ test.describe('Library Flows', () => {
     );
 
     // Fill form fields
-    await page.locator('input[placeholder="The Tell-Tale Heart"]').fill('The Fall of the House of Usher');
-    await page.locator('input[placeholder="A short hook to draw readers in…"]').fill('An eerie story about family decay.');
-    await page.locator('textarea[placeholder^="True!—nervous—"]').fill('During the whole of a dull, dark, and soundless day...');
+    await page.getByPlaceholder('The Music of Erich Zann').fill('The Fall of the House of Usher');
+    await page.getByPlaceholder("In the Rue d'Auseil").fill('An eerie story about family decay.');
+    await page.locator('textarea[placeholder^="True!—nervous—"]').fill(STORY);
 
     // Submit form
     const publishBtn = page.getByRole('button', { name: /Publish Story/i });
@@ -56,8 +63,9 @@ test.describe('Library Flows', () => {
       title: 'The Fall of the House of Usher',
       lede: 'An eerie story about family decay.',
       cover: 'blood',
-      content: 'During the whole of a dull, dark, and soundless day...',
-      author_id: 'da141b7f-712c-47bc-9173-mockuserid01'
+      content: STORY,
+      author_id: 'da141b7f-712c-47bc-9173-mockuserid01',
+      version: 1
     });
 
     // Verify redirect to reader
@@ -86,9 +94,9 @@ test.describe('Library Flows', () => {
     await page.goto('/library/publish');
 
     // Fill form fields
-    await page.locator('input[placeholder="The Tell-Tale Heart"]').fill('Failed Story');
-    await page.locator('input[placeholder="A short hook to draw readers in…"]').fill('This will not save.');
-    await page.locator('textarea[placeholder^="True!—nervous—"]').fill('Some spooky lines...');
+    await page.getByPlaceholder('The Music of Erich Zann').fill('Failed Story');
+    await page.getByPlaceholder("In the Rue d'Auseil").fill('This will not save.');
+    await page.locator('textarea[placeholder^="True!—nervous—"]').fill(STORY);
 
     // Submit
     const publishBtn = page.getByRole('button', { name: /Publish Story/i });
@@ -131,12 +139,12 @@ test.describe('Library Flows', () => {
     await setupMockAuth(page);
     await page.goto('/library/publish');
 
-    await expect(page.getByText('Part of a series?')).toBeVisible();
-    await page.locator('form select').selectOption({ label: MOCK_SERIES[0].title });
+    // By label: the form also has the editor's soundscape <select>.
+    await page.getByLabel('Part of a series?').selectOption({ label: MOCK_SERIES[0].title });
 
-    await page.locator('input[placeholder="The Tell-Tale Heart"]').fill('A Sequel');
-    await page.locator('input[placeholder="A short hook to draw readers in…"]').fill('Continuing the descent.');
-    await page.locator('textarea[placeholder^="True!—nervous—"]').fill('The house remembered.');
+    await page.getByPlaceholder('The Music of Erich Zann').fill('A Sequel');
+    await page.getByPlaceholder("In the Rue d'Auseil").fill('Continuing the descent.');
+    await page.locator('textarea[placeholder^="True!—nervous—"]').fill(STORY);
 
     const seriesRequestPromise = page.waitForRequest(req =>
       req.url().includes('/rest/v1/series_books') && req.method() === 'POST'

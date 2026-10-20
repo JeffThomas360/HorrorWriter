@@ -22,6 +22,7 @@ Obsidian vault (`D:\CLAUDECODE\Vault\02_Projects\horrorwriter\`, not in git) —
 - `_headers` is invisible to `npm run dev` — verify on the PR's Workers preview. Dead hydration tell: network shows CSS/fonts, zero JS.
 - `wrangler.toml` has no `main`/`[assets]` on purpose. It also points local dev at **production** Supabase — local writes are live writes.
 - `package.json` overrides pin `vite ^8`. Don't let npm downgrade it.
+- Pages render inside workerd, even in `npm run dev`: the shell's `process.env` is empty there. `process.env.PLAYWRIGHT_TEST` was always undefined, so every SSR "skip in tests" guard hit the live DB. Test mode is `isPlaywrightTest()` (`src/lib/testMode.js`), baked in by `vite.define` in `astro.config.mjs`.
 - Schema change = numbered migration in `supabase/migrations/` + `NOTIFY pgrst, 'reload schema';`.
 - Merging a migration applies it to production. Never use MCP `apply_migration`. Rehearse risky ones in `begin; … rollback;` via `npx supabase db query --linked -f <file>`.
 - New functions are private: client-callable ones (incl. RLS helpers) need `GRANT EXECUTE ... TO authenticated` (`anon` only if needed). After any migration, `scripts/sql/verify-grants.sql` must return zero rows.

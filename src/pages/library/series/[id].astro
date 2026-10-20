@@ -6,6 +6,7 @@ import StructuredData from '../../../components/StructuredData.astro'
 import SeriesHub from '../../../pages-react/SeriesHub'
 import { supabase } from '../../../supabaseClient'
 import { buildCreativeWorkSeriesSchema, metaDescription } from '../../../lib/seo'
+import { isPlaywrightTest } from '../../../lib/testMode'
 
 const { id } = Astro.params
 
@@ -13,8 +14,7 @@ let series = null
 // 'unknown' until a lookup answers definitively; only 'missing' becomes a 404.
 let outcome = 'unknown'
 try {
-  const isTest = typeof process !== 'undefined' && process.env.PLAYWRIGHT_TEST === 'true'
-  if (supabase && !isTest) {
+  if (supabase && !isPlaywrightTest()) {
     const result = await supabase
       .from('series')
       .select('title, description')

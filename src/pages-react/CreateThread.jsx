@@ -150,8 +150,9 @@ function CreateThread() {
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-mono text-[var(--color-text-secondary)] uppercase">Category</label>
+          <label htmlFor="thread-category" className="text-xs font-mono text-[var(--color-text-secondary)] uppercase">Category</label>
           <select
+            id="thread-category"
             value={categoryId}
             onChange={(e) => setCategoryId(e.target.value)}
             className="bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
