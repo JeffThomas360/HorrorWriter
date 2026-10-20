@@ -50,6 +50,39 @@ export async function registerPasskey() {
   await callFunction('webauthn-register-complete', attResp, token)
 }
 
+// A challenge fetched ahead of the click. The begin function cold-starts in
+// 1-2s (plus its CORS preflight), so the modal asks for one as soon as it
+// opens and the click goes straight to the browser's passkey picker.
+// Challenges live 5 minutes server-side; we discard ours after 4.
+const PREFETCH_TTL_MS = 4 * 60 * 1000
+let prefetched = null // { promise, at }
+
+/**
+ * Start the passkey handshake now so signInWithPasskey() has a challenge
+ * ready. Safe to call repeatedly; one fetch is shared. Never throws.
+ */
+export function prefetchPasskeyChallenge() {
+  if (!FUNCTIONS_URL) return
+  if (prefetched && Date.now() - prefetched.at < PREFETCH_TTL_MS) return
+  const promise = callFunction('webauthn-authenticate-begin', {}).catch(() => null)
+  prefetched = { promise, at: Date.now() }
+}
+
+/** Test hook. */
+export function _resetPasskeyPrefetch() {
+  prefetched = null
+}
+
+async function takeChallenge() {
+  const p = prefetched
+  prefetched = null
+  if (p && Date.now() - p.at < PREFETCH_TTL_MS) {
+    const raw = await p.promise
+    if (raw) return raw
+  }
+  return callFunction('webauthn-authenticate-begin', {})
+}
+
 /**
  * Sign in with a passkey. No email needed: passkeys are discoverable, so the
  * browser (or Bitwarden / 1Password) offers the ones saved for this site.
@@ -57,7 +90,7 @@ export async function registerPasskey() {
 export async function signInWithPasskey() {
   if (!supabase) throw new Error('Supabase not configured')
 
-  const raw = await callFunction('webauthn-authenticate-begin', {})
+  const raw = await takeChallenge()
 
   // _cid is our internal challenge row ID — strip it before handing options
   // to the browser so the WebAuthn API only sees valid CBOR fields.
@@ -78,6 +111,7 @@ export async function signInWithPasskey() {
   const { error } = await supabase.auth.verifyOtp({ token_hash, type: 'email' })
   if (error) throw new Error(error.message)
 }
+
 
 /**
  * Delete a registered passkey by credential ID.
