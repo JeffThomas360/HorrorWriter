@@ -4,50 +4,12 @@ import { encodeBase64, decodeBase64 } from 'jsr:@std/encoding/base64'
 
 const SUPABASE_URL     = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const ALLOWED_HOSTS = [
-  'horrorwriter.org',
-  'www.horrorwriter.org',
-  'localhost',
-  '127.0.0.1',
-]
+import { webauthnConfig } from '../_shared/webauthnOrigin.ts'
 
-const envOrigin = Deno.env.get('WEBAUTHN_ORIGIN')
-if (envOrigin) {
-  envOrigin.split(',').forEach(o => {
-    try {
-      const parsed = new URL(o.trim())
-      if (parsed.hostname && !ALLOWED_HOSTS.includes(parsed.hostname)) {
-        ALLOWED_HOSTS.push(parsed.hostname)
-      }
-    } catch (e) {
-      // ignore
-    }
-  })
-}
-
-function getRpIdAndOrigin(originHeader: string | null) {
-  let rpID = Deno.env.get('WEBAUTHN_RP_ID') ?? 'horrorwriter.org'
-  let origin = 'https://horrorwriter.org'
-
-  if (originHeader) {
-    try {
-      const parsed = new URL(originHeader)
-      const hostname = parsed.hostname
-      const isAllowed = 
-        ALLOWED_HOSTS.includes(hostname) || 
-        hostname.endsWith('.horrorwriter.pages.dev') ||
-        hostname === 'horrorwriter.pages.dev'
-
-      if (isAllowed) {
-        rpID = hostname
-        origin = originHeader
-      }
-    } catch (e) {
-      console.error('Error parsing origin header:', e)
-    }
-  }
-  return { rpID, origin }
-}
+const { rpID: RP_ID, origins: EXPECTED_ORIGINS } = webauthnConfig({
+  rpId: Deno.env.get('WEBAUTHN_RP_ID'),
+  extraOrigins: Deno.env.get('WEBAUTHN_ORIGIN'),
+})
 
 const corsHeaders = {
   'Access-Control-Allow-Origin':  '*',
@@ -100,7 +62,7 @@ Deno.serve(async (req) => {
 
     if (fetchErr) {
       console.error('[register-complete] challenge fetch error:', fetchErr)
-      return new Response(JSON.stringify({ error: 'DB error: ' + fetchErr.message }), {
+      return new Response(JSON.stringify({ error: 'Could not finish passkey setup. Try again.' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
@@ -121,14 +83,11 @@ Deno.serve(async (req) => {
       })
     }
 
-    const originHeader = req.headers.get('Origin')
-    const { rpID, origin } = getRpIdAndOrigin(originHeader)
-
     const verification = await verifyRegistrationResponse({
       response: attestation,
       expectedChallenge: challenge.challenge,
-      expectedOrigin: origin,
-      expectedRPID: rpID,
+      expectedOrigin: EXPECTED_ORIGINS,
+      expectedRPID: RP_ID,
     })
 
     // Always clean up the challenge
@@ -155,7 +114,7 @@ Deno.serve(async (req) => {
 
     if (pkInsertErr) {
       console.error('[register-complete] passkey insert failed:', pkInsertErr)
-      return new Response(JSON.stringify({ error: 'Failed to save passkey: ' + pkInsertErr.message }), {
+      return new Response(JSON.stringify({ error: 'Could not save this passkey. It may already be registered.' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
@@ -165,7 +124,7 @@ Deno.serve(async (req) => {
     })
   } catch (err) {
     console.error('[webauthn-register-complete] unexpected error:', err)
-    return new Response(JSON.stringify({ error: String(err) }), {
+    return new Response(JSON.stringify({ error: 'Could not finish passkey setup. Try again.' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }

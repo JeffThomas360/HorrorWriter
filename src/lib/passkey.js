@@ -51,13 +51,13 @@ export async function registerPasskey() {
 }
 
 /**
- * Sign in with a passkey. email scopes allowCredentials so Bitwarden
- * and other managers surface the right credential immediately.
+ * Sign in with a passkey. No email needed: passkeys are discoverable, so the
+ * browser (or Bitwarden / 1Password) offers the ones saved for this site.
  */
-export async function signInWithPasskey(email = '') {
+export async function signInWithPasskey() {
   if (!supabase) throw new Error('Supabase not configured')
 
-  const raw = await callFunction('webauthn-authenticate-begin', email ? { email } : {})
+  const raw = await callFunction('webauthn-authenticate-begin', {})
 
   // _cid is our internal challenge row ID — strip it before handing options
   // to the browser so the WebAuthn API only sees valid CBOR fields.

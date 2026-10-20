@@ -4,36 +4,9 @@ import { generateAuthenticationOptions } from 'npm:@simplewebauthn/server@11'
 const SUPABASE_URL     = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
-const ALLOWED_HOSTS = [
-  'horrorwriter.org',
-  'www.horrorwriter.org',
-  'localhost',
-  '127.0.0.1',
-]
+import { webauthnConfig } from '../_shared/webauthnOrigin.ts'
 
-const envOrigin = Deno.env.get('WEBAUTHN_ORIGIN')
-if (envOrigin) {
-  envOrigin.split(',').forEach(o => {
-    try {
-      const h = new URL(o.trim()).hostname
-      if (h && !ALLOWED_HOSTS.includes(h)) ALLOWED_HOSTS.push(h)
-    } catch (_) {}
-  })
-}
-
-function getRpId(originHeader: string | null): string {
-  const fallback = Deno.env.get('WEBAUTHN_RP_ID') ?? 'horrorwriter.org'
-  if (!originHeader) return fallback
-  try {
-    const hostname = new URL(originHeader).hostname
-    const allowed = ALLOWED_HOSTS.includes(hostname) ||
-      hostname.endsWith('.horrorwriter.pages.dev') ||
-      hostname === 'horrorwriter.pages.dev'
-    return allowed ? hostname : fallback
-  } catch (_) {
-    return fallback
-  }
-}
+const { rpID: RP_ID } = webauthnConfig({ rpId: Deno.env.get('WEBAUTHN_RP_ID') })
 
 const corsHeaders = {
   'Access-Control-Allow-Origin':  '*',
@@ -53,44 +26,26 @@ Deno.serve(async (req) => {
   try {
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } })
 
-    let allowCredentials: { id: string; type: 'public-key' }[] = []
-    let userId: string | null = null
-
-    const ct = req.headers.get('content-type') ?? ''
-    if (ct.includes('application/json')) {
-      const body = await req.json().catch(() => ({}))
-      if (body.email) {
-        // Targeted single-row lookup instead of listing all users
-        const { data: uid } = await admin.rpc('get_user_by_email', { lookup_email: body.email })
-        if (uid) {
-          userId = uid as string
-          const { data: keys } = await admin
-            .from('passkey_credentials')
-            .select('id')
-            .eq('user_id', uid)
-          // Omit transports — including them would filter out cross-platform
-          // authenticators (Bitwarden, 1Password) on some browsers.
-          allowCredentials = (keys ?? []).map((k: { id: string }) => ({
-            id: k.id,
-            type: 'public-key' as const,
-          }))
-        }
-      }
-    }
-
-    const rpID = getRpId(req.headers.get('Origin'))
+    // Passkeys are discoverable (residentKey: 'required' at registration), so
+    // the browser finds the right one itself. We never look up an email here:
+    // answering differently for known and unknown addresses would tell anyone
+    // who has an account.
+    // Housekeeping: drop unclaimed challenges older than 10 minutes.
+    await admin.from('webauthn_challenges').delete()
+      .eq('type', 'authentication')
+      .lt('created_at', new Date(Date.now() - 10 * 60 * 1000).toISOString())
 
     const options = await generateAuthenticationOptions({
-      rpID,
+      rpID: RP_ID,
       userVerification: 'preferred',
-      allowCredentials,
+      allowCredentials: [],
       timeout: 60000,
     })
 
     const { data: challengeRow, error: insertErr } = await admin
       .from('webauthn_challenges')
       .insert({
-        user_id:   userId,
+        user_id:   null,
         challenge: options.challenge,
         type:      'authentication',
         purpose:   'authenticate',
@@ -100,7 +55,7 @@ Deno.serve(async (req) => {
 
     if (insertErr || !challengeRow) {
       console.error('[authenticate-begin] challenge insert failed:', insertErr)
-      return json({ error: 'Failed to store challenge' }, 500)
+      return json({ error: 'Could not start passkey sign-in. Try again.' }, 500)
     }
 
     // _cid lets authenticate-complete do a direct lookup instead of fuzzy matching
