@@ -415,7 +415,7 @@ function ThreadView({ id, initialThread, initialPosts }) {
           {entries.map((entry, i) => {
             const comments = childrenOf[entry.id] || []
             return (
-              <article key={entry.id} id={`post-${entry.id}`} className="vintage-card flex flex-col gap-4">
+              <article key={entry.id} id={`post-${entry.id}`} className="vintage-card flex flex-col gap-4 scroll-mt-24">
                 <div className="border-b border-[var(--color-line)] pb-3 flex flex-col gap-3">
                   <h2 className="font-serif font-black text-xl text-[var(--color-text-primary)] leading-tight">
                     {entry.title || `Entry #${i + 1}`}
