@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { supabase } from '../supabaseClient'
+import { PROFILE_COLUMNS } from '../lib/profile'
 import { markSignedIn } from '../lib/ageGate'
 
 const AuthContext = createContext({
@@ -50,7 +51,7 @@ export function AuthProvider({ children }) {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('*')
+          .select(PROFILE_COLUMNS)
           .eq('id', userId)
           .single()
         if (error) throw error

@@ -34,11 +34,7 @@ const liveWork = (table) => {
 export async function fetchPublicProfileHandles() {
   if (!supabase) return []
   const [profiles, ...work] = await Promise.all([
-    supabase
-      .from('profiles')
-      .select('id, handle, updated_at')
-      .eq('is_shadowbanned', false)
-      .not('handle', 'is', null),
+    supabase.rpc('public_profile_handles'),
     liveWork('books'),
     liveWork('threads'),
     liveWork('posts'),

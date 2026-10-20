@@ -40,7 +40,7 @@ export default function UserModProfile({ userId, onClose }) {
     if (!userId) return
     setLoading(true)
     const [profRes, cf] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', userId).single(),
+      supabase.rpc('mod_get_profile', { p_id: userId }).single(),
       fetchUserCaseFile(userId, { includeAudit: canReadAudit }),
     ])
     if (profRes.data) setProfile(profRes.data)

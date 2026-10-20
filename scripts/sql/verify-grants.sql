@@ -67,7 +67,13 @@ with allow(name, role, why) as (values
   -- Client error capture (20261020010000). Write-only, truncated, capped at
   -- 300 rows/hour; visitors who crash are often signed out, so anon too.
   ('log_client_error',         'anon',          'error capture, write-only, rate-capped'),
-  ('log_client_error',         'authenticated', 'error capture, write-only, rate-capped')
+  ('log_client_error',         'authenticated', 'error capture, write-only, rate-capped'),
+  -- Sanction columns private (20261020020000). Mod reads gated by mod_can inside.
+  ('mod_get_profile',          'authenticated', 'mod RPC, mod_can(handle_report, all)'),
+  ('mod_list_users',           'authenticated', 'warden/keeper RPC, mod_can(ban, all)'),
+  ('mod_active_sanctions',     'authenticated', 'mod RPC, mod_can(handle_report, all)'),
+  ('public_profile_handles',   'anon',          'sitemap: non-shadowbanned handles, flag not exposed'),
+  ('public_profile_handles',   'authenticated', 'sitemap: non-shadowbanned handles, flag not exposed')
 ),
 grants as (
   select
