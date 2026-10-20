@@ -115,16 +115,11 @@ export default function SignInModal({ isOpen, onClose }) {
   }
 
   const handlePasskey = async () => {
-    if (!email.trim()) {
-      setError('Enter your email address first.')
-      return
-    }
     setIsPasskeySubmitting(true)
     setError(null)
     setMessage(null)
-    saveEmailCookie(email)
     try {
-      await signInWithPasskey(email)
+      await signInWithPasskey()
       onClose()
     } catch (err) {
       setError(err.message)
