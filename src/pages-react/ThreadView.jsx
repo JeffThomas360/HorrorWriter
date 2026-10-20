@@ -10,6 +10,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
 import { withProviders } from '../components/Providers'
+import KindleReader, { useKindlePrefs } from '../components/KindleReader'
 import { authorLabel, isTombstone, TOMBSTONE_TEXT } from '../lib/storyHelpers'
 
 const PAGE_SIZE = 15
@@ -43,6 +44,9 @@ function ThreadView({ id, initialThread, initialPosts }) {
   const toggleCollapsed = (pid) => setCollapsed((s) => { const n = new Set(s); n.has(pid) ? n.delete(pid) : n.add(pid); return n })
   const [activeReadersCount, setActiveReadersCount] = useState(1)
   const [reportTarget, setReportTarget] = useState(null)
+  const kindle = useKindlePrefs()
+  // Ritual entry open in Kindle Focus Mode (its post id), or null.
+  const [focusEntryId, setFocusEntryId] = useState(null)
 
   const { data: thread, isLoading: threadLoading, error: threadError } = useQuery({
     queryKey: ['thread', id],
@@ -326,6 +330,35 @@ function ThreadView({ id, initialThread, initialPosts }) {
     </div>
   )
 
+  const focusIndex = focusEntryId ? entries.findIndex((e) => e.id === focusEntryId) : -1
+  if (focusIndex >= 0) {
+    const entry = entries[focusIndex]
+    const next = entries[focusIndex + 1]
+    const entryTitle = entry.title || `Entry #${focusIndex + 1}`
+    const exitFocus = () => {
+      setFocusEntryId(null)
+      // Land back on the entry so its critique is right there.
+      setTimeout(() => document.getElementById(`post-${entry.id}`)?.scrollIntoView({ block: 'start' }), 0)
+    }
+    return (
+      <KindleReader
+        prefs={kindle}
+        onExit={exitFocus}
+        hudTitle={entryTitle}
+        eyebrow={`Midnight Ritual · entry by ${authorLabel(entry.profiles)}`}
+        title={entryTitle}
+        lede={thread?.ritual_prompts?.body ? `\u201c${thread.ritual_prompts.body}\u201d` : null}
+        exitLabel="Exit & Return to Critique"
+        footerLeft={authorLabel(entry.profiles)}
+        wordCount={entry.content?.trim().split(/\s+/).length || 0}
+        onNext={next ? () => setFocusEntryId(next.id) : undefined}
+        nextLabel={next ? `Next entry: ${next.title || `Entry #${focusIndex + 2}`} →` : undefined}
+      >
+        <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{entry.content}</ReactMarkdown>
+      </KindleReader>
+    )
+  }
+
   return (
     <div className="mt-8 max-w-2xl mx-auto">
       <a
@@ -382,12 +415,21 @@ function ThreadView({ id, initialThread, initialPosts }) {
           {entries.map((entry, i) => {
             const comments = childrenOf[entry.id] || []
             return (
-              <article key={entry.id} id={`post-${entry.id}`} className="vintage-card flex flex-col gap-4">
+              <article key={entry.id} id={`post-${entry.id}`} className="vintage-card flex flex-col gap-4 scroll-mt-24">
                 <div className="border-b border-[var(--color-line)] pb-3 flex flex-col gap-3">
                   <h2 className="font-serif font-black text-xl text-[var(--color-text-primary)] leading-tight">
                     {entry.title || `Entry #${i + 1}`}
                   </h2>
                   {postMeta(entry, `Entry #${i + 1}`)}
+                  <button
+                    type="button"
+                    onClick={() => setFocusEntryId(entry.id)}
+                    className="self-start flex items-center gap-1.5 px-3 py-1 bg-[var(--color-blood)] hover:bg-[var(--color-blood)]/80 text-white font-mono font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer shadow-sm"
+                    title="Read this entry in distraction-free Kindle Focus Mode"
+                  >
+                    <span className="text-sm">⛶</span>
+                    <span>Kindle Focus Mode</span>
+                  </button>
                 </div>
                 <div className="prose prose-invert font-serif text-lg leading-relaxed text-[var(--color-text-primary)]">
                   <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{entry.content}</ReactMarkdown>

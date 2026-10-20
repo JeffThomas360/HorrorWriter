@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 import { withProviders } from '../components/Providers'
+import { takeReturnPath } from '../lib/returnPath'
 
 function AuthCallback() {
   useDocumentTitle('Summoning…')
@@ -55,7 +56,7 @@ function AuthCallback() {
             window.opener.postMessage({ type: 'AUTH_SUCCESS' }, window.location.origin)
             window.close()
           } else {
-            window.location.replace('/profile/')
+            window.location.replace(takeReturnPath())
           }
         }
       } catch (err) {
@@ -72,7 +73,7 @@ function AuthCallback() {
           window.opener.postMessage({ type: 'AUTH_SUCCESS' }, window.location.origin)
           window.close()
         } else {
-          window.location.replace('/profile/')
+          window.location.replace(takeReturnPath())
         }
       }
     })
@@ -86,7 +87,7 @@ function AuthCallback() {
             window.opener.postMessage({ type: 'AUTH_SUCCESS' }, window.location.origin)
             window.close()
           } else {
-            window.location.replace('/profile/')
+            window.location.replace(takeReturnPath())
           }
         }
       } else {
