@@ -57,6 +57,12 @@ with allow(name, role, why) as (values
   -- that the prompt is live; get-or-creates the prompt's Crypt thread.
   ('ritual_publish_entry',     'authenticated', 'publish entry, author = auth.uid(), prompt must be live'),
   ('ritual_edit_entry',        'authenticated', 'edit own entry, author = auth.uid(), re-checks title and 100-2000 words'),
+  ('ritual_start_revision',    'authenticated', 'mentor RPC, mod_can(hide, forum)'),
+  ('ritual_finish_revision',   'authenticated', 'mentor RPC, mod_can(hide, forum)'),
+  ('ritual_post_feedback',     'authenticated', 'private feedback, author or mod_can(hide, forum), open revision only'),
+  ('ritual_mark_ready',        'authenticated', 'author marks own revision ready, author = auth.uid()'),
+  ('ritual_revision_placeholders', 'anon',      'readers see which entries are under revision (author name only)'),
+  ('ritual_revision_placeholders', 'authenticated', 'readers see which entries are under revision (author name only)'),
   -- Public by design: the next unlock TIME, never the prompt text.
   ('ritual_next_unlock',       'anon',          'next weekly unlock time for the home countdown'),
   ('ritual_next_unlock',       'authenticated', 'next weekly unlock time for the home countdown'),
