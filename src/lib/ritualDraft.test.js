@@ -45,14 +45,9 @@ describe('countWords', () => {
 
 describe('countRitualWords', () => {
   it('does not count the marks the editor writes on its own', () => {
-    expect(countRitualWords('one two
-
----
-
-three')).toBe(3)
+    expect(countRitualWords('one two\n\n---\n\nthree')).toBe(3)
     expect(countRitualWords('* * *')).toBe(0)
-    expect(countRitualWords('> a quoted line
-> and another')).toBe(5)
+    expect(countRitualWords('> a quoted line\n> and another')).toBe(5)
     expect(countRitualWords('**bold** and *italic* words')).toBe(4)
   })
   it('needs 100 words to publish', () => {
