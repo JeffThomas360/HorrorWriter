@@ -9,6 +9,12 @@ vi.mock('./AuthContext', () => ({
 vi.mock('../lib/soundscapes', () => ({ playTypewriterKey: () => {} }))
 vi.mock('../lib/screenContent', () => ({ screenContent: vi.fn(async () => {}) }))
 vi.mock('../supabaseClient', () => ({ supabase: {} }))
+// The real editor is ProseMirror; these tests are about the box around it.
+vi.mock('./RitualEditor', () => ({
+  default: ({ id, value, onChange, placeholder }) => (
+    <textarea id={id} aria-label={placeholder} value={value} onChange={(e) => onChange(e.target.value)} />
+  ),
+}))
 
 let current = null
 let next = null
@@ -28,6 +34,7 @@ vi.mock('../lib/ritualDraft', async (importOriginal) => ({ ...(await importOrigi
 
 const MidnightRitual = (await import('./MidnightRitual')).default
 
+const LONG = Array(100).fill('wall').join(' ')
 const PROMPT = { id: 'p1', body: 'A tenant hears scratching behind the new wallpaper.', goes_live_at: '2026-10-09T07:00:00Z' }
 
 beforeEach(() => {
@@ -42,7 +49,7 @@ afterEach(cleanup)
 
 const open = async () => {
   fireEvent.click(await screen.findByRole('button', { name: /write to this/i }))
-  return screen.getByRole('textbox')
+  return screen.findByRole('textbox')
 }
 
 test('renders multi-channel frequencies tuner with CH 13.0 through CH 13.4', async () => {
@@ -161,7 +168,7 @@ test('signed out: clicking Publish for Critique prompts to sign in', async () =>
   const heard = vi.fn()
   window.addEventListener('open-signin', heard)
   render(<MidnightRitual />)
-  fireEvent.change(await open(), { target: { value: 'the walls breathe' } })
+  fireEvent.change(await open(), { target: { value: LONG } })
   fireEvent.click(screen.getByRole('button', { name: /publish for critique/i }))
   expect(heard).toHaveBeenCalled()
   expect(window.localStorage.getItem('hw.ritual.saveAfterSignin')).toBe('p1')
@@ -177,7 +184,7 @@ test('signed in: clicking Publish for Critique prompts for title and publishes',
   window.location = { assign: assignSpy }
 
   render(<MidnightRitual />)
-  fireEvent.change(await open(), { target: { value: 'the walls breathe' } })
+  fireEvent.change(await open(), { target: { value: LONG } })
   fireEvent.click(screen.getByRole('button', { name: /publish for critique/i }))
 
   expect(await screen.findByLabelText(/title your story for the crypt/i)).toBeInTheDocument()
@@ -188,4 +195,17 @@ test('signed in: clicking Publish for Critique prompts for title and publishes',
     expect(api.shareRitualDraft).toHaveBeenCalledWith({ draftId: 'draft-1', title: 'Scratching Walls' })
     expect(assignSpy).toHaveBeenCalledWith('/forum/thread/thread-new-1/#post-post-9')
   })
+})
+
+test('Publish for Critique waits for 100 words, and says how many are left', async () => {
+  current = PROMPT
+  auth = { user: { id: 'u1' }, isLoading: false }
+  render(<MidnightRitual />)
+  const box = await open()
+  fireEvent.change(box, { target: { value: 'the walls breathe' } })
+  expect(screen.getByRole('button', { name: /publish for critique/i })).toBeDisabled()
+  expect(screen.getByRole('button', { name: /save draft/i })).toBeEnabled()
+  expect(screen.getByText(/97 more words to publish/i)).toBeInTheDocument()
+  fireEvent.change(box, { target: { value: LONG } })
+  expect(screen.getByRole('button', { name: /publish for critique/i })).toBeEnabled()
 })
