@@ -170,8 +170,11 @@ function Forum() {
     })
   }, [activePrompts])
 
+  // Ritual threads live in their own category, not in the general list.
+  const generalThreads = useMemo(() => threads.filter(t => t.category_id !== 'rituals'), [threads])
+
   const visible = useMemo(() => {
-    let base = activeCat === 'all' ? threads : threads.filter(t => t.category_id === activeCat)
+    let base = activeCat === 'all' ? generalThreads : threads.filter(t => t.category_id === activeCat)
     if (activeCat === 'rituals' && activePromptId !== 'all') {
       const selectedSub = promptSubcategories.find(s => s.id === activePromptId)
       base = base.filter(t => {
@@ -189,7 +192,7 @@ function Forum() {
         by.toLowerCase().includes(q) ||
         (catLabels[t.category_id] || '').toLowerCase().includes(q)
     })
-  }, [activeCat, activePromptId, query, threads, catLabels, promptSubcategories])
+  }, [activeCat, activePromptId, query, threads, generalThreads, catLabels, promptSubcategories])
 
   if (loading) return (
     <div className="mt-8">
@@ -232,7 +235,7 @@ function Forum() {
                 }}
               >
                 <span>All Threads</span>
-                <span className="font-mono text-xs">{threads.length}</span>
+                <span className="font-mono text-xs">{generalThreads.length}</span>
               </li>
               {allCategories.map(c => {
                 const count = threads.filter(t => t.category_id === c.id).length

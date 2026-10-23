@@ -10,6 +10,7 @@ import { hasPublicWork } from '../../lib/sitemapQueries';
 import { fetchAuthorStories } from '../../lib/authorStories';
 import { storyPath } from '../../lib/urls';
 import { buildProfilePageSchema, buildBreadcrumbSchema, metaDescription } from '../../lib/seo';
+import { isPlaywrightTest } from '../../lib/testMode';
 
 const { handle } = Astro.params;
 
@@ -23,8 +24,7 @@ let outcome = 'unknown';
 let hasWork = null;
 let stories = [];
 try {
-  const isTest = typeof process !== 'undefined' && process.env.PLAYWRIGHT_TEST === 'true';
-  if (supabase && handle && !isTest) {
+  if (supabase && handle && !isPlaywrightTest()) {
     const result = await supabase
       .from('profiles')
       .select(PUBLIC_PROFILE_COLUMNS)

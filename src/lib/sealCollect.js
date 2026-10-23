@@ -187,7 +187,7 @@ export async function restoreWriting(supabase, userId, payload) {
  * vice versa).
  */
 async function updateProfileField(supabase, userId, fields) {
-  const { error } = await supabase.from('profiles').update(fields).eq('id', userId).select().single()
+  const { error } = await supabase.from('profiles').update(fields).eq('id', userId).select('id, handle, display_name').single()
   if (error) throw error
 }
 

@@ -6,6 +6,7 @@ import WitchingHourBar from '../components/WitchingHourBar.jsx';
 import VoidWhispers from '../components/VoidWhispers.jsx';
 import { supabase } from '../supabaseClient';
 import { buildWebSiteSchema, buildFAQSchema } from '../lib/seo';
+import { isPlaywrightTest } from '../lib/testMode';
 
 const faqs = [
   {
@@ -76,8 +77,7 @@ const WHY = [
 let tiles = FALLBACK_TILES;
 
 try {
-  const isTest = typeof process !== 'undefined' && process.env.PLAYWRIGHT_TEST === 'true';
-  if (supabase && !isTest) {
+  if (supabase && !isPlaywrightTest()) {
     const { data } = await supabase
       .from('threads')
       .select('*, categories(name), profiles(handle)')

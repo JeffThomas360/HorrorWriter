@@ -51,6 +51,10 @@ export default defineConfig({
     envPrefix: ['PUBLIC_', 'VITE_'],
     define: {
       __BUILD_INFO__: JSON.stringify(BUILD_INFO),
+      // Playwright's webServer sets PLAYWRIGHT_TEST=true. Baked in here because pages
+      // render inside workerd, where the shell's process.env is not visible
+      // (src/lib/testMode.js). Production builds get a literal `false`.
+      __PLAYWRIGHT_TEST__: JSON.stringify(process.env.PLAYWRIGHT_TEST === 'true'),
     },
     plugins: [tailwindcss()],
     resolve: {

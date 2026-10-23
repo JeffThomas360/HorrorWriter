@@ -8,10 +8,24 @@ import { supabase } from '../supabaseClient'
  */
 
 export const WORD_LIMIT = 2000
+/** Publishing needs a real piece; saving a draft doesn't. Mirrors ritual_publish_entry. */
+export const MIN_WORDS = 100
 
 /** \S+ tokens: the same rule as the ritual_drafts CHECK. */
 export function countWords(text) {
   const m = (text || '').match(/\S+/g)
+  return m ? m.length : 0
+}
+
+/**
+ * Words as the database counts them (ritual_word_count): the Markdown marks the
+ * editor adds on their own (a scene break, the > of a quote) are not words.
+ */
+export function countRitualWords(text) {
+  const t = (text || '')
+    .replace(/^[^\S\n]*(?:[-*_][^\S\n]*){3,}$/gm, '')
+    .replace(/^[^\S\n]*>+[^\S\n]?/gm, '')
+  const m = t.match(/\S+/g)
   return m ? m.length : 0
 }
 
@@ -127,6 +141,7 @@ export async function saveRitualDraft({ promptId, userId, content }) {
 export function ritualPublishErrorMessage(error) {
   if (error?.code === 'HW013') return 'A story title must be between 1 and 200 characters.'
   if (error?.code === 'HW014') return 'Your story needs some words before it can be published.'
+  if (error?.code === 'HW023') return `A ritual response needs at least ${MIN_WORDS} words to be published.`
   if (error?.code === 'P0002') return "This channel's prompt isn't live yet, so it can't take entries."
   if (error?.code === '42501') return 'You do not have permission to publish this story.'
   return error?.message || 'Failed to publish for critique.'

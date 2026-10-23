@@ -27,6 +27,41 @@ test.describe('Forum Flows', () => {
     await expect(page.getByText(MOCK_POSTS[1].content)).toBeVisible();
   });
 
+  test('Ritual threads stay out of All Threads and live in their own category', async ({ page }) => {
+    const ritual = {
+      ...MOCK_THREADS[0],
+      id: 'thread-ritual',
+      title: 'Horror Writing Prompt: the astronomer and the sky',
+      category_id: 'rituals',
+      prompt_id: 'prompt-a',
+      pinned: false,
+    };
+    await page.route('**/rest/v1/threads*', async (route) => {
+      if (route.request().method() !== 'GET') return route.fallback();
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([...MOCK_THREADS, ritual]),
+      });
+    });
+
+    await page.goto('/forum');
+    await expect(page.getByText(MOCK_THREADS[0].title)).toBeVisible();
+    await expect(page.getByText(ritual.title)).toHaveCount(0);
+
+    await page.getByRole('listitem').filter({ hasText: 'Midnight Rituals' }).first().click();
+    await expect(page.getByText(ritual.title)).toBeVisible();
+  });
+
+  test('New thread form does not offer Midnight Rituals', async ({ page }) => {
+    await setupMockAuth(page);
+    await page.goto('/forum/new');
+
+    const options = page.locator('select').first().locator('option');
+    await expect(options.first()).toBeAttached();
+    await expect(options.filter({ hasText: 'Midnight Rituals' })).toHaveCount(0);
+  });
+
   test('Create a new thread (authenticated)', async ({ page }) => {
     // Inject mock session
     await setupMockAuth(page);
@@ -37,6 +72,9 @@ test.describe('Forum Flows', () => {
     const requestPromise = page.waitForRequest(req => 
       req.url().includes('/rpc/create_thread_with_post') && req.method() === 'POST'
     );
+
+    // The form opens on the Midnight Rituals pseudo-category; this is an ordinary thread.
+    await page.getByLabel('Category').selectOption('cat-1');
 
     // Fill the title and content
     await page.locator('input[placeholder="A chilling subject…"]').fill('The New Haunted Mansion');
@@ -53,12 +91,13 @@ test.describe('Forum Flows', () => {
     expect(postData).toEqual({
       p_title: 'The New Haunted Mansion',
       p_category_id: 'cat-1',
-      p_content: 'I think there is something in the attic...'
+      p_content: 'I think there is something in the attic...',
+      p_prompt_id: null
     });
 
-    // Verify it redirects back to the forum
-    await page.waitForURL('**/forum/');
-    await expect(page.locator('.forum-grid')).toBeVisible();
+    // Lands on the new thread (the RPC mock answers with thread-1).
+    await page.waitForURL('**/forum/thread/thread-1/');
+    await expect(page.getByText(MOCK_THREADS[0].title).first()).toBeVisible();
   });
 
   test('Create a new thread fails - error handling', async ({ page }) => {

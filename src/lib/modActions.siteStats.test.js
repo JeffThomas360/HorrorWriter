@@ -16,12 +16,16 @@ const from = vi.fn((table) => {
   }
   return q
 })
-vi.mock('../supabaseClient', () => ({ supabase: { from: (...a) => from(...a) } }))
+// Active sanctions come from the mod_active_sanctions() RPC (banned_until is
+// private since 20261020020000); its rows are counted client-side.
+let sanctions = { data: [], error: null }
+const rpc = vi.fn(() => Promise.resolve(sanctions))
+vi.mock('../supabaseClient', () => ({ supabase: { from: (...a) => from(...a), rpc: (...a) => rpc(...a) } }))
 
 const { fetchSiteStats } = await import('./modActions')
 const filtersFor = (table) => calls.filter((c) => c.table === table).map((c) => c.filters)
 
-beforeEach(() => { calls.length = 0; results = {} })
+beforeEach(() => { calls.length = 0; results = {}; sanctions = { data: [], error: null } })
 
 describe('fetchSiteStats', () => {
   it('filters content on mod_status, the column that exists', async () => {

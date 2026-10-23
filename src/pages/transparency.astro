@@ -3,12 +3,13 @@ export const prerender = false; // Render server-side at request time
 
 import MainLayout from '../layouts/MainLayout.astro';
 import { supabase } from '../supabaseClient';
+import { isPlaywrightTest } from '../lib/testMode';
 
 let logs = [];
 let error = null;
 
 try {
-  const isTest = typeof process !== 'undefined' && process.env.PLAYWRIGHT_TEST === 'true';
+  const isTest = isPlaywrightTest();
   if (supabase && !isTest) {
     // Attempt hardened RPC first; fallback to legacy view during migration transition
     let res = await supabase.rpc('get_transparency_log', { limit_count: 50 });

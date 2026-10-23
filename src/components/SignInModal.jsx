@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
-import { signInWithPasskey } from '../lib/passkey'
+import { signInWithPasskey, prefetchPasskeyChallenge } from '../lib/passkey'
+import { rememberReturnPath } from '../lib/returnPath'
 import { MIN_AGE, PASSED, BLOCKED, meetsMinimumAge, selectableYears, readGate, writeGate } from '../lib/ageGate'
 
 const MONTHS = [
@@ -40,6 +41,7 @@ export default function SignInModal({ isOpen, onClose }) {
   // existing accounts. 'signup' shows the gate until this browser has passed.
   const [mode, setMode] = useState('signin')
   const [noAccount, setNoAccount] = useState(false)
+  const [showEmail, setShowEmail] = useState(false)
   const [birthMonth, setBirthMonth] = useState('')
   const [birthYear, setBirthYear] = useState('')
   const [gateError, setGateError] = useState(null)
@@ -75,6 +77,12 @@ export default function SignInModal({ isOpen, onClose }) {
     return () => window.removeEventListener('message', handleMessage)
   }, [onClose])
 
+  // Start the passkey handshake as soon as the modal opens, so the button
+  // click goes straight to the device instead of waiting on a cold function.
+  useEffect(() => {
+    if (isOpen && gate !== BLOCKED) prefetchPasskeyChallenge()
+  }, [isOpen, gate])
+
   // Reset state when modal closes
   useEffect(() => {
     if (!isOpen) {
@@ -83,6 +91,7 @@ export default function SignInModal({ isOpen, onClose }) {
       setMessage(null)
       setMode('signin')
       setNoAccount(false)
+      setShowEmail(false)
     }
   }, [isOpen])
 
@@ -115,19 +124,21 @@ export default function SignInModal({ isOpen, onClose }) {
   }
 
   const handlePasskey = async () => {
-    if (!email.trim()) {
-      setError('Enter your email address first.')
-      return
-    }
     setIsPasskeySubmitting(true)
     setError(null)
     setMessage(null)
-    saveEmailCookie(email)
     try {
-      await signInWithPasskey(email)
+      await signInWithPasskey()
       onClose()
     } catch (err) {
-      setError(err.message)
+      const msg = err?.message || ''
+      if (/rp\.?id|cannot be used with the current origin/i.test(msg)) {
+        setError('Passkeys only work on horrorwriter.org. Use Google or the email link here.')
+      } else if (err?.name === 'NotAllowedError') {
+        setError('Passkey sign-in was cancelled or timed out.')
+      } else {
+        setError(msg || 'Passkey sign-in failed.')
+      }
     } finally {
       setIsPasskeySubmitting(false)
     }
@@ -148,6 +159,22 @@ export default function SignInModal({ isOpen, onClose }) {
       setIsGoogleSubmitting(false)
       return
     }
+    rememberReturnPath()
+    // Open the popup NOW, inside the click. Opened after the await below,
+    // Safari, Firefox and most phones treat it as unrequested and block it.
+    const width = 500, height = 650
+    const left  = window.screen.width  / 2 - width  / 2
+    const top   = window.screen.height / 2 - height / 2
+    let win = null
+    try {
+      win = window.open(
+        'about:blank',
+        'google_signin',
+        `width=${width},height=${height},left=${left},top=${top},status=no,resizable=yes,scrollbars=yes`
+      )
+    } catch {
+      win = null
+    }
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -162,19 +189,15 @@ export default function SignInModal({ isOpen, onClose }) {
       if (error) throw error
       if (!data?.url) throw new Error('OAuth URL not returned.')
 
-      const width = 500, height = 650
-      const left  = window.screen.width  / 2 - width  / 2
-      const top   = window.screen.height / 2 - height / 2
-      const win   = window.open(
-        data.url,
-        'google_signin',
-        `width=${width},height=${height},left=${left},top=${top},status=no,resizable=yes,scrollbars=yes`
-      )
-      if (!win) {
-        setError('Pop-ups are blocked — allow pop-ups for this site and try again.')
-        setIsGoogleSubmitting(false)
+      if (win && !win.closed) {
+        win.location.href = data.url
+      } else {
+        // Popup blocked anyway: do it in this tab. /auth/callback brings the
+        // writer back to this page afterwards.
+        window.location.assign(data.url)
       }
     } catch (err) {
+      try { win?.close() } catch {}
       setError(err.message || 'Failed to initiate Google sign-in.')
       setIsGoogleSubmitting(false)
     }
@@ -210,6 +233,7 @@ export default function SignInModal({ isOpen, onClose }) {
 
     try {
       saveEmailCookie(email)
+      rememberReturnPath()
       // Only a browser that has passed the gate may create an account by email;
       // otherwise the link can only sign in to an account that already exists.
       const { error } = await supabase.auth.signInWithOtp({
@@ -221,10 +245,11 @@ export default function SignInModal({ isOpen, onClose }) {
       })
       if (error && (error.code === 'otp_disabled' || /signups not allowed/i.test(error.message || ''))) {
         setNoAccount(true)
+        setShowEmail(true)
         return
       }
       if (error) throw error
-      setMessage('Check your email for the magic link.')
+      setMessage('Link sent. Check your inbox (and spam) and click it to sign in.')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -311,7 +336,7 @@ export default function SignInModal({ isOpen, onClose }) {
         {gate !== BLOCKED && (gate === PASSED || mode === 'signin') && (<>
         <div className="mb-6 text-center">
           <h2 className="text-2xl font-serif mb-2">Summon <em className="text-[var(--color-accent-crimson)] not-italic">Yourself</em></h2>
-          <p className="text-xs text-[var(--color-text-secondary)] font-serif">Enter the void using your passkey or email credentials.</p>
+          <p className="text-xs text-[var(--color-text-secondary)] font-serif">No password needed.</p>
           {error   && <div className="text-[var(--color-ember)] text-xs mt-3 font-mono">{error}</div>}
           {message && <div className="text-[var(--color-text-primary)] text-xs mt-3 font-mono">{message}</div>}
           {noAccount && (
@@ -336,60 +361,64 @@ export default function SignInModal({ isOpen, onClose }) {
             />
           </div>
 
-          <div className="flex flex-col gap-3">
+          {enableGoogle && (
             <button
               type="button"
               className="w-full bg-[var(--color-text-primary)] text-[var(--color-bg-primary)] font-mono text-xs uppercase py-3 flex items-center justify-center gap-2 hover:bg-white cursor-pointer"
-              onClick={handlePasskey}
+              onClick={handleGoogleSignIn}
               disabled={anyBusy}
             >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09zM12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23zM5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63zM12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
               </svg>
-              {isPasskeySubmitting ? 'Awaiting your device...' : 'Sign in with Passkey'}
+              {isGoogleSubmitting ? 'Opening Google…' : 'Continue with Google'}
             </button>
-
-            {enableGoogle && (
-              <button
-                type="button"
-                className="w-full border border-[var(--color-line)] text-[var(--color-text-primary)] font-mono text-xs uppercase py-3 flex items-center justify-center gap-2 cursor-pointer hover:border-white"
-                onClick={handleGoogleSignIn}
-                disabled={anyBusy}
-              >
-                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09zM12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23zM5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63zM12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-                </svg>
-                {isGoogleSubmitting ? 'Opening...' : 'Continue with Google'}
-              </button>
-            )}
-          </div>
-
-          <div className="flex items-center gap-3 my-1" aria-hidden="true">
-            <div className="flex-1 border-t border-[var(--color-line)]"></div>
-            <span className="font-mono text-xs text-[var(--color-text-secondary)] uppercase">or</span>
-            <div className="flex-1 border-t border-[var(--color-line)]"></div>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label htmlFor="email" className="text-xs font-mono text-[var(--color-text-secondary)]">Email Address</label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="writer@thedark.com"
-              required
-              className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
-            />
-          </div>
+          )}
 
           <button
-            type="submit"
-            className="text-center font-mono text-xs uppercase text-[var(--color-text-secondary)] underline hover:text-[var(--color-accent-crimson)] cursor-pointer py-1 bg-transparent"
+            type="button"
+            onClick={handlePasskey}
             disabled={anyBusy}
+            className="w-full border border-[var(--color-line)] text-[var(--color-text-primary)] font-mono text-xs uppercase py-3 flex items-center justify-center gap-2 cursor-pointer hover:border-white"
           >
-            {isSubmitting ? 'Channeling...' : 'Email me a sign-in link instead'}
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+              </svg>
+            {isPasskeySubmitting ? 'Awaiting your device…' : 'Sign in with passkey'}
           </button>
+
+          {/* Email link: the fallback, kept small and below the main two. */}
+          {showEmail ? (
+            <div className="flex flex-col gap-2 border-t border-[var(--color-line)] pt-4">
+              <label htmlFor="email" className="text-xs font-mono text-[var(--color-text-secondary)]">Email Address</label>
+              <input
+                id="email"
+                type="email"
+                autoComplete="email webauthn"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="writer@thedark.com"
+                required
+                autoFocus
+                className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
+              />
+              <button
+                type="submit"
+                className="w-full border border-[var(--color-line)] text-[var(--color-text-primary)] font-mono text-xs uppercase py-3 cursor-pointer hover:border-white"
+                disabled={anyBusy}
+              >
+                {isSubmitting ? 'Sending…' : 'Email me a sign-in link'}
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowEmail(true)}
+              className="self-center font-mono text-xs text-[var(--color-text-secondary)] underline hover:text-[var(--color-ember)] cursor-pointer bg-transparent"
+            >
+              No Google or passkey? Email me a sign-in link
+            </button>
+          )}
         </form>
 
         {gate !== PASSED && (

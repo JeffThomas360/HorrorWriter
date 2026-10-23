@@ -8,16 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import TranscribeButton from '../components/TranscribeButton'
 import { withProviders } from '../components/Providers'
 import RequireAuth from '../components/RequireAuth'
-import { fetchActivePrompts } from '../lib/ritualDraft'
 import { threadPath } from '../lib/urls'
-
-const ROTATING_FALLBACK_PROMPTS = [
-  'The astronomer realized the stars were not burning out—something vast was standing between the telescope and the sky.',
-  'Every year, the village buries a carved wooden effigy of the oldest resident. This year, the wood bled.',
-  'You bought a blank VHS cassette at an estate sale. The footage is from inside your bedroom, filmed last night.',
-  'For three weeks, your reflection in the bathroom mirror has been blinking half a second after you do.',
-  'The radio emergency broadcast system activated at 3:17 AM. It repeated only three words: Do not look.',
-]
 
 function CreateThread() {
   const { session, isLoading: authLoading } = useAuth()
@@ -28,13 +19,6 @@ function CreateThread() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search)
       return params.get('cat') || ''
-    }
-    return ''
-  })
-  const [promptId, setPromptId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search)
-      return params.get('prompt') || ''
     }
     return ''
   })
@@ -57,58 +41,27 @@ function CreateThread() {
     }
   })
 
-  const { data: activePrompts = [] } = useQuery({
-    queryKey: ['activePrompts'],
-    queryFn: () => fetchActivePrompts(5),
-  })
-
-  const promptOptions = useMemo(() => {
-    return Array.from({ length: 5 }, (_, i) => {
-      const p = activePrompts[i]
-      return {
-        id: p?.id || `prompt-${i}`,
-        dbPromptId: p?.id || null,
-        label: i === 0 ? 'Prompt 1 · Current Transmission' : `Prompt ${i + 1} · Week ${i + 1} of 5`,
-        body: p?.body || ROTATING_FALLBACK_PROMPTS[i],
-      }
-    })
-  }, [activePrompts])
-
-  const categories = useMemo(() => {
-    const list = [...rawCategories]
-    if (!list.some(c => c.id === 'rituals')) {
-      list.unshift({
-        id: 'rituals',
-        name: 'Midnight Rituals · Prompts',
-        description: 'Five weekly rotating prompts and user story submissions for critique.',
-        sort_order: 0,
-      })
-    }
-    return list.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-  }, [rawCategories])
+  // Ritual entries are published from the Midnight Ritual box, never from here.
+  const categories = useMemo(
+    () => rawCategories
+      .filter(c => c.id !== 'rituals')
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)),
+    [rawCategories],
+  )
 
   useEffect(() => {
-    if (categories.length > 0 && !categoryId) {
+    if (categories.length === 0) return
+    if (!categoryId || !categories.some(c => c.id === categoryId)) {
       setCategoryId(categories[0].id)
     }
   }, [categories, categoryId])
 
-  useEffect(() => {
-    if (categoryId === 'rituals' && !promptId && promptOptions.length > 0) {
-      setPromptId(promptOptions[0].dbPromptId || promptOptions[0].id)
-    }
-  }, [categoryId, promptId, promptOptions])
-
   const mutation = useMutation({
-    mutationFn: async ({ title, categoryId, content, promptId }) => {
-      const selectedSub = promptOptions.find(p => p.id === promptId || p.dbPromptId === promptId)
-      const effectivePromptId = selectedSub?.dbPromptId || (promptId && !promptId.startsWith('prompt-') ? promptId : null)
-
+    mutationFn: async ({ title, categoryId, content }) => {
       const { data, error } = await supabase.rpc('create_thread_with_post', {
         p_title: title.trim(),
         p_category_id: categoryId,
         p_content: content.trim(),
-        p_prompt_id: categoryId === 'rituals' ? effectivePromptId : null,
       })
       if (error) throw error
       return { id: data }
@@ -130,7 +83,7 @@ function CreateThread() {
       setError('Title and content are required.')
       return
     }
-    mutation.mutate({ title, categoryId, content, promptId })
+    mutation.mutate({ title, categoryId, content })
   }
 
   const isSubmitting = mutation.isPending
@@ -141,8 +94,6 @@ function CreateThread() {
     </div>
   )
 
-  const selectedPrompt = promptOptions.find(p => p.id === promptId || p.dbPromptId === promptId)
-
   return (
     <div className="mt-8 max-w-2xl mx-auto">
       <span className="block font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-text-secondary)] mb-2">The Crypt</span>
@@ -150,8 +101,9 @@ function CreateThread() {
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-mono text-[var(--color-text-secondary)] uppercase">Category</label>
+          <label htmlFor="thread-category" className="text-xs font-mono text-[var(--color-text-secondary)] uppercase">Category</label>
           <select
+            id="thread-category"
             value={categoryId}
             onChange={(e) => setCategoryId(e.target.value)}
             className="bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
@@ -161,28 +113,6 @@ function CreateThread() {
             ))}
           </select>
         </div>
-
-        {categoryId === 'rituals' && (
-          <div className="p-4 border border-[var(--color-upside)] bg-[var(--color-void)] flex flex-col gap-3">
-            <label className="text-xs font-mono text-[var(--color-upside)] uppercase font-bold">
-              ◈ Midnight Ritual Prompt Sub-Category
-            </label>
-            <select
-              value={promptId}
-              onChange={(e) => setPromptId(e.target.value)}
-              className="bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-upside)] focus:outline-none"
-            >
-              {promptOptions.map(p => (
-                <option key={p.id} value={p.dbPromptId || p.id}>{p.label}</option>
-              ))}
-            </select>
-            {selectedPrompt && (
-              <blockquote className="font-serif italic text-xs text-[var(--color-text-primary)] border-l-2 border-l-[var(--color-upside)] pl-3 py-1 my-1">
-                &ldquo;{selectedPrompt.body}&rdquo;
-              </blockquote>
-            )}
-          </div>
-        )}
 
         <div className="flex flex-col gap-2">
           <label className="text-xs font-mono text-[var(--color-text-secondary)] uppercase">Title</label>

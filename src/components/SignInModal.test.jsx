@@ -12,12 +12,18 @@ const signInWithOAuth = vi.fn()
 vi.mock('../supabaseClient', () => ({
   supabase: { auth: { signInWithOtp: (...a) => signInWithOtp(...a), signInWithOAuth: (...a) => signInWithOAuth(...a) } },
 }))
-vi.mock('../lib/passkey', () => ({ signInWithPasskey: vi.fn() }))
+vi.mock('../lib/passkey', () => ({ signInWithPasskey: vi.fn(), prefetchPasskeyChallenge: vi.fn() }))
 
 const SignInModal = (await import('./SignInModal')).default
 
 function open() {
   return render(<SignInModal isOpen onClose={() => {}} />)
+}
+
+// The email field is collapsed behind a link until the writer asks for it.
+async function revealEmail() {
+  fireEvent.click(await screen.findByRole('button', { name: /email me a sign-in link/i }))
+  return screen.findByLabelText(/email address/i)
 }
 
 function passGate() {
@@ -41,15 +47,16 @@ afterEach(() => {
 describe('SignInModal age gate', () => {
   test('a browser with no verdict opens on sign-in, not the birth-date screen', async () => {
     open()
-    expect(await screen.findByLabelText(/email address/i)).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /continue with google/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /sign in with passkey/i })).toBeInTheDocument()
+    expect(screen.queryByLabelText(/email address/i)).toBeNull()
     expect(screen.queryByLabelText('Month')).toBeNull()
   })
 
   test('without a verdict, the email link can only sign in, never create an account', async () => {
     open()
-    fireEvent.change(await screen.findByLabelText(/email address/i), { target: { value: 'member@example.com' } })
-    fireEvent.click(screen.getByRole('button', { name: /email me a sign-in link/i }))
+    fireEvent.change(await revealEmail(), { target: { value: 'member@example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: /^email me a sign-in link$/i }))
     await waitFor(() => expect(signInWithOtp).toHaveBeenCalled())
     expect(signInWithOtp.mock.calls[0][0].options.shouldCreateUser).toBe(false)
   })
@@ -57,8 +64,8 @@ describe('SignInModal age gate', () => {
   test('an unknown email is pointed to account creation', async () => {
     signInWithOtp.mockResolvedValue({ error: { code: 'otp_disabled', message: 'Signups not allowed for otp' } })
     open()
-    fireEvent.change(await screen.findByLabelText(/email address/i), { target: { value: 'new@example.com' } })
-    fireEvent.click(screen.getByRole('button', { name: /email me a sign-in link/i }))
+    fireEvent.change(await revealEmail(), { target: { value: 'new@example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: /^email me a sign-in link$/i }))
     expect(await screen.findByText(/no account uses that email/i)).toBeInTheDocument()
   })
 
@@ -74,8 +81,8 @@ describe('SignInModal age gate', () => {
     fireEvent.click(await screen.findByRole('button', { name: /create an account/i }))
     expect(await screen.findByLabelText('Month')).toBeInTheDocument()
     passGate()
-    fireEvent.change(await screen.findByLabelText(/email address/i), { target: { value: 'new@example.com' } })
-    fireEvent.click(screen.getByRole('button', { name: /email me a sign-in link/i }))
+    fireEvent.change(await revealEmail(), { target: { value: 'new@example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: /^email me a sign-in link$/i }))
     await waitFor(() => expect(signInWithOtp).toHaveBeenCalled())
     expect(signInWithOtp.mock.calls[0][0].options.shouldCreateUser).toBe(true)
     expect(localStorage.getItem(GATE_KEY)).toBe(PASSED)
@@ -105,4 +112,45 @@ describe('SignInModal age gate', () => {
     await waitFor(() => expect(signInWithOAuth).toHaveBeenCalled())
     expect(signInWithOAuth.mock.calls[0][0].options.queryParams).toEqual({ prompt: 'select_account' })
   })
+
+  // Opened after an await, the popup is blocked by Safari, Firefox and phones.
+  test('Google opens its popup inside the click, before the OAuth request', async () => {
+    localStorage.setItem(GATE_KEY, PASSED)
+    const order = []
+    const popup = { closed: false, location: { href: '' }, close: vi.fn() }
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => { order.push('open'); return popup })
+    signInWithOAuth.mockImplementation(async () => { order.push('oauth'); return { data: { url: 'https://accounts.google.com/x' }, error: null } })
+    open()
+    fireEvent.click(await screen.findByRole('button', { name: /continue with google/i }))
+    await waitFor(() => expect(popup.location.href).toBe('https://accounts.google.com/x'))
+    expect(order).toEqual(['open', 'oauth'])
+    openSpy.mockRestore()
+  })
+
+  test('a blocked popup falls back to signing in in the same tab', async () => {
+    localStorage.setItem(GATE_KEY, PASSED)
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+    const assign = vi.fn()
+    const realLocation = window.location
+    Object.defineProperty(window, 'location', { configurable: true, value: { ...realLocation, origin: realLocation.origin, pathname: '/forum/', search: '', hash: '', assign } })
+    signInWithOAuth.mockResolvedValue({ data: { url: 'https://accounts.google.com/y' }, error: null })
+    open()
+    fireEvent.click(await screen.findByRole('button', { name: /continue with google/i }))
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('https://accounts.google.com/y'))
+    expect(JSON.parse(localStorage.getItem('hw_return_to')).p).toBe('/forum/')
+    Object.defineProperty(window, 'location', { configurable: true, value: realLocation })
+    openSpy.mockRestore()
+  })
+
+  test('order is Google, passkey, then the email link; the field appears only on request', async () => {
+    localStorage.setItem(GATE_KEY, PASSED)
+    open()
+    const buttons = (await screen.findAllByRole('button')).map((b) => b.textContent.trim())
+    const idx = (re) => buttons.findIndex((t) => re.test(t))
+    expect(idx(/continue with google/i)).toBeLessThan(idx(/sign in with passkey/i))
+    expect(idx(/sign in with passkey/i)).toBeLessThan(idx(/email me a sign-in link/i))
+    expect(screen.queryByLabelText(/email address/i)).toBeNull()
+    expect(await revealEmail()).toBeInTheDocument()
+  })
 })
+
