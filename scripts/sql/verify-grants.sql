@@ -56,6 +56,7 @@ with allow(name, role, why) as (values
   -- Ritual publish (20261018000000). Binds author to auth.uid(), checks ban and
   -- that the prompt is live; get-or-creates the prompt's Crypt thread.
   ('ritual_publish_entry',     'authenticated', 'publish entry, author = auth.uid(), prompt must be live'),
+  ('ritual_edit_entry',        'authenticated', 'edit own entry, author = auth.uid(), re-checks title and 100-2000 words'),
   -- Public by design: the next unlock TIME, never the prompt text.
   ('ritual_next_unlock',       'anon',          'next weekly unlock time for the home countdown'),
   ('ritual_next_unlock',       'authenticated', 'next weekly unlock time for the home countdown'),

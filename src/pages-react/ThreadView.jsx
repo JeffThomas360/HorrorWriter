@@ -6,6 +6,7 @@ import ReportModal from '../components/ReportModal'
 import CommunityGuidelines from '../components/CommunityGuidelines'
 import InlineModControls from '../components/mod/InlineModControls'
 import MarkdownEditor from '../components/MarkdownEditor'
+import RitualEntryActions, { EditedMarker } from '../components/RitualEntryActions'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
@@ -41,6 +42,7 @@ function ThreadView({ id, initialThread, initialPosts }) {
   const [commentContent, setCommentContent] = useState('')
   const [commentError, setCommentError] = useState(null)
   const [collapsed, setCollapsed] = useState(() => new Set())
+  const [editingEntryId, setEditingEntryId] = useState(null)
   const toggleCollapsed = (pid) => setCollapsed((s) => { const n = new Set(s); n.has(pid) ? n.delete(pid) : n.add(pid); return n })
   const [activeReadersCount, setActiveReadersCount] = useState(1)
   const [reportTarget, setReportTarget] = useState(null)
@@ -421,6 +423,16 @@ function ThreadView({ id, initialThread, initialPosts }) {
                     {entry.title || `Entry #${i + 1}`}
                   </h2>
                   {postMeta(entry, `Entry #${i + 1}`)}
+                  {entry.edited_at && <EditedMarker at={entry.edited_at} />}
+                  {userId && entry.author_id === userId && (
+                    <RitualEntryActions
+                      entry={entry}
+                      critiqueCount={comments.length}
+                      onEditingChange={(on) => setEditingEntryId((cur) => (on ? entry.id : cur === entry.id ? null : cur))}
+                      onChanged={() => queryClient.invalidateQueries({ queryKey: ['posts', id] })}
+                      onThreadGone={() => window.location.replace('/forum/?cat=rituals')}
+                    />
+                  )}
                   <button
                     type="button"
                     onClick={() => setFocusEntryId(entry.id)}
@@ -431,9 +443,11 @@ function ThreadView({ id, initialThread, initialPosts }) {
                     <span>Kindle Focus Mode</span>
                   </button>
                 </div>
-                <div className="prose prose-invert font-serif text-lg leading-relaxed text-[var(--color-text-primary)]">
-                  <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{entry.content}</ReactMarkdown>
-                </div>
+                {editingEntryId !== entry.id && (
+                  <div className="prose prose-invert font-serif text-lg leading-relaxed text-[var(--color-text-primary)]">
+                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{entry.content}</ReactMarkdown>
+                  </div>
+                )}
 
                 <section aria-label={`Critique of ${entry.title || `entry ${i + 1}`}`} className="border-t border-[var(--color-line)] pt-4 flex flex-col gap-4">
                   <h3 className="font-mono text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
