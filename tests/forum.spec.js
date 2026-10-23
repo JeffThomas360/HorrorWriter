@@ -27,6 +27,41 @@ test.describe('Forum Flows', () => {
     await expect(page.getByText(MOCK_POSTS[1].content)).toBeVisible();
   });
 
+  test('Ritual threads stay out of All Threads and live in their own category', async ({ page }) => {
+    const ritual = {
+      ...MOCK_THREADS[0],
+      id: 'thread-ritual',
+      title: 'Horror Writing Prompt: the astronomer and the sky',
+      category_id: 'rituals',
+      prompt_id: 'prompt-a',
+      pinned: false,
+    };
+    await page.route('**/rest/v1/threads*', async (route) => {
+      if (route.request().method() !== 'GET') return route.fallback();
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([...MOCK_THREADS, ritual]),
+      });
+    });
+
+    await page.goto('/forum');
+    await expect(page.getByText(MOCK_THREADS[0].title)).toBeVisible();
+    await expect(page.getByText(ritual.title)).toHaveCount(0);
+
+    await page.getByRole('listitem').filter({ hasText: 'Midnight Rituals' }).first().click();
+    await expect(page.getByText(ritual.title)).toBeVisible();
+  });
+
+  test('New thread form does not offer Midnight Rituals', async ({ page }) => {
+    await setupMockAuth(page);
+    await page.goto('/forum/new');
+
+    const options = page.locator('select').first().locator('option');
+    await expect(options.first()).toBeAttached();
+    await expect(options.filter({ hasText: 'Midnight Rituals' })).toHaveCount(0);
+  });
+
   test('Create a new thread (authenticated)', async ({ page }) => {
     // Inject mock session
     await setupMockAuth(page);
