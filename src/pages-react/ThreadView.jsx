@@ -7,6 +7,8 @@ import CommunityGuidelines from '../components/CommunityGuidelines'
 import InlineModControls from '../components/mod/InlineModControls'
 import MarkdownEditor from '../components/MarkdownEditor'
 import RitualEntryActions, { EditedMarker } from '../components/RitualEntryActions'
+import RitualRevisionPanel, { StartRevision } from '../components/RitualRevisionPanel'
+import { fetchRevisionPlaceholders } from '../lib/ritualRevision'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
@@ -93,6 +95,14 @@ function ThreadView({ id, initialThread, initialPosts }) {
     getNextPageParam: (lastPage, allPages) => {
       return lastPage.length === PAGE_SIZE ? allPages.length : undefined
     }
+  })
+
+  // Entries a mentor has put under revision: readers can't read them, so the
+  // thread shows a placeholder in their place.
+  const { data: placeholders = [] } = useQuery({
+    queryKey: ['ritualPlaceholders', id],
+    queryFn: () => fetchRevisionPlaceholders(id),
+    enabled: thread?.category_id === 'rituals',
   })
 
   const posts = postsData ? postsData.pages.flat() : []
@@ -200,6 +210,14 @@ function ThreadView({ id, initialThread, initialPosts }) {
   const isRitual = thread?.category_id === 'rituals'
   const opId = isRitual && posts[0] && !posts[0].author_id ? posts[0].id : null
   const entries = isRitual ? posts.filter((p) => !p.parent_post_id && p.id !== opId) : []
+  const timeline = isRitual
+    ? [
+        ...entries.map((entry, index) => ({ entry, index, at: entry.created_at })),
+        ...placeholders
+          .filter((ph) => !entries.some((e) => e.id === ph.post_id))
+          .map((placeholder) => ({ placeholder, at: placeholder.created_at })),
+      ].sort((a, b) => new Date(a.at) - new Date(b.at))
+    : []
   // childrenOf[entryId] = critiques; childrenOf[critiqueId] = replies to it.
   const childrenOf = {}
   if (isRitual) posts.forEach((p) => { if (p.parent_post_id) (childrenOf[p.parent_post_id] ||= []).push(p) })
@@ -411,10 +429,22 @@ function ThreadView({ id, initialThread, initialPosts }) {
 
       {isRitual && (
         <div className="flex flex-col gap-8">
-          {entries.length === 0 && (
+          {timeline.length === 0 && (
             <p className="font-serif italic text-sm text-[var(--color-text-secondary)]">No entries yet.</p>
           )}
-          {entries.map((entry, i) => {
+          {timeline.map((item) => {
+            if (item.placeholder) {
+              return (
+                <article key={`ph-${item.placeholder.post_id}`} className="vintage-card flex flex-col gap-2">
+                  <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-upside)] font-bold">Under revision</span>
+                  <p className="font-serif italic text-[var(--color-text-secondary)]">
+                    {item.placeholder.handle ? `@${item.placeholder.handle}’s` : 'This'} response is being revised with a mentor.
+                  </p>
+                </article>
+              )
+            }
+            const entry = item.entry
+            const i = item.index
             const comments = childrenOf[entry.id] || []
             return (
               <article key={entry.id} id={`post-${entry.id}`} className="vintage-card flex flex-col gap-4 scroll-mt-24">
@@ -424,6 +454,10 @@ function ThreadView({ id, initialThread, initialPosts }) {
                   </h2>
                   {postMeta(entry, `Entry #${i + 1}`)}
                   {entry.edited_at && <EditedMarker at={entry.edited_at} />}
+                  {entry.mod_status === 'hidden' && (
+                    <span className="self-start font-mono text-[10px] uppercase tracking-widest text-[var(--color-upside)] font-bold">Under revision</span>
+                  )}
+                  <StartRevision entry={entry} />
                   {userId && entry.author_id === userId && (
                     <RitualEntryActions
                       entry={entry}
@@ -443,6 +477,7 @@ function ThreadView({ id, initialThread, initialPosts }) {
                     <span>Kindle Focus Mode</span>
                   </button>
                 </div>
+                {entry.mod_status === 'hidden' && <RitualRevisionPanel entry={entry} />}
                 {editingEntryId !== entry.id && (
                   <div className="prose prose-invert font-serif text-lg leading-relaxed text-[var(--color-text-primary)]">
                     <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{entry.content}</ReactMarkdown>
