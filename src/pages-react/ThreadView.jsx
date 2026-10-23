@@ -114,6 +114,16 @@ function ThreadView({ id, initialThread, initialPosts }) {
   // Keyed on the user id, not the session object: AuthContext replaces it on
   // every token refresh, and rebuilding the channel each time stopped live replies.
   const userId = session?.user?.id
+
+  // The server-rendered posts are what a signed-out reader may see. Once the
+  // session is known, fetch again so the author and moderators get what RLS
+  // lets them see (an entry under revision, their own hidden posts).
+  useEffect(() => {
+    if (userId) {
+      queryClient.invalidateQueries({ queryKey: ['posts', id] })
+      queryClient.invalidateQueries({ queryKey: ['ritualPlaceholders', id] })
+    }
+  }, [userId, id, queryClient])
   useEffect(() => {
     if (!supabase || !id) return
     const presenceKey = userId || 'anonymous-' + Math.random().toString(36).substr(2, 9)
