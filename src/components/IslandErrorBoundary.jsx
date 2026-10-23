@@ -1,4 +1,5 @@
 import React from 'react'
+import { reportClientError } from '../lib/errorReporter'
 
 export default class IslandErrorBoundary extends React.Component {
   constructor(props) {
@@ -12,6 +13,7 @@ export default class IslandErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     console.error('[IslandErrorBoundary] React island crash:', error, errorInfo)
+    reportClientError('island', error, errorInfo?.componentStack)
   }
 
   handleReset = () => {

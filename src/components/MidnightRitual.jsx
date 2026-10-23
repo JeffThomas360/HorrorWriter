@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from './AuthContext'
 import { withProviders } from './Providers'
 import { supabase } from '../supabaseClient'
@@ -7,7 +7,8 @@ import { formatSlot } from '../lib/ritualSchedule'
 import { screenContent } from '../lib/screenContent'
 import {
   WORD_LIMIT,
-  countWords,
+  MIN_WORDS,
+  countRitualWords,
   readLocalDraft,
   writeLocalDraft,
   clearLocalDraft,
@@ -23,6 +24,9 @@ import {
   fetchMyLatestEntryId,
   fetchEntryCounts,
 } from '../lib/ritualDraft'
+
+// The visual editor is only needed once the box opens.
+const RitualEditor = lazy(() => import('./RitualEditor'))
 
 const ROTATING_FALLBACK_PROMPTS = [
   'The astronomer realized the stars were not burning out—something vast was standing between the telescope and the sky.',
@@ -72,8 +76,9 @@ function MidnightRitual() {
   }, [activePrompts])
 
   const activeChannel = channels[activeChannelIndex] || channels[0]
-  const wordCount = countWords(text)
+  const wordCount = countRitualWords(text)
   const overLimit = wordCount > WORD_LIMIT
+  const tooShort = wordCount < MIN_WORDS
 
   useEffect(() => {
     let alive = true
@@ -168,7 +173,7 @@ function MidnightRitual() {
     if (chIdx !== activeChannelIndex) setActiveChannelIndex(chIdx)
 
     const local = readLocalDraft(flagged)
-    if (!local || countWords(local) === 0 || countWords(local) > WORD_LIMIT) return
+    if (!local || countRitualWords(local) === 0 || countRitualWords(local) > WORD_LIMIT) return
     setText(local)
     setIsWriting(true)
     const targetChannel = channels[chIdx]
@@ -204,7 +209,7 @@ function MidnightRitual() {
   }
 
   const handleStartPublish = () => {
-    if (!activeChannel || wordCount === 0 || overLimit) return
+    if (!activeChannel || wordCount === 0 || overLimit || tooShort) return
     if (!activeChannel.isDbPrompt) {
       setStatus({ kind: 'error', message: "This channel's prompt isn't live yet. Save your draft; you can publish once it airs." })
       return
@@ -317,8 +322,8 @@ function MidnightRitual() {
             </span>
             <span className="font-mono text-[11px] text-[var(--color-text-secondary)] uppercase">
               {activeChannel.isDbPrompt && activeChannel.goes_live_at
-                ? `Live since ${formatSlot(activeChannel.goes_live_at)} · up to ${WORD_LIMIT} words`
-                : `${activeChannel.freq} · up to ${WORD_LIMIT} words`}
+                ? `Live since ${formatSlot(activeChannel.goes_live_at)} · ${MIN_WORDS} to ${WORD_LIMIT} words to publish`
+                : `${activeChannel.freq} · ${MIN_WORDS} to ${WORD_LIMIT} words to publish`}
             </span>
             {activeChannelIndex === 0 && nextUnlock && (
               <span className="font-mono text-[10px] text-[var(--color-text-secondary)]">
@@ -359,14 +364,14 @@ function MidnightRitual() {
             </span>
           </div>
 
-          <textarea
-            id="ritual-text"
-            value={text}
-            onChange={(e) => handleChange(e.target.value)}
-            placeholder="Begin where the prompt ends…"
-            rows={8}
-            className="w-full bg-[var(--color-void)] text-[var(--color-text-primary)] border border-[var(--color-line)] p-4 font-serif text-sm leading-relaxed focus:border-[var(--color-upside)] outline-none"
-          />
+          <Suspense fallback={<div className="min-h-[14rem] border border-[var(--color-line)] bg-[var(--color-void)]" aria-busy="true" />}>
+            <RitualEditor
+              id="ritual-text"
+              value={text}
+              onChange={handleChange}
+              placeholder="Begin where the prompt ends…"
+            />
+          </Suspense>
 
           {isPublishing ? (
             <div className="p-4 bg-[var(--color-surface)] border border-[var(--color-upside)] mt-2">
@@ -411,6 +416,7 @@ function MidnightRitual() {
             <div className="flex flex-wrap items-center justify-between gap-4 mt-2">
               <p role="status" className="font-mono text-[11px] text-[var(--color-text-secondary)]">
                 {status.kind === 'idle' && (user ? 'Kept on this device until you save.' : 'Kept on this device. Sign in to save it to your account.')}
+                {status.kind === 'idle' && wordCount > 0 && tooShort && ` ${MIN_WORDS - wordCount} more ${MIN_WORDS - wordCount === 1 ? 'word' : 'words'} to publish.`}
                 {status.kind === 'saving' && (status.message || 'Saving…')}
                 {status.kind === 'saved' && (status.message || 'Saved to your account. Only you can see it.')}
                 {status.kind === 'published' && 'Published! Directing to The Crypt…'}
@@ -428,7 +434,7 @@ function MidnightRitual() {
                 <button
                   type="button"
                   onClick={handleStartPublish}
-                  disabled={wordCount === 0 || overLimit || status.kind === 'saving'}
+                  disabled={wordCount === 0 || overLimit || tooShort || status.kind === 'saving'}
                   className="btn-vhs bg-[var(--color-accent-crimson)] text-white hover:bg-red-700 border-red-800 disabled:opacity-40 cursor-pointer"
                 >
                   Publish for Critique →

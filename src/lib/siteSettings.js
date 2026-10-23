@@ -53,10 +53,7 @@ export async function updateSiteSettings(patch) {
  */
 export async function fetchAllUsers() {
   if (!supabase) throw new Error('Supabase not configured')
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, handle, display_name, avatar_url, mod_role, mod_scope, banned_until, is_shadowbanned, requires_screening, created_at')
-    .order('created_at', { ascending: false })
+  const { data, error } = await supabase.rpc('mod_list_users')
   if (error) throw new Error(error.message)
   return data ?? []
 }
