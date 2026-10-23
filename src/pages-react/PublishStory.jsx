@@ -325,8 +325,9 @@ function PublishStory({ bookId }) {
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-xs font-mono text-[var(--color-ash)] uppercase">Part of a series?</label>
+              <label htmlFor="story-series" className="text-xs font-mono text-[var(--color-ash)] uppercase">Part of a series?</label>
               <select
+                id="story-series"
                 value={seriesId}
                 onChange={(e) => setSeriesId(e.target.value)}
                 className="bg-[var(--color-void)] text-[var(--color-bone)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-blood)] outline-none font-mono cursor-pointer"

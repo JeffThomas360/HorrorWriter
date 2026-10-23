@@ -7,6 +7,7 @@ import StructuredData from '../../../components/StructuredData.astro';
 import ThreadView from '../../../pages-react/ThreadView.jsx';
 import { supabase } from '../../../supabaseClient';
 import { buildDiscussionForumPostingSchema, buildBreadcrumbSchema } from '../../../lib/seo';
+import { isPlaywrightTest } from '../../../lib/testMode';
 
 const { id } = Astro.params;
 
@@ -15,8 +16,7 @@ let initialPosts = undefined;
 // 'unknown' until a lookup answers definitively; only 'missing' becomes a 404.
 let outcome = 'unknown';
 try {
-  const isTest = typeof process !== 'undefined' && process.env.PLAYWRIGHT_TEST === 'true';
-  if (supabase && !isTest) {
+  if (supabase && !isPlaywrightTest()) {
     const result = await supabase
       .from('threads')
       .select('*, profiles(handle), categories(name), ritual_prompts(id, body, goes_live_at)')

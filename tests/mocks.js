@@ -311,6 +311,37 @@ export const MOCK_NOTIFICATIONS = [
   }
 ];
 
+// The admin user directory. Only the columns fetchAllUsers selects.
+export const MOCK_DIRECTORY = [
+  { id: MOCK_USER_ID, handle: 'testwriter', display_name: 'Test Writer', avatar_url: null, mod_role: null, mod_scope: 'all', banned_until: null, is_shadowbanned: false, requires_screening: false, created_at: '2026-05-26T00:00:00Z' },
+  { id: 'user-warden', handle: 'warden_wendy', display_name: 'Warden Wendy', avatar_url: null, mod_role: 'warden', mod_scope: 'all', banned_until: null, is_shadowbanned: false, requires_screening: false, created_at: '2026-06-01T00:00:00Z' },
+  { id: 'user-newbie', handle: 'spooky_newbie', display_name: 'Spooky Newbie', avatar_url: null, mod_role: null, mod_scope: 'all', banned_until: null, is_shadowbanned: false, requires_screening: true, created_at: '2026-06-02T00:00:00Z' },
+];
+
+// site_settings has one row (id 1); these match the production defaults.
+export const MOCK_SITE_SETTINGS = {
+  id: 1,
+  registration_open: true,
+  maintenance_mode: false,
+  maintenance_message: null,
+  announcement_text: null,
+  announcement_active: false,
+  announcement_severity: 'info',
+};
+
+export const MOCK_MOD_ACTIONS = [
+  {
+    id: 'action-1',
+    action: 'site_setting_changed',
+    target_type: null,
+    target_id: null,
+    target_user_id: null,
+    reason: 'registration_open: true',
+    created_at: '2026-10-01T00:00:00Z',
+    profiles: { handle: 'testwriter' }
+  }
+];
+
 export const MOCK_PASSKEYS = [
   {
     id: 'pk-1',
@@ -350,6 +381,12 @@ export async function setupSupabaseMocks(page, opts = {}) {
             { id: 'user-warden', handle: 'warden_wendy', display_name: 'Warden Wendy', avatar_url: null, mod_role: 'warden', mod_scope: 'all', created_at: '2026-06-01T00:00:00Z' },
             { id: 'user-newbie', handle: 'spooky_newbie', display_name: 'Spooky Newbie', avatar_url: null, mod_role: null, mod_scope: 'all', created_at: '2026-06-02T00:00:00Z' },
           ]),
+        })
+      } else if (url.includes('order=created_at')) {
+        // The admin user directory (fetchAllUsers): every profile, newest first.
+        route.fulfill({
+          status: 200, contentType: 'application/json',
+          body: JSON.stringify(MOCK_DIRECTORY.map((u) => (u.id === MOCK_USER_ID ? { ...u, mod_role: selfProfile.mod_role } : u))),
         })
       } else {
         route.fulfill({
@@ -715,5 +752,40 @@ export async function setupSupabaseMocks(page, opts = {}) {
         { role: 'sentinel', emoji: '🔦', label: 'Sentinel' },
       ]),
     })
+  });
+
+  // Admin panel reads. Writes go through RPCs (set_site_setting etc.) and are
+  // left unmocked: no admin test saves anything.
+  const jsonGet = (body) => async (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+  };
+  await page.route('**/rest/v1/site_settings*', jsonGet(MOCK_SITE_SETTINGS));
+  await page.route('**/rest/v1/mod_actions*', jsonGet(MOCK_MOD_ACTIONS));
+  await page.route('**/rest/v1/keeper_tasks*', jsonGet([]));
+  await page.route('**/rest/v1/ritual_prompts*', jsonGet([]));
+
+  // Post-publish screening (src/lib/screenContent.js). Never reaches the real
+  // function from a test.
+  await page.route('**/functions/v1/moderate-content', async (route) => {
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
+  });
+
+  // Count queries (`select('id', { count: 'exact', head: true })`, e.g. the admin
+  // Overview's stats) are HEAD requests. The table handlers above only answer
+  // GET/POST/PATCH, and a handler that answers nothing hangs the request, so
+  // every HEAD gets a count here. Registered last = consulted first; anything
+  // that isn't a HEAD falls through to the table handlers. Notifications keep
+  // their own unread count.
+  await page.route('**/rest/v1/**', async (route) => {
+    if (route.request().method() !== 'HEAD' || route.request().url().includes('/notifications')) {
+      return route.fallback();
+    }
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: { 'content-range': '0-2/3', 'access-control-expose-headers': 'content-range' },
+      body: ''
+    });
   });
 }

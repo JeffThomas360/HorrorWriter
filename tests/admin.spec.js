@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { setupSupabaseMocks, setupMockAuth } from './mocks'
 
 /**
  * Admin panel E2E.
@@ -9,18 +10,38 @@ import { test, expect } from '@playwright/test'
  * tab roles/labels, the directory search box, and `.admin-user-row`. Treat them
  * as API when changing these components.
  *
- * Auth setup mirrors whatever tests/moderation.spec.js does; these tests assume
- * the same signed-in-as-Keeper storage state.
+ * Auth is the same arrangement as tests/moderation.spec.js: a mocked session in
+ * localStorage plus a profiles mock whose mod_role decides what /admin shows.
+ * No saved storage-state file is involved.
  */
 
 test.describe('Admin panel', () => {
+  // /admin is the heaviest page in the app (six tabs plus the moderation case
+  // file). Astro's dev server compiles it on first request, and when every
+  // worker's first test hits a cold server at once that compile outlasts the
+  // 15s expect timeout; serially the same tests pass in a few seconds each.
+  // Compile it once per worker before anything is measured.
+  test.beforeAll(async ({ browser }) => {
+    const page = await browser.newPage()
+    await setupSupabaseMocks(page, { mod_role: 'keeper' })
+    await setupMockAuth(page)
+    await page.goto('/admin')
+    await expect(page.getByRole('tablist', { name: 'Admin sections' })).toBeVisible({ timeout: 90_000 })
+    await page.close()
+  })
+
   test('is a 404 for a visitor with no mod role', async ({ page }) => {
+    await setupSupabaseMocks(page)            // MOCK_PROFILE has mod_role: null
+    await setupMockAuth(page)
     await page.goto('/admin')
     await expect(page.getByText('404 — page not found')).toBeVisible()
   })
 
   test.describe('as Keeper', () => {
-    test.use({ storageState: 'tests/.auth/keeper.json' })
+    test.beforeEach(async ({ page }) => {
+      await setupSupabaseMocks(page, { mod_role: 'keeper' })
+      await setupMockAuth(page)
+    })
 
     test('renders every admin tab', async ({ page }) => {
       await page.goto('/admin')

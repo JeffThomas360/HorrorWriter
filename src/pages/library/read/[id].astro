@@ -9,6 +9,7 @@ import { supabase } from '../../../supabaseClient';
 import { buildCreativeWorkSchema, buildBreadcrumbSchema, metaDescription } from '../../../lib/seo';
 import { isArchive, storyKeyColumn } from '../../../lib/storyHelpers';
 import { storyPath } from '../../../lib/urls';
+import { isPlaywrightTest } from '../../../lib/testMode';
 
 const { id } = Astro.params;
 
@@ -16,8 +17,7 @@ let book = null;
 // 'unknown' until a lookup answers definitively; only 'missing' becomes a 404.
 let outcome = 'unknown';
 try {
-  const isTest = typeof process !== 'undefined' && process.env.PLAYWRIGHT_TEST === 'true';
-  if (supabase && !isTest) {
+  if (supabase && !isPlaywrightTest()) {
     // Classics are addressed by slug, everything else by uuid.
     const result = await supabase
       .from('books')

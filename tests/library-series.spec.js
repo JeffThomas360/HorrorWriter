@@ -95,7 +95,7 @@ test.describe('Series Hub Page', () => {
     for (let i = 0; i < MOCK_SERIES_PARTS.length; i++) {
       await expect(links.nth(i)).toHaveAttribute(
         'href',
-        `/library/read/${MOCK_SERIES_PARTS[i].book_id}`
+        `/library/read/${MOCK_SERIES_PARTS[i].book_id}/`
       );
     }
   });
