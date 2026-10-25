@@ -71,6 +71,24 @@ describe('buildVaultPayload', () => {
     expect(unsealed.entry.seal).toBeNull()
   })
 
+  it('includes the private mentor conversation and revision state, in order, sealed when seals are given', () => {
+    const f2 = { id: 'f2', post_id: 'e1', sender_id: 'author', body: 'Revised.', created_at: '2026-10-05T00:00:00Z', profiles: { handle: 'writer' } }
+    const f1 = { id: 'f1', post_id: 'e1', sender_id: 'mod', body: 'Tighten the ending.', created_at: '2026-10-04T00:00:00Z', profiles: { handle: 'jeff' } }
+    const elsewhere = { id: 'f9', post_id: 'e2', sender_id: 'mod', body: 'Not yours.', created_at: '2026-10-04T00:00:00Z' }
+    const revision = { post_id: 'e1', started_by: 'mod', started_at: '2026-10-04T00:00:00Z', ready_at: '2026-10-05T00:00:00Z', resolved_at: null }
+    const p = buildVaultPayload({ thread, entry, posts: [entry], feedback: [f2, f1, elsewhere], revision, seals: { f1: 'cc' } })
+    expect(p.feedback.map((f) => f.key)).toEqual(['f1', 'f2'])
+    expect(p.feedback[0]).toMatchObject({ sender_handle: 'jeff', body: 'Tighten the ending.', seal: 'cc' })
+    expect(p.feedback[1].seal).toBeNull()
+    expect(p.revision).toEqual({ started_by: 'mod', started_at: '2026-10-04T00:00:00Z', ready_at: '2026-10-05T00:00:00Z', resolved_at: null })
+  })
+
+  it('has an empty conversation and no revision for an entry that was never mentored', () => {
+    const p = buildVaultPayload({ thread, entry, posts: [entry] })
+    expect(p.feedback).toEqual([])
+    expect(p.revision).toBeNull()
+  })
+
   it('copies only known columns', () => {
     const noisy = post('c1', { parent_post_id: 'e1', secret_column: 'nope' })
     const p = buildVaultPayload({ thread, entry, posts: [entry, noisy] })

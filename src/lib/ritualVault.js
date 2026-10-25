@@ -7,7 +7,8 @@
 // reply under a removed post is dropped with it, since its parent will not exist on restore.
 // The entry itself is kept even if hidden, so a writer under revision never loses their work;
 // its mod_status is recorded so restore can bring it back still hidden.
-// ritual_feedback (the private mentor conversation) is deliberately not collected here.
+// The private mentor conversation (ritual_feedback) and the revision state go in too (Jeff,
+// 2026-10-24), so a restored entry that was under revision comes back with its conversation.
 
 export const VAULT_PAYLOAD_VERSION = 1
 export const VAULT_KIND = 'ritual-entry'
@@ -29,9 +30,11 @@ function byCreated(a, b) {
  *                thread can be recreated if it was removed with the last entry.
  * @param entry   the author's top-level post row (with profiles(handle) if available)
  * @param posts   every post in the thread (the builder picks the entry's descendants)
- * @param seals   optional { [postId]: sealHex } made by the server at archive time
+ * @param feedback  ritual_feedback rows for the entry (private mentor conversation)
+ * @param revision  the entry's ritual_revisions row, or null if it was never under revision
+ * @param seals   optional { [postId or feedbackId]: sealHex } made by the server at archive time
  */
-export function buildVaultPayload({ thread, entry, posts = [], seals = null }) {
+export function buildVaultPayload({ thread, entry, posts = [], feedback = [], revision = null, seals = null }) {
   const seal = (id) => seals?.[id] ?? null
   const item = (row, fields, parentKey) => ({
     key: row.id,
@@ -71,5 +74,25 @@ export function buildVaultPayload({ thread, entry, posts = [], seals = null }) {
     },
     entry: item(entry, ENTRY_FIELDS, null),
     critiques: critiques.map((c) => item(c, CRITIQUE_FIELDS, c.parent_post_id)),
+    feedback: feedback
+      .filter((f) => f.post_id === entry.id)
+      .slice()
+      .sort(byCreated)
+      .map((f) => ({
+        key: f.id,
+        sender_id: f.sender_id ?? null,
+        sender_handle: f.profiles?.handle ?? null,
+        body: f.body,
+        created_at: f.created_at,
+        seal: seal(f.id),
+      })),
+    revision: revision
+      ? {
+          started_by: revision.started_by ?? null,
+          started_at: revision.started_at ?? null,
+          ready_at: revision.ready_at ?? null,
+          resolved_at: revision.resolved_at ?? null,
+        }
+      : null,
   }
 }
