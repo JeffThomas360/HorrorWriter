@@ -92,6 +92,7 @@ export function buildVaultPayload({ thread, entry, posts = [], feedback = [], re
           started_at: revision.started_at ?? null,
           ready_at: revision.ready_at ?? null,
           resolved_at: revision.resolved_at ?? null,
+          seal: seal('revision'),
         }
       : null,
   }
