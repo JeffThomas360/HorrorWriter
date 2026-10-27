@@ -7,6 +7,7 @@ import { editRitualEntry, deleteRitualEntry, formatEdited } from '../lib/ritualE
 const RitualEditor = lazy(() => import('./RitualEditor'))
 
 const LINK = 'font-mono text-xs uppercase tracking-wide text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] cursor-pointer'
+const ACTION = 'font-mono text-xs uppercase tracking-wide text-[var(--color-text-primary)] border border-[var(--color-line)] hover:border-[var(--color-text-primary)] px-4 py-2 min-h-[44px] cursor-pointer'
 
 /** "Edited October 22nd, 2026 @ 1657". Client-only: the time zone is the reader's. */
 export function EditedMarker({ at }) {
@@ -143,9 +144,9 @@ export default function RitualEntryActions({ entry, critiqueCount = 0, onChanged
   }
 
   return (
-    <div className="flex items-center gap-4">
-      <button type="button" onClick={startEdit} className={LINK}>Edit</button>
-      <button type="button" onClick={() => { setError(null); setMode('delete') }} className={LINK}>Delete</button>
+    <div className="flex items-center gap-3">
+      <button type="button" onClick={startEdit} className={ACTION}>Edit</button>
+      <button type="button" onClick={() => { setError(null); setMode('delete') }} className={ACTION}>Delete</button>
     </div>
   )
 }
