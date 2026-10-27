@@ -6,6 +6,7 @@ import { supabase } from '../supabaseClient'
 import ProfileHead from '../components/ProfileHead'
 import DeleteAccount from '../components/DeleteAccount'
 import SealedWritingPrompt from '../components/SealedWritingPrompt'
+import KeptRitualEntries from '../components/KeptRitualEntries'
 import { toast } from 'sonner'
 import { withProviders } from '../components/Providers'
 import RequireAuth from '../components/RequireAuth'
@@ -181,6 +182,7 @@ function Profile() {
   return (
     <div className="mt-8 max-w-2xl mx-auto">
       <SealedWritingPrompt />
+      <KeptRitualEntries />
       <div className="flex justify-between items-center mb-8 border-b border-[var(--color-line)] pb-6">
         <div>
           <span className="block font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-text-secondary)] mb-2">Your Account</span>
