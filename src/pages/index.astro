@@ -40,19 +40,19 @@ const FALLBACK_TILES = [
     tag: '▸ CRITIQUE',
     title: 'How do you write quiet horror?',
     body: 'A discussion on dread without a body count — the slow architecture of unease.',
-    meta: 'Start the conversation',
+    meta: 'Open the Crypt →',
   },
   {
     tag: '▸ WORKSHOP',
     title: 'First page, no mercy',
     body: 'Drop the first 250 words. We tell you whether we kept reading. And why we stopped.',
-    meta: 'Be the first to post',
+    meta: 'Post the first one →',
   },
   {
     tag: '▸ LIBRARY',
     title: 'New shorts this week',
     body: 'Fresh pieces from fellow writers — left in the dark for others to find.',
-    meta: 'Read the library',
+    meta: 'Open the Library →',
   },
 ];
 
@@ -89,8 +89,8 @@ try {
       tiles = data.map((t, i) => ({
         tag: `▸ ${(t.categories?.name || 'THREAD').split('·')[0].toUpperCase().trim()}`,
         title: t.title,
-        body: `Started by @${t.profiles?.handle || 'someone'}. Join the discussion in the dark.`,
-        meta: `${t.replies_count || 0} replies`,
+        body: `Started by @${t.profiles?.handle || 'someone'}. Open the thread to read and reply.`,
+        meta: `${t.replies_count || 0} ${t.replies_count === 1 ? 'reply' : 'replies'} · read thread →`,
         id: t.id,
       }));
     }
@@ -120,10 +120,10 @@ const isFallback = tiles === FALLBACK_TILES;
     <div class="flex justify-between items-center mb-10">
       <span class="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--color-text-secondary)]">
         <span class="w-1.5 h-1.5 rounded-full bg-[var(--color-ember)] shadow-[0_0_8px_var(--color-ember)]" aria-hidden="true"></span>
-        On Air — Members Only
+        Open to every writer
       </span>
       <span class="font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--color-upside)] border border-[var(--color-upside)] px-3 py-1">
-        Ch. 13
+        Channel 13
       </span>
     </div>
 
@@ -135,8 +135,8 @@ const isFallback = tiles === FALLBACK_TILES;
       <span class="italic">keep them up at night.</span>
     </h1>
     <p class="text-base md:text-lg font-serif italic text-[var(--color-text-secondary)] max-w-2xl mb-8 leading-relaxed">
-      A spot for aspiring horror writers — forums, critique,
-      and fellow writers who take the craft as seriously as you do.
+      A free circle for horror writers. Answer a weekly prompt, post your pages
+      for honest critique, and read what other writers left in the dark.
     </p>
 
     <div class="flex flex-wrap gap-6 items-center">
@@ -151,13 +151,13 @@ const isFallback = tiles === FALLBACK_TILES;
         a hero with only the outline "Read the Library" button.
       -->
       <button id="cta-join" class="border border-[var(--color-upside)] text-[var(--color-upside)] font-mono text-xs uppercase px-6 py-3.5 tracking-wider shadow-[0_0_20px_rgba(25,165,184,0.25)] hover:bg-[var(--color-upside)] hover:text-[var(--color-void)] transition-colors cursor-pointer">
-        Start Writing!
+        Join free and start writing
       </button>
       <a id="cta-enter" href="/forum/" class="hidden border border-[var(--color-upside)] text-[var(--color-upside)] font-mono text-xs uppercase px-6 py-3.5 tracking-wider shadow-[0_0_20px_rgba(25,165,184,0.25)] hover:bg-[var(--color-upside)] hover:text-[var(--color-void)] transition-colors">
-        Start Writing!
+        Go to the Crypt
       </a>
       <a href="/library/" class="font-mono text-xs uppercase tracking-wider text-[var(--color-text-secondary)] hover:text-[var(--color-ember)] transition-colors">
-        Read the Library →
+        Read stories in the Library →
       </a>
     </div>
   </section>
@@ -171,7 +171,7 @@ const isFallback = tiles === FALLBACK_TILES;
       <div>
         {isFallback ? (
           <>
-            <span class="block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-upside)] mb-2">The Crypt · Founded this year</span>
+            <span class="block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-upside)] mb-2">The Crypt · the forum</span>
             <h2 class="text-2xl md:text-3xl font-serif font-black">Nothing here yet. <em class="italic text-[var(--color-ember)] font-serif">That's the point.</em></h2>
             <p class="font-serif text-sm text-[var(--color-text-secondary)] max-w-lg mt-3 leading-relaxed">
               Every long-running forum you love was empty once. The threads you start tonight are the ones new members find in a year — with your name on them.
@@ -179,12 +179,12 @@ const isFallback = tiles === FALLBACK_TILES;
           </>
         ) : (
           <>
-            <span class="block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-text-secondary)] mb-2">In the Crypt right now</span>
-            <h2 class="text-2xl md:text-3xl font-serif font-black">The <em class="italic text-[var(--color-accent-crimson)] font-serif">conversations</em> tonight</h2>
+            <span class="block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-text-secondary)] mb-2">The Crypt · latest threads</span>
+            <h2 class="text-2xl md:text-3xl font-serif font-black">Open in the Crypt tonight</h2>
           </>
         )}
       </div>
-      <a href="/forum/" class="hidden sm:inline-block font-mono text-xs hover:text-[var(--color-accent-crimson)] transition-colors border-b border-[var(--color-line)] pb-1">All threads →</a>
+      <a href="/forum/" class="inline-block shrink-0 font-mono text-xs py-2 hover:text-[var(--color-ember)] transition-colors border-b border-[var(--color-line)] pb-1">See all threads →</a>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -220,7 +220,7 @@ const isFallback = tiles === FALLBACK_TILES;
 
   <!-- Why Section -->
   <section class="max-w-4xl mx-auto mb-12">
-    <span class="block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-upside)] mb-2 text-center">Why this place</span>
+    <span class="block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-upside)] mb-2 text-center">Why we're different</span>
     <h2 class="text-2xl md:text-3xl font-serif font-black text-center mb-12">For writers who <em class="italic text-[var(--color-ember)] font-serif">mean it.</em></h2>
     
     <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -228,7 +228,7 @@ const isFallback = tiles === FALLBACK_TILES;
         <div class="flex flex-col gap-3">
           <div class="font-serif font-black text-2xl text-[var(--color-upside)] italic">{w.ic}</div>
           <h3 class="text-base font-serif font-bold tracking-tight text-[var(--color-text-primary)]">{w.label}</h3>
-          <p class="text-sm font-serif text-[var(--color-text-secondary)] leading-relaxed">{w.body}</p>
+          <p class="text-base font-serif text-[var(--color-text-secondary)] leading-relaxed">{w.body}</p>
         </div>
       ))}
     </div>
@@ -236,8 +236,8 @@ const isFallback = tiles === FALLBACK_TILES;
 
   <!-- FAQ Section for Search Discoverability -->
   <section class="max-w-4xl mx-auto mb-20 border-t border-[var(--color-line)] pt-16">
-    <span class="block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-upside)] mb-2 text-center">Inquiries</span>
-    <h2 class="text-2xl md:text-3xl font-serif font-black text-center mb-10">Frequently Asked <em class="italic text-[var(--color-ember)] font-serif">Questions</em></h2>
+    <span class="block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-upside)] mb-2 text-center">Before you join</span>
+    <h2 class="text-2xl md:text-3xl font-serif font-black text-center mb-10">Questions, answered</h2>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
       {faqs.map((faq) => (
@@ -245,7 +245,7 @@ const isFallback = tiles === FALLBACK_TILES;
           <h3 class="text-base font-serif font-bold text-[var(--color-text-primary)] mb-3 leading-snug">
             {faq.question}
           </h3>
-          <p class="text-xs font-serif text-[var(--color-text-secondary)] leading-relaxed">
+          <p class="text-sm font-serif text-[var(--color-text-secondary)] leading-relaxed">
             {faq.answer}
           </p>
         </div>
@@ -258,12 +258,12 @@ const isFallback = tiles === FALLBACK_TILES;
     class="text-center py-20 px-6 -mx-6 mb-4"
     style="background: radial-gradient(ellipse 700px 400px at 50% 100%, rgba(25,165,184,0.14), transparent 70%);"
   >
-    <h2 class="text-2xl md:text-3xl font-serif font-black mb-4">Be one of the first names in the dark.</h2>
+    <h2 class="text-2xl md:text-3xl font-serif font-black mb-4">Your name could be the first one here.</h2>
     <p class="font-serif italic text-[var(--color-text-secondary)] text-base mb-9">
       No cost. No algorithm deciding who sees you. Just other writers and a blank page.
     </p>
     <button id="cta-join-closing" class="border border-[var(--color-upside)] text-[var(--color-upside)] font-mono text-xs uppercase px-8 py-4 tracking-wider shadow-[0_0_20px_rgba(25,165,184,0.25)] hover:bg-[var(--color-upside)] hover:text-[var(--color-void)] transition-colors cursor-pointer">
-      Start Writing!
+      Join free and start writing
     </button>
   </section>
 
