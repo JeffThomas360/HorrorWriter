@@ -48,7 +48,7 @@ beforeEach(() => {
 afterEach(cleanup)
 
 const open = async () => {
-  fireEvent.click(await screen.findByRole('button', { name: /write to this/i }))
+  fireEvent.click(await screen.findByRole('button', { name: /write your response/i }))
   return screen.findByRole('textbox')
 }
 
@@ -64,7 +64,7 @@ test('renders multi-channel frequencies tuner with CH 13.0 through CH 13.4', asy
 test('tuning to CH 13.1 switches prompt to second rotating frequency', async () => {
   render(<MidnightRitual />)
   fireEvent.click(screen.getByRole('button', { name: 'CH 13.1' }))
-  expect(await screen.findByText(/Active Prompt 2/i)).toBeInTheDocument()
+  expect(await screen.findByText(/prompt 2/i)).toBeInTheDocument()
   expect(await screen.findByText(/Every year, the village buries a carved wooden effigy/i)).toBeInTheDocument()
 })
 
@@ -187,9 +187,9 @@ test('signed in: clicking Publish for Critique prompts for title and publishes',
   fireEvent.change(await open(), { target: { value: LONG } })
   fireEvent.click(screen.getByRole('button', { name: /publish for critique/i }))
 
-  expect(await screen.findByLabelText(/title your story for the crypt/i)).toBeInTheDocument()
+  expect(await screen.findByLabelText(/title your story/i)).toBeInTheDocument()
   fireEvent.change(screen.getByPlaceholderText(/enter a story title/i), { target: { value: 'Scratching Walls' } })
-  fireEvent.click(screen.getByRole('button', { name: /summon to the crypt/i }))
+  fireEvent.click(screen.getByRole('button', { name: /post to the crypt/i }))
 
   await waitFor(() => {
     expect(api.shareRitualDraft).toHaveBeenCalledWith({ draftId: 'draft-1', title: 'Scratching Walls' })
