@@ -8,6 +8,7 @@ import KeepRitualEntry from './KeepRitualEntry'
 const RitualEditor = lazy(() => import('./RitualEditor'))
 
 const LINK = 'font-mono text-xs uppercase tracking-wide text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] cursor-pointer'
+const ACTION = 'font-mono text-xs uppercase tracking-wide text-[var(--color-text-primary)] border border-[var(--color-line)] hover:border-[var(--color-text-primary)] px-4 py-2 min-h-[44px] cursor-pointer'
 
 /** Shown on an entry that came back out of its author's vault. */
 export function RestoredMarker() {
@@ -181,9 +182,9 @@ export default function RitualEntryActions({ entry, critiqueCount = 0, onChanged
   }
 
   return (
-    <div className="flex items-center gap-4">
-      <button type="button" onClick={startEdit} className={LINK}>Edit</button>
-      <button type="button" onClick={() => { setError(null); setMode('delete') }} className={LINK}>Delete</button>
+    <div className="flex items-center gap-3">
+      <button type="button" onClick={startEdit} className={ACTION}>Edit</button>
+      <button type="button" onClick={() => { setError(null); setMode('delete') }} className={ACTION}>Delete</button>
     </div>
   )
 }
