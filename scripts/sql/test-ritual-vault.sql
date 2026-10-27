@@ -102,6 +102,8 @@ end $$;
 reset role;
 
 -- A critique arriving between prepare and commit must make commit refuse.
+-- Setup writes run as nobody: with the author's claims still set, guard triggers would act as them.
+select set_config('request.jwt.claims', '', true);
 insert into public.posts (id, thread_id, author_id, parent_post_id, content) values
   ('00000000-0000-4000-8000-0000000b2004', '00000000-0000-4000-8000-0000000d2001', '00000000-0000-4000-8000-00000000e202',
    '00000000-0000-4000-8000-0000000b2001', 'Arrived too late.');
@@ -115,6 +117,7 @@ begin
   exception when sqlstate 'HW033' then null; end;
 end $$;
 reset role;
+select set_config('request.jwt.claims', '', true);
 delete from public.posts where id = '00000000-0000-4000-8000-0000000b2004';
 
 -- Prepare again (the snapshot is for the current rows), then commit for real.
@@ -208,6 +211,8 @@ do $$ begin
 end $$;
 
 -- ── A sanctioned author waits ──────────────────────────────────────────────
+-- Clear the claims so auth.uid() is null: the escalation trigger refuses a user changing their own sanctions.
+select set_config('request.jwt.claims', '', true);
 update public.profiles set banned_until = now() + interval '1 day' where id = '00000000-0000-4000-8000-00000000e201';
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-00000000e201","role":"authenticated"}', true);
 set local role authenticated;
@@ -217,6 +222,7 @@ do $$ begin
   exception when sqlstate 'HW034' then null; end;
 end $$;
 reset role;
+select set_config('request.jwt.claims', '', true);
 update public.profiles set banned_until = null where id = '00000000-0000-4000-8000-00000000e201';
 
 -- One critic's account is gone by restore time.
@@ -246,6 +252,7 @@ begin
 end $$;
 
 -- ── Round two: a hidden entry under revision comes back hidden, with its conversation ──
+select set_config('request.jwt.claims', '', true);
 update public.posts set mod_status = 'hidden' where id = '00000000-0000-4000-8000-0000000b2001';
 insert into public.ritual_revisions (post_id, started_by) values ('00000000-0000-4000-8000-0000000b2001', '00000000-0000-4000-8000-00000000e203');
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-00000000e201","role":"authenticated"}', true);
@@ -259,6 +266,7 @@ do $$ begin
   if exists (select 1 from public.posts where id = '00000000-0000-4000-8000-0000000b2001') then raise exception 'FAIL: hidden entry survived commit'; end if;
 end $$;
 -- The critic's account disappears while the piece is in the vault.
+select set_config('request.jwt.claims', '', true);
 delete from public.profiles where id = '00000000-0000-4000-8000-00000000e202';
 select set_config('test.payload2', pg_temp.mk_payload(current_setting('test.prep')::jsonb)::text, true);
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-00000000e201","role":"authenticated"}', true);
