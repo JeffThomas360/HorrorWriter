@@ -246,15 +246,21 @@ begin
     raise exception 'FAIL: critique not back in place'; end if;
   if exists (select 1 from public.posts where id = '00000000-0000-4000-8000-0000000b2003') then raise exception 'FAIL: the hidden critique came back'; end if;
   if (select count(*) from public.ritual_feedback where post_id = '00000000-0000-4000-8000-0000000b2001') <> 2 then raise exception 'FAIL: feedback not back'; end if;
-  if not exists (select 1 from public.threads where id = (r->>'thread_id')::uuid and prompt_id = '00000000-0000-4000-8000-0000000f2001' and replies_count = 1) then
+  -- replies_count = every live post but the opening one: the entry + its critique.
+  if not exists (select 1 from public.threads where id = (r->>'thread_id')::uuid and prompt_id = '00000000-0000-4000-8000-0000000f2001' and replies_count = 2) then
     raise exception 'FAIL: thread not recreated for the prompt, or wrong count'; end if;
   if exists (select 1 from public.ritual_vault where id = current_setting('test.vault1')::uuid) then raise exception 'FAIL: vault row not consumed'; end if;
 end $$;
 
 -- ── Round two: a hidden entry under revision comes back hidden, with its conversation ──
+-- The mentor sends it for revision the real way (hides it, opens the revision, adds a note).
+-- mod_status guards refuse anyone without 'hide', so the throwaway mentor gets the smallest role that has it.
 select set_config('request.jwt.claims', '', true);
-update public.posts set mod_status = 'hidden' where id = '00000000-0000-4000-8000-0000000b2001';
-insert into public.ritual_revisions (post_id, started_by) values ('00000000-0000-4000-8000-0000000b2001', '00000000-0000-4000-8000-00000000e203');
+update public.profiles set mod_role = 'sentinel', mod_scope = 'forum' where id = '00000000-0000-4000-8000-00000000e203';
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-00000000e203","role":"authenticated"}', true);
+set local role authenticated;
+select public.ritual_start_revision('00000000-0000-4000-8000-0000000b2001', 'Mentor: please revise.');
+reset role;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-00000000e201","role":"authenticated"}', true);
 set local role authenticated;
 select set_config('test.prep', public.ritual_vault_prepare('00000000-0000-4000-8000-0000000b2001')::text, true);
@@ -286,7 +292,8 @@ begin
     raise exception 'FAIL: hidden entry did not come back hidden'; end if;
   if not exists (select 1 from public.ritual_revisions where post_id = '00000000-0000-4000-8000-0000000b2001' and resolved_at is null) then
     raise exception 'FAIL: revision not back open'; end if;
-  if (select count(*) from public.ritual_feedback where post_id = '00000000-0000-4000-8000-0000000b2001') <> 2 then
+  -- the two from round one + the revision note
+  if (select count(*) from public.ritual_feedback where post_id = '00000000-0000-4000-8000-0000000b2001') <> 3 then
     raise exception 'FAIL: conversation not back'; end if;
 end $$;
 
