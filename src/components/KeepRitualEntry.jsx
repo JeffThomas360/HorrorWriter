@@ -3,7 +3,7 @@ import { loadSealModules } from '../lib/sealLoader'
 import { keepRitualEntry } from '../lib/ritualKeep'
 
 const LINK = 'font-mono text-xs uppercase tracking-wide text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] cursor-pointer'
-const SMALL_BTN = 'border border-[var(--color-line)] hover:border-[var(--color-text-primary)] font-mono text-xs uppercase px-3 py-1.5 disabled:opacity-40 cursor-pointer'
+const SMALL_BTN = 'font-mono text-xs uppercase tracking-wide text-[var(--color-text-primary)] border border-[var(--color-line)] hover:border-[var(--color-text-primary)] px-4 py-2 min-h-[44px] disabled:opacity-40 cursor-pointer'
 const COPY_FAILED = 'Copy failed — select the code and copy it'
 
 /**

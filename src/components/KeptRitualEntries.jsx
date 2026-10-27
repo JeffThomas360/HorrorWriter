@@ -5,7 +5,7 @@ import { listKeptEntries, restoreKeptEntry, deleteKeptEntry } from '../lib/ritua
 
 const WRONG_CODE_ERROR = "That code doesn't open this entry."
 const CORRUPT_ERROR = "This kept entry looks damaged. Please contact the keeper — don't delete it."
-const SMALL_BTN = 'border border-[var(--color-line)] hover:border-[var(--color-text-primary)] font-mono text-xs uppercase px-3 py-1.5 disabled:opacity-40 cursor-pointer'
+const SMALL_BTN = 'font-mono text-xs uppercase tracking-wide text-[var(--color-text-primary)] border border-[var(--color-line)] hover:border-[var(--color-text-primary)] px-4 py-2 min-h-[44px] disabled:opacity-40 cursor-pointer'
 const LINK = 'font-mono text-xs uppercase tracking-wide text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] cursor-pointer'
 
 function excerpt(text, max = 140) {
