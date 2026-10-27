@@ -3,11 +3,21 @@ import { supabase } from '../supabaseClient'
 import { screenContent } from '../lib/screenContent'
 import { MIN_WORDS, WORD_LIMIT, countRitualWords } from '../lib/ritualDraft'
 import { editRitualEntry, deleteRitualEntry, formatEdited } from '../lib/ritualEntry'
+import KeepRitualEntry from './KeepRitualEntry'
 
 const RitualEditor = lazy(() => import('./RitualEditor'))
 
 const LINK = 'font-mono text-xs uppercase tracking-wide text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] cursor-pointer'
 const ACTION = 'font-mono text-xs uppercase tracking-wide text-[var(--color-text-primary)] border border-[var(--color-line)] hover:border-[var(--color-text-primary)] px-4 py-2 min-h-[44px] cursor-pointer'
+
+/** Shown on an entry that came back out of its author's vault. */
+export function RestoredMarker() {
+  return (
+    <span className="self-start font-mono text-[10px] uppercase tracking-widest text-[var(--color-ember)] font-bold">
+      Brought back from the dead
+    </span>
+  )
+}
 
 /** "Edited October 22nd, 2026 @ 1657". Client-only: the time zone is the reader's. */
 export function EditedMarker({ at }) {
@@ -19,10 +29,12 @@ export function EditedMarker({ at }) {
 
 /**
  * Edit / Delete for the signed-in author of a ritual entry. The edit form sits
- * where the entry's text is; delete asks first and is permanent.
+ * where the entry's text is; delete asks first: Delete forever (permanent),
+ * Keep it (locked in the author's vault, see KeepRitualEntry), or Cancel.
  */
 export default function RitualEntryActions({ entry, critiqueCount = 0, onChanged, onThreadGone, onEditingChange }) {
-  const [mode, setMode] = useState('idle') // 'idle' | 'edit' | 'delete'
+  const [mode, setMode] = useState('idle') // 'idle' | 'edit' | 'delete' | 'keep'
+  const [keepCode, setKeepCode] = useState('')
   const [title, setTitle] = useState(entry.title || '')
   const [content, setContent] = useState(entry.content || '')
   const [busy, setBusy] = useState(false)
@@ -117,16 +129,39 @@ export default function RitualEntryActions({ entry, critiqueCount = 0, onChanged
     )
   }
 
+  if (mode === 'keep') {
+    return (
+      <KeepRitualEntry
+        entry={entry}
+        critiqueCount={critiqueCount}
+        code={keepCode}
+        onCode={setKeepCode}
+        onBack={() => setMode('delete')}
+        onKept={async ({ threadGone }) => {
+          if (threadGone) {
+            onThreadGone?.()
+            return
+          }
+          await onChanged?.()
+        }}
+      />
+    )
+  }
+
   if (mode === 'delete') {
     return (
       <div role="alertdialog" aria-label="Delete this entry" className="flex flex-col gap-3 border border-[var(--color-ember)] bg-[var(--color-surface)] p-4">
         <p className="font-serif text-sm text-[var(--color-text-primary)]">
-          Delete this entry forever? It can&rsquo;t be brought back.
+          <strong>Delete forever</strong> can&rsquo;t be undone.
           {critiqueCount > 0 && ` Its ${critiqueCount} ${critiqueCount === 1 ? 'critique goes' : 'critiques go'} with it.`}
           {' '}If it&rsquo;s the last entry for this prompt, the thread leaves The Crypt too.
         </p>
+        <p className="font-serif text-sm text-[var(--color-text-primary)]">
+          <strong>Keep it</strong> takes it out of the thread too, but locks it away where only your recovery code opens it,
+          so you can bring it back later.
+        </p>
         {error && <p role="alert" className="font-mono text-xs text-[var(--color-ember)]">{error}</p>}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             disabled={busy}
@@ -135,8 +170,11 @@ export default function RitualEntryActions({ entry, critiqueCount = 0, onChanged
           >
             {busy ? 'Deleting…' : 'Delete forever'}
           </button>
-          <button type="button" disabled={busy} onClick={() => setMode('idle')} className={LINK}>
+          <button type="button" disabled={busy} onClick={() => { setError(null); setMode('keep') }} className="btn-vhs disabled:opacity-40 cursor-pointer">
             Keep it
+          </button>
+          <button type="button" disabled={busy} onClick={() => setMode('idle')} className={LINK}>
+            Cancel
           </button>
         </div>
       </div>

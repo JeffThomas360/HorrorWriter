@@ -6,7 +6,7 @@ import ReportModal from '../components/ReportModal'
 import CommunityGuidelines from '../components/CommunityGuidelines'
 import InlineModControls from '../components/mod/InlineModControls'
 import MarkdownEditor from '../components/MarkdownEditor'
-import RitualEntryActions, { EditedMarker } from '../components/RitualEntryActions'
+import RitualEntryActions, { EditedMarker, RestoredMarker } from '../components/RitualEntryActions'
 import RitualRevisionPanel, { StartRevision } from '../components/RitualRevisionPanel'
 import { fetchRevisionPlaceholders } from '../lib/ritualRevision'
 import ReactMarkdown from 'react-markdown'
@@ -463,6 +463,7 @@ function ThreadView({ id, initialThread, initialPosts }) {
                     {entry.title || `Entry #${i + 1}`}
                   </h2>
                   {postMeta(entry, `Entry #${i + 1}`)}
+                  {entry.restored_at && <RestoredMarker />}
                   {entry.edited_at && <EditedMarker at={entry.edited_at} />}
                   {entry.mod_status === 'hidden' && (
                     <span className="self-start font-mono text-[10px] uppercase tracking-widest text-[var(--color-upside)] font-bold">Under revision</span>

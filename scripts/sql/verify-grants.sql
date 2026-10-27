@@ -63,6 +63,11 @@ with allow(name, role, why) as (values
   ('ritual_mark_ready',        'authenticated', 'author marks own revision ready, author = auth.uid()'),
   ('ritual_revision_placeholders', 'anon',      'readers see which entries are under revision (author name only)'),
   ('ritual_revision_placeholders', 'authenticated', 'readers see which entries are under revision (author name only)'),
+  -- Ritual vault "Keep it" (20261024000000). All bind to auth.uid(); the internal seal/collect
+  -- helpers are NOT here (no client grant). restore re-verifies every server seal.
+  ('ritual_vault_prepare',     'authenticated', 'reads own entry + seals it, nothing changed'),
+  ('ritual_vault_commit',      'authenticated', 'archive own entry into the vault, snapshot must match'),
+  ('ritual_vault_restore',     'authenticated', 'restore own vault row, every seal re-verified, sanction re-checked'),
   -- Public by design: the next unlock TIME, never the prompt text.
   ('ritual_next_unlock',       'anon',          'next weekly unlock time for the home countdown'),
   ('ritual_next_unlock',       'authenticated', 'next weekly unlock time for the home countdown'),
