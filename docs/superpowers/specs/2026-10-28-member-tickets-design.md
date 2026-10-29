@@ -56,7 +56,9 @@ unless they've lost their email.
 
 ## New-signup alert (Claude's calls)
 
-- **"Real account"** = the moment a `profiles` row is created for a new auth user. One push per signup:
+- **"Real account"** = the moment the account's email is confirmed (Google sign-ups arrive confirmed). An email
+  sign-up creates the auth user and profile *before* the link is clicked, so alerting on profile creation would let a
+  bot typing random emails trigger pushes. One push per signup:
   `New member: @handle` (or `New member joined` if no handle yet), normal priority, linking to Admin → Users.
 - **No email address or other personal data in the push.**
 - **Flood-safe:** if signups in the last hour exceed 10, further pushes in that hour collapse into one
