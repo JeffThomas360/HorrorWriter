@@ -48,6 +48,24 @@ function OpenTicket({ faq = [] }) {
   const [error, setError] = useState(null)
   const focusRef = useRef(null)
 
+  // A shared device: the form belongs to whoever is signed in. When that changes,
+  // sign-out included, everything typed or earned (the token) goes, and the next
+  // member starts at the beginning. Done during render, not in an effect, so not even
+  // one frame shows the previous member's draft. A refreshed session (same id) keeps it.
+  const userId = user?.id ?? session?.user?.id ?? null
+  const [formOwner, setFormOwner] = useState(userId)
+  if (formOwner !== userId) {
+    setFormOwner(userId)
+    setStep('idle')
+    setTopic(null)
+    setSubject('')
+    setBody('')
+    setToken(null)
+    setWidgetFailed(false)
+    setError(null)
+    setResetKey((k) => k + 1)
+  }
+
   // Keyboard and screen-reader users land on the new step's heading.
   useEffect(() => {
     if (step !== 'idle') focusRef.current?.focus()

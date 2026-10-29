@@ -287,6 +287,77 @@ test('Back returns to the topics from the answers and from the form', () => {
   expect(screen.getByText("What's it about?")).toBeInTheDocument()
 })
 
+// R25: a shared device. Nothing one member typed may be on screen for the next one.
+const memberA = { session: { user: { id: 'uA' } }, user: { id: 'uA' }, isLoading: false }
+const memberB = { session: { user: { id: 'uB' } }, user: { id: 'uB' }, isLoading: false }
+
+function draftAsA() {
+  authState = memberA
+  const view = render(<OpenTicket faq={FAQ} />)
+  openForm('Other')
+  fillForm()
+  act(() => turnstileProps.onToken('tok'))
+  act(() => turnstileProps.onFail())
+  expect(screen.getByLabelText('Subject')).toHaveValue(SUBJECT)
+  expect(screen.getByRole('alert')).toBeInTheDocument()
+  return view
+}
+
+function expectEmptyStart() {
+  // Back at the start: the Open a ticket button, not A's form.
+  expect(screen.queryByLabelText('Subject')).not.toBeInTheDocument()
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: /^open a ticket$/i }))
+  expect(screen.getByText("What's it about?")).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Other' }))
+  expect(screen.getByLabelText('Subject')).toHaveValue('')
+  expect(screen.getByLabelText('Message')).toHaveValue('')
+  expect(screen.getByText('0 / 120')).toBeInTheDocument()
+  expect(screen.getByText('0 / 2000')).toBeInTheDocument()
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  // A's token is gone: Send waits for B's own.
+  expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
+}
+
+test('A drafts, signs out, B signs in: B starts with an empty form at the topic step', () => {
+  const { rerender } = draftAsA()
+  const keyBefore = turnstileProps.resetKey
+
+  authState = signedOut
+  rerender(<OpenTicket faq={FAQ} />)
+  expect(screen.getByRole('button', { name: 'Sign in to open a ticket' })).toBeInTheDocument()
+
+  authState = memberB
+  rerender(<OpenTicket faq={FAQ} />)
+  expectEmptyStart()
+  expect(turnstileProps.resetKey).not.toBe(keyBefore)
+})
+
+test('A signs out and back in: the form starts over for them too', () => {
+  const { rerender } = draftAsA()
+  authState = signedOut
+  rerender(<OpenTicket faq={FAQ} />)
+  authState = memberA
+  rerender(<OpenTicket faq={FAQ} />)
+  expectEmptyStart()
+})
+
+test('a switch from one member straight to another resets the form as well', () => {
+  const { rerender } = draftAsA()
+  authState = memberB
+  rerender(<OpenTicket faq={FAQ} />)
+  expectEmptyStart()
+})
+
+test('a refreshed session for the same member keeps the draft', () => {
+  const { rerender } = draftAsA()
+  // A token refresh hands out new objects for the same account.
+  authState = { session: { user: { id: 'uA' } }, user: { id: 'uA' }, isLoading: false }
+  rerender(<OpenTicket faq={FAQ} />)
+  expect(screen.getByLabelText('Subject')).toHaveValue(SUBJECT)
+  expect(screen.getByLabelText('Message')).toHaveValue(BODY)
+})
+
 test('answer html comes from the build and is the only thing rendered as html', () => {
   const faq = [{ topic: 'rituals', question: 'Q one?', html: '<p>Answer with <strong>bold</strong>.</p>' }]
   const { container } = render(<OpenTicket faq={faq} />)
