@@ -50,18 +50,17 @@ export default function OverviewTab({ profile, onNavigate }) {
     return <p className="font-mono text-xs uppercase tracking-widest text-[var(--color-ash)] animate-pulse">Reading the log…</p>
   }
 
-  const c = counts ?? { openReports: 0, openAppeals: 0, openSupport: 0, pendingStorms: 0, activeSanctions: 0 }
-  const nothingOpen = c.openReports === 0 && c.openAppeals === 0 && c.openSupport === 0 && c.pendingStorms === 0
+  const c = counts ?? { openReports: 0, openAppeals: 0, pendingStorms: 0, activeSanctions: 0 }
+  const nothingOpen = c.openReports === 0 && c.openAppeals === 0 && c.pendingStorms === 0
 
   return (
     <div className="flex flex-col gap-8">
       <div>
         <h3 className="font-mono text-xs uppercase tracking-widest text-[var(--color-ash)] mb-3">Queue status</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatTile label="Open reports" value={c.openReports} tone="alert" onJump={() => onNavigate?.('reports')} />
           <StatTile label="Open appeals" value={c.openAppeals} tone="alert" onJump={() => onNavigate?.('appeals')} />
           <StatTile label="Storm alerts" value={c.pendingStorms} tone="alert" onJump={() => onNavigate?.('storms')} />
-          <StatTile label="Support tickets" value={c.openSupport} tone="alert" onJump={() => onNavigate?.('support')} />
           <StatTile label="Active sanctions" value={c.activeSanctions} onJump={() => onNavigate?.('sanctions')} />
         </div>
         {nothingOpen && (

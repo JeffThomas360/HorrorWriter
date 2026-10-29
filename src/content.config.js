@@ -26,4 +26,22 @@ const craft = defineCollection({
   }).refine((d) => d.draft || d.published, { message: 'set `published` before setting draft: false' }),
 })
 
-export const collections = { craft }
+// Help (FAQ): one markdown file per question in src/content/help/. The front matter
+// is the question; the body is the answer, written by Jeff. An entry with an empty
+// body is never shown, so the page can ship before every answer is written. Drafts
+// render only under `npm run dev`. Files starting with "_" (the template) are never loaded.
+// The six topic slugs must match TOPICS in src/lib/tickets.js (src/lib/help.test.js checks).
+const help = defineCollection({
+  loader: glob({ pattern: '[^_]*.md', base: './src/content/help' }),
+  schema: z.object({
+    topic: z.enum(['signing-in', 'my-writing', 'rituals', 'another-member', 'broken', 'other']),
+    /** Shown as the heading of the answer, and as the FAQ question in search results. */
+    question: z.string().min(5).max(140),
+    /** Lower first within its topic. */
+    order: z.number().default(100),
+    /** Drafts render only under `npm run dev`. Set to false once the answer is written. */
+    draft: z.boolean().default(true),
+  }),
+})
+
+export const collections = { craft, help }

@@ -77,9 +77,7 @@ export default function ReportModal({ isOpen, onClose, targetType, targetId }) {
             Report <em className="italic text-[var(--color-accent-crimson)]">Issue</em>
           </h2>
           <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-            {targetType === 'site'
-              ? 'Report a bug or contact support.'
-              : 'Report content that violates our community guidelines.'}
+            Report content that violates our community guidelines.
           </p>
         </div>
 
@@ -100,19 +98,10 @@ export default function ReportModal({ isOpen, onClose, targetType, targetId }) {
                 className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
               >
                 <option value="" disabled>Select a reason...</option>
-                {targetType === 'site' ? (
-                  <>
-                    <option value="urgent">Urgent Security/Site Issue</option>
-                    <option value="other">Bug / Other</option>
-                  </>
-                ) : (
-                  <>
-                    <option value="harassment">Harassment / Hate Speech</option>
-                    <option value="spam">Spam / Bots</option>
-                    <option value="urgent">Urgent / Real-world Harm</option>
-                    <option value="other">Other Violation</option>
-                  </>
-                )}
+                <option value="harassment">Harassment / Hate Speech</option>
+                <option value="spam">Spam / Bots</option>
+                <option value="urgent">Urgent / Real-world Harm</option>
+                <option value="other">Other Violation</option>
               </select>
             </div>
 

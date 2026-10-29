@@ -37,7 +37,8 @@ describe('Providers module shape', () => {
 })
 
 describe('island imports of Providers', () => {
-  const islands = readdirSync(ISLANDS_DIR).filter((f) => f.endsWith('.jsx'))
+  // Test files live beside the islands but aren't islands: they mock Providers.
+  const islands = readdirSync(ISLANDS_DIR).filter((f) => f.endsWith('.jsx') && !f.endsWith('.test.jsx'))
 
   it('finds island components to check', () => {
     expect(islands.length).toBeGreaterThan(0)
