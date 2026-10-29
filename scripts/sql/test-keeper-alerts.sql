@@ -250,6 +250,12 @@ begin
   if 'on_auth_user_signup_alert' < 'on_auth_user_created' then
     raise exception 'FAIL: trigger name sorts before on_auth_user_created';
   end if;
+  -- The trigger DDL needs a lock on auth.users. Under load it must give up after 5 s
+  -- (the migration can be retried) rather than queue every sign-in behind it. `set local`
+  -- lasts to the end of the migration's transaction, which this rehearsal is part of.
+  if current_setting('lock_timeout') <> '5s' then
+    raise exception 'FAIL: lock_timeout is %, expected 5s before the auth.users trigger DDL', current_setting('lock_timeout');
+  end if;
 end $$;
 
 select 'ALL PASS' as result;

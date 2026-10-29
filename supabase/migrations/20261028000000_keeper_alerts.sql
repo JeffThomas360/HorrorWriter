@@ -160,6 +160,10 @@ revoke all on function public.notify_new_signup() from public, anon, authenticat
 
 -- Sorts after on_auth_user_created (handle_new_user), so the profile row exists
 -- when an INSERT-time confirmed signup fires this.
+-- The DDL locks auth.users. If that lock isn't free within 5 s, fail (and retry the
+-- migration) rather than queue every sign-in behind the wait. `set local` lasts to the
+-- end of this migration's transaction.
+set local lock_timeout = '5s';
 drop trigger if exists on_auth_user_signup_alert on auth.users;
 create trigger on_auth_user_signup_alert
   after insert or update of email_confirmed_at on auth.users
