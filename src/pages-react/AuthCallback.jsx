@@ -3,7 +3,7 @@ import { supabase } from '../supabaseClient'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 import { withProviders } from '../components/Providers'
 import { takeReturnPath } from '../lib/returnPath'
-import { setPasskeyPrompt, clearPasskeyPrompt } from '../lib/passkeyPrompt'
+import { setPasskeyPrompt } from '../lib/passkeyPrompt'
 
 function AuthCallback() {
   useDocumentTitle('Summoning…')
@@ -46,11 +46,15 @@ function AuthCallback() {
     }
 
     // An email-link sign-in (the modal asks for /auth/callback?via=email) leaves a
-    // flag so PasskeyPrompt, on the page they land on, can offer a passkey. This
-    // runs after the error checks above (a failed link signs nobody in) and before
-    // any redirect below. Google and passkey sign-in never carry `via=email`.
+    // flag so PasskeyPrompt, on the page they land on, can offer a passkey. The URL
+    // alone proves nothing, so the flag is only set once a session is confirmed, just
+    // before the redirect: never on an error, and never on the no-session fallback.
+    // Google and passkey sign-in never carry `via=email`.
     const viaEmail = params.get('via') === 'email'
-    if (viaEmail) setPasskeyPrompt()
+    const redirectBack = () => {
+      if (viaEmail) setPasskeyPrompt()
+      window.location.replace(takeReturnPath())
+    }
 
     let active = true
 
@@ -64,7 +68,7 @@ function AuthCallback() {
             window.opener.postMessage({ type: 'AUTH_SUCCESS' }, window.location.origin)
             window.close()
           } else {
-            window.location.replace(takeReturnPath())
+            redirectBack()
           }
         }
       } catch (err) {
@@ -81,7 +85,7 @@ function AuthCallback() {
           window.opener.postMessage({ type: 'AUTH_SUCCESS' }, window.location.origin)
           window.close()
         } else {
-          window.location.replace(takeReturnPath())
+          redirectBack()
         }
       }
     })
@@ -95,13 +99,11 @@ function AuthCallback() {
             window.opener.postMessage({ type: 'AUTH_SUCCESS' }, window.location.origin)
             window.close()
           } else {
-            window.location.replace(takeReturnPath())
+            redirectBack()
           }
         }
       } else {
         if (active) {
-          // Nobody signed in, so there is nothing to nudge on a later sign-in.
-          if (viaEmail) clearPasskeyPrompt()
           const msg = "The authentication link expired or was invalid. Please try again."
           if (window.opener) {
             window.opener.postMessage({ type: 'AUTH_FAILURE', message: msg }, window.location.origin)

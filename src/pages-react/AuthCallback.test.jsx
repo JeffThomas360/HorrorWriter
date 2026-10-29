@@ -2,17 +2,23 @@ import { render, act, cleanup } from '@testing-library/react'
 import { test, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // /auth/callback is where the email link, Google and (in a popup) Google again all
-// land. Only the email link carries ?via=email, and only it should leave the
-// "add a passkey" nudge behind for the page the member lands on.
+// land. Only the email link carries ?via=email, and only a confirmed sign-in from it
+// should leave the "add a passkey" nudge behind for the page the member lands on.
+// The flag must never be set on the URL alone: a crafted link would otherwise be able
+// to put the prompt in front of someone who did not sign in.
 
 let session
+let authCallback
 const getSession = vi.fn(async () => ({ data: { session }, error: null }))
 const unsubscribe = vi.fn()
 vi.mock('../supabaseClient', () => ({
   supabase: {
     auth: {
       getSession: (...a) => getSession(...a),
-      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: (...a) => unsubscribe(...a) } } }),
+      onAuthStateChange: (cb) => {
+        authCallback = cb
+        return { data: { subscription: { unsubscribe: (...a) => unsubscribe(...a) } } }
+      },
     },
   },
 }))
@@ -41,6 +47,7 @@ function landOn(search = '', hash = '') {
 beforeEach(() => {
   localStorage.clear()
   session = { user: { id: 'u1' } }
+  authCallback = undefined
   flagAtRedirect = undefined
   getSession.mockClear()
   unsubscribe.mockClear()
@@ -50,6 +57,7 @@ afterEach(() => {
   vi.useRealTimers()
   vi.restoreAllMocks()
   Object.defineProperty(window, 'location', { configurable: true, value: realLocation })
+  Object.defineProperty(window, 'opener', { configurable: true, value: null })
 })
 
 async function mount() {
@@ -57,12 +65,70 @@ async function mount() {
   await act(async () => {}) // let the immediate getSession() settle
 }
 
-test('?via=email leaves the passkey nudge flag, set before the redirect happens', async () => {
+test('?via=email with a confirmed session leaves the flag, set before the redirect happens', async () => {
   landOn('?via=email')
   await mount()
   expect(replace).toHaveBeenCalledTimes(1)
   expect(flagAtRedirect).toBe('1')
   expect(localStorage.getItem(FLAG)).toBe('1')
+})
+
+test('?via=email with no session yet sets nothing: the URL alone proves nothing', async () => {
+  session = null
+  landOn('?via=email')
+  await mount()
+  expect(replace).not.toHaveBeenCalled()
+  expect(localStorage.getItem(FLAG)).toBeNull()
+})
+
+test('the SIGNED_IN event confirms the sign-in: flag set just before the redirect', async () => {
+  session = null
+  landOn('?via=email')
+  await mount()
+  expect(localStorage.getItem(FLAG)).toBeNull()
+
+  act(() => authCallback('SIGNED_IN', { user: { id: 'u1' } }))
+  expect(replace).toHaveBeenCalledTimes(1)
+  expect(flagAtRedirect).toBe('1')
+})
+
+test('other auth events do not confirm anything', async () => {
+  session = null
+  landOn('?via=email')
+  await mount()
+  act(() => authCallback('INITIAL_SESSION', null))
+  act(() => authCallback('TOKEN_REFRESHED', { user: { id: 'u1' } }))
+  expect(replace).not.toHaveBeenCalled()
+  expect(localStorage.getItem(FLAG)).toBeNull()
+})
+
+test('the 15 s fallback that finds a session sets the flag before redirecting', async () => {
+  vi.useFakeTimers()
+  session = null
+  landOn('?via=email')
+  render(<AuthCallback />)
+  await act(async () => {})
+  expect(localStorage.getItem(FLAG)).toBeNull()
+
+  session = { user: { id: 'u1' } } // arrived without an event
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(15000)
+  })
+  expect(replace).toHaveBeenCalledTimes(1)
+  expect(flagAtRedirect).toBe('1')
+})
+
+test('the 15 s fallback with no session sets no flag and signs nobody in', async () => {
+  vi.useFakeTimers()
+  session = null
+  landOn('?via=email')
+  render(<AuthCallback />)
+  await act(async () => {})
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(15000)
+  })
+  expect(replace).not.toHaveBeenCalled()
+  expect(localStorage.getItem(FLAG)).toBeNull()
 })
 
 test('a plain callback (Google) leaves no flag', async () => {
@@ -76,6 +142,7 @@ test('a plain callback (Google) leaves no flag', async () => {
 test('any other via value leaves no flag', async () => {
   landOn('?via=google')
   await mount()
+  expect(replace).toHaveBeenCalledTimes(1)
   expect(localStorage.getItem(FLAG)).toBeNull()
 })
 
@@ -94,7 +161,6 @@ test('a Google popup (window.opener) is unchanged and sets no flag', async () =>
   await mount()
   expect(opener.postMessage).toHaveBeenCalledWith({ type: 'AUTH_SUCCESS' }, window.location.origin)
   expect(localStorage.getItem(FLAG)).toBeNull()
-  Object.defineProperty(window, 'opener', { configurable: true, value: null })
   expect(close).toHaveBeenCalled()
 })
 
@@ -110,21 +176,6 @@ test('an expired link reported in the hash sets no flag either', async () => {
   await mount()
   expect(localStorage.getItem(FLAG)).toBeNull()
   expect(replace).not.toHaveBeenCalled()
-})
-
-test('if no session ever arrives, the flag is taken back so a later sign-in is not nagged', async () => {
-  vi.useFakeTimers()
-  session = null
-  landOn('?via=email')
-  render(<AuthCallback />)
-  await act(async () => {})
-  expect(localStorage.getItem(FLAG)).toBe('1')
-
-  await act(async () => {
-    await vi.advanceTimersByTimeAsync(15000)
-  })
-  expect(replace).not.toHaveBeenCalled()
-  expect(localStorage.getItem(FLAG)).toBeNull()
 })
 
 test('blocked storage does not stop the sign-in from finishing', async () => {
