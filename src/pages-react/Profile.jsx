@@ -188,12 +188,15 @@ function Profile() {
           <span className="block font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-text-secondary)] mb-2">Your Account</span>
           <h2 className="title text-3xl font-serif font-black">Edit <em className="italic text-[var(--color-accent-crimson)] font-serif">profile</em></h2>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-end gap-3">
           <a href="/my-stories/" className="font-mono text-xs border border-[var(--color-line)] px-3 py-2 hover:border-white hover:text-[var(--color-accent-crimson)] transition-colors">
             My Stories
           </a>
           <a href="/my-reports/" className="font-mono text-xs border border-[var(--color-line)] px-3 py-2 hover:border-white hover:text-[var(--color-accent-crimson)] transition-colors">
             View My Reports
+          </a>
+          <a href="/my-tickets/" className="font-mono text-xs border border-[var(--color-line)] px-3 py-2 hover:border-white hover:text-[var(--color-accent-crimson)] transition-colors">
+            My tickets
           </a>
         </div>
       </div>
