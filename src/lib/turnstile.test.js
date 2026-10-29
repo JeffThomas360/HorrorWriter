@@ -89,4 +89,65 @@ describe('loadTurnstile', () => {
     scripts()[0].dispatchEvent(new Event('load'))
     await expect(retry).resolves.toBe(api)
   })
+
+  // R27: a script that stalls (neither load nor error) must not leave the email form
+  // waiting for ever: the widget's catch turns the rejection into onFail.
+  describe('a script that neither loads nor errors', () => {
+    beforeEach(() => vi.useFakeTimers())
+    afterEach(() => vi.useRealTimers())
+
+    it('rejects after 15 s, removes the script, and a later call tries again', async () => {
+      const { loadTurnstile } = await fresh()
+      const stalled = loadTurnstile()
+      let outcome = 'pending'
+      stalled.then(() => (outcome = 'resolved'), (e) => (outcome = e))
+
+      await vi.advanceTimersByTimeAsync(14_999)
+      expect(outcome).toBe('pending')
+      expect(scripts()).toHaveLength(1)
+
+      await vi.advanceTimersByTimeAsync(1)
+      expect(outcome).toBeInstanceOf(Error)
+      expect(scripts()).toHaveLength(0)
+
+      const retry = loadTurnstile()
+      expect(retry).not.toBe(stalled)
+      expect(scripts()).toHaveLength(1)
+      const api = { render: vi.fn() }
+      window.turnstile = api
+      scripts()[0].dispatchEvent(new Event('load'))
+      await expect(retry).resolves.toBe(api)
+    })
+
+    it('a stalled script that answers late does not disturb the retry', async () => {
+      const { loadTurnstile } = await fresh()
+      loadTurnstile().catch(() => {})
+      const stale = scripts()[0]
+      await vi.advanceTimersByTimeAsync(15_000)
+
+      const retry = loadTurnstile()
+      let outcome = 'pending'
+      retry.then(() => (outcome = 'resolved'), () => (outcome = 'rejected'))
+      // The old tag finally gives up: the retry is untouched and still the one in use.
+      stale.dispatchEvent(new Event('error'))
+      await vi.advanceTimersByTimeAsync(0)
+      expect(outcome).toBe('pending')
+      expect(loadTurnstile()).toBe(retry)
+      expect(scripts()).toHaveLength(1)
+    })
+
+    it('a script that loads in time is never timed out afterwards', async () => {
+      const { loadTurnstile } = await fresh()
+      const pending = loadTurnstile()
+      await vi.advanceTimersByTimeAsync(1_000)
+      const api = { render: vi.fn() }
+      window.turnstile = api
+      scripts()[0].dispatchEvent(new Event('load'))
+      await expect(pending).resolves.toBe(api)
+
+      await vi.advanceTimersByTimeAsync(30_000)
+      expect(scripts()).toHaveLength(1)
+      expect(vi.getTimerCount()).toBe(0)
+    })
+  })
 })

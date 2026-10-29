@@ -19,23 +19,38 @@ export function turnstileSiteKey() {
 
 let pending = null
 
+// A script that neither loads nor errors (a stalled connection, a filter that holds the
+// request) would otherwise leave every widget waiting for ever, with nothing said.
+export const LOAD_TIMEOUT_MS = 15_000
+
 // Injects Cloudflare's script once and resolves with `window.turnstile`. Memoised, so
-// every widget on a page shares one script tag. A failed load is forgotten so a later
-// call can try again.
+// every widget on a page shares one script tag. A failed or timed-out load is forgotten
+// so a later call can try again.
 export function loadTurnstile() {
   if (typeof window === 'undefined') return Promise.reject(new Error('Turnstile needs a browser'))
   if (window.turnstile) return Promise.resolve(window.turnstile)
   if (pending) return pending
 
-  pending = new Promise((resolve, reject) => {
+  const attempt = new Promise((resolve, reject) => {
     const script = document.querySelector(`script[src="${SCRIPT_SRC}"]`) ?? document.createElement('script')
-    const fail = (message) => {
-      pending = null
-      script.remove()
-      reject(new Error(message))
+    let settled = false
+    // Settles once. A tag that answers after the timeout must not touch a later attempt.
+    const finish = (fn) => {
+      if (settled) return false
+      settled = true
+      clearTimeout(timer)
+      fn()
+      return true
     }
+    const fail = (message) =>
+      finish(() => {
+        if (pending === attempt) pending = null
+        script.remove()
+        reject(new Error(message))
+      })
+    const timer = setTimeout(() => fail('Turnstile took too long to load'), LOAD_TIMEOUT_MS)
     script.addEventListener('load', () => {
-      if (window.turnstile) resolve(window.turnstile)
+      if (window.turnstile) finish(() => resolve(window.turnstile))
       else fail('Turnstile loaded but did not start')
     })
     script.addEventListener('error', () => fail('Turnstile could not be loaded'))
@@ -46,5 +61,6 @@ export function loadTurnstile() {
       document.head.appendChild(script)
     }
   })
-  return pending
+  pending = attempt
+  return attempt
 }
