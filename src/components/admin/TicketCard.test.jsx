@@ -150,13 +150,59 @@ test('Resolve with the note left empty passes null', async () => {
   await waitFor(() => expect(tickets.keeperCloseTicket).toHaveBeenCalledWith('tk1', 'resolved', null))
 })
 
-test('Dismiss closes the ticket as dismissed with no note', async () => {
+const CONFIRM = "Dismiss this ticket? The member won't be told."
+
+// R24: Dismiss can't be undone and sits next to Reply, so it asks first, inline.
+test('Dismiss asks first, inline, and sends nothing yet', async () => {
   renderCard()
   await loaded()
   fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
 
+  expect(screen.getByText(CONFIRM)).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Yes, dismiss' })).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled()
+  await new Promise((r) => setTimeout(r, 20))
+  expect(tickets.keeperCloseTicket).not.toHaveBeenCalled()
+  expect(onChanged).not.toHaveBeenCalled()
+})
+
+test('Yes, dismiss closes the ticket as dismissed with no note', async () => {
+  renderCard()
+  await loaded()
+  fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Yes, dismiss' }))
+
   await waitFor(() => expect(tickets.keeperCloseTicket).toHaveBeenCalledWith('tk1', 'dismissed', null))
+  expect(tickets.keeperCloseTicket).toHaveBeenCalledTimes(1)
   await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1))
+})
+
+test('Cancel takes the question away and dismisses nothing', async () => {
+  renderCard()
+  await loaded()
+  fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+  expect(screen.queryByText(CONFIRM)).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Yes, dismiss' })).toBeNull()
+  await new Promise((r) => setTimeout(r, 20))
+  expect(tickets.keeperCloseTicket).not.toHaveBeenCalled()
+  expect(keeperTaskApi.resolveTask).not.toHaveBeenCalled()
+  expect(onChanged).not.toHaveBeenCalled()
+})
+
+test('asking to dismiss mid-reply keeps the draft for when the keeper comes back', async () => {
+  renderCard()
+  await loaded()
+  fireEvent.click(screen.getByRole('button', { name: 'Reply' }))
+  fireEvent.change(screen.getByLabelText(/reply to the member/i), { target: { value: 'Half a reply' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+  expect(screen.getByText(CONFIRM)).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+  fireEvent.click(screen.getByRole('button', { name: 'Reply' }))
+  expect(screen.getByLabelText(/reply to the member/i)).toHaveValue('Half a reply')
+  expect(tickets.keeperCloseTicket).not.toHaveBeenCalled()
 })
 
 test('replying to a ticket that has closed shows the error and refreshes the queue', async () => {
@@ -178,10 +224,13 @@ test('the actions are locked while a send is in flight and after it lands', asyn
   renderCard()
   await loaded()
   fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Yes, dismiss' }))
 
   await waitFor(() => expect(screen.getByRole('button', { name: 'Reply' })).toBeDisabled())
   expect(screen.getByRole('button', { name: 'Resolve' })).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Dismiss' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Yes, dismiss' })).toBeDisabled()
+  fireEvent.click(screen.getByRole('button', { name: 'Yes, dismiss' }))
   finish()
   await waitFor(() => expect(onChanged).toHaveBeenCalled())
   // The card is about to leave the queue; a second click must not double-send.
@@ -196,7 +245,9 @@ test('a ticket that no longer exists says so and offers to dismiss the task', as
   expect(screen.queryByRole('button', { name: 'Reply' })).toBeNull()
   expect(screen.queryByRole('button', { name: 'Resolve' })).toBeNull()
 
+  // The task points at nothing, so there is no member to keep in mind: no question.
   fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+  expect(screen.queryByText(CONFIRM)).toBeNull()
   await waitFor(() => expect(keeperTaskApi.resolveTask).toHaveBeenCalledWith('task1', 'dismiss'))
   await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1))
   expect(tickets.keeperCloseTicket).not.toHaveBeenCalled()

@@ -201,6 +201,7 @@ test('a ticket card that hits a closed ticket refreshes the queue', async () => 
   tickets.keeperCloseTicket.mockRejectedValueOnce(new Error('This ticket is closed.'))
   renderTab()
   fireEvent.click(await screen.findByRole('button', { name: 'Dismiss' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Yes, dismiss' }))
   await waitFor(() => expect(toast.error).toHaveBeenCalledWith('This ticket is closed.'))
   await waitFor(() => expect(api.fetchOpenTasks).toHaveBeenCalledTimes(2))
 })

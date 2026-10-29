@@ -40,7 +40,9 @@ export default function TicketCard({ task, onChanged }) {
   const info = typeInfo(task.type)
   const detail = info.detail(task)
 
-  const [mode, setMode] = useState(null) // null | 'reply' | 'resolve'
+  // 'dismiss' is the inline "are you sure?": a dismissal can't be undone, the member is
+  // never told, and the button sits next to Reply (a phone mis-tap after a push).
+  const [mode, setMode] = useState(null) // null | 'reply' | 'resolve' | 'dismiss'
   const [reply, setReply] = useState('')
   const [note, setNote] = useState('')
   const [showAll, setShowAll] = useState(false)
@@ -124,8 +126,18 @@ export default function TicketCard({ task, onChanged }) {
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" className={btn} disabled={busy} onClick={() => setMode('reply')}>Reply</button>
             <button type="button" className={btn} disabled={busy} onClick={() => setMode('resolve')}>Resolve</button>
-            <button type="button" className={btn} disabled={busy} onClick={() => act.mutate({ kind: 'dismiss' })}>Dismiss</button>
+            <button type="button" className={btn} disabled={busy} onClick={() => setMode('dismiss')}>Dismiss</button>
           </div>
+
+          {mode === 'dismiss' && (
+            <div className="flex flex-col gap-2">
+              <p className="font-serif text-sm text-[var(--color-bone)]">Dismiss this ticket? The member won't be told.</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" className={btn} disabled={busy} onClick={() => act.mutate({ kind: 'dismiss' })}>Yes, dismiss</button>
+                <button type="button" className={btn} disabled={busy} onClick={() => setMode(null)}>Cancel</button>
+              </div>
+            </div>
+          )}
 
           {mode === 'reply' && (
             <form
