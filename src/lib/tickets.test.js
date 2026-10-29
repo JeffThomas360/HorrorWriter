@@ -51,9 +51,9 @@ describe('topics', () => {
 describe('ticketErrorMessage', () => {
   const copy = {
     daily_limit: "You've opened 3 tickets today. Try again tomorrow.",
-    too_many_open: 'You have 3 open tickets. Wait for an answer or close one first.',
+    too_many_open: 'You have 3 open tickets. You can open another once one is closed.',
     too_new: 'New accounts can open a ticket after their first hour.',
-    banned: 'Your account is suspended. Use the appeal on your profile instead.',
+    banned: 'Your account is suspended, so tickets are closed to you for now.',
     message_limit: "You've sent 10 messages today. Try again tomorrow.",
     duplicate: 'You already sent that message today.',
     bad_body: 'Write between 20 and 2,000 characters.',

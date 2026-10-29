@@ -229,7 +229,7 @@ test('success thanks the member and links to My tickets', async () => {
 })
 
 test('a rejected send shows the reason, asks for a fresh token, and disables Send again', async () => {
-  openTicket.mockRejectedValueOnce(new Error('You have 3 open tickets. Wait for an answer or close one first.'))
+  openTicket.mockRejectedValueOnce(new Error('You have 3 open tickets. You can open another once one is closed.'))
   render(<OpenTicket faq={FAQ} />)
   openForm('Other')
   fillForm()
@@ -238,7 +238,7 @@ test('a rejected send shows the reason, asks for a fresh token, and disables Sen
   fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
   const alert = await screen.findByRole('alert')
-  expect(alert).toHaveTextContent('You have 3 open tickets. Wait for an answer or close one first.')
+  expect(alert).toHaveTextContent('You have 3 open tickets. You can open another once one is closed.')
   await waitFor(() => expect(turnstileProps.resetKey).not.toBe(before))
   expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
   // what the member typed is kept for the next try
