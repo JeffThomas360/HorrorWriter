@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react'
 import { test, expect, describe, vi, beforeEach, afterEach } from 'vitest'
 import { GATE_KEY, PASSED, BLOCKED } from '../lib/ageGate'
 
@@ -14,7 +14,22 @@ vi.mock('../supabaseClient', () => ({
 }))
 vi.mock('../lib/passkey', () => ({ signInWithPasskey: vi.fn(), prefetchPasskeyChallenge: vi.fn() }))
 
+// The widget is mocked: the test plays the part of Cloudflare by calling onToken.
+let turnstileProps
+const turnstileKeys = []
+vi.mock('./Turnstile', () => ({
+  default: (props) => {
+    turnstileProps = props
+    if (turnstileKeys[turnstileKeys.length - 1] !== props.resetKey) turnstileKeys.push(props.resetKey)
+    return <div data-testid="turnstile" />
+  },
+}))
+
 const SignInModal = (await import('./SignInModal')).default
+
+const NEUTRAL = 'If that email has an account, a sign-in link is on its way. Check your inbox (and spam).'
+const LINK_SENT = 'Link sent. Check your inbox (and spam) and click it to sign in.'
+const TURNSTILE_FAILED = "We couldn't confirm you're a person. Refresh the page and try again."
 
 function open() {
   return render(<SignInModal isOpen onClose={() => {}} />)
@@ -26,6 +41,20 @@ async function revealEmail() {
   return screen.findByLabelText(/email address/i)
 }
 
+// Plays Cloudflare passing the visitor, which is what enables the email button.
+function passTurnstile(token = 'tok') {
+  act(() => turnstileProps.onToken(token))
+}
+
+const sendButton = () => screen.getByRole('button', { name: /^email me a sign-in link$/i })
+
+// Reveal the email field, type an address, get a token, press send.
+async function sendLink(address = 'member@example.com') {
+  fireEvent.change(await revealEmail(), { target: { value: address } })
+  passTurnstile()
+  fireEvent.click(sendButton())
+}
+
 function passGate() {
   fireEvent.change(screen.getByLabelText('Month'), { target: { value: '1' } })
   fireEvent.change(screen.getByLabelText('Year'), { target: { value: '1980' } })
@@ -34,6 +63,8 @@ function passGate() {
 
 beforeEach(() => {
   localStorage.clear()
+  turnstileProps = undefined
+  turnstileKeys.length = 0
   signInWithOtp.mockReset().mockResolvedValue({ error: null })
   signInWithOAuth.mockReset().mockResolvedValue({ data: { url: null }, error: null })
   vi.stubEnv('VITE_ENABLE_GOOGLE_LOGIN', 'true')
@@ -55,18 +86,9 @@ describe('SignInModal age gate', () => {
 
   test('without a verdict, the email link can only sign in, never create an account', async () => {
     open()
-    fireEvent.change(await revealEmail(), { target: { value: 'member@example.com' } })
-    fireEvent.click(screen.getByRole('button', { name: /^email me a sign-in link$/i }))
+    await sendLink()
     await waitFor(() => expect(signInWithOtp).toHaveBeenCalled())
     expect(signInWithOtp.mock.calls[0][0].options.shouldCreateUser).toBe(false)
-  })
-
-  test('an unknown email is pointed to account creation', async () => {
-    signInWithOtp.mockResolvedValue({ error: { code: 'otp_disabled', message: 'Signups not allowed for otp' } })
-    open()
-    fireEvent.change(await revealEmail(), { target: { value: 'new@example.com' } })
-    fireEvent.click(screen.getByRole('button', { name: /^email me a sign-in link$/i }))
-    expect(await screen.findByText(/no account uses that email/i)).toBeInTheDocument()
   })
 
   test('Google goes through the age gate first on a browser with no verdict', async () => {
@@ -81,8 +103,7 @@ describe('SignInModal age gate', () => {
     fireEvent.click(await screen.findByRole('button', { name: /create an account/i }))
     expect(await screen.findByLabelText('Month')).toBeInTheDocument()
     passGate()
-    fireEvent.change(await revealEmail(), { target: { value: 'new@example.com' } })
-    fireEvent.click(screen.getByRole('button', { name: /^email me a sign-in link$/i }))
+    await sendLink('new@example.com')
     await waitFor(() => expect(signInWithOtp).toHaveBeenCalled())
     expect(signInWithOtp.mock.calls[0][0].options.shouldCreateUser).toBe(true)
     expect(localStorage.getItem(GATE_KEY)).toBe(PASSED)
@@ -151,6 +172,183 @@ describe('SignInModal age gate', () => {
     expect(idx(/sign in with passkey/i)).toBeLessThan(idx(/email me a sign-in link/i))
     expect(screen.queryByLabelText(/email address/i)).toBeNull()
     expect(await revealEmail()).toBeInTheDocument()
+  })
+})
+
+// The email link is the way back in for a member who is locked out of Google and
+// passkeys, so it must work for them without ever telling a stranger whether an
+// address has an account.
+describe('SignInModal "Can\'t sign in?" email link', () => {
+  test('the collapsed link reads Can\'t sign in? Email me a sign-in link', async () => {
+    open()
+    expect(await screen.findByRole('button', { name: "Can't sign in? Email me a sign-in link" })).toBeInTheDocument()
+    expect(screen.queryByText(/no google or passkey/i)).toBeNull()
+  })
+
+  test('the email link lands on /auth/callback?via=email, so the callback knows how they came in', async () => {
+    open()
+    await sendLink()
+    await waitFor(() => expect(signInWithOtp).toHaveBeenCalled())
+    expect(signInWithOtp.mock.calls[0][0].options.emailRedirectTo).toBe(window.location.origin + '/auth/callback?via=email')
+    expect(signInWithOtp.mock.calls[0][0].options.emailRedirectTo.endsWith('/auth/callback?via=email')).toBe(true)
+  })
+
+  test('an address with no account gets the same neutral sentence, and is never told so', async () => {
+    signInWithOtp.mockResolvedValue({ error: { code: 'otp_disabled', message: 'Signups not allowed for otp' } })
+    open()
+    await sendLink('new@example.com')
+    expect(await screen.findByText(NEUTRAL)).toBeInTheDocument()
+    expect(screen.queryByText(/no account uses that email/i)).toBeNull()
+  })
+
+  test('a "signups not allowed" message without a code is treated the same way', async () => {
+    signInWithOtp.mockResolvedValue({ error: { message: 'Signups not allowed for this instance' } })
+    open()
+    await sendLink('new@example.com')
+    expect(await screen.findByText(NEUTRAL)).toBeInTheDocument()
+    expect(screen.queryByText(/signups not allowed/i)).toBeNull()
+  })
+
+  test('a success says the same neutral sentence while the browser has not passed the gate', async () => {
+    open()
+    await sendLink()
+    expect(await screen.findByText(NEUTRAL)).toBeInTheDocument()
+    expect(screen.queryByText(LINK_SENT)).toBeNull()
+  })
+
+  test('creating an account (gate passed) keeps its own success copy', async () => {
+    localStorage.setItem(GATE_KEY, PASSED)
+    open()
+    await sendLink('new@example.com')
+    expect(await screen.findByText(LINK_SENT)).toBeInTheDocument()
+    expect(signInWithOtp.mock.calls[0][0].options.shouldCreateUser).toBe(true)
+  })
+
+  test('New here? Create an account is visible before anything is submitted, and opens the age gate', async () => {
+    open()
+    const create = await screen.findByRole('button', { name: 'New here? Create an account' })
+    expect(create).toBeVisible()
+    expect(screen.getAllByText('New here? Create an account')).toHaveLength(1)
+    fireEvent.click(create)
+    expect(await screen.findByLabelText('Month')).toBeInTheDocument()
+  })
+
+  test('the neutral answer leaves New here? Create an account as the one way to a new account', async () => {
+    signInWithOtp.mockResolvedValue({ error: { code: 'otp_disabled', message: 'Signups not allowed for otp' } })
+    open()
+    await sendLink('new@example.com')
+    await screen.findByText(NEUTRAL)
+    expect(screen.getAllByText('New here? Create an account')).toHaveLength(1)
+  })
+})
+
+describe('SignInModal Turnstile on the email link', () => {
+  test('Google and passkey get no widget, and work with no token', async () => {
+    open()
+    const google = await screen.findByRole('button', { name: /continue with google/i })
+    const passkey = screen.getByRole('button', { name: /sign in with passkey/i })
+    expect(screen.queryByTestId('turnstile')).toBeNull()
+    expect(google).toBeEnabled()
+    expect(passkey).toBeEnabled()
+
+    // Even with the email form open and no token yet, those two stay usable.
+    await revealEmail()
+    expect(screen.getAllByTestId('turnstile')).toHaveLength(1)
+    expect(sendButton()).toBeDisabled()
+    expect(google).toBeEnabled()
+    expect(passkey).toBeEnabled()
+  })
+
+  test('the widget is the email_link one, above the submit button', async () => {
+    open()
+    await revealEmail()
+    expect(turnstileProps.action).toBe('email_link')
+    const widget = screen.getByTestId('turnstile')
+    expect(widget.compareDocumentPosition(sendButton()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  test('sign-up mode (gate passed) has the widget too', async () => {
+    localStorage.setItem(GATE_KEY, PASSED)
+    open()
+    await revealEmail()
+    expect(screen.getByTestId('turnstile')).toBeInTheDocument()
+    expect(turnstileProps.action).toBe('email_link')
+    expect(sendButton()).toBeDisabled()
+  })
+
+  test('send waits for a token, then hands it to Supabase as captchaToken', async () => {
+    open()
+    fireEvent.change(await revealEmail(), { target: { value: 'member@example.com' } })
+    expect(sendButton()).toBeDisabled()
+    fireEvent.click(sendButton())
+    expect(signInWithOtp).not.toHaveBeenCalled()
+
+    passTurnstile('tok')
+    expect(sendButton()).toBeEnabled()
+    fireEvent.click(sendButton())
+    await waitFor(() => expect(signInWithOtp).toHaveBeenCalledTimes(1))
+    expect(signInWithOtp.mock.calls[0][0].options.captchaToken).toBe('tok')
+    expect(signInWithOtp.mock.calls[0][0].email).toBe('member@example.com')
+  })
+
+  test('losing the token (expired, errored) disables send again', async () => {
+    open()
+    await revealEmail()
+    passTurnstile('tok')
+    expect(sendButton()).toBeEnabled()
+    passTurnstile(null)
+    expect(sendButton()).toBeDisabled()
+  })
+
+  test('a captcha error shows the Turnstile sentence, not the raw one, and asks for a fresh token', async () => {
+    signInWithOtp.mockResolvedValue({ error: { message: 'captcha verification process failed' } })
+    open()
+    await sendLink()
+    expect(await screen.findByText(TURNSTILE_FAILED)).toBeInTheDocument()
+    expect(screen.queryByText(/captcha verification process failed/i)).toBeNull()
+    // the spent token is gone and the widget was told to start over
+    await waitFor(() => expect(turnstileKeys.length).toBeGreaterThan(1))
+    expect(sendButton()).toBeDisabled()
+
+    // a fresh token lets them try again, and the old error goes away once they do
+    signInWithOtp.mockResolvedValue({ error: null })
+    passTurnstile('tok-2')
+    fireEvent.click(sendButton())
+    await waitFor(() => expect(signInWithOtp).toHaveBeenCalledTimes(2))
+    expect(signInWithOtp.mock.calls[1][0].options.captchaToken).toBe('tok-2')
+    await waitFor(() => expect(screen.queryByText(TURNSTILE_FAILED)).toBeNull())
+  })
+
+  test('a token is good for one send: the widget is reset after every attempt', async () => {
+    open()
+    await revealEmail()
+    const before = turnstileProps.resetKey
+    passTurnstile('tok')
+    fireEvent.click(sendButton())
+    await screen.findByText(NEUTRAL)
+    await waitFor(() => expect(turnstileProps.resetKey).not.toBe(before))
+    expect(sendButton()).toBeDisabled()
+  })
+
+  test('a different error is still shown as the error it is', async () => {
+    signInWithOtp.mockResolvedValue({ error: { message: 'Email rate limit exceeded' } })
+    open()
+    await sendLink()
+    expect(await screen.findByText('Email rate limit exceeded')).toBeInTheDocument()
+    expect(screen.queryByText(TURNSTILE_FAILED)).toBeNull()
+  })
+
+  test('leaving the email form drops the token, so a stale one cannot be sent from a new widget', async () => {
+    open()
+    await revealEmail()
+    passTurnstile('tok')
+    expect(sendButton()).toBeEnabled()
+
+    // To the age gate and back: the form (and its widget) unmounts and remounts.
+    fireEvent.click(screen.getByRole('button', { name: 'New here? Create an account' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Already a member? Sign in' }))
+    await screen.findByLabelText(/email address/i)
+    expect(sendButton()).toBeDisabled()
   })
 })
 

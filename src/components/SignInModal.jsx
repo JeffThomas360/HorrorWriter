@@ -3,6 +3,14 @@ import { supabase } from '../supabaseClient'
 import { signInWithPasskey, prefetchPasskeyChallenge } from '../lib/passkey'
 import { rememberReturnPath } from '../lib/returnPath'
 import { MIN_AGE, PASSED, BLOCKED, meetsMinimumAge, selectableYears, readGate, writeGate } from '../lib/ageGate'
+import Turnstile from './Turnstile'
+
+// What a stranger is told after asking for a link. It must read the same whether or
+// not the address has an account, so it never says which.
+const LINK_ON_ITS_WAY = 'If that email has an account, a sign-in link is on its way. Check your inbox (and spam).'
+// Account creation (age gate passed) always sends a link, so it can say so plainly.
+const LINK_SENT = 'Link sent. Check your inbox (and spam) and click it to sign in.'
+const TURNSTILE_FAILED = "We couldn't confirm you're a person. Refresh the page and try again."
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -40,11 +48,23 @@ export default function SignInModal({ isOpen, onClose }) {
   // 'signin' needs no gate: passkeys and a create-off email link only reach
   // existing accounts. 'signup' shows the gate until this browser has passed.
   const [mode, setMode] = useState('signin')
-  const [noAccount, setNoAccount] = useState(false)
   const [showEmail, setShowEmail] = useState(false)
   const [birthMonth, setBirthMonth] = useState('')
   const [birthYear, setBirthYear] = useState('')
   const [gateError, setGateError] = useState(null)
+  // Turnstile token for the email link. Good for one send: `captchaKey` is bumped
+  // after each attempt so the widget issues a fresh one.
+  const [captchaToken, setCaptchaToken] = useState(null)
+  const [captchaKey, setCaptchaKey] = useState(0)
+
+  // The email form (and the widget inside it) is on screen only in these views.
+  const emailFormShown = isOpen && showEmail && gate !== BLOCKED && (gate === PASSED || mode === 'signin')
+
+  // A token belongs to a mounted widget. When the form goes away (age gate, close)
+  // the widget goes with it, and its token must not outlive it.
+  useEffect(() => {
+    if (!emailFormShown) setCaptchaToken(null)
+  }, [emailFormShown])
 
   // Load email cookie and the stored age verdict only on client mount
   useEffect(() => {
@@ -90,7 +110,6 @@ export default function SignInModal({ isOpen, onClose }) {
       setError(null)
       setMessage(null)
       setMode('signin')
-      setNoAccount(false)
       setShowEmail(false)
     }
   }, [isOpen])
@@ -208,13 +227,18 @@ export default function SignInModal({ isOpen, onClose }) {
     setIsSubmitting(true)
     setError(null)
     setMessage(null)
-    setNoAccount(false)
 
     if (honeypot.trim()) {
       setTimeout(() => {
         setMessage('Check your email for the magic link.')
         setIsSubmitting(false)
       }, 500)
+      return
+    }
+
+    // The button is disabled without a token; this covers a submit that gets around it.
+    if (!captchaToken) {
+      setIsSubmitting(false)
       return
     }
 
@@ -236,24 +260,35 @@ export default function SignInModal({ isOpen, onClose }) {
       rememberReturnPath()
       // Only a browser that has passed the gate may create an account by email;
       // otherwise the link can only sign in to an account that already exists.
+      // `via=email` tells /auth/callback this was an email-link sign-in, so it can
+      // leave the add-a-passkey nudge. Supabase Auth verifies `captchaToken` once
+      // captcha is enabled for the project; the check here is only a convenience.
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: window.location.origin + '/auth/callback',
+          emailRedirectTo: window.location.origin + '/auth/callback?via=email',
           shouldCreateUser: gate === PASSED,
+          captchaToken,
         }
       })
       if (error && (error.code === 'otp_disabled' || /signups not allowed/i.test(error.message || ''))) {
-        setNoAccount(true)
-        setShowEmail(true)
+        // An address with no account must look exactly like one with an account.
+        setMessage(LINK_ON_ITS_WAY)
+        return
+      }
+      if (error && /captcha/i.test(error.message || '')) {
+        setError(TURNSTILE_FAILED)
         return
       }
       if (error) throw error
-      setMessage('Link sent. Check your inbox (and spam) and click it to sign in.')
+      setMessage(gate === PASSED ? LINK_SENT : LINK_ON_ITS_WAY)
     } catch (err) {
       setError(err.message)
     } finally {
       setIsSubmitting(false)
+      // The token was spent on this attempt; ask the widget for a new one.
+      setCaptchaToken(null)
+      setCaptchaKey((k) => k + 1)
     }
   }
 
@@ -339,14 +374,6 @@ export default function SignInModal({ isOpen, onClose }) {
           <p className="text-xs text-[var(--color-text-secondary)] font-serif">No password needed.</p>
           {error   && <div className="text-[var(--color-ember)] text-xs mt-3 font-mono">{error}</div>}
           {message && <div className="text-[var(--color-text-primary)] text-xs mt-3 font-mono">{message}</div>}
-          {noAccount && (
-            <div className="text-[var(--color-ember)] text-xs mt-3 font-mono">
-              No account uses that email.{' '}
-              <button type="button" onClick={() => setMode('signup')} className="underline cursor-pointer bg-transparent">
-                New here? Create an account
-              </button>
-            </div>
-          )}
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -402,10 +429,11 @@ export default function SignInModal({ isOpen, onClose }) {
                 autoFocus
                 className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
               />
+              <Turnstile action="email_link" onToken={setCaptchaToken} resetKey={captchaKey} />
               <button
                 type="submit"
-                className="w-full border border-[var(--color-line)] text-[var(--color-text-primary)] font-mono text-xs uppercase py-3 cursor-pointer hover:border-white"
-                disabled={anyBusy}
+                className="w-full border border-[var(--color-line)] text-[var(--color-text-primary)] font-mono text-xs uppercase py-3 cursor-pointer hover:border-white disabled:opacity-40 disabled:cursor-not-allowed"
+                disabled={anyBusy || !captchaToken}
               >
                 {isSubmitting ? 'Sending…' : 'Email me a sign-in link'}
               </button>
@@ -416,7 +444,7 @@ export default function SignInModal({ isOpen, onClose }) {
               onClick={() => setShowEmail(true)}
               className="self-center font-mono text-xs text-[var(--color-text-secondary)] underline hover:text-[var(--color-ember)] cursor-pointer bg-transparent"
             >
-              No Google or passkey? Email me a sign-in link
+              Can't sign in? Email me a sign-in link
             </button>
           )}
         </form>

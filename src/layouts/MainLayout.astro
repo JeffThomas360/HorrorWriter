@@ -6,6 +6,7 @@ import UserMenu from '../components/UserMenu.jsx';
 import NavModLinks from '../components/NavModLinks.jsx';
 import SiteBanner from '../components/SiteBanner.jsx';
 import TicketReplyBanner from '../components/TicketReplyBanner.jsx';
+import PasskeyPrompt from '../components/PasskeyPrompt.jsx';
 import NotificationsBell from '../components/NotificationsBell.jsx';
 import Footer from '../components/Footer.astro';
 import SignInModalWrapper from '../components/SignInModalWrapper.jsx';
@@ -72,6 +73,7 @@ const ogImageURL = ogImage ? new URL(ogImage, Astro.site) : new URL('/og.png', A
     <AuthProvider client:load>
       <SiteBanner client:load />
       <TicketReplyBanner client:load />
+      <PasskeyPrompt client:load />
 
       <header class="vhs-header sticky top-0 backdrop-blur-md z-50">
         <div class="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
