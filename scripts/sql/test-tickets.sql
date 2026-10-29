@@ -591,7 +591,7 @@ end $$;
 reset role;
 select set_config('request.jwt.claims', '', true);
 
--- ── 8. Generic resolve can't touch a ticket task; manual tasks still work ──
+-- ── 8. Generic resolve can't touch a live ticket's task; manual tasks still work ──
 select set_config('request.jwt.claims', json_build_object('sub', current_setting('test.k'), 'role', 'authenticated')::text, true);
 set local role authenticated;
 do $$ begin
@@ -739,6 +739,61 @@ begin
   -- The table itself refuses an inconsistent row or an unknown topic.
   perform pg_temp.expect_err(format('update public.tickets set status = %L where id = %L', 'closed', b), null, '23514');
   perform pg_temp.expect_err(format('update public.tickets set topic = %L where id = %L', 'admin', b), null, '23514');
+end $$;
+
+-- ── 11. An orphan ticket task (its ticket deleted) can be dismissed ────────
+-- L's second ticket is still waiting with an open task. Deleting the ticket as the
+-- owner (postgres) cascades its messages; keeper_tasks has no foreign key to it, so
+-- the task is left pointing at nothing. L's first ticket is the live control.
+do $$
+declare
+  gone uuid := split_part(current_setting('test.l_tickets'), ',', 2)::uuid;
+  live uuid := split_part(current_setting('test.l_tickets'), ',', 1)::uuid;
+  gone_task uuid;
+  live_task uuid;
+begin
+  select id into gone_task from public.keeper_tasks where type = 'ticket' and target_id = gone and status = 'open';
+  select id into live_task from public.keeper_tasks where type = 'ticket' and target_id = live and status = 'open';
+  if gone_task is null or live_task is null then raise exception 'FAIL: orphan setup found no open ticket tasks'; end if;
+  delete from public.tickets where id = gone;
+  if exists (select 1 from public.tickets where id = gone) or exists (select 1 from public.ticket_messages where ticket_id = gone) then
+    raise exception 'FAIL: orphan setup did not delete the ticket';
+  end if;
+  perform set_config('test.orphan_task', gone_task::text, true);
+  perform set_config('test.live_task', live_task::text, true);
+end $$;
+
+select set_config('request.jwt.claims', json_build_object('sub', current_setting('test.k'), 'role', 'authenticated')::text, true);
+set local role authenticated;
+do $$
+declare orphan text := current_setting('test.orphan_task'); live text := current_setting('test.live_task');
+begin
+  -- A task whose ticket still exists: dismiss is refused like every generic action.
+  perform pg_temp.expect_err(format('select public.resolve_keeper_task(%L, %L)', live, 'dismiss'), 'use_ticket_actions', 'HW012');
+  perform pg_temp.expect_err(format('select public.resolve_keeper_task(%L, %L)', live, 'done'), 'use_ticket_actions', 'HW012');
+  -- An orphan: only dismiss gets through.
+  perform pg_temp.expect_err(format('select public.resolve_keeper_task(%L, %L)', orphan, 'done'), 'use_ticket_actions', 'HW012');
+  perform pg_temp.expect_err(format('select public.resolve_keeper_task(%L, %L)', orphan, 'snooze'), 'use_ticket_actions', 'HW012');
+  perform public.resolve_keeper_task(orphan::uuid, 'dismiss');
+  perform pg_temp.expect_err(format('select public.resolve_keeper_task(%L, %L)', orphan, 'dismiss'), 'not_open', 'HW011');
+end $$;
+reset role;
+select set_config('request.jwt.claims', '', true);
+
+do $$
+declare orphan uuid := current_setting('test.orphan_task')::uuid; live uuid := current_setting('test.live_task')::uuid;
+begin
+  if not exists (select 1 from public.keeper_tasks where id = orphan and status = 'dismissed' and resolution = 'dismiss'
+                   and resolved_by = current_setting('test.k')::uuid and resolved_at is not null) then
+    raise exception 'FAIL: the orphan task was not dismissed by the keeper';
+  end if;
+  if not exists (select 1 from public.keeper_tasks where id = live and status = 'open') then
+    raise exception 'FAIL: a refused dismiss changed a live ticket task';
+  end if;
+  if (select count(*) from public.mod_actions where action = 'keeper_task_resolved' and target_type = 'keeper_task' and target_id = orphan
+        and metadata = jsonb_build_object('type', 'ticket', 'action', 'dismiss')) <> 1 then
+    raise exception 'FAIL: dismissing the orphan task was not logged';
+  end if;
 end $$;
 
 select 'ALL PASS' as result, current_setting('test.moved', true) as support_reports_moved,

@@ -14,6 +14,17 @@ const api = {
 }
 vi.mock('../../lib/keeperTaskApi', () => api)
 
+// Ticket cards load their conversation; the queue tests only need it to resolve.
+const tickets = {
+  fetchTicket: vi.fn(async (id) => ({
+    id, topic: 'signing-in', subject: 'x', status: 'waiting', close_reason: null,
+    messages: [{ id: 'm1', from_keeper: false, body: 'Hello Keeper', created_at: '2026-10-01T00:00:00Z' }],
+  })),
+  keeperReplyTicket: vi.fn(async () => 'msg-id'),
+  keeperCloseTicket: vi.fn(async () => {}),
+}
+vi.mock('../../lib/tickets', async (importOriginal) => ({ ...(await importOriginal()), ...tickets }))
+
 const WorkQueueTab = (await import('./WorkQueueTab')).default
 
 const NOW = new Date('2026-10-10T12:00:00Z')
@@ -32,6 +43,7 @@ beforeEach(() => {
   vi.setSystemTime(NOW)
   rows = []
   Object.values(api).forEach((f) => f.mockClear())
+  Object.values(tickets).forEach((f) => f.mockClear())
   toast.error.mockClear()
 })
 afterEach(() => { cleanup(); vi.useRealTimers() })
@@ -134,4 +146,61 @@ test('adding a to-do needs a title, then calls the API', async () => {
   expect(add).not.toBeDisabled()
   fireEvent.click(add)
   await waitFor(() => expect(api.addManualTask).toHaveBeenCalledWith('Renew domain', null))
+})
+
+const ticketTask = (id, topic, subject, over = {}) => task(id, {
+  type: 'ticket', target_type: 'ticket', target_id: `ticket-${id}`,
+  payload: { topic, subject, handle: 'mara' }, ...over,
+})
+
+test('a ticket task renders as a ticket card, not a to-do card', async () => {
+  rows = [ticketTask('t1', 'signing-in', 'Passkey vanished')]
+  renderTab()
+  const card = await screen.findByRole('listitem')
+  expect(within(card).getByText('Passkey vanished')).toBeInTheDocument()
+  expect(within(card).getByText('Signing in — @mara')).toBeInTheDocument()
+  expect(await within(card).findByText('Hello Keeper')).toBeInTheDocument()
+  expect(tickets.fetchTicket).toHaveBeenCalledWith('ticket-t1')
+  expect(within(card).getByRole('button', { name: 'Reply' })).toBeInTheDocument()
+  expect(within(card).getByRole('button', { name: 'Resolve' })).toBeInTheDocument()
+  expect(within(card).queryByRole('button', { name: 'Done' })).toBeNull()
+})
+
+test('the topic filter hides tickets on other topics but keeps to-dos', async () => {
+  rows = [task('a'), ticketTask('t1', 'signing-in', 'Passkey vanished'), ticketTask('t2', 'rituals', 'Entry missing')]
+  renderTab()
+  await screen.findByText('Task a')
+  expect(screen.getByText('Passkey vanished')).toBeInTheDocument()
+  expect(screen.getByText('Entry missing')).toBeInTheDocument()
+
+  fireEvent.change(screen.getByLabelText(/filter by topic/i), { target: { value: 'rituals' } })
+  expect(screen.queryByText('Passkey vanished')).toBeNull()
+  expect(screen.getByText('Entry missing')).toBeInTheDocument()
+  expect(screen.getByText('Task a')).toBeInTheDocument()
+})
+
+test('the topic filter lists every topic and only shows for tickets or all types', async () => {
+  rows = [task('a'), ticketTask('t1', 'signing-in', 'Passkey vanished')]
+  renderTab()
+  await screen.findByText('Task a')
+  const topic = screen.getByLabelText(/filter by topic/i)
+  expect(within(topic).getAllByRole('option').map((o) => o.textContent)).toEqual([
+    'All topics', 'Signing in', 'My writing', 'Rituals', 'Another member', "Something's broken", 'Other',
+  ])
+
+  fireEvent.change(screen.getByLabelText(/filter by type/i), { target: { value: 'ticket' } })
+  expect(screen.getByLabelText(/filter by topic/i)).toBeInTheDocument()
+  expect(screen.queryByText('Task a')).toBeNull()
+
+  fireEvent.change(screen.getByLabelText(/filter by type/i), { target: { value: 'manual' } })
+  expect(screen.queryByLabelText(/filter by topic/i)).toBeNull()
+})
+
+test('a ticket card that hits a closed ticket refreshes the queue', async () => {
+  rows = [ticketTask('t1', 'signing-in', 'Passkey vanished')]
+  tickets.keeperCloseTicket.mockRejectedValueOnce(new Error('This ticket is closed.'))
+  renderTab()
+  fireEvent.click(await screen.findByRole('button', { name: 'Dismiss' }))
+  await waitFor(() => expect(toast.error).toHaveBeenCalledWith('This ticket is closed.'))
+  await waitFor(() => expect(api.fetchOpenTasks).toHaveBeenCalledTimes(2))
 })

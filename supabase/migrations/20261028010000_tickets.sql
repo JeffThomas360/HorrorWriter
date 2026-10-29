@@ -13,7 +13,9 @@
 -- A ticket has at most one open keeper task, and only while it waits on the
 -- keeper. open_ticket, and a member reply to an answered ticket, create one; a
 -- keeper reply or close resolves it. resolve_keeper_task refuses ticket tasks
--- (use_ticket_actions), so a ticket and its task can never disagree.
+-- (use_ticket_actions), so a ticket and its task can never disagree. The one
+-- exception is an orphan: a task whose ticket row no longer exists (deleted by hand)
+-- can be dismissed, since there is no ticket left to disagree with.
 --
 -- Text is normalised (whitespace runs -> one space, ends trimmed) before the
 -- length and duplicate checks, so padding can't stretch or disguise a message.
@@ -328,6 +330,9 @@ select cron.schedule('close-inactive-tickets', '17 4 * * *', 'select public.clos
 
 -- ── 6. Ticket tasks resolve only through the ticket functions ──────────────
 -- Same as 20261005000000 plus the `ticket` branch. CREATE OR REPLACE keeps the ACL.
+-- A ticket task may be dismissed here only when its ticket is gone, so the work
+-- queue can clear a task that points at nothing. While the ticket exists, every
+-- generic action is refused: the ticket functions are the only way to act on it.
 create or replace function public.keeper_task_apply_action(p_task public.keeper_tasks, p_action text, p_note text)
 returns text
 language plpgsql security definer
@@ -339,6 +344,9 @@ begin
       if p_action = 'done' then return 'resolved'; end if;
       if p_action = 'dismiss' then return 'dismissed'; end if;
     when 'ticket' then
+      if p_action = 'dismiss' and not exists (select 1 from public.tickets where id = p_task.target_id) then
+        return 'dismissed';
+      end if;
       raise exception 'use_ticket_actions' using errcode = 'HW012';
     else
       null;
