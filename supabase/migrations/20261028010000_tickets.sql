@@ -1,5 +1,6 @@
 -- Member tickets: two tables, guarded RPCs, a `ticket` keeper-task type, a daily
--- auto-close, and the open Moderation -> Support requests moved over.
+-- auto-close, and the open Moderation -> Support requests moved over (no new site
+-- reports can be filed after this).
 -- Spec: docs/superpowers/specs/2026-10-28-member-tickets-design.md
 -- Needs keeper_dispatch() from 20261028000000_keeper_alerts.sql.
 --
@@ -476,5 +477,16 @@ begin
      where id = r.id;
   end loop;
 end $$;
+
+-- ── 10. No new site reports ────────────────────────────────────────────────
+-- Support requests are tickets now (section 9 moved the open ones over) and nothing
+-- reads target_type 'site' any more, so a new one would sit where nobody looks. The
+-- reports insert policy is the baseline's (00000000000000_baseline.sql; no later
+-- migration redefines it) verbatim, plus that one condition.
+drop policy "reports_insert" on public.reports;
+create policy "reports_insert" on public.reports for insert with check (
+  reporter_id = (select auth.uid())
+  and target_type <> 'site'
+);
 
 notify pgrst, 'reload schema';

@@ -925,6 +925,33 @@ begin
   end if;
 end $$;
 
+-- ── 12. No new site reports (R31) ─────────────────────────────────────────
+-- Support requests are tickets now and nothing reads a site report, so the reports
+-- insert policy refuses one. Every other report is filed as before, as yourself only.
+select set_config('request.jwt.claims', json_build_object('sub', current_setting('test.o'), 'role', 'authenticated')::text, true);
+set local role authenticated;
+do $$
+declare o text := current_setting('test.o');
+begin
+  perform pg_temp.expect_err(format('insert into public.reports (reporter_id, target_type, category, details) values (%L, %L, %L, %L)',
+    o, 'site', 'other', 'Rehearsal: the site is broken.'), null, '42501');
+  insert into public.reports (reporter_id, target_type, target_id, category, details)
+  values (o::uuid, 'post', gen_random_uuid(), 'spam', 'Rehearsal: a post report is still allowed.');
+  perform pg_temp.expect_err(format('insert into public.reports (reporter_id, target_type, target_id, category) values (%L, %L, %L, %L)',
+    current_setting('test.m'), 'post', gen_random_uuid(), 'spam'), null, '42501');
+end $$;
+reset role;
+select set_config('request.jwt.claims', '', true);
+do $$ begin
+  if (select count(*) from public.reports where reporter_id = current_setting('test.o')::uuid
+        and target_type = 'post' and details = 'Rehearsal: a post report is still allowed.') <> 1 then
+    raise exception 'FAIL: the post report was not filed';
+  end if;
+  if exists (select 1 from public.reports where details = 'Rehearsal: the site is broken.') then
+    raise exception 'FAIL: a site report was filed';
+  end if;
+end $$;
+
 select 'ALL PASS' as result, current_setting('test.moved', true) as support_reports_moved,
        current_setting('test.pre_log_seen', true) as pre_existing_log_row_kept,
        current_setting('test.s_self_backdate', true) as profile_backdate;
