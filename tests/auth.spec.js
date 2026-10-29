@@ -192,8 +192,10 @@ test.describe('Authentication Flows', () => {
     await expect(magicLinkBtn).toBeEnabled();
     await magicLinkBtn.click();
 
-    // Verify success message is STILL shown to trick the bot
-    await expect(page.getByText('Check your email for the magic link.')).toBeVisible();
+    // The bot is told exactly what a real send says for this browser (the age gate is not
+    // passed here), so it can't tell it was caught.
+    await expect(page.getByText(LINK_ON_ITS_WAY)).toBeVisible();
+    await expect(page.getByText(/magic link/i)).toHaveCount(0);
 
     // Verify Supabase was NEVER called
     expect(otpTriggered).toBe(false);

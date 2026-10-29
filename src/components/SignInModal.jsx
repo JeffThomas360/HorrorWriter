@@ -251,9 +251,11 @@ export default function SignInModal({ isOpen, onClose }) {
     setError(null)
     setMessage(null)
 
+    // A bot filled the hidden field: send nothing, leave no marker, and answer exactly as
+    // a real send would for this gate, so it can't tell it was caught.
     if (honeypot.trim()) {
       setTimeout(() => {
-        setMessage('Check your email for the magic link.')
+        setMessage(gate === PASSED ? LINK_SENT : LINK_ON_ITS_WAY)
         setIsSubmitting(false)
       }, 500)
       return

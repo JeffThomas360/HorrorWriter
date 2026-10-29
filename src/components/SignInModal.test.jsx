@@ -549,13 +549,29 @@ describe('SignInModal marks this browser as having asked for an email link', () 
     expect(Number(localStorage.getItem(MARKER))).toBeGreaterThan(0)
   })
 
-  test('not on the honeypot path, where nothing is sent', async () => {
+  // R20: the honeypot's fake success reads exactly like the real answer for this gate, so
+  // a bot can't tell it was caught.
+  test('not on the honeypot path, where nothing is sent and the answer is the real one (gate not passed)', async () => {
     const { container } = open()
     fireEvent.change(await revealEmail(), { target: { value: 'bot@example.com' } })
     fireEvent.change(container.querySelector('input[name="website_url_hp"]'), { target: { value: 'http://spam.example' } })
     passTurnstile()
     fireEvent.click(sendButton())
-    expect(await screen.findByText('Check your email for the magic link.')).toBeInTheDocument()
+    expect(await screen.findByText(NEUTRAL)).toBeInTheDocument()
+    expect(screen.queryByText(/magic link/i)).toBeNull()
+    expect(signInWithOtp).not.toHaveBeenCalled()
+    expect(localStorage.getItem(MARKER)).toBeNull()
+  })
+
+  test('not on the honeypot path with the gate passed either, where it reads like a real account creation', async () => {
+    localStorage.setItem(GATE_KEY, PASSED)
+    const { container } = open()
+    fireEvent.change(await revealEmail(), { target: { value: 'bot@example.com' } })
+    fireEvent.change(container.querySelector('input[name="website_url_hp"]'), { target: { value: 'http://spam.example' } })
+    passTurnstile()
+    fireEvent.click(sendButton())
+    expect(await screen.findByText(LINK_SENT)).toBeInTheDocument()
+    expect(screen.queryByText(NEUTRAL)).toBeNull()
     expect(signInWithOtp).not.toHaveBeenCalled()
     expect(localStorage.getItem(MARKER)).toBeNull()
   })
