@@ -15,7 +15,8 @@
 -- keeper reply or close resolves it. resolve_keeper_task refuses ticket tasks
 -- (use_ticket_actions), so a ticket and its task can never disagree. The one
 -- exception is an orphan: a task whose ticket row no longer exists (deleted by hand)
--- can be dismissed, since there is no ticket left to disagree with.
+-- can be dismissed, since there is no ticket left to disagree with. Deleting a ticket
+-- now deletes its tasks too (section 6b), so new orphans don't arise.
 --
 -- "Unseen" (the member's reply banner) is status answered or closed with
 -- member_seen_at null. A keeper reply, or a close with a note, sets it null; a
@@ -364,6 +365,27 @@ begin
   raise exception 'unknown_action' using errcode = 'HW012';
 end $$;
 
+-- ── 6b. Deleting a ticket deletes its queue tasks ──────────────────────────
+-- keeper_tasks has no foreign key to its target (the queue outlives most targets),
+-- so without this a deleted ticket would leave its tasks behind. Deletion here is for
+-- real ("Erase everything", /rules/): a member erased with their account takes their
+-- tickets (profiles -> tickets cascade) and, through this, every task about them, open
+-- or resolved. Row triggers fire for cascaded deletes too. The orphan branch in 6 stays
+-- for tasks whose ticket went before this existed.
+create function public.ticket_delete_tasks()
+returns trigger
+language plpgsql security definer
+set search_path = ''
+as $$
+begin
+  delete from public.keeper_tasks where type = 'ticket' and target_id = old.id;
+  return old;
+end $$;
+
+create trigger tickets_delete_tasks
+  after delete on public.tickets
+  for each row execute function public.ticket_delete_tasks();
+
 -- ── 7. Keep ticket activity off the public transparency log ──────────────
 -- Verbatim from 20260907000000 (nothing since redefines it) plus the WHERE.
 -- IS DISTINCT FROM keeps rows whose target_type is NULL. CREATE OR REPLACE
@@ -406,6 +428,7 @@ revoke all on function public.ticket_require_member(uuid)     from public, anon,
 revoke all on function public.ticket_check_limits(uuid, text) from public, anon, authenticated;
 revoke all on function public.close_inactive_tickets()        from public, anon, authenticated;
 revoke all on function public.keeper_task_apply_action(public.keeper_tasks, text, text) from public, anon, authenticated;
+revoke all on function public.ticket_delete_tasks()           from public, anon, authenticated;
 
 revoke all on function public.open_ticket(uuid, text, text, text) from public, anon, authenticated;
 grant execute on function public.open_ticket(uuid, text, text, text) to service_role;

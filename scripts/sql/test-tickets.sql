@@ -808,25 +808,56 @@ begin
   end if;
 end $$;
 
--- ── 11. An orphan ticket task (its ticket deleted) can be dismissed ────────
+-- ── 11. Deleting a ticket deletes its queue tasks (R29); an orphan can still go ──
 -- L's second ticket is still waiting with an open task. Deleting the ticket as the
--- owner (postgres) cascades its messages; keeper_tasks has no foreign key to it, so
--- the task is left pointing at nothing. L's first ticket is the live control.
+-- owner (postgres) cascades its messages, and its AFTER DELETE trigger removes its
+-- tasks: keeper_tasks has no foreign key to tickets, so without it the task would be
+-- left pointing at nothing. L's first ticket is the live control.
 do $$
 declare
   gone uuid := split_part(current_setting('test.l_tickets'), ',', 2)::uuid;
   live uuid := split_part(current_setting('test.l_tickets'), ',', 1)::uuid;
-  gone_task uuid;
   live_task uuid;
+  orphan uuid;
+  r text;
 begin
-  select id into gone_task from public.keeper_tasks where type = 'ticket' and target_id = gone and status = 'open';
+  if not exists (select 1 from public.keeper_tasks where type = 'ticket' and target_id = gone and status = 'open') then
+    raise exception 'FAIL: setup: the ticket to delete has no open task';
+  end if;
   select id into live_task from public.keeper_tasks where type = 'ticket' and target_id = live and status = 'open';
-  if gone_task is null or live_task is null then raise exception 'FAIL: orphan setup found no open ticket tasks'; end if;
+  if live_task is null then raise exception 'FAIL: setup: the live ticket has no open task'; end if;
+
   delete from public.tickets where id = gone;
   if exists (select 1 from public.tickets where id = gone) or exists (select 1 from public.ticket_messages where ticket_id = gone) then
-    raise exception 'FAIL: orphan setup did not delete the ticket';
+    raise exception 'FAIL: deleting the ticket did not delete it and its messages';
   end if;
-  perform set_config('test.orphan_task', gone_task::text, true);
+  if exists (select 1 from public.keeper_tasks where type = 'ticket' and target_id = gone) then
+    raise exception 'FAIL: deleting a ticket left its keeper task behind';
+  end if;
+  if not exists (select 1 from public.keeper_tasks where id = live_task and status = 'open') then
+    raise exception 'FAIL: deleting one ticket touched another ticket''s task';
+  end if;
+
+  -- The trigger function is internal: no client role, no PUBLIC.
+  foreach r in array array['anon', 'authenticated'] loop
+    if has_function_privilege(r, 'public.ticket_delete_tasks()', 'execute') then
+      raise exception 'FAIL: % can execute ticket_delete_tasks', r;
+    end if;
+  end loop;
+  if exists (select 1 from pg_proc p, lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+              where p.oid = 'public.ticket_delete_tasks()'::regprocedure and a.grantee = 0) then
+    raise exception 'FAIL: PUBLIC can execute ticket_delete_tasks';
+  end if;
+  if not exists (select 1 from pg_proc where oid = 'public.ticket_delete_tasks()'::regprocedure and prosecdef
+                   and proconfig @> array['search_path=""']) then
+    raise exception 'FAIL: ticket_delete_tasks must be SECURITY DEFINER with an empty search_path';
+  end if;
+
+  -- A ticket task whose ticket is already gone (from before the trigger, or a hand edit)
+  -- can still be cleared from the queue: the orphan branch stays.
+  orphan := public.create_keeper_task('ticket', 'ticket:rehearsal-orphan', 'ticket', gen_random_uuid(),
+    jsonb_build_object('topic', 'other', 'subject', 'Gone', 'handle', 'nobody'), 0::smallint);
+  perform set_config('test.orphan_task', orphan::text, true);
   perform set_config('test.live_task', live_task::text, true);
 end $$;
 
@@ -860,6 +891,31 @@ begin
   if (select count(*) from public.mod_actions where action = 'keeper_task_resolved' and target_type = 'keeper_task' and target_id = orphan
         and metadata = jsonb_build_object('type', 'ticket', 'action', 'dismiss')) <> 1 then
     raise exception 'FAIL: dismissing the orphan task was not logged';
+  end if;
+end $$;
+
+-- ── 11b. Erasing a member erases their tickets' queue tasks (R29) ─────────
+-- "Erase everything": L's account is deleted the way the dashboard or delete_member
+-- does it. The auth user goes, the profile cascades, the profile's tickets cascade, and
+-- each ticket's trigger removes its tasks, open or already dismissed.
+do $$
+declare
+  l uuid := '00000000-0000-4000-8000-0000000c3003';
+  ids uuid[] := string_to_array(current_setting('test.l_tickets'), ',')::uuid[];
+  n int;
+begin
+  select count(*) into n from public.keeper_tasks where type = 'ticket' and target_id = any(ids);
+  if n < 2 then raise exception 'FAIL: setup: expected L''s tickets to have at least 2 tasks, got %', n; end if;
+  delete from auth.users where id = l;
+  if exists (select 1 from public.profiles where id = l) then raise exception 'FAIL: setup: L''s profile survived'; end if;
+  if exists (select 1 from public.tickets where user_id = l or id = any(ids)) then
+    raise exception 'FAIL: deleting the member left tickets behind';
+  end if;
+  select count(*) into n from public.keeper_tasks where type = 'ticket' and target_id = any(ids);
+  if n <> 0 then raise exception 'FAIL: deleting the member left % keeper task(s) for their tickets', n; end if;
+  -- Nobody else's went with them.
+  if not exists (select 1 from public.keeper_tasks where id = current_setting('test.t1_task2')::uuid) then
+    raise exception 'FAIL: deleting one member removed another member''s ticket task';
   end if;
 end $$;
 
