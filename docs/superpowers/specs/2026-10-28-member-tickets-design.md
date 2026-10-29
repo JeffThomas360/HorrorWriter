@@ -135,6 +135,36 @@ unless they've lost their email.
 - **Retire Support:** remove the Support tab from Moderation, its count from the Moderation overview and
   `modActions.js`, and the `targetType === 'site'` branch of `ReportModal`.
 
+## Bot blocking with Cloudflare Turnstile (Jeff, 2026-10-28: "Yes, add it")
+
+Jeff wants "a really deep bot block based on real world input". Turnstile is Cloudflare's free, mostly invisible
+human check: it judges browser, device and network signals and rarely shows a puzzle. It guards the three places a
+bot can create load. **Every check is enforced on the server**, so a bot can't skip it by calling the API directly.
+
+- **Sign-up and email sign-in links:** Supabase Auth's built-in captcha (provider Turnstile). With it enabled,
+  Supabase refuses any `signInWithOtp` call without a valid token, in both sign-in and sign-up mode. The modal
+  passes `options.captchaToken`. Google sign-in and passkey sign-in are untouched: Google is its own human check,
+  and passkey sign-in finishes server-side (`webauthn-authenticate-complete` → `verifyOtp`), which captcha doesn't
+  cover. **Verify passkey and Google sign-in still work with captcha on.**
+- **Open Ticket:** a new `open-ticket` Edge Function. It checks the member's sign-in from their JWT, then verifies the
+  Turnstile token with Cloudflare's siteverify (secret `TURNSTILE_SECRET_KEY`, expected action `open_ticket`), then
+  calls `open_ticket` with the service role, passing the member's id. `open_ticket` is executable by `service_role`
+  only, so the browser can't skip the check. Replies stay a direct RPC: they need an existing ticket and are capped
+  at 10 a day.
+- **If Turnstile can't confirm a human** (or is unreachable), the action is refused with "We couldn't confirm you're
+  a person. Refresh the page and try again." This is fail-closed by design. Nobody is locked out of their account by
+  it: passkey and Google sign-in never touch it.
+- **One Turnstile widget** (site key + secret) serves both, with allowed hostnames `horrorwriter.org`, `localhost` and
+  `orig-beetlebub.workers.dev` (covers PR previews). Local dev points at production Supabase, so localhost needs the
+  real key in `.env.local`.
+- **CSP:** `public/_headers` adds `https://challenges.cloudflare.com` to `script-src` and a new
+  `frame-src https://challenges.cloudflare.com`. `'unsafe-inline'` stays. `_headers` is invisible to `npm run dev`,
+  so verify on the PR's Workers preview (widget renders, islands still hydrate).
+- **Order matters:** turn Supabase Auth captcha on only **after** the site that sends tokens is live. Turning it on
+  earlier breaks email sign-in.
+- **Optional, no code (Jeff's switches):** Cloudflare Bot Fight Mode on the zone, and a rate-limiting rule. Listed in
+  the PR as suggestions only.
+
 ## FAQ questions (Claude drafts the list + facts; Jeff writes answers)
 
 Part of the build: a `docs/` working file listing each question under its topic with a "facts" note sourced from the
