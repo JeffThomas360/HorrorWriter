@@ -29,7 +29,9 @@
 -- Ticket actions are logged to mod_actions like every keeper action, but they
 -- are support work, not moderation: get_transparency_log (public, anon) now
 -- leaves out target_type 'ticket' (section 7). Ticket rows also keep `reason`
--- null and put details in metadata. Pushes carry only the topic and @handle,
+-- null and put details in metadata, and leave `target_user_id` null: support is not
+-- an action against the member, so it stays out of their case file and the audit
+-- view's actions-against list. The ticket (target_type, target_id) is the target. Pushes carry only the topic and @handle,
 -- never ticket text.
 --
 -- Behaviour test: scripts/sql/test-tickets.sql (rolls back; must print ALL PASS).
@@ -273,8 +275,8 @@ begin
    where type = 'ticket' and target_id = p_ticket and status = 'open';
   insert into public.notifications (user_id, kind, title, body)
   values (v_ticket.user_id, 'ticket_reply', 'The Keeper answered your ticket', v_ticket.subject);
-  insert into public.mod_actions (actor_id, action, target_type, target_id, target_user_id, metadata)
-  values (auth.uid(), 'ticket_replied', 'ticket', p_ticket, v_ticket.user_id,
+  insert into public.mod_actions (actor_id, action, target_type, target_id, metadata)
+  values (auth.uid(), 'ticket_replied', 'ticket', p_ticket,
           jsonb_build_object('message_id', v_msg));
   return v_msg;
 end $$;
@@ -312,8 +314,8 @@ begin
      set status = case p_reason when 'resolved' then 'resolved' else 'dismissed' end,
          resolved_at = now(), resolved_by = auth.uid(), resolution = p_reason
    where type = 'ticket' and target_id = p_ticket and status = 'open';
-  insert into public.mod_actions (actor_id, action, target_type, target_id, target_user_id, metadata)
-  values (auth.uid(), 'ticket_closed', 'ticket', p_ticket, v_ticket.user_id,
+  insert into public.mod_actions (actor_id, action, target_type, target_id, metadata)
+  values (auth.uid(), 'ticket_closed', 'ticket', p_ticket,
           jsonb_build_object('reason', p_reason, 'note', v_note is not null));
 end $$;
 

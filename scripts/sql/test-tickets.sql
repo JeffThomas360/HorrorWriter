@@ -444,9 +444,11 @@ begin
   select count(*) into n from public.notifications
    where user_id = m and kind = 'ticket_reply' and title = 'The Keeper answered your ticket' and body = 'My passkey vanished' and read_at is null;
   if n <> 1 then raise exception 'FAIL: expected 1 ticket_reply notification, got %', n; end if;
-  -- Logged, with nothing in the publicly listed reason column.
+  -- Logged, with nothing in the publicly listed reason column, and no target_user_id
+  -- (R30): support is not an action against the member, so it stays out of their case
+  -- file and the audit view's "actions against". The ticket is the target.
   if (select count(*) from public.mod_actions where action = 'ticket_replied' and target_type = 'ticket' and target_id = t
-        and target_user_id = m and actor_id = k and reason is null) <> 1 then
+        and target_user_id is null and actor_id = k and reason is null) <> 1 then
     raise exception 'FAIL: ticket_replied not logged to mod_actions';
   end if;
 end $$;
@@ -651,7 +653,7 @@ begin
     raise exception 'FAIL: a closed ticket still has an open task';
   end if;
   if (select count(*) from public.mod_actions where action = 'ticket_closed' and target_type = 'ticket' and target_id = t
-        and target_user_id = m and actor_id = k and reason is null) <> 1 then
+        and target_user_id is null and actor_id = k and reason is null) <> 1 then
     raise exception 'FAIL: ticket_closed not logged to mod_actions';
   end if;
 end $$;
@@ -674,6 +676,10 @@ do $$ begin
   -- Non-vacuous: the replies and closes above did log ticket rows.
   if (select count(*) from public.mod_actions where target_type = 'ticket' and action in ('ticket_replied', 'ticket_closed')) < 4 then
     raise exception 'FAIL: expected ticket_replied/ticket_closed rows in mod_actions';
+  end if;
+  -- R30: none of them names the member.
+  if exists (select 1 from public.mod_actions where target_type = 'ticket' and target_user_id is not null) then
+    raise exception 'FAIL: a ticket mod_actions row names the member in target_user_id';
   end if;
   -- Signature, ACL and comment unchanged by the CREATE OR REPLACE.
   if not has_function_privilege('anon', 'public.get_transparency_log(int)', 'execute')
