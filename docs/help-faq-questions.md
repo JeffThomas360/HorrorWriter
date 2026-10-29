@@ -8,7 +8,8 @@ shown, in dev or in production, so you can answer them in any order. `npm run de
 `draft: true` but already have a body; production shows only `draft: false`. Change a question by editing its
 `question:` line. `order:` sets the position inside its topic.
 
-Facts were checked against the code on branch `design/member-tickets` on 2026-10-28. "Unverified" means the
+Facts were checked against the code on branch `design/member-tickets` on 2026-10-28; the sign-in and ticket
+facts were checked again on 2026-10-29, after the "Can't sign in?" rework landed. "Unverified" means the
 repository can't confirm it; check it on the live site before you rely on it. Wording quoted in "quotes" is
 copied from the code.
 
@@ -23,13 +24,20 @@ copied from the code.
 2. **Someone who can't sign in can't open a ticket.** Tickets need a signed-in account, and by your decision
    a ticket never gives anyone access to an account. "I can't sign in at all" and "I lost access to my email"
    therefore have to be answered here, in the FAQ.
-3. **The sign-in wording is about to change.** On this branch the modal still says "No Google or passkey? Email
-   me a sign-in link" and still has the "No account uses that email" branch. The planned "Can't sign in?" rework
-   (design spec, "Can't sign in?") relabels the link. Re-read `src/components/SignInModal.jsx` before you write the
-   sign-in answers.
+3. **The sign-in wording changed on this branch.** The "Can't sign in?" rework is in: the small link now reads
+   "Can't sign in? Email me a sign-in link", the "No account uses that email" message is gone, the email button
+   waits for a bot check (Cloudflare Turnstile), and an email-link sign-in can be followed by an add-a-passkey
+   prompt. The details are under "How do I sign in?" and "I can't sign in at all" below.
 4. **Is Google sign-in on?** The button shows only when `VITE_ENABLE_GOOGLE_LOGIN === 'true'` at build time
-   (`SignInModal.jsx` line 55). `wrangler.toml` and `.env.local` say `true`; the untracked local `.env.production`
+   (`SignInModal.jsx` line 98). `wrangler.toml` and `.env.local` say `true`; the untracked local `.env.production`
    says `false`. Which value the live build uses is **unverified**. Open the live sign-in modal and see.
+5. **Ticket limits members can run into** (all in the database, `supabase/migrations/20261028010000_tickets.sql`;
+   the sentences are `src/lib/tickets.js`). At most 3 open tickets: a 4th is refused with "You have 3 open
+   tickets. You can open another once one is closed." Members can't close a ticket themselves; the Keeper closes
+   it, or an answered ticket closes on its own after 14 days with no new message ("Closed — no reply for 14
+   days"). Also: 3 new tickets per 24 hours ("You've opened 3 tickets today. Try again tomorrow."), 10 messages
+   per 24 hours ("You've sent 10 messages today. Try again tomorrow."), and accounts under an hour old can't open
+   one ("New accounts can open a ticket after their first hour.").
 
 ---
 
@@ -42,9 +50,22 @@ File: `how-do-i-sign-in.md`
 - The header's **Sign In** button (`src/components/UserMenu.jsx`) opens the modal "Summon Yourself", which says
   "No password needed." There are no passwords on the site.
 - Three ways in (`src/components/SignInModal.jsx`): **Continue with Google** (see note 4 above),
-  **Sign in with passkey**, and a small link, "No Google or passkey? Email me a sign-in link", which reveals an
-  email box and the button "Email me a sign-in link". After sending: "Link sent. Check your inbox (and spam) and
-  click it to sign in." The link lands on `/auth/callback`.
+  **Sign in with passkey**, and a small link, "Can't sign in? Email me a sign-in link", which reveals an
+  email box and the button "Email me a sign-in link". The link lands on `/auth/callback`.
+- What the modal says after sending depends only on the browser, never on the address: in a browser that hasn't
+  passed the age check (ordinary sign-in) it is always "If that email has an account, a sign-in link is on its
+  way. Check your inbox (and spam)." In one that has (after "New here? Create an account"), which can create an
+  account, it is "Link sent. Check your inbox (and spam) and click it to sign in."
+- The email button waits for a bot check, Cloudflare Turnstile (`src/components/Turnstile.jsx`, action
+  `email_link`). If the check can't run (the script is blocked, errors, times out, or hasn't loaded after 15
+  seconds), the modal says "We couldn't confirm you're a person. Refresh the page and try again." and the button
+  can still be pressed; the server then decides. The same sentence shows if the server refuses the check.
+  Whether Supabase Auth's captcha is switched on for the live project is **unverified**.
+- After signing in with an email link, the page the member lands on can show "Add a passkey so you won't need an
+  email link next time." with **Add passkey** and **Not now** (`src/components/PasskeyPrompt.jsx`). It appears
+  only if the link was asked for from the same browser less than an hour before, and only to the account that
+  signed in. A link opened on another device gets no prompt. It stays on each page until one of the two buttons
+  is pressed.
 - New accounts: "New here? Create an account" asks for a birth month and year first. The minimum age is 13
   (`MIN_AGE`, `src/lib/ageGate.js`). The modal says "We use this once, to check you are old enough. It is not
   stored." Only a pass/fail verdict is kept in the browser's local storage (`hw_age_gate`). A failed check is
@@ -70,7 +91,9 @@ File: `what-is-a-passkey.md`
 - Profile labels each passkey from what the browser reported: "Synced passkey" (cross-platform), "Device-bound
   passkey" (platform) or "Passkey" (unknown), with the date added and last used, and a "✕ Remove" button
   ("Remove this passkey? You can always add a new one.").
-- The same passkey can't be added twice: "This passkey is already registered on your account."
+- The same passkey can't be added twice: "This passkey is already registered on your account." (Profile). The
+  add-a-passkey prompt after an email link says "This device already has a passkey for your account." instead,
+  and goes away.
 - Passkeys are tied to the domain: "Passkeys only work on horrorwriter.org. Use Google or the email link here."
   (relying-party ID `horrorwriter.org`, `supabase/functions/_shared/webauthnOrigin.ts`).
 
@@ -109,13 +132,16 @@ File: `cant-sign-in-at-all.md`
 **Facts**
 - Everything the member can try is above: Google, passkey, or the email link to the account's email. The link is
   a one-time sign-in; spam folders are mentioned in the modal's own message.
-- On this branch, asking for a link for an address that has no account shows "No account uses that email." with
-  "New here? Create an account" (it only does this in a browser that hasn't passed the age check). The planned
-  rework removes that message (note 3).
-- A suspended member who opens a ticket is told "Your account is suspended. Use the appeal on your profile
-  instead." (`src/lib/tickets.js`, `banned`). The only appeal control in the client is the "Appeal this" button
-  on the author's own hidden story (`src/components/AppealButton.jsx`, used in `ReadStory.jsx` line 262); none was found
-  on Profile, so that sentence doesn't match the UI. Whether a suspended member can sign in at all is **unverified**.
+- Asking for a link for an address that has no account looks exactly like asking for one that has: the same
+  sentence, "If that email has an account, a sign-in link is on its way. Check your inbox (and spam)." No message
+  says whether an account exists. In that same kind of browser (age check not passed), asking again for the same
+  address within a short time shows that sentence too (Supabase's per-address wait is mapped to it).
+- If the bot check fails: "We couldn't confirm you're a person. Refresh the page and try again." (see "How do I
+  sign in?").
+- A suspended member who opens a ticket is told "Your account is suspended, so tickets are closed to you for now."
+  (`src/lib/tickets.js`, `banned`). The only appeal control in the client is the "Appeal this" button on the
+  author's own hidden story (`src/components/AppealButton.jsx`, used in `ReadStory.jsx`). Whether a suspended
+  member can sign in at all is **unverified**.
 - A ticket can't be opened by someone who isn't signed in (note 2).
 
 ### I lost access to my email
