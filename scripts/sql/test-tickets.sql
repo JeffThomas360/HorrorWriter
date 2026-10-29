@@ -814,6 +814,72 @@ begin
   end if;
 end $$;
 
+-- ── 10c. A close with no note never hides an unread keeper reply (R21b) ───
+-- M's tb is answered and M has not opened it. T's te is answered and T read it, at a
+-- known time. Both are then closed with no note. The waiting cases are L's dismissed
+-- ticket (section 4) and T's td (10b): both seen, so neither ever reaches the banner.
+do $$ begin
+  perform set_config('test.te', public.open_ticket('00000000-0000-4000-8000-0000000c3005', 'other',
+    'A third question here', 'Asking a third thing, which I will read before it is closed.')::text, true);
+end $$;
+select set_config('request.jwt.claims', json_build_object('sub', current_setting('test.k'), 'role', 'authenticated')::text, true);
+set local role authenticated;
+do $$ begin
+  perform public.keeper_reply_ticket(current_setting('test.te')::uuid, 'Here is the answer to the third one.');
+end $$;
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000c3005","role":"authenticated"}', true);
+set local role authenticated;
+do $$ begin
+  perform public.mark_ticket_seen(current_setting('test.te')::uuid);
+end $$;
+reset role;
+select set_config('request.jwt.claims', '', true);
+-- now() is one value for the whole transaction, so give T's read a time of its own:
+-- otherwise "left alone" and "set to now()" would look the same.
+update public.tickets set member_seen_at = '2026-01-02T03:04:05Z'
+ where id = current_setting('test.te')::uuid and member_seen_at is not null;
+do $$ begin
+  if not exists (select 1 from public.tickets where id = current_setting('test.tb')::uuid and status = 'answered' and member_seen_at is null) then
+    raise exception 'FAIL: setup: tb should be answered and unread';
+  end if;
+  if not exists (select 1 from public.tickets where id = current_setting('test.te')::uuid and status = 'answered'
+                   and member_seen_at = '2026-01-02T03:04:05Z') then
+    raise exception 'FAIL: setup: te should be answered and read';
+  end if;
+end $$;
+
+select set_config('request.jwt.claims', json_build_object('sub', current_setting('test.k'), 'role', 'authenticated')::text, true);
+set local role authenticated;
+do $$ begin
+  perform public.keeper_close_ticket(current_setting('test.tb')::uuid, 'resolved');
+  perform public.keeper_close_ticket(current_setting('test.te')::uuid, 'dismissed', null);
+end $$;
+reset role;
+select set_config('request.jwt.claims', '', true);
+
+do $$
+declare
+  b uuid := current_setting('test.tb')::uuid;
+  e uuid := current_setting('test.te')::uuid;
+begin
+  -- Replied, then closed with no note before the member looked: still unseen, so the
+  -- banner still shows the reply (spec Goal 4).
+  if not exists (select 1 from public.tickets where id = b and status = 'closed' and close_reason = 'resolved' and member_seen_at is null) then
+    raise exception 'FAIL: closing with no note hid a keeper reply the member had not read';
+  end if;
+  -- Answered and read, then closed with no note: stays read, at the time it was read.
+  if not exists (select 1 from public.tickets where id = e and status = 'closed' and close_reason = 'dismissed'
+                   and member_seen_at = '2026-01-02T03:04:05Z') then
+    raise exception 'FAIL: closing a read answer with no note changed when it was seen: %',
+      (select member_seen_at from public.tickets where id = e);
+  end if;
+  -- Neither close added a message.
+  if (select count(*) from public.ticket_messages where ticket_id in (b, e)) <> 4 then
+    raise exception 'FAIL: a close with no note added a message';
+  end if;
+end $$;
+
 -- ── 11. Deleting a ticket deletes its queue tasks (R29); an orphan can still go ──
 -- L's second ticket is still waiting with an open task. Deleting the ticket as the
 -- owner (postgres) cascades its messages, and its AFTER DELETE trigger removes its

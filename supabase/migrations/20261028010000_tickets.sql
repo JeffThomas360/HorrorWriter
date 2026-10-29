@@ -21,7 +21,8 @@
 --
 -- "Unseen" (the member's reply banner) is status answered or closed with
 -- member_seen_at null. A keeper reply, or a close with a note, sets it null; a
--- close without a note sets it now(); mark_ticket_seen sets it; auto-close leaves it.
+-- close without a note leaves it alone on an answered ticket (an unread reply stays
+-- unread) and otherwise sets it if unset; mark_ticket_seen sets it; auto-close leaves it.
 --
 -- Text is normalised (whitespace runs -> one space, ends trimmed) before the
 -- length and duplicate checks, so padding can't stretch or disguise a message.
@@ -306,10 +307,17 @@ begin
   end if;
 
   -- A closing note is the Keeper's last word: unseen, so the member's banner shows it.
-  -- A close without one leaves nothing new to read: seen now, so it never does.
+  -- With no note there is nothing new to read, but an `answered` ticket may still hold
+  -- a keeper reply the member hasn't opened: leave member_seen_at alone, so the banner
+  -- keeps showing that reply. Anything else (a waiting ticket, the keeper silent since
+  -- the member last wrote) counts as seen, so a plain dismissal never shows a banner.
   update public.tickets
      set status = 'closed', close_reason = p_reason, closed_at = now(), updated_at = now(),
-         member_seen_at = case when v_note is null then now() else null end
+         member_seen_at = case
+           when v_note is not null then null
+           when v_ticket.status = 'answered' then v_ticket.member_seen_at
+           else coalesce(v_ticket.member_seen_at, now())
+         end
    where id = p_ticket;
   update public.keeper_tasks
      set status = case p_reason when 'resolved' then 'resolved' else 'dismissed' end,
