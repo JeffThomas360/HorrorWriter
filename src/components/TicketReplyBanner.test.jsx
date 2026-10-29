@@ -1,4 +1,5 @@
 import { render, screen, cleanup, waitFor } from '@testing-library/react'
+import { renderToString } from 'react-dom/server'
 import { test, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // Each island is its own root with its own query cache, so the only thing that can
@@ -130,6 +131,34 @@ test('once the ticket has been opened, a fresh mount shows nothing', async () =>
   await waitFor(() => expect(fetchUnseenAnswered).toHaveBeenCalledTimes(2))
   await new Promise((r) => setTimeout(r, 20))
   expect(container).toBeEmptyDOMElement()
+})
+
+// R14: /my-tickets/ is the page the banner points at, and its own island marks the ticket
+// seen; the banner's separate cache can't know that, so it stays out of the way there.
+test('renders nothing, and asks nothing, on /my-tickets/ itself', async () => {
+  for (const path of ['/my-tickets/', '/my-tickets', '/my-tickets/#tk1']) {
+    window.history.replaceState(null, '', path)
+    const { container, unmount } = render(<TicketReplyBanner />)
+    await new Promise((r) => setTimeout(r, 20))
+    expect(container).toBeEmptyDOMElement()
+    unmount()
+  }
+  expect(fetchUnseenAnswered).not.toHaveBeenCalled()
+  window.history.replaceState(null, '', '/')
+})
+
+test('still shows on a page that only starts with my-tickets in its name', async () => {
+  window.history.replaceState(null, '', '/my-tickets-archive/')
+  render(<TicketReplyBanner />)
+  expect(await screen.findByRole('status')).toHaveTextContent('My passkey vanished')
+  window.history.replaceState(null, '', '/')
+})
+
+test('the server render is empty, so hydration matches whatever page it is', () => {
+  window.history.replaceState(null, '', '/my-tickets/')
+  expect(renderToString(<TicketReplyBanner />)).toBe('')
+  window.history.replaceState(null, '', '/')
+  expect(renderToString(<TicketReplyBanner />)).toBe('')
 })
 
 test('the subject is text, never markup', async () => {

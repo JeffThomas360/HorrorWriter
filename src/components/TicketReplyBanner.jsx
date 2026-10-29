@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../supabaseClient'
 import { fetchUnseenAnswered, TICKETS_KEY } from '../lib/tickets'
@@ -13,21 +14,34 @@ import { withProviders } from './Providers'
  * nothing needs an event or a prop to survive hydration, and it shows on every page
  * until `mark_ticket_seen` runs on /my-tickets/. Like SiteBanner it renders nothing
  * while it loads, signed out, or when the read fails: a notice, not a gate.
+ *
+ * On /my-tickets/ itself it shows nothing and asks nothing: that page opens the ticket
+ * and marks it seen, and this island's separate cache could not learn that in time.
+ * The page is only known after mount, so the server render and the first client render
+ * are the same (empty) on every page.
  */
+
+const MY_TICKETS = /^\/my-tickets\/?$/
 
 function TicketReplyBanner() {
   const { user, session } = useAuth()
   const userId = user?.id ?? session?.user?.id
+  // null until mounted: the server has no location to read.
+  const [onMyTickets, setOnMyTickets] = useState(null)
+
+  useEffect(() => {
+    setOnMyTickets(MY_TICKETS.test(window.location.pathname))
+  }, [])
 
   const { data: unseen } = useQuery({
     // The keeper's RLS can read every ticket, so the member's id is part of the question.
     queryKey: [...TICKETS_KEY, 'unseen', userId],
     queryFn: () => fetchUnseenAnswered(userId),
-    enabled: Boolean(supabase && userId),
+    enabled: Boolean(supabase && userId && onMyTickets === false),
     staleTime: 60_000,
   })
 
-  if (!supabase || !userId || !unseen) return null
+  if (!supabase || !userId || onMyTickets !== false || !unseen) return null
 
   return (
     <div
