@@ -19,9 +19,11 @@
 -- length and duplicate checks, so padding can't stretch or disguise a message.
 -- Bodies are stored trimmed with their line breaks kept.
 --
--- mod_actions rows are listed publicly by get_transparency_log (action,
--- target_type, target_id, reason), so ticket rows keep `reason` null and put
--- details in metadata. Pushes carry only the topic and @handle, never ticket text.
+-- Ticket actions are logged to mod_actions like every keeper action, but they
+-- are support work, not moderation: get_transparency_log (public, anon) now
+-- leaves out target_type 'ticket' (section 7). Ticket rows also keep `reason`
+-- null and put details in metadata. Pushes carry only the topic and @handle,
+-- never ticket text.
 --
 -- Behaviour test: scripts/sql/test-tickets.sql (rolls back; must print ALL PASS).
 
@@ -93,9 +95,13 @@ begin
   return v_body;
 end $$;
 
--- Who may write a ticket message: a profile at least an hour old and not banned.
--- Returns the handle. Then takes a per-member transaction lock, so two requests
--- at once can't both slip under the count guards that follow.
+-- Who may write a ticket message: an account at least an hour old, with a
+-- profile, and not banned. Returns the handle. Then takes a per-member
+-- transaction lock, so two requests at once can't both slip under the count
+-- guards that follow.
+-- The age comes from auth.users.created_at, which clients cannot write.
+-- profiles.created_at is no use here: members may UPDATE their own profiles row,
+-- created_at included. A missing auth timestamp counts as brand new (fail closed).
 create function public.ticket_require_member(p_uid uuid)
 returns text
 language plpgsql
@@ -107,10 +113,11 @@ declare
   v_banned  timestamptz;
 begin
   if p_uid is null then raise exception 'not_signed_in' using errcode = '42501'; end if;
-  select handle, created_at, banned_until into v_handle, v_created, v_banned
-    from public.profiles where id = p_uid;
+  select p.handle, u.created_at, p.banned_until into v_handle, v_created, v_banned
+    from public.profiles p join auth.users u on u.id = p.id
+   where p.id = p_uid;
   if not found then raise exception 'not_signed_in' using errcode = '42501'; end if;
-  if v_created > now() - interval '1 hour' then raise exception 'too_new'; end if;
+  if coalesce(v_created, now()) > now() - interval '1 hour' then raise exception 'too_new'; end if;
   if v_banned > now() then raise exception 'banned' using errcode = '42501'; end if;
   perform pg_advisory_xact_lock(hashtextextended('ticket_member:' || p_uid::text, 0));
   return v_handle;
@@ -339,7 +346,42 @@ begin
   raise exception 'unknown_action' using errcode = 'HW012';
 end $$;
 
--- ── 7. Grants ──────────────────────────────────────────────────────────────
+-- ── 7. Keep ticket activity off the public transparency log ──────────────
+-- Verbatim from 20260907000000 (nothing since redefines it) plus the WHERE.
+-- IS DISTINCT FROM keeps rows whose target_type is NULL. CREATE OR REPLACE
+-- keeps the signature, the grants (anon, authenticated; PUBLIC revoked in
+-- 20260910000000) and the comment.
+CREATE OR REPLACE FUNCTION public.get_transparency_log(limit_count int DEFAULT 50)
+RETURNS TABLE (
+  id uuid,
+  action text,
+  target_type text,
+  target_id uuid,
+  reason text,
+  created_at timestamptz,
+  actor_role text
+)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+  SELECT 
+    m.id,
+    m.action,
+    m.target_type,
+    m.target_id,
+    m.reason,
+    m.created_at,
+    p.mod_role AS actor_role
+  FROM public.mod_actions m
+  JOIN public.profiles p ON m.actor_id = p.id
+  WHERE m.target_type IS DISTINCT FROM 'ticket'
+  ORDER BY m.created_at DESC
+  LIMIT limit_count;
+$$;
+
+-- ── 8. Grants ──────────────────────────────────────────────────────────────
 revoke all on function public.ticket_norm(text)               from public, anon, authenticated;
 revoke all on function public.ticket_body(text, integer)      from public, anon, authenticated;
 revoke all on function public.ticket_require_member(uuid)     from public, anon, authenticated;
@@ -359,7 +401,7 @@ grant execute on function public.mark_ticket_seen(uuid)                to authen
 grant execute on function public.keeper_reply_ticket(uuid, text)       to authenticated;
 grant execute on function public.keeper_close_ticket(uuid, text, text) to authenticated;
 
--- ── 8. Move the open Support requests over ─────────────────────────────────
+-- ── 9. Move the open Support requests over ─────────────────────────────────
 -- Each open site report with a reporter becomes a waiting "Something's broken"
 -- ticket dated as the report, its details the first message, with a queue task.
 -- The report is then closed. No pushes. Resolved site reports stay as they are.

@@ -7,9 +7,11 @@
 -- While both are unmerged, pass a scratch file holding the two migrations concatenated
 -- (keeper_alerts first) as -Migration. Local dev points at PRODUCTION, so only run it this way.
 --
--- Actors: M and O are existing ordinary profiles over an hour old with no tickets (O is only
--- ever refused), K is the keeper. Throwaway accounts (...c30xx) cover too_new, banned and the
--- limit guards, so sanctions and backdating never touch a real profile.
+-- Actors: M and O are existing ordinary accounts over an hour old (auth.users.created_at) with
+-- no tickets (O is only ever refused), K is the keeper. Throwaway accounts (...c30xx) cover
+-- too_new (including a backdated profile), banned and the limit guards, so sanctions and
+-- backdating never touch a real profile. L's profile is brand new while its account is two
+-- hours old, so L passing proves the age guard reads auth.users, not profiles.
 -- Pushes are asserted on net.http_request_queue with fake Vault secrets, as in
 -- test-keeper-alerts.sql: the queued rows are uncommitted, roll back, and point at rehearsal.invalid.
 begin;
@@ -108,13 +110,14 @@ end $$;
 
 -- ── Actors ─────────────────────────────────────────────────────────────────
 -- Throwaway accounts (as postgres, no JWT): handle_new_user gives each a profile.
--- N stays brand new; B and L are two hours old; B is banned for a day.
-insert into auth.users (id, email, aud, role, instance_id) values
-  ('00000000-0000-4000-8000-0000000c3001', 'tickets-new@example.test',    'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000'),
-  ('00000000-0000-4000-8000-0000000c3002', 'tickets-banned@example.test', 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000'),
-  ('00000000-0000-4000-8000-0000000c3003', 'tickets-limits@example.test', 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000');
-update public.profiles set created_at = now() - interval '2 hours'
- where id in ('00000000-0000-4000-8000-0000000c3002', '00000000-0000-4000-8000-0000000c3003');
+-- Account age is auth.users.created_at (clients can't write it); every profile
+-- here is created now. N and S are brand new accounts; B and L are two hours
+-- old; B is banned for a day. S later backdates its own profiles.created_at.
+insert into auth.users (id, email, aud, role, instance_id, created_at) values
+  ('00000000-0000-4000-8000-0000000c3001', 'tickets-new@example.test',     'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000', now()),
+  ('00000000-0000-4000-8000-0000000c3002', 'tickets-banned@example.test',  'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000', now() - interval '2 hours'),
+  ('00000000-0000-4000-8000-0000000c3003', 'tickets-limits@example.test',  'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000', now() - interval '2 hours'),
+  ('00000000-0000-4000-8000-0000000c3004', 'tickets-spoofer@example.test', 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000', now());
 update public.profiles set banned_until = now() + interval '1 day'
  where id = '00000000-0000-4000-8000-0000000c3002';
 
@@ -123,21 +126,52 @@ declare k uuid; m uuid; o uuid;
 begin
   select id into k from public.profiles where mod_role = 'keeper' order by created_at limit 1;
   if k is null then raise exception 'FAIL: rehearsal needs a keeper profile'; end if;
-  select p.id into m from public.profiles p
-   where p.mod_role is null and p.created_at < now() - interval '1 hour'
+  select p.id into m from public.profiles p join auth.users u on u.id = p.id
+   where p.mod_role is null and u.created_at < now() - interval '1 hour'
      and (p.banned_until is null or p.banned_until <= now())
      and not exists (select 1 from public.tickets t where t.user_id = p.id)
-   order by p.created_at limit 1;
-  select p.id into o from public.profiles p
-   where p.mod_role is null and p.created_at < now() - interval '1 hour'
+   order by u.created_at limit 1;
+  select p.id into o from public.profiles p join auth.users u on u.id = p.id
+   where p.mod_role is null and u.created_at < now() - interval '1 hour'
      and (p.banned_until is null or p.banned_until <= now())
      and not exists (select 1 from public.tickets t where t.user_id = p.id)
      and p.id is distinct from m
-   order by p.created_at limit 1;
-  if m is null or o is null then raise exception 'FAIL: rehearsal needs two ordinary profiles over an hour old'; end if;
+   order by u.created_at limit 1;
+  if m is null or o is null then raise exception 'FAIL: rehearsal needs two ordinary accounts over an hour old'; end if;
   perform set_config('test.k', k::text, true);
   perform set_config('test.m', m::text, true);
   perform set_config('test.o', o::text, true);
+
+  -- For the transparency check (section 9b): the newest log row that existed
+  -- before this test, if any, and a row with a NULL target_type.
+  perform set_config('test.pre_log', coalesce((
+    select m2.id::text from public.mod_actions m2 join public.profiles p2 on p2.id = m2.actor_id
+     where m2.target_type is distinct from 'ticket'
+     order by m2.created_at desc limit 1), ''), true);
+  insert into public.mod_actions (actor_id, action, target_type)
+  values (k, 'rehearsal_null_target', null);
+end $$;
+
+-- S, a brand-new account, backdates its own profile by a year (the profiles
+-- UPDATE policy allows it). The age guard must not care.
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000c3004","role":"authenticated"}', true);
+set local role authenticated;
+do $$ begin
+  begin
+    update public.profiles set created_at = now() - interval '1 year' where id = auth.uid();
+    perform set_config('test.s_self_backdate', 'member could backdate', true);
+  exception when insufficient_privilege then
+    perform set_config('test.s_self_backdate', 'refused, owner backdated', true);
+  end;
+end $$;
+reset role;
+select set_config('request.jwt.claims', '', true);
+update public.profiles set created_at = now() - interval '1 year'
+ where id = '00000000-0000-4000-8000-0000000c3004' and created_at > now() - interval '1 year';
+do $$ begin
+  if (select created_at from public.profiles where id = '00000000-0000-4000-8000-0000000c3004') > now() - interval '364 days' then
+    raise exception 'FAIL: setup could not backdate S''s profile';
+  end if;
 end $$;
 
 -- ── 1. open_ticket happy path (service role, as the open-ticket Edge Function) ──
@@ -257,6 +291,8 @@ begin
   perform pg_temp.expect_err(format(call, null, 'other', ok_subject, ok_body), 'not_signed_in');
   perform pg_temp.expect_err(format(call, gen_random_uuid(), 'other', ok_subject, ok_body), 'not_signed_in');
   perform pg_temp.expect_err(format(call, '00000000-0000-4000-8000-0000000c3001', 'other', ok_subject, ok_body), 'too_new');
+  -- S: auth.users.created_at = now(), profiles.created_at a year back. Still too new.
+  perform pg_temp.expect_err(format(call, '00000000-0000-4000-8000-0000000c3004', 'other', ok_subject, ok_body), 'too_new');
   perform pg_temp.expect_err(format(call, '00000000-0000-4000-8000-0000000c3002', 'other', ok_subject, ok_body), 'banned');
   -- topic
   perform pg_temp.expect_err(format(call, m, 'admin', ok_subject, ok_body), 'bad_topic');
@@ -521,6 +557,14 @@ do $$ begin
 end $$;
 reset role;
 
+-- S, the brand-new account with the backdated profile, on the member RPC path too.
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000c3004","role":"authenticated"}', true);
+set local role authenticated;
+do $$ begin
+  perform pg_temp.expect_err(format('select public.reply_ticket(%L, %L)', current_setting('test.t1'), 'A brand-new account trying to reply.'), 'too_new');
+end $$;
+reset role;
+
 -- A JWT whose account has no profile, and no JWT at all.
 select set_config('request.jwt.claims', json_build_object('sub', gen_random_uuid(), 'role', 'authenticated')::text, true);
 set local role authenticated;
@@ -612,6 +656,53 @@ end $$;
 reset role;
 select set_config('request.jwt.claims', '', true);
 
+-- ── 9b. The public transparency log never shows ticket activity ───────────
+do $$ begin
+  -- Non-vacuous: the replies and closes above did log ticket rows.
+  if (select count(*) from public.mod_actions where target_type = 'ticket' and action in ('ticket_replied', 'ticket_closed')) < 4 then
+    raise exception 'FAIL: expected ticket_replied/ticket_closed rows in mod_actions';
+  end if;
+  -- Signature, ACL and comment unchanged by the CREATE OR REPLACE.
+  if not has_function_privilege('anon', 'public.get_transparency_log(int)', 'execute')
+     or not has_function_privilege('authenticated', 'public.get_transparency_log(int)', 'execute') then
+    raise exception 'FAIL: get_transparency_log lost its anon/authenticated grant';
+  end if;
+  if exists (select 1 from pg_proc p, lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+              where p.oid = 'public.get_transparency_log(int)'::regprocedure and a.grantee = 0) then
+    raise exception 'FAIL: PUBLIC can execute get_transparency_log';
+  end if;
+  if obj_description('public.get_transparency_log(int)'::regprocedure, 'pg_proc') is distinct from
+     'Safe SECURITY DEFINER function with strict search_path=public: provides public visibility into sanitized moderation logs without triggering 0010_security_definer_view.' then
+    raise exception 'FAIL: get_transparency_log comment changed';
+  end if;
+  if not (select prosecdef from pg_proc where oid = 'public.get_transparency_log(int)'::regprocedure) then
+    raise exception 'FAIL: get_transparency_log is no longer SECURITY DEFINER';
+  end if;
+end $$;
+
+select set_config('request.jwt.claims', '{"role":"anon"}', true);
+set local role anon;
+do $$
+declare pre text := current_setting('test.pre_log');
+begin
+  if exists (select 1 from public.get_transparency_log(100000) where target_type = 'ticket') then
+    raise exception 'FAIL: get_transparency_log shows ticket activity';
+  end if;
+  if not exists (select 1 from public.get_transparency_log(100000) where action = 'rehearsal_null_target' and target_type is null) then
+    raise exception 'FAIL: get_transparency_log dropped a row with a NULL target_type';
+  end if;
+  if pre <> '' then
+    if not exists (select 1 from public.get_transparency_log(100000) where id = pre::uuid) then
+      raise exception 'FAIL: get_transparency_log lost the pre-existing row %', pre;
+    end if;
+    perform set_config('test.pre_log_seen', 'yes', true);
+  else
+    perform set_config('test.pre_log_seen', 'no pre-existing row', true);
+  end if;
+end $$;
+reset role;
+select set_config('request.jwt.claims', '', true);
+
 -- ── 10. Auto-close: answered and quiet for 14 days ─────────────────────────
 do $$
 declare m uuid := current_setting('test.m')::uuid;
@@ -650,6 +741,8 @@ begin
   perform pg_temp.expect_err(format('update public.tickets set topic = %L where id = %L', 'admin', b), null, '23514');
 end $$;
 
-select 'ALL PASS' as result, current_setting('test.moved', true) as support_reports_moved;
+select 'ALL PASS' as result, current_setting('test.moved', true) as support_reports_moved,
+       current_setting('test.pre_log_seen', true) as pre_existing_log_row_kept,
+       current_setting('test.s_self_backdate', true) as profile_backdate;
 
 rollback;
