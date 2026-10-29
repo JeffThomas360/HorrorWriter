@@ -5,6 +5,7 @@ import { rememberReturnPath } from '../lib/returnPath'
 import { MIN_AGE, PASSED, BLOCKED, meetsMinimumAge, selectableYears, readGate, writeGate } from '../lib/ageGate'
 import Turnstile from './Turnstile'
 import { TURNSTILE_FAILED } from '../lib/turnstile'
+import { markEmailLinkRequested } from '../lib/passkeyPrompt'
 
 // What a stranger is told after asking for a link. It must read the same whether or
 // not the address has an account, so it never says which.
@@ -308,10 +309,15 @@ export default function SignInModal({ isOpen, onClose }) {
       // only for an address that already has an account, when account creation is off.
       // Raw, it would reveal that; a link really was sent a moment ago, so say so.
       if (error && gate !== PASSED && /only request this after/i.test(error.message || '')) {
+        // A link did go out inside the window, so this browser did ask for one.
+        markEmailLinkRequested()
         setMessage(LINK_ON_ITS_WAY)
         return
       }
       if (error) throw error
+      // A link is on its way: /auth/callback will only offer the add-a-passkey nudge to
+      // a browser that asked for one (the honeypot path above never reaches here).
+      markEmailLinkRequested()
       setMessage(gate === PASSED ? LINK_SENT : LINK_ON_ITS_WAY)
     } catch (err) {
       setError(err.message)

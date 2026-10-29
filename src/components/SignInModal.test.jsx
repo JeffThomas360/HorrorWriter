@@ -502,3 +502,96 @@ describe('SignInModal per-address rate limit', () => {
     expect(screen.queryByText(NEUTRAL)).toBeNull()
   })
 })
+
+// R18: the callback only offers the add-a-passkey nudge to a browser that itself asked
+// for an email link a moment ago, so the modal leaves a time marker when a link goes out.
+// It is the same whatever the answer on screen, so it cannot be used to tell accounts apart.
+describe('SignInModal marks this browser as having asked for an email link', () => {
+  const MARKER = 'hw:emailLinkRequestedAt'
+
+  test('after a successful send, with a time that is now', async () => {
+    const before = Date.now()
+    open()
+    await sendLink()
+    await screen.findByText(NEUTRAL)
+    const at = Number(localStorage.getItem(MARKER))
+    expect(at).toBeGreaterThanOrEqual(before)
+    expect(at).toBeLessThanOrEqual(Date.now())
+  })
+
+  test('also when creating an account (gate passed)', async () => {
+    localStorage.setItem(GATE_KEY, PASSED)
+    open()
+    await sendLink('new@example.com')
+    await screen.findByText(LINK_SENT)
+    expect(Number(localStorage.getItem(MARKER))).toBeGreaterThan(0)
+  })
+
+  test('also when the per-address limit is mapped to the neutral sentence (a link went out a moment ago)', async () => {
+    signInWithOtp.mockResolvedValue({
+      error: { code: 'over_email_send_rate_limit', message: 'For security purposes, you can only request this after 42 seconds.' },
+    })
+    open()
+    await sendLink()
+    await screen.findByText(NEUTRAL)
+    expect(Number(localStorage.getItem(MARKER))).toBeGreaterThan(0)
+  })
+
+  test('also for a token-less send after a widget failure', async () => {
+    open()
+    fireEvent.change(await revealEmail(), { target: { value: 'member@example.com' } })
+    act(() => {
+      turnstileProps.onToken(null)
+      turnstileProps.onFail()
+    })
+    fireEvent.click(sendButton())
+    await screen.findByText(NEUTRAL)
+    expect(Number(localStorage.getItem(MARKER))).toBeGreaterThan(0)
+  })
+
+  test('not on the honeypot path, where nothing is sent', async () => {
+    const { container } = open()
+    fireEvent.change(await revealEmail(), { target: { value: 'bot@example.com' } })
+    fireEvent.change(container.querySelector('input[name="website_url_hp"]'), { target: { value: 'http://spam.example' } })
+    passTurnstile()
+    fireEvent.click(sendButton())
+    expect(await screen.findByText('Check your email for the magic link.')).toBeInTheDocument()
+    expect(signInWithOtp).not.toHaveBeenCalled()
+    expect(localStorage.getItem(MARKER)).toBeNull()
+  })
+
+  test('not when no link was sent: an unknown address, a captcha refusal, or any other error', async () => {
+    for (const error of [
+      { code: 'otp_disabled', message: 'Signups not allowed for otp' },
+      { message: 'captcha verification process failed' },
+      { message: 'Email rate limit exceeded' },
+      { message: 'Something else went wrong' },
+    ]) {
+      localStorage.clear()
+      signInWithOtp.mockReset().mockResolvedValue({ error })
+      const view = open()
+      await sendLink()
+      await waitFor(() => expect(signInWithOtp).toHaveBeenCalledTimes(1))
+      await waitFor(() => expect(screen.getByRole('button', { name: /^email me a sign-in link$/i })).toBeDisabled())
+      expect(localStorage.getItem(MARKER)).toBeNull()
+      view.unmount()
+    }
+  })
+
+  test('not before anything is sent', async () => {
+    open()
+    await revealEmail()
+    passTurnstile()
+    expect(localStorage.getItem(MARKER)).toBeNull()
+  })
+
+  test('blocked storage does not stop the send from being reported', async () => {
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('storage blocked')
+    })
+    open()
+    await sendLink()
+    expect(await screen.findByText(NEUTRAL)).toBeInTheDocument()
+    setItem.mockRestore()
+  })
+})

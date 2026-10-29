@@ -5,7 +5,9 @@ import { test, expect, vi, beforeEach, afterEach } from 'vitest'
 // land. Only the email link carries ?via=email, and only a confirmed sign-in from it
 // should leave the "add a passkey" nudge behind for the page the member lands on.
 // The flag must never be set on the URL alone: a crafted link would otherwise be able
-// to put the prompt in front of someone who did not sign in.
+// to put the prompt in front of someone who did not sign in, or who was signed in to an
+// attacker's account by a link the attacker requested. So it also needs the marker the
+// sign-in modal leaves when THIS browser asks for a link, less than an hour old.
 
 let session
 let authCallback
@@ -27,7 +29,12 @@ vi.mock('../components/Providers', () => ({ withProviders: (Component) => Compon
 const AuthCallback = (await import('./AuthCallback')).default
 
 const FLAG = 'hw:passkeyPrompt'
+const MARKER = 'hw:emailLinkRequestedAt'
+const HOUR = 60 * 60 * 1000
 const realLocation = window.location
+
+// What the modal leaves behind after it sends this browser an email link.
+const requestedLink = (ageMs = 0) => localStorage.setItem(MARKER, String(Date.now() - ageMs))
 
 // jsdom cannot navigate, so location.replace is a spy that records what the flag
 // looked like at the moment the page was sent away.
@@ -66,6 +73,7 @@ async function mount() {
 }
 
 test('?via=email with a confirmed session leaves the flag, set before the redirect happens', async () => {
+  requestedLink()
   landOn('?via=email')
   await mount()
   expect(replace).toHaveBeenCalledTimes(1)
@@ -74,6 +82,7 @@ test('?via=email with a confirmed session leaves the flag, set before the redire
 })
 
 test('?via=email with no session yet sets nothing: the URL alone proves nothing', async () => {
+  requestedLink()
   session = null
   landOn('?via=email')
   await mount()
@@ -82,6 +91,7 @@ test('?via=email with no session yet sets nothing: the URL alone proves nothing'
 })
 
 test('the SIGNED_IN event confirms the sign-in: flag set just before the redirect', async () => {
+  requestedLink()
   session = null
   landOn('?via=email')
   await mount()
@@ -93,6 +103,7 @@ test('the SIGNED_IN event confirms the sign-in: flag set just before the redirec
 })
 
 test('other auth events do not confirm anything', async () => {
+  requestedLink()
   session = null
   landOn('?via=email')
   await mount()
@@ -104,6 +115,7 @@ test('other auth events do not confirm anything', async () => {
 
 test('the 15 s fallback that finds a session sets the flag before redirecting', async () => {
   vi.useFakeTimers()
+  requestedLink()
   session = null
   landOn('?via=email')
   render(<AuthCallback />)
@@ -120,6 +132,7 @@ test('the 15 s fallback that finds a session sets the flag before redirecting', 
 
 test('the 15 s fallback with no session sets no flag and signs nobody in', async () => {
   vi.useFakeTimers()
+  requestedLink()
   session = null
   landOn('?via=email')
   render(<AuthCallback />)
@@ -140,6 +153,7 @@ test('a plain callback (Google) leaves no flag', async () => {
 })
 
 test('any other via value leaves no flag', async () => {
+  requestedLink()
   landOn('?via=google')
   await mount()
   expect(replace).toHaveBeenCalledTimes(1)
@@ -148,6 +162,7 @@ test('any other via value leaves no flag', async () => {
 
 test('the redirect still goes where the member was, and the callback is not otherwise changed', async () => {
   localStorage.setItem('hw_return_to', JSON.stringify({ p: '/forum/', t: Date.now() }))
+  requestedLink()
   landOn('?via=email')
   await mount()
   expect(replace).toHaveBeenCalledWith('/forum/')
@@ -165,6 +180,7 @@ test('a Google popup (window.opener) is unchanged and sets no flag', async () =>
 })
 
 test('a link that came back with an error sets no flag: nobody signed in', async () => {
+  requestedLink()
   landOn('?via=email&error=access_denied&error_description=Email+link+is+invalid+or+has+expired')
   await mount()
   expect(localStorage.getItem(FLAG)).toBeNull()
@@ -172,6 +188,7 @@ test('a link that came back with an error sets no flag: nobody signed in', async
 })
 
 test('an expired link reported in the hash sets no flag either', async () => {
+  requestedLink()
   landOn('?via=email', '#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired')
   await mount()
   expect(localStorage.getItem(FLAG)).toBeNull()
@@ -179,10 +196,92 @@ test('an expired link reported in the hash sets no flag either', async () => {
 })
 
 test('blocked storage does not stop the sign-in from finishing', async () => {
+  requestedLink()
   vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
     throw new Error('storage blocked')
   })
   landOn('?via=email')
   await mount()
   expect(replace).toHaveBeenCalledTimes(1)
+})
+
+// R18: an attacker's own valid link, carrying via=email, signs a victim in to the
+// attacker's account. Only a browser that itself asked for a link a moment ago gets
+// the nudge to bind a passkey.
+test('R18: a recent marker plus via=email plus a session gives the flag, and the marker is used up', async () => {
+  requestedLink(5 * 60 * 1000)
+  landOn('?via=email')
+  await mount()
+  expect(localStorage.getItem(FLAG)).toBe('1')
+  expect(flagAtRedirect).toBe('1')
+  expect(localStorage.getItem(MARKER)).toBeNull()
+})
+
+test('R18: no marker gives no flag (a link requested elsewhere, or crafted), but they are still signed in and sent on', async () => {
+  landOn('?via=email')
+  await mount()
+  expect(replace).toHaveBeenCalledTimes(1)
+  expect(flagAtRedirect).toBeNull()
+  expect(localStorage.getItem(FLAG)).toBeNull()
+})
+
+test('R18: a marker older than an hour gives no flag, and is cleared anyway', async () => {
+  requestedLink(HOUR + 60 * 1000)
+  landOn('?via=email')
+  await mount()
+  expect(replace).toHaveBeenCalledTimes(1)
+  expect(localStorage.getItem(FLAG)).toBeNull()
+  expect(localStorage.getItem(MARKER)).toBeNull()
+})
+
+test('R18: a marker just under an hour old still counts', async () => {
+  requestedLink(HOUR - 60 * 1000)
+  landOn('?via=email')
+  await mount()
+  expect(localStorage.getItem(FLAG)).toBe('1')
+})
+
+test('R18: a marker from the future, or that is not a time, gives no flag', async () => {
+  localStorage.setItem(MARKER, String(Date.now() + HOUR))
+  landOn('?via=email')
+  await mount()
+  expect(localStorage.getItem(FLAG)).toBeNull()
+  cleanup()
+
+  localStorage.setItem(MARKER, 'yesterday')
+  landOn('?via=email')
+  await mount()
+  expect(localStorage.getItem(FLAG)).toBeNull()
+  expect(localStorage.getItem(MARKER)).toBeNull()
+})
+
+test('R18: a marker with a plain callback (Google) gives no flag, and is cleared', async () => {
+  requestedLink()
+  landOn('')
+  await mount()
+  expect(replace).toHaveBeenCalledTimes(1)
+  expect(localStorage.getItem(FLAG)).toBeNull()
+  expect(localStorage.getItem(MARKER)).toBeNull()
+})
+
+test('R18: with no session the callback neither uses nor clears the marker', async () => {
+  requestedLink()
+  session = null
+  landOn('?via=email')
+  await mount()
+  expect(replace).not.toHaveBeenCalled()
+  expect(localStorage.getItem(FLAG)).toBeNull()
+  expect(localStorage.getItem(MARKER)).not.toBeNull()
+})
+
+test('R18: the immediate check and the SIGNED_IN event both confirming leave the flag set', async () => {
+  requestedLink()
+  landOn('?via=email')
+  await mount()
+  expect(localStorage.getItem(FLAG)).toBe('1')
+
+  // the event arrives too: the marker is already used up, and that must not undo the flag
+  act(() => authCallback('SIGNED_IN', { user: { id: 'u1' } }))
+  expect(replace).toHaveBeenCalledTimes(2)
+  expect(localStorage.getItem(FLAG)).toBe('1')
 })

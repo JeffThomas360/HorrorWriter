@@ -3,7 +3,7 @@ import { supabase } from '../supabaseClient'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 import { withProviders } from '../components/Providers'
 import { takeReturnPath } from '../lib/returnPath'
-import { setPasskeyPrompt } from '../lib/passkeyPrompt'
+import { setPasskeyPrompt, takeEmailLinkRequest } from '../lib/passkeyPrompt'
 
 function AuthCallback() {
   useDocumentTitle('Summoning…')
@@ -49,10 +49,14 @@ function AuthCallback() {
     // flag so PasskeyPrompt, on the page they land on, can offer a passkey. The URL
     // alone proves nothing, so the flag is only set once a session is confirmed, just
     // before the redirect: never on an error, and never on the no-session fallback.
-    // Google and passkey sign-in never carry `via=email`.
+    // Even then the session may belong to an account somebody else requested the link
+    // for, so it also needs the marker the modal leaves when THIS browser asks for a link
+    // (less than an hour old). The marker is used up either way. Google and passkey
+    // sign-in never carry `via=email`.
     const viaEmail = params.get('via') === 'email'
     const redirectBack = () => {
-      if (viaEmail) setPasskeyPrompt()
+      const askedHere = takeEmailLinkRequest()
+      if (viaEmail && askedHere) setPasskeyPrompt()
       window.location.replace(takeReturnPath())
     }
 
