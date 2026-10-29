@@ -128,6 +128,12 @@ test.describe('Help page', () => {
   });
 });
 
+// The banner's question: this member's answered or closed tickets they have not opened
+// (a closing note is Keeper words too; a close without one is marked seen by the server).
+const isBannerQuery = (req) =>
+  req.url().includes('/rest/v1/tickets') &&
+  new URL(req.url()).searchParams.get('status') === 'in.(answered,closed)';
+
 test.describe('Ticket reply banner', () => {
   let leaked;
 
@@ -143,19 +149,29 @@ test.describe('Ticket reply banner', () => {
     await setupSupabaseMocks(page, { tickets: [MOCK_TICKET] });
     await setupMockAuth(page);
 
-    const asked = page.waitForRequest(
-      (req) => req.url().includes('/rest/v1/tickets') && req.url().includes('status=eq.answered')
-    );
+    const asked = page.waitForRequest(isBannerQuery);
     await page.goto('/');
 
-    // The banner asks for this member's answered, still-unopened ticket, nobody else's.
+    // The banner asks for this member's answered or closed, still-unopened tickets, nobody else's.
     const query = new URL((await asked).url()).searchParams;
     expect(query.get('user_id')).toBe(`eq.${MOCK_USER_ID}`);
+    expect(query.get('status')).toBe('in.(answered,closed)');
     expect(query.get('member_seen_at')).toBe('is.null');
 
     const banner = page.getByRole('status').filter({ hasText: 'The Keeper answered your ticket' });
     await expect(banner).toBeVisible();
     await expect(banner).toContainText(MOCK_TICKET.subject);
+    await expect(banner.getByRole('link')).toHaveAttribute('href', `/my-tickets/#${MOCK_TICKET_ID}`);
+  });
+
+  test('a closing note the member has not read shows the banner too', async ({ page }) => {
+    const closedWithNote = { ...MOCK_TICKET, status: 'closed', close_reason: 'resolved', member_seen_at: null };
+    await setupSupabaseMocks(page, { tickets: [closedWithNote] });
+    await setupMockAuth(page);
+    await page.goto('/');
+
+    const banner = page.getByRole('status').filter({ hasText: 'The Keeper answered your ticket' });
+    await expect(banner).toBeVisible();
     await expect(banner.getByRole('link')).toHaveAttribute('href', `/my-tickets/#${MOCK_TICKET_ID}`);
   });
 
@@ -173,9 +189,7 @@ test.describe('Ticket reply banner', () => {
     await setupSupabaseMocks(page);
     await setupMockAuth(page);
 
-    const asked = page.waitForRequest(
-      (req) => req.url().includes('/rest/v1/tickets') && req.url().includes('status=eq.answered')
-    );
+    const asked = page.waitForRequest(isBannerQuery);
     await page.goto('/');
     await asked;
 

@@ -10,7 +10,7 @@
 -- Actors: M and O are existing ordinary accounts over an hour old (auth.users.created_at) with
 -- no tickets (O is only ever refused), K is the keeper. Throwaway accounts (...c30xx) cover
 -- too_new (including a backdated profile), banned and the limit guards, so sanctions and
--- backdating never touch a real profile. L's profile is brand new while its account is two
+-- backdating never touch a real profile. T (...c3005) reads an answer before it goes quiet. L's profile is brand new while its account is two
 -- hours old, so L passing proves the age guard reads auth.users, not profiles.
 -- Pushes are asserted on net.http_request_queue with fake Vault secrets, as in
 -- test-keeper-alerts.sql: the queued rows are uncommitted, roll back, and point at rehearsal.invalid.
@@ -117,7 +117,8 @@ insert into auth.users (id, email, aud, role, instance_id, created_at) values
   ('00000000-0000-4000-8000-0000000c3001', 'tickets-new@example.test',     'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000', now()),
   ('00000000-0000-4000-8000-0000000c3002', 'tickets-banned@example.test',  'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000', now() - interval '2 hours'),
   ('00000000-0000-4000-8000-0000000c3003', 'tickets-limits@example.test',  'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000', now() - interval '2 hours'),
-  ('00000000-0000-4000-8000-0000000c3004', 'tickets-spoofer@example.test', 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000', now());
+  ('00000000-0000-4000-8000-0000000c3004', 'tickets-spoofer@example.test', 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000', now()),
+  ('00000000-0000-4000-8000-0000000c3005', 'tickets-seen@example.test',    'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000', now() - interval '2 hours');
 update public.profiles set banned_until = now() + interval '1 day'
  where id = '00000000-0000-4000-8000-0000000c3002';
 
@@ -361,6 +362,10 @@ begin
   end if;
   if (select count(*) from public.ticket_messages where ticket_id = t3) <> 1 then raise exception 'FAIL: a close without a note added a message'; end if;
   if exists (select 1 from public.notifications where user_id = l) then raise exception 'FAIL: a close without a note notified the member'; end if;
+  -- R21: nothing new to read, so it is seen at once and never reaches the banner.
+  if (select member_seen_at from public.tickets where id = t3) is null then
+    raise exception 'FAIL: a close without a note should mark the ticket seen';
+  end if;
 
   -- Two open now, but three opened in the last 24 h.
   perform pg_temp.expect_err(format('select public.open_ticket(%L, %L, %L, %L)', l, 'other', 'Limits ticket 5',
@@ -633,6 +638,11 @@ begin
         and title = 'Your ticket was closed' and body = 'My passkey vanished') <> 1 then
     raise exception 'FAIL: the closing note did not notify the member';
   end if;
+  -- R21: the member had seen the earlier replies (section 6); the closing note is new to
+  -- them, so the ticket is unseen again and the banner shows it.
+  if (select member_seen_at from public.tickets where id = t) is not null then
+    raise exception 'FAIL: a closing note should leave the ticket unseen, for the banner';
+  end if;
   if not exists (select 1 from public.keeper_tasks where id = current_setting('test.t1_task2')::uuid
                    and status = 'resolved' and resolution = 'resolved' and resolved_by = k and resolved_at is not null) then
     raise exception 'FAIL: resolving the ticket did not resolve its open task';
@@ -652,6 +662,9 @@ set local role authenticated;
 do $$ begin
   perform pg_temp.expect_err(format('select public.reply_ticket(%L, %L)', current_setting('test.t1'), 'Please reopen this closed ticket.'), 'closed');
   perform public.mark_ticket_seen(current_setting('test.t1')::uuid);
+  if (select member_seen_at from public.tickets where id = current_setting('test.t1')::uuid) is null then
+    raise exception 'FAIL: mark_ticket_seen did not work on a closed ticket';
+  end if;
 end $$;
 reset role;
 select set_config('request.jwt.claims', '', true);
@@ -709,12 +722,22 @@ declare m uuid := current_setting('test.m')::uuid;
 begin
   perform set_config('test.ta', public.open_ticket(m, 'rituals', 'Ritual entry missing', 'My ritual entry from last week is gone.')::text, true);
   perform set_config('test.tb', public.open_ticket(m, 'my-writing', 'Cannot edit my story', 'The edit button on my story does nothing.')::text, true);
+  -- T's answer will be read before it goes quiet.
+  perform set_config('test.tc', public.open_ticket('00000000-0000-4000-8000-0000000c3005', 'other',
+    'A question I got answered', 'Asking something that the Keeper will answer and I will read.')::text, true);
 end $$;
 select set_config('request.jwt.claims', json_build_object('sub', current_setting('test.k'), 'role', 'authenticated')::text, true);
 set local role authenticated;
 do $$ begin
   perform public.keeper_reply_ticket(current_setting('test.ta')::uuid, 'Restored it from the vault.');
   perform public.keeper_reply_ticket(current_setting('test.tb')::uuid, 'Which browser are you using?');
+  perform public.keeper_reply_ticket(current_setting('test.tc')::uuid, 'Here is the answer you asked for.');
+end $$;
+reset role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000c3005","role":"authenticated"}', true);
+set local role authenticated;
+do $$ begin
+  perform public.mark_ticket_seen(current_setting('test.tc')::uuid);
 end $$;
 reset role;
 select set_config('request.jwt.claims', '', true);
@@ -724,13 +747,28 @@ declare
   a uuid := current_setting('test.ta')::uuid;   -- answered, quiet 15 days: closes
   b uuid := current_setting('test.tb')::uuid;   -- answered, recent: stays
   w uuid := split_part(current_setting('test.l_tickets'), ',', 2)::uuid;  -- waiting, quiet 15 days: stays
+  c uuid := current_setting('test.tc')::uuid;   -- answered and read, quiet 15 days: closes, still read
+  c_seen timestamptz := (select member_seen_at from public.tickets where id = current_setting('test.tc')::uuid);
   n int;
 begin
-  update public.ticket_messages set created_at = created_at - interval '15 days' where ticket_id in (a, w);
+  if c_seen is null then raise exception 'FAIL: setup: T''s answered ticket was not marked seen'; end if;
+  if (select member_seen_at from public.tickets where id = a) is not null then
+    raise exception 'FAIL: setup: the quiet answered ticket should be unseen';
+  end if;
+  update public.ticket_messages set created_at = created_at - interval '15 days' where ticket_id in (a, w, c);
   n := public.close_inactive_tickets();
-  if n <> 1 then raise exception 'FAIL: close_inactive_tickets closed %, expected 1', n; end if;
+  if n <> 2 then raise exception 'FAIL: close_inactive_tickets closed %, expected 2', n; end if;
   if not exists (select 1 from public.tickets where id = a and status = 'closed' and close_reason = 'inactive' and closed_at is not null) then
     raise exception 'FAIL: the quiet answered ticket was not closed as inactive';
+  end if;
+  -- R21: auto-close leaves member_seen_at alone. An unread answer stays unread (the banner
+  -- still shows it); one already read stays read.
+  if (select member_seen_at from public.tickets where id = a) is not null then
+    raise exception 'FAIL: auto-close marked an unread answer as seen';
+  end if;
+  if not exists (select 1 from public.tickets where id = c and status = 'closed' and close_reason = 'inactive'
+                   and member_seen_at = c_seen) then
+    raise exception 'FAIL: auto-close changed member_seen_at on an answer that was already read';
   end if;
   if (select status from public.tickets where id = b) <> 'answered' then raise exception 'FAIL: a recently answered ticket was closed'; end if;
   if (select status from public.tickets where id = w) <> 'waiting' then raise exception 'FAIL: a waiting ticket was auto-closed'; end if;
@@ -739,6 +777,35 @@ begin
   -- The table itself refuses an inconsistent row or an unknown topic.
   perform pg_temp.expect_err(format('update public.tickets set status = %L where id = %L', 'closed', b), null, '23514');
   perform pg_temp.expect_err(format('update public.tickets set topic = %L where id = %L', 'admin', b), null, '23514');
+end $$;
+
+-- ── 10b. A blank closing note is no note (R21) ────────────────────────────
+do $$ begin
+  perform set_config('test.td', public.open_ticket('00000000-0000-4000-8000-0000000c3005', 'other',
+    'A second question here', 'Asking a second thing, which the Keeper will just close.')::text, true);
+end $$;
+select set_config('request.jwt.claims', json_build_object('sub', current_setting('test.k'), 'role', 'authenticated')::text, true);
+set local role authenticated;
+do $$ begin
+  perform public.keeper_close_ticket(current_setting('test.td')::uuid, 'resolved', E'  \n\t  ');
+end $$;
+reset role;
+select set_config('request.jwt.claims', '', true);
+do $$
+declare d uuid := current_setting('test.td')::uuid;
+begin
+  if not exists (select 1 from public.tickets where id = d and status = 'closed' and close_reason = 'resolved') then
+    raise exception 'FAIL: the blank-note close did not close the ticket';
+  end if;
+  if (select count(*) from public.ticket_messages where ticket_id = d) <> 1 then
+    raise exception 'FAIL: a blank closing note was added as a message';
+  end if;
+  if (select member_seen_at from public.tickets where id = d) is null then
+    raise exception 'FAIL: a blank closing note should count as no note: seen at once';
+  end if;
+  if exists (select 1 from public.notifications where user_id = '00000000-0000-4000-8000-0000000c3005' and kind = 'ticket_closed') then
+    raise exception 'FAIL: a blank closing note notified the member';
+  end if;
 end $$;
 
 -- ── 11. An orphan ticket task (its ticket deleted) can be dismissed ────────

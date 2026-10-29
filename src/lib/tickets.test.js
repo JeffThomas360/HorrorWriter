@@ -8,7 +8,7 @@ const invoke = vi.fn()
 // tests don't care which method ends a query.
 const chain = {}
 let result = { data: [], error: null }
-for (const m of ['select', 'eq', 'is', 'order', 'limit', 'maybeSingle']) chain[m] = vi.fn(() => chain)
+for (const m of ['select', 'eq', 'in', 'is', 'order', 'limit', 'maybeSingle']) chain[m] = vi.fn(() => chain)
 chain.then = (resolve, reject) => Promise.resolve(result).then(resolve, reject)
 const from = vi.fn(() => chain)
 
@@ -26,7 +26,7 @@ beforeEach(() => {
   rpc.mockReset()
   invoke.mockReset()
   from.mockClear()
-  for (const m of ['select', 'eq', 'is', 'order', 'limit', 'maybeSingle']) chain[m].mockClear()
+  for (const m of ['select', 'eq', 'in', 'is', 'order', 'limit', 'maybeSingle']) chain[m].mockClear()
   result = { data: [], error: null }
 })
 
@@ -237,12 +237,16 @@ describe('reads', () => {
   })
 
   describe('fetchUnseenAnswered', () => {
-    it('looks for the given member\'s answered tickets they have not seen', async () => {
+    // R21: a closing note is an answer too. keeper_close_ticket leaves member_seen_at
+    // null after a note (and sets it without one), so "answered or closed, not seen yet"
+    // is exactly the set of Keeper words the member hasn't read.
+    it('looks for the given member\'s answered or closed tickets they have not seen', async () => {
       result = { data: [{ id: 't1', subject: 'Cannot sign in' }], error: null }
       expect(await api.fetchUnseenAnswered('u1')).toEqual({ id: 't1', subject: 'Cannot sign in' })
       expect(from).toHaveBeenCalledWith('tickets')
       expect(chain.eq).toHaveBeenCalledWith('user_id', 'u1')
-      expect(chain.eq).toHaveBeenCalledWith('status', 'answered')
+      expect(chain.in).toHaveBeenCalledWith('status', ['answered', 'closed'])
+      expect(chain.eq).not.toHaveBeenCalledWith('status', expect.anything())
       expect(chain.is).toHaveBeenCalledWith('member_seen_at', null)
     })
     it('makes no query without a user id', async () => {

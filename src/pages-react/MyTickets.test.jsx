@@ -175,6 +175,37 @@ test('an answered ticket that was already seen, and a waiting one, start collaps
   expect(markTicketSeen).not.toHaveBeenCalled()
 })
 
+// R21: a closing note is the Keeper's last word, so it is opened and marked seen like an
+// answer. A close with no note (member_seen_at already set by the server) is not.
+test('a closed ticket with an unread closing note is expanded on load and marked seen', async () => {
+  db = [
+    ticket({
+      status: 'closed',
+      close_reason: 'resolved',
+      member_seen_at: null,
+      messages: [
+        msg('m1', false, 'I cannot sign in with my passkey.', '2026-10-27T10:00:00Z'),
+        msg('m2', true, 'Sorted on our side. Closing this one.', '2026-10-27T11:00:00Z'),
+      ],
+    }),
+  ]
+  render(<MyTickets />)
+  expect(await screen.findByText('Sorted on our side. Closing this one.')).toBeInTheDocument()
+  expect(header('My passkey vanished')).toHaveAttribute('aria-expanded', 'true')
+  expect(screen.getByText('Closed — resolved')).toBeInTheDocument()
+  await waitFor(() => expect(markTicketSeen).toHaveBeenCalledWith('tk1'))
+  expect(markTicketSeen).toHaveBeenCalledTimes(1)
+})
+
+test('a closed ticket the member has nothing new on starts collapsed and marks nothing', async () => {
+  db = [ticket({ status: 'closed', close_reason: 'dismissed', member_seen_at: '2026-10-28T08:00:00Z' })]
+  render(<MyTickets />)
+  await screen.findByText('My passkey vanished')
+  expect(header('My passkey vanished')).toHaveAttribute('aria-expanded', 'false')
+  await new Promise((r) => setTimeout(r, 20))
+  expect(markTicketSeen).not.toHaveBeenCalled()
+})
+
 test('a failed mark-seen does not break the page', async () => {
   markTicketSeen.mockRejectedValueOnce(new Error('Network down'))
   db = [answered()]
@@ -233,7 +264,7 @@ test('message text is plain text that keeps its line breaks', async () => {
 })
 
 test('a closed ticket says why it closed and has no reply box', async () => {
-  db = [ticket({ status: 'closed', close_reason: 'inactive' })]
+  db = [ticket({ status: 'closed', close_reason: 'inactive', member_seen_at: '2026-10-28T08:00:00Z' })]
   render(<MyTickets />)
   await screen.findByText('My passkey vanished')
   fireEvent.click(header('My passkey vanished'))
@@ -245,7 +276,7 @@ test('a closed ticket says why it closed and has no reply box', async () => {
 })
 
 test('a resolved ticket says it was resolved', async () => {
-  db = [ticket({ status: 'closed', close_reason: 'resolved' })]
+  db = [ticket({ status: 'closed', close_reason: 'resolved', member_seen_at: '2026-10-28T08:00:00Z' })]
   render(<MyTickets />)
   await screen.findByText('My passkey vanished')
   fireEvent.click(header('My passkey vanished'))

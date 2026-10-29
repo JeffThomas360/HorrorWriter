@@ -352,8 +352,8 @@ export const MOCK_PASSKEYS = [
 ];
 
 // Member tickets. One ticket the Keeper has answered and the member has not opened
-// yet: the shape TicketReplyBanner's query (status=answered, member_seen_at is null)
-// and /my-tickets/ both read. `ticket_messages` is the embedded conversation.
+// yet: the shape TicketReplyBanner's query (status in answered/closed, member_seen_at
+// is null) and /my-tickets/ both read. `ticket_messages` is the embedded conversation.
 export const MOCK_TICKET_ID = '3f2b8c1e-5a7d-4e9a-9c3b-1d2e3f4a5b6c';
 
 export const MOCK_TICKET = {
@@ -870,13 +870,19 @@ export async function setupSupabaseMocks(page, opts = {}) {
   // Member tickets. TicketReplyBanner mounts on every page, so a signed-in spec asks
   // for tickets whether or not it cares: the default is "no tickets". Pass
   // `{ tickets: [MOCK_TICKET] }` for a member with an unseen Keeper answer. The
-  // handler honours the filters the client sends (status, member_seen_at, user_id, id,
-  // limit), so the banner only gets the row its query actually asks for.
+  // handler honours the filters the client sends (status eq. or in.(…), member_seen_at,
+  // user_id, id, limit), so the banner only gets the row its query actually asks for.
   const ticketRows = (url) => {
     const q = new URL(url).searchParams;
     const eq = (key) => (q.get(key)?.startsWith('eq.') ? q.get(key).slice(3) : null);
+    // PostgREST's `in.(a,b)` (the banner asks for status=in.(answered,closed)).
+    const inList = (key) => {
+      const m = q.get(key)?.match(/^in\.\((.*)\)$/);
+      return m ? m[1].split(',').map((v) => v.replace(/^"|"$/g, '')) : null;
+    };
     let rows = opts.tickets ?? [];
     if (eq('status')) rows = rows.filter((t) => t.status === eq('status'));
+    if (inList('status')) rows = rows.filter((t) => inList('status').includes(t.status));
     if (eq('user_id')) rows = rows.filter((t) => t.user_id === eq('user_id'));
     if (eq('id')) rows = rows.filter((t) => t.id === eq('id'));
     if (q.get('member_seen_at') === 'is.null') rows = rows.filter((t) => !t.member_seen_at);

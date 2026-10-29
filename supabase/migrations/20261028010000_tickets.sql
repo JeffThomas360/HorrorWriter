@@ -17,6 +17,10 @@
 -- exception is an orphan: a task whose ticket row no longer exists (deleted by hand)
 -- can be dismissed, since there is no ticket left to disagree with.
 --
+-- "Unseen" (the member's reply banner) is status answered or closed with
+-- member_seen_at null. A keeper reply, or a close with a note, sets it null; a
+-- close without a note sets it now(); mark_ticket_seen sets it; auto-close leaves it.
+--
 -- Text is normalised (whitespace runs -> one space, ends trimmed) before the
 -- length and duplicate checks, so padding can't stretch or disguise a message.
 -- Bodies are stored trimmed with their line breaks kept.
@@ -225,6 +229,7 @@ begin
   return v_msg;
 end $$;
 
+-- Any status: a closed ticket can carry an unseen closing note (keeper_close_ticket).
 create function public.mark_ticket_seen(p_ticket uuid)
 returns void
 language plpgsql security definer
@@ -296,8 +301,11 @@ begin
     values (v_ticket.user_id, 'ticket_closed', 'Your ticket was closed', v_ticket.subject);
   end if;
 
+  -- A closing note is the Keeper's last word: unseen, so the member's banner shows it.
+  -- A close without one leaves nothing new to read: seen now, so it never does.
   update public.tickets
-     set status = 'closed', close_reason = p_reason, closed_at = now(), updated_at = now()
+     set status = 'closed', close_reason = p_reason, closed_at = now(), updated_at = now(),
+         member_seen_at = case when v_note is null then now() else null end
    where id = p_ticket;
   update public.keeper_tasks
      set status = case p_reason when 'resolved' then 'resolved' else 'dismissed' end,
@@ -311,6 +319,8 @@ end $$;
 -- ── 5. Auto-close: answered and quiet for 14 days ──────────────────────────
 -- No message is added; the member sees "Closed — no reply for 14 days".
 -- An answered ticket has no open task, so there is none to resolve.
+-- member_seen_at is left as it is: an answer the member never opened stays unseen
+-- (the banner keeps showing it), one they read stays read.
 create function public.close_inactive_tickets()
 returns integer
 language plpgsql security definer

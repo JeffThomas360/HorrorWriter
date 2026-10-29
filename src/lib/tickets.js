@@ -136,14 +136,22 @@ export async function fetchMyTickets(userId) {
   return (data ?? []).map(shapeTicket)
 }
 
-// The newest ticket the Keeper has answered that this member has not opened yet.
+// The newest ticket with Keeper words this member has not opened yet: an answer, or a
+// closing note (keeper_close_ticket leaves member_seen_at null after a note and sets it
+// when there is none, so a plain close never shows up here).
+export const UNSEEN_STATUSES = ['answered', 'closed']
+
+export function isUnseen(ticket) {
+  return UNSEEN_STATUSES.includes(ticket?.status) && !ticket?.member_seen_at
+}
+
 export async function fetchUnseenAnswered(userId) {
   if (!userId) return null
   const { data, error } = await need()
     .from('tickets')
     .select('id, subject')
     .eq('user_id', userId)
-    .eq('status', 'answered')
+    .in('status', UNSEEN_STATUSES)
     .is('member_seen_at', null)
     .order('updated_at', { ascending: false })
     .limit(1)

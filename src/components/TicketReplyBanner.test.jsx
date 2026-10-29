@@ -1,6 +1,6 @@
 import { render, screen, cleanup, waitFor } from '@testing-library/react'
 import { renderToString } from 'react-dom/server'
-import { test, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // Each island is its own root with its own query cache, so the only thing that can
 // make the banner appear is the database. These tests keep the "database" in one
@@ -167,4 +167,74 @@ test('the subject is text, never markup', async () => {
   const strip = await screen.findByRole('status')
   expect(strip).toHaveTextContent('<img src=x onerror=alert(1)> hi')
   expect(strip.querySelector('img')).toBeNull()
+})
+
+// R21, through the real query: the banner is "answered or closed, and not seen yet", over
+// a fake tickets table that applies the filters the way PostgREST does.
+describe('what counts as unseen (the real fetchUnseenAnswered)', () => {
+  let actual
+  let rows
+
+  function fakeTickets() {
+    const filters = []
+    let limit = Infinity
+    const q = {
+      select: () => q,
+      eq: (col, v) => (filters.push((r) => r[col] === v), q),
+      in: (col, vs) => (filters.push((r) => vs.includes(r[col])), q),
+      is: (col, v) => (filters.push((r) => r[col] === v), q),
+      order: () => q,
+      limit: (n) => ((limit = n), q),
+      then: (resolve, reject) =>
+        Promise.resolve({ data: rows.filter((r) => filters.every((f) => f(r))).slice(0, limit), error: null }).then(resolve, reject),
+    }
+    return q
+  }
+
+  const row = (over) => ({ id: 'tk1', user_id: 'u1', subject: 'My passkey vanished', status: 'answered', member_seen_at: null, ...over })
+
+  beforeEach(async () => {
+    actual = await vi.importActual('../lib/tickets')
+    client.supabase = { from: () => fakeTickets() }
+    fetchUnseenAnswered.mockImplementation((...a) => actual.fetchUnseenAnswered(...a))
+  })
+  afterEach(() => {
+    fetchUnseenAnswered.mockImplementation(async () => unseen)
+  })
+
+  test('a closed ticket with an unread closing note shows the strip', async () => {
+    rows = [row({ status: 'closed', subject: 'Closed with a note' })]
+    render(<TicketReplyBanner />)
+    expect(await screen.findByRole('status')).toHaveTextContent('Closed with a note')
+  })
+
+  test('a ticket closed with no note (seen on close) shows nothing', async () => {
+    rows = [row({ status: 'closed', member_seen_at: '2026-10-28T09:00:00Z' })]
+    const { container } = render(<TicketReplyBanner />)
+    await waitFor(() => expect(fetchUnseenAnswered).toHaveBeenCalled())
+    await new Promise((r) => setTimeout(r, 20))
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  test('a ticket still waiting on the Keeper shows nothing', async () => {
+    rows = [row({ status: 'waiting' })]
+    const { container } = render(<TicketReplyBanner />)
+    await waitFor(() => expect(fetchUnseenAnswered).toHaveBeenCalled())
+    await new Promise((r) => setTimeout(r, 20))
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  test("another member's unseen answer shows nothing", async () => {
+    rows = [row({ user_id: 'u2' })]
+    const { container } = render(<TicketReplyBanner />)
+    await waitFor(() => expect(fetchUnseenAnswered).toHaveBeenCalled())
+    await new Promise((r) => setTimeout(r, 20))
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  test('an answered ticket not seen yet still shows (the original case)', async () => {
+    rows = [row({ subject: 'Plain answer' })]
+    render(<TicketReplyBanner />)
+    expect(await screen.findByRole('status')).toHaveTextContent('Plain answer')
+  })
 })

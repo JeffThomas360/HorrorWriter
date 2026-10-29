@@ -8,6 +8,7 @@ import {
   TICKETS_KEY,
   closedLabel,
   fetchMyTickets,
+  isUnseen,
   markTicketSeen,
   memberStatus,
   replyTicket,
@@ -17,8 +18,9 @@ import {
 /**
  * The member's own tickets, newest first, each with its whole conversation.
  *
- * An answered ticket the member has not opened yet is expanded on load and marked
- * seen once; that is what takes the reply banner away on the next page they visit.
+ * A ticket with Keeper words the member has not opened yet (an answer, or a closing
+ * note) is expanded on load and marked seen once; that is what takes the reply banner
+ * away on the next page they visit.
  * /my-tickets/#<id> (the banner's link) scrolls to that ticket and expands it.
  * Message text is member and Keeper text: it is only ever rendered as text.
  */
@@ -176,7 +178,7 @@ function MyTickets() {
 
   useEffect(() => {
     if (!tickets) return
-    const unseen = tickets.filter((t) => t.status === 'answered' && !t.member_seen_at)
+    const unseen = tickets.filter(isUnseen)
     const open = unseen.map((t) => t.id)
 
     if (!hashHandled.current) {
