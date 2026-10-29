@@ -1,0 +1,39 @@
+---
+// /help/: the single front door for members who need help. Prerendered from
+// src/content/help/ (one markdown file per question, answers written by Jeff).
+// Entries with no answer are never built, so the page ships before every answer is written.
+import { getCollection } from 'astro:content'
+import MainLayout from '../layouts/MainLayout.astro'
+import StructuredData from '../components/StructuredData.astro'
+import OpenTicket from '../components/help/OpenTicket.jsx'
+import { visibleHelp, groupByTopic, toFaqItem } from '../lib/help.js'
+import { buildFAQSchema } from '../lib/seo.js'
+import { TOPICS } from '../lib/tickets.js'
+
+const entries = visibleHelp(await getCollection('help'), { dev: import.meta.env.DEV })
+const groups = groupByTopic(entries)
+const topics = TOPICS.filter((t) => groups[t.id]?.length)
+// One flat list in reading order: it feeds the ticket flow and the structured data.
+const faq = topics.flatMap((t) => groups[t.id].map(toFaqItem))
+// FAQPage markup only when there is at least one answer to describe.
+const faqSchema = faq.length > 0 ? buildFAQSchema(faq.map(({ question, html }) => ({ question, answer: html }))) : null
+---
+
+<MainLayout title="Help | Horror Writer" description="Answers to common questions about Horror Writer, and a way to reach the Keeper.">
+  {faqSchema && <StructuredData data={faqSchema} />}
+  <div class="max-w-2xl mx-auto mt-8">
+    <h1 class="title text-4xl font-serif font-black mb-10">Help</h1>
+    {topics.map((topic) => (
+      <section aria-labelledby={`help-${topic.id}`} class="mb-10">
+        <h2 id={`help-${topic.id}`} class="font-serif font-bold text-2xl text-[var(--color-text-primary)] mb-2">{topic.label}</h2>
+        {groups[topic.id].map((entry) => (
+          <details class="border-t border-[var(--color-line)] py-2">
+            <summary class="cursor-pointer min-h-[44px] flex items-center font-serif font-bold text-lg text-[var(--color-text-primary)] hover:text-[var(--color-ember)]">{entry.data.question}</summary>
+            <div class="prose pb-4" set:html={entry.rendered?.html ?? ''} />
+          </details>
+        ))}
+      </section>
+    ))}
+    <OpenTicket client:load faq={faq} />
+  </div>
+</MainLayout>
