@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { setupSupabaseMocks, setupMockAuth, setupTurnstileStub, trapUnmockedSupabase } from './mocks';
+import { setupSupabaseMocks, setupMockAuth, setupTurnstileStub, trapUnmockedSupabase, MOCK_USER_ID } from './mocks';
 
 // What a stranger reads after asking for a link. It must be the same sentence whether or
 // not the address has an account.
@@ -274,6 +274,8 @@ test.describe('Passkey nudge after an email link', () => {
     await expect(page.getByText(NUDGE)).toBeVisible();
     await expect(page.getByRole('button', { name: 'Add passkey' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Not now' })).toBeVisible();
+    // The flag names the account that signed in, so only that member is ever shown it.
+    expect(await page.evaluate(() => localStorage.getItem('hw:passkeyPrompt'))).toBe(MOCK_USER_ID);
   });
 
   test('is not offered when this browser never asked for a link', async ({ page }) => {

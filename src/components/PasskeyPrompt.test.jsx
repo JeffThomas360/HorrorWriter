@@ -35,7 +35,7 @@ afterEach(() => {
 })
 
 test('renders nothing on the server, even with the flag set (it reads the flag after mount)', () => {
-  localStorage.setItem(FLAG, '1')
+  localStorage.setItem(FLAG, 'u1')
   expect(renderToString(<PasskeyPrompt />)).toBe('')
 })
 
@@ -46,17 +46,17 @@ test('hidden without the flag', async () => {
 })
 
 test('hidden when signed out, even with the flag', async () => {
-  localStorage.setItem(FLAG, '1')
+  localStorage.setItem(FLAG, 'u1')
   authState = signedOut
   const { container } = render(<PasskeyPrompt />)
   await new Promise((r) => setTimeout(r, 20))
   expect(container).toBeEmptyDOMElement()
   // signed out is not a dismissal: the flag waits for the sign-in to land
-  expect(localStorage.getItem(FLAG)).toBe('1')
+  expect(localStorage.getItem(FLAG)).toBe('u1')
 })
 
 test('hidden while the sign-in is still being read, then shown once it resolves', async () => {
-  localStorage.setItem(FLAG, '1')
+  localStorage.setItem(FLAG, 'u1')
   authState = { session: null, user: null, isLoading: true }
   const { container, rerender } = render(<PasskeyPrompt />)
   await new Promise((r) => setTimeout(r, 20))
@@ -68,7 +68,7 @@ test('hidden while the sign-in is still being read, then shown once it resolves'
 })
 
 test('shown with the flag and a session, with the exact words and two buttons', async () => {
-  localStorage.setItem(FLAG, '1')
+  localStorage.setItem(FLAG, 'u1')
   render(<PasskeyPrompt />)
   expect(await screen.findByText(TEXT)).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Add passkey' })).toBeEnabled()
@@ -78,7 +78,7 @@ test('shown with the flag and a session, with the exact words and two buttons', 
 })
 
 test('Not now clears the flag and hides the panel without registering anything', async () => {
-  localStorage.setItem(FLAG, '1')
+  localStorage.setItem(FLAG, 'u1')
   render(<PasskeyPrompt />)
   fireEvent.click(await screen.findByRole('button', { name: 'Not now' }))
 
@@ -88,7 +88,7 @@ test('Not now clears the flag and hides the panel without registering anything',
 })
 
 test('Add passkey registers one, clears the flag, says Passkey added, and hides the panel', async () => {
-  localStorage.setItem(FLAG, '1')
+  localStorage.setItem(FLAG, 'u1')
   render(<PasskeyPrompt />)
   fireEvent.click(await screen.findByRole('button', { name: 'Add passkey' }))
 
@@ -99,7 +99,7 @@ test('Add passkey registers one, clears the flag, says Passkey added, and hides 
 })
 
 test('the flag is cleared as soon as Add passkey is pressed, even if the device dialog is still open', async () => {
-  localStorage.setItem(FLAG, '1')
+  localStorage.setItem(FLAG, 'u1')
   registerPasskey.mockImplementation(() => new Promise(() => {})) // never settles
   render(<PasskeyPrompt />)
   fireEvent.click(await screen.findByRole('button', { name: 'Add passkey' }))
@@ -111,7 +111,7 @@ test('the flag is cleared as soon as Add passkey is pressed, even if the device 
 })
 
 test('a failed or cancelled registration says why, keeps the panel for another try, and does not nag next page', async () => {
-  localStorage.setItem(FLAG, '1')
+  localStorage.setItem(FLAG, 'u1')
   registerPasskey.mockRejectedValueOnce(new Error('Passkey setup was cancelled or timed out.'))
   render(<PasskeyPrompt />)
   fireEvent.click(await screen.findByRole('button', { name: 'Add passkey' }))
@@ -124,7 +124,7 @@ test('a failed or cancelled registration says why, keeps the panel for another t
 })
 
 test('persists across page loads until a button is pressed', async () => {
-  localStorage.setItem(FLAG, '1')
+  localStorage.setItem(FLAG, 'u1')
   const first = render(<PasskeyPrompt />)
   expect(await first.findByText(TEXT)).toBeInTheDocument()
   first.unmount()
@@ -139,13 +139,70 @@ test('persists across page loads until a button is pressed', async () => {
   expect(container).toBeEmptyDOMElement()
 })
 
-test('stays out of the way on the sign-in callback page, which is about to redirect', async () => {
+// R26: the flag names the account it was left for.
+test('a flag left for another account is not shown, and is cleared', async () => {
+  localStorage.setItem(FLAG, 'u2')
+  const { container } = render(<PasskeyPrompt />)
+  await waitFor(() => expect(localStorage.getItem(FLAG)).toBeNull())
+  expect(container).toBeEmptyDOMElement()
+})
+
+test("a flag from before it named an account is treated as someone else's", async () => {
   localStorage.setItem(FLAG, '1')
+  const { container } = render(<PasskeyPrompt />)
+  await waitFor(() => expect(localStorage.getItem(FLAG)).toBeNull())
+  expect(container).toBeEmptyDOMElement()
+})
+
+test('another member signing in on the same browser never sees it', async () => {
+  localStorage.setItem(FLAG, 'u1')
+  const { container, rerender } = render(<PasskeyPrompt />)
+  expect(await screen.findByText(TEXT)).toBeInTheDocument()
+
+  authState = signedOut
+  rerender(<PasskeyPrompt />)
+  await waitFor(() => expect(container).toBeEmptyDOMElement())
+  expect(localStorage.getItem(FLAG)).toBe('u1')
+
+  authState = { session: { user: { id: 'u2' } }, user: { id: 'u2' }, isLoading: false }
+  rerender(<PasskeyPrompt />)
+  await waitFor(() => expect(localStorage.getItem(FLAG)).toBeNull())
+  expect(container).toBeEmptyDOMElement()
+})
+
+const ALREADY = 'This device already has a passkey for your account.'
+
+test('a device that already has a passkey for the account says so, clears the flag and goes away', async () => {
+  localStorage.setItem(FLAG, 'u1')
+  registerPasskey.mockRejectedValueOnce(Object.assign(new Error('The authenticator was previously registered'), { name: 'InvalidStateError' }))
+  render(<PasskeyPrompt />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Add passkey' }))
+
+  await waitFor(() => expect(toast.success).toHaveBeenCalledWith(ALREADY))
+  expect(toast.error).not.toHaveBeenCalled()
+  expect(localStorage.getItem(FLAG)).toBeNull()
+  await waitFor(() => expect(screen.queryByText(TEXT)).toBeNull())
+})
+
+test('the same, when registerPasskey has already turned InvalidStateError into its own sentence', async () => {
+  localStorage.setItem(FLAG, 'u1')
+  registerPasskey.mockRejectedValueOnce(new Error('This passkey is already registered on your account.'))
+  render(<PasskeyPrompt />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Add passkey' }))
+
+  await waitFor(() => expect(toast.success).toHaveBeenCalledWith(ALREADY))
+  expect(toast.error).not.toHaveBeenCalled()
+  expect(localStorage.getItem(FLAG)).toBeNull()
+  await waitFor(() => expect(screen.queryByText(TEXT)).toBeNull())
+})
+
+test('stays out of the way on the sign-in callback page, which is about to redirect', async () => {
+  localStorage.setItem(FLAG, 'u1')
   window.history.pushState({}, '', '/auth/callback/?via=email')
   const { container } = render(<PasskeyPrompt />)
   await new Promise((r) => setTimeout(r, 20))
   expect(container).toBeEmptyDOMElement()
-  expect(localStorage.getItem(FLAG)).toBe('1')
+  expect(localStorage.getItem(FLAG)).toBe('u1')
 })
 
 test('blocked storage means no prompt, not a crash', async () => {
@@ -158,7 +215,7 @@ test('blocked storage means no prompt, not a crash', async () => {
 })
 
 test('a storage failure while clearing does not stop Not now from closing the panel', async () => {
-  localStorage.setItem(FLAG, '1')
+  localStorage.setItem(FLAG, 'u1')
   render(<PasskeyPrompt />)
   await screen.findByText(TEXT)
   vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {

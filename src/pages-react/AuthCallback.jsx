@@ -52,11 +52,12 @@ function AuthCallback() {
     // Even then the session may belong to an account somebody else requested the link
     // for, so it also needs the marker the modal leaves when THIS browser asks for a link
     // (less than an hour old). The marker is used up either way. Google and passkey
-    // sign-in never carry `via=email`.
+    // sign-in never carry `via=email`. The flag names the account that signed in, so
+    // the prompt only ever shows to that member.
     const viaEmail = params.get('via') === 'email'
-    const redirectBack = () => {
+    const redirectBack = (signedIn) => {
       const askedHere = takeEmailLinkRequest()
-      if (viaEmail && askedHere) setPasskeyPrompt()
+      if (viaEmail && askedHere) setPasskeyPrompt(signedIn?.user?.id)
       window.location.replace(takeReturnPath())
     }
 
@@ -72,7 +73,7 @@ function AuthCallback() {
             window.opener.postMessage({ type: 'AUTH_SUCCESS' }, window.location.origin)
             window.close()
           } else {
-            redirectBack()
+            redirectBack(data.session)
           }
         }
       } catch (err) {
@@ -89,7 +90,7 @@ function AuthCallback() {
           window.opener.postMessage({ type: 'AUTH_SUCCESS' }, window.location.origin)
           window.close()
         } else {
-          redirectBack()
+          redirectBack(session)
         }
       }
     })
@@ -103,7 +104,7 @@ function AuthCallback() {
             window.opener.postMessage({ type: 'AUTH_SUCCESS' }, window.location.origin)
             window.close()
           } else {
-            redirectBack()
+            redirectBack(data.session)
           }
         }
       } else {

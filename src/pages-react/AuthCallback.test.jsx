@@ -77,8 +77,26 @@ test('?via=email with a confirmed session leaves the flag, set before the redire
   landOn('?via=email')
   await mount()
   expect(replace).toHaveBeenCalledTimes(1)
-  expect(flagAtRedirect).toBe('1')
-  expect(localStorage.getItem(FLAG)).toBe('1')
+  expect(flagAtRedirect).toBe('u1')
+  expect(localStorage.getItem(FLAG)).toBe('u1')
+})
+
+// R26: the flag names the account that signed in, so only that member is ever shown it.
+test('the flag holds the id of the account the link signed in', async () => {
+  requestedLink()
+  session = { user: { id: 'u7' } }
+  landOn('?via=email')
+  await mount()
+  expect(flagAtRedirect).toBe('u7')
+})
+
+test("the SIGNED_IN event's account is the one the flag names", async () => {
+  requestedLink()
+  session = null
+  landOn('?via=email')
+  await mount()
+  act(() => authCallback('SIGNED_IN', { user: { id: 'u9' } }))
+  expect(flagAtRedirect).toBe('u9')
 })
 
 test('?via=email with no session yet sets nothing: the URL alone proves nothing', async () => {
@@ -99,7 +117,7 @@ test('the SIGNED_IN event confirms the sign-in: flag set just before the redirec
 
   act(() => authCallback('SIGNED_IN', { user: { id: 'u1' } }))
   expect(replace).toHaveBeenCalledTimes(1)
-  expect(flagAtRedirect).toBe('1')
+  expect(flagAtRedirect).toBe('u1')
 })
 
 test('other auth events do not confirm anything', async () => {
@@ -127,7 +145,7 @@ test('the 15 s fallback that finds a session sets the flag before redirecting', 
     await vi.advanceTimersByTimeAsync(15000)
   })
   expect(replace).toHaveBeenCalledTimes(1)
-  expect(flagAtRedirect).toBe('1')
+  expect(flagAtRedirect).toBe('u1')
 })
 
 test('the 15 s fallback with no session sets no flag and signs nobody in', async () => {
@@ -212,8 +230,8 @@ test('R18: a recent marker plus via=email plus a session gives the flag, and the
   requestedLink(5 * 60 * 1000)
   landOn('?via=email')
   await mount()
-  expect(localStorage.getItem(FLAG)).toBe('1')
-  expect(flagAtRedirect).toBe('1')
+  expect(localStorage.getItem(FLAG)).toBe('u1')
+  expect(flagAtRedirect).toBe('u1')
   expect(localStorage.getItem(MARKER)).toBeNull()
 })
 
@@ -238,7 +256,7 @@ test('R18: a marker just under an hour old still counts', async () => {
   requestedLink(HOUR - 60 * 1000)
   landOn('?via=email')
   await mount()
-  expect(localStorage.getItem(FLAG)).toBe('1')
+  expect(localStorage.getItem(FLAG)).toBe('u1')
 })
 
 test('R18: a marker from the future, or that is not a time, gives no flag', async () => {
@@ -278,10 +296,10 @@ test('R18: the immediate check and the SIGNED_IN event both confirming leave the
   requestedLink()
   landOn('?via=email')
   await mount()
-  expect(localStorage.getItem(FLAG)).toBe('1')
+  expect(localStorage.getItem(FLAG)).toBe('u1')
 
   // the event arrives too: the marker is already used up, and that must not undo the flag
   act(() => authCallback('SIGNED_IN', { user: { id: 'u1' } }))
   expect(replace).toHaveBeenCalledTimes(2)
-  expect(localStorage.getItem(FLAG)).toBe('1')
+  expect(localStorage.getItem(FLAG)).toBe('u1')
 })

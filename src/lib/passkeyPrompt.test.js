@@ -2,6 +2,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   PASSKEY_PROMPT_KEY,
   EMAIL_LINK_KEY,
+  setPasskeyPrompt,
+  passkeyPromptFor,
+  clearPasskeyPrompt,
   markEmailLinkRequested,
   takeEmailLinkRequest,
 } from './passkeyPrompt.js'
@@ -15,6 +18,48 @@ describe('keys', () => {
   it('are the two names the rest of the site and its tests rely on', () => {
     expect(PASSKEY_PROMPT_KEY).toBe('hw:passkeyPrompt')
     expect(EMAIL_LINK_KEY).toBe('hw:emailLinkRequestedAt')
+  })
+})
+
+// R26: the prompt flag remembers which account it was left for, so it is only ever shown
+// to that member, never to whoever signs in next on the same browser.
+describe('setPasskeyPrompt / passkeyPromptFor / clearPasskeyPrompt', () => {
+  it('stores the user id the prompt was left for, and reads it back', () => {
+    setPasskeyPrompt('u1')
+    expect(localStorage.getItem(PASSKEY_PROMPT_KEY)).toBe('u1')
+    expect(passkeyPromptFor()).toBe('u1')
+  })
+
+  it('stores nothing without a user id', () => {
+    for (const id of [undefined, null, '']) {
+      setPasskeyPrompt(id)
+      expect(localStorage.getItem(PASSKEY_PROMPT_KEY)).toBeNull()
+    }
+  })
+
+  it('is null when there is no flag', () => {
+    expect(passkeyPromptFor()).toBeNull()
+  })
+
+  it('clearing removes it', () => {
+    setPasskeyPrompt('u1')
+    clearPasskeyPrompt()
+    expect(passkeyPromptFor()).toBeNull()
+  })
+
+  it('blocked storage reads as no flag and never throws', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('storage blocked')
+    })
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('storage blocked')
+    })
+    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+      throw new Error('storage blocked')
+    })
+    expect(() => setPasskeyPrompt('u1')).not.toThrow()
+    expect(passkeyPromptFor()).toBeNull()
+    expect(() => clearPasskeyPrompt()).not.toThrow()
   })
 })
 

@@ -5,20 +5,27 @@
 // flag in localStorage instead: the callback sets it, the prompt reads it after
 // mount on whatever page the member lands on, and either button on the prompt
 // clears it. Storage can be blocked, so every access is allowed to fail quietly.
+//
+// The flag's value is the id of the account that signed in, so it only ever shows to
+// that member: a browser is shared, and the next person to sign in on it must not be
+// nudged to bind their device to someone else's prompt. A flag for anyone else is
+// cleared by the prompt (an old '1' from before this counts as anyone else).
 
 export const PASSKEY_PROMPT_KEY = 'hw:passkeyPrompt'
 
-export function setPasskeyPrompt() {
+export function setPasskeyPrompt(userId) {
+  if (!userId) return
   try {
-    localStorage.setItem(PASSKEY_PROMPT_KEY, '1')
+    localStorage.setItem(PASSKEY_PROMPT_KEY, String(userId))
   } catch {}
 }
 
-export function hasPasskeyPrompt() {
+/** The id of the account the prompt was left for, or null. */
+export function passkeyPromptFor() {
   try {
-    return localStorage.getItem(PASSKEY_PROMPT_KEY) === '1'
+    return localStorage.getItem(PASSKEY_PROMPT_KEY) || null
   } catch {
-    return false
+    return null
   }
 }
 
