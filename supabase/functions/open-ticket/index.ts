@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { verifyTurnstile } from '../_shared/turnstile.ts'
+import { checkTurnstile, logTurnstileFailure } from '../_shared/turnstile.ts'
 
 // Opens a support ticket for the signed-in member, once Cloudflare has confirmed
 // the Turnstile token that came with it. open_ticket() is executable by service_role
@@ -46,13 +46,18 @@ serve(async (req) => {
     console.error('[open-ticket] TURNSTILE_SECRET_KEY is not set; refusing every request')
     return json({ error: 'captcha_failed' }, 403)
   }
-  const human = await verifyTurnstile({
+  const human = await checkTurnstile({
     secret,
     token: text(fields.captchaToken),
     ip: req.headers.get('CF-Connecting-IP'),
     expectedAction: 'open_ticket',
   })
-  if (!human) return json({ error: 'captcha_failed' }, 403)
+  if (!human.ok) {
+    // Cloudflare's error-codes only (a wrong secret reads `invalid-input-secret`), never
+    // the token or the secret. The member just sees captcha_failed.
+    logTurnstileFailure('open-ticket', human.codes)
+    return json({ error: 'captcha_failed' }, 403)
+  }
 
   const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '')
   const { data: id, error } = await admin.rpc('open_ticket', {
