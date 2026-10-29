@@ -264,6 +264,21 @@ test('an open ticket has a reply box limited to 2,000 characters', async () => {
   expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
 })
 
+test('the reply box shows a live n / 2000 count, tied to the box', async () => {
+  db = [ticket()]
+  render(<MyTickets />)
+  await screen.findByText('My passkey vanished')
+  fireEvent.click(header('My passkey vanished'))
+  const box = screen.getByLabelText('Reply')
+  const count = screen.getByText('0 / 2000')
+  expect(box).toHaveAttribute('aria-describedby', count.id)
+
+  const text = 'Thanks, the email link worked for me.'
+  fireEvent.change(box, { target: { value: text } })
+  expect(screen.getByText(`${text.length} / 2000`)).toBeInTheDocument()
+  expect(screen.queryByText('0 / 2000')).toBeNull()
+})
+
 test('sending a reply calls replyTicket(id, body), clears the box and refreshes the list', async () => {
   db = [ticket()]
   render(<MyTickets />)

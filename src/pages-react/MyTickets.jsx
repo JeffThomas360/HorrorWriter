@@ -29,6 +29,9 @@ const FIELD =
 const BUTTON =
   'inline-flex items-center self-start font-mono text-xs uppercase tracking-widest px-4 min-h-[44px] border border-[var(--color-line-hi)] text-[var(--color-bone)] hover:border-[var(--color-ember)] hover:text-[var(--color-ember)] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed'
 const PILL = 'font-mono text-xs uppercase tracking-widest border px-2 py-0.5'
+// Same live count as the Help page's ticket form (OpenTicket).
+const COUNT = 'self-end font-mono text-xs text-[var(--color-ash)]'
+const REPLY_MAX = 2000
 
 function StatusPill({ ticket }) {
   const status = memberStatus(ticket)
@@ -65,6 +68,7 @@ function ReplyBox({ ticketId }) {
   })
   const body = text.trim()
   const fieldId = `reply-${ticketId}`
+  const countId = `${fieldId}-count`
 
   return (
     <form
@@ -80,14 +84,16 @@ function ReplyBox({ ticketId }) {
       <textarea
         id={fieldId}
         rows={4}
-        maxLength={2000}
+        maxLength={REPLY_MAX}
         value={text}
         onChange={(e) => {
           setText(e.target.value)
           if (send.isError) send.reset()
         }}
+        aria-describedby={countId}
         className={FIELD}
       />
+      <span id={countId} className={COUNT}>{`${text.length} / ${REPLY_MAX}`}</span>
       {send.isError && (
         <p role="alert" className="font-serif text-sm text-[var(--color-ember)]">
           {send.error.message}
