@@ -461,3 +461,44 @@ describe('SignInModal when the Turnstile widget fails', () => {
     expect(screen.getByRole('button', { name: /sign in with passkey/i })).toBeEnabled()
   })
 })
+
+// For an address that already has an account, GoTrue's per-address frequency limit
+// answers with its own error, and only then. Passed on raw it would tell a stranger
+// the address has an account, so it gets the same neutral sentence (a link really was
+// sent a moment ago). The project-wide limit does not depend on the account.
+describe('SignInModal per-address rate limit', () => {
+  const TOO_SOON = { code: 'over_email_send_rate_limit', message: 'For security purposes, you can only request this after 42 seconds.' }
+
+  test('is answered with the neutral sentence while the browser has not passed the gate', async () => {
+    signInWithOtp.mockResolvedValue({ error: TOO_SOON })
+    open()
+    await sendLink()
+    expect(await screen.findByText(NEUTRAL)).toBeInTheDocument()
+    expect(screen.queryByText(/only request this after/i)).toBeNull()
+    expect(screen.queryByText(/for security purposes/i)).toBeNull()
+  })
+
+  test('matches on the message, not the wording around it', async () => {
+    signInWithOtp.mockResolvedValue({ error: { message: 'FOR SECURITY PURPOSES, YOU CAN ONLY REQUEST THIS AFTER 5 SECONDS.' } })
+    open()
+    await sendLink()
+    expect(await screen.findByText(NEUTRAL)).toBeInTheDocument()
+  })
+
+  test('is left as it is when the browser has passed the gate (that path creates accounts)', async () => {
+    localStorage.setItem(GATE_KEY, PASSED)
+    signInWithOtp.mockResolvedValue({ error: TOO_SOON })
+    open()
+    await sendLink('new@example.com')
+    expect(await screen.findByText(TOO_SOON.message)).toBeInTheDocument()
+    expect(screen.queryByText(NEUTRAL)).toBeNull()
+  })
+
+  test('the project-wide limit does not depend on the account, so it stays as it is', async () => {
+    signInWithOtp.mockResolvedValue({ error: { code: 'over_email_send_rate_limit', message: 'Email rate limit exceeded' } })
+    open()
+    await sendLink()
+    expect(await screen.findByText('Email rate limit exceeded')).toBeInTheDocument()
+    expect(screen.queryByText(NEUTRAL)).toBeNull()
+  })
+})

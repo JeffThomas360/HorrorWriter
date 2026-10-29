@@ -304,6 +304,13 @@ export default function SignInModal({ isOpen, onClose }) {
         setError(TURNSTILE_FAILED)
         return
       }
+      // GoTrue's per-address limit ("you can only request this after N seconds") fires
+      // only for an address that already has an account, when account creation is off.
+      // Raw, it would reveal that; a link really was sent a moment ago, so say so.
+      if (error && gate !== PASSED && /only request this after/i.test(error.message || '')) {
+        setMessage(LINK_ON_ITS_WAY)
+        return
+      }
       if (error) throw error
       setMessage(gate === PASSED ? LINK_SENT : LINK_ON_ITS_WAY)
     } catch (err) {
