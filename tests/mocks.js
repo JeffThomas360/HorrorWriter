@@ -351,6 +351,81 @@ export const MOCK_PASSKEYS = [
   }
 ];
 
+// Member tickets. One ticket the Keeper has answered and the member has not opened
+// yet: the shape TicketReplyBanner's query (status=answered, member_seen_at is null)
+// and /my-tickets/ both read. `ticket_messages` is the embedded conversation.
+export const MOCK_TICKET_ID = '3f2b8c1e-5a7d-4e9a-9c3b-1d2e3f4a5b6c';
+
+export const MOCK_TICKET = {
+  id: MOCK_TICKET_ID,
+  user_id: MOCK_USER_ID,
+  topic: 'broken',
+  subject: 'The editor will not save my story',
+  status: 'answered',
+  close_reason: null,
+  member_seen_at: null,
+  created_at: '2026-10-27T10:00:00Z',
+  updated_at: '2026-10-27T12:00:00Z',
+  ticket_messages: [
+    {
+      id: 'tmsg-1',
+      from_keeper: false,
+      body: 'Every time I press save the editor spins and nothing happens.',
+      created_at: '2026-10-27T10:00:00Z'
+    },
+    {
+      id: 'tmsg-2',
+      from_keeper: true,
+      body: 'Found it. Try again now; it should save.',
+      created_at: '2026-10-27T12:00:00Z'
+    }
+  ]
+};
+
+// Cloudflare Turnstile. Under Playwright the widget uses Cloudflare's always-pass
+// test key, but it still loads the real script from challenges.cloudflare.com. This
+// serves a stand-in that hands the page a token ('tok') the moment a widget renders,
+// and a fresh one after reset(), so a spec never waits on the network or a challenge.
+// `token: null` gives a widget that never answers (Send / the email button stay
+// disabled). `setupSupabaseMocks` installs the default; call this after it to override
+// (the last matching route wins).
+export async function setupTurnstileStub(page, { token = 'tok' } = {}) {
+  const script = `
+    (function () {
+      var token = ${JSON.stringify(token)};
+      var widgets = {};
+      var next = 0;
+      function issue(id) {
+        var opts = widgets[id];
+        if (token !== null && opts && typeof opts.callback === 'function') {
+          setTimeout(function () { if (widgets[id]) opts.callback(token); }, 0);
+        }
+      }
+      window.turnstile = {
+        render: function (el, opts) { var id = 'w' + (++next); widgets[id] = opts; issue(id); return id; },
+        reset: function (id) { issue(id); },
+        remove: function (id) { delete widgets[id]; }
+      };
+    })();
+  `;
+  await page.route('https://challenges.cloudflare.com/**', async (route) => {
+    route.fulfill({ status: 200, contentType: 'application/javascript', body: script });
+  });
+}
+
+// Tripwire for specs that must never touch the real database (local dev points at
+// production). Call it BEFORE setupSupabaseMocks: routes registered earlier are
+// consulted last, so this only sees the Supabase requests no mock claimed. It aborts
+// them and returns the list, for the spec to assert is empty.
+export async function trapUnmockedSupabase(page) {
+  const leaked = [];
+  await page.route(/^https:\/\/[a-z0-9-]+\.supabase\.co\//, async (route) => {
+    leaked.push(`${route.request().method()} ${route.request().url()}`);
+    route.abort();
+  });
+  return leaked;
+}
+
 
 // Helper to inject mock auth session to localStorage
 export async function setupMockAuth(page) {
@@ -770,6 +845,73 @@ export async function setupSupabaseMocks(page, opts = {}) {
   await page.route('**/functions/v1/moderate-content', async (route) => {
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
   });
+
+  // Signed-in /profile checks for sealed writing waiting to be restored, and lists the
+  // member's kept Ritual entries. Neither exists in a test; without these the requests
+  // go to the real project.
+  await page.route('**/functions/v1/sealed-writing*', async (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ waiting: false }) });
+  });
+  await page.route('**/rest/v1/ritual_vault*', jsonGet([]));
+
+  // Sign out tells the server to end the session. Unanswered, the request fails, the
+  // client keeps the session, and the member is never signed out.
+  await page.route('**/auth/v1/logout*', async (route) => {
+    route.fulfill({ status: 204, body: '' });
+  });
+
+  // The home page's MidnightRitual asks when the next prompt unlocks. With no
+  // ritual_prompts (mocked empty above) the answer is "nothing scheduled": null.
+  await page.route('**/rest/v1/rpc/ritual_next_unlock*', async (route) => {
+    route.fulfill({ status: 200, contentType: 'application/json', body: 'null' });
+  });
+
+  // Member tickets. TicketReplyBanner mounts on every page, so a signed-in spec asks
+  // for tickets whether or not it cares: the default is "no tickets". Pass
+  // `{ tickets: [MOCK_TICKET] }` for a member with an unseen Keeper answer. The
+  // handler honours the filters the client sends (status, member_seen_at, user_id, id,
+  // limit), so the banner only gets the row its query actually asks for.
+  const ticketRows = (url) => {
+    const q = new URL(url).searchParams;
+    const eq = (key) => (q.get(key)?.startsWith('eq.') ? q.get(key).slice(3) : null);
+    let rows = opts.tickets ?? [];
+    if (eq('status')) rows = rows.filter((t) => t.status === eq('status'));
+    if (eq('user_id')) rows = rows.filter((t) => t.user_id === eq('user_id'));
+    if (eq('id')) rows = rows.filter((t) => t.id === eq('id'));
+    if (q.get('member_seen_at') === 'is.null') rows = rows.filter((t) => !t.member_seen_at);
+    if (Number(q.get('limit'))) rows = rows.slice(0, Number(q.get('limit')));
+    return rows;
+  };
+  await page.route('**/rest/v1/tickets*', async (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(ticketRows(route.request().url()))
+    });
+  });
+  // The conversation is normally embedded in the tickets select; this is for a read
+  // of the table directly.
+  await page.route('**/rest/v1/ticket_messages*', async (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    const messages = (opts.tickets ?? []).flatMap((t) => t.ticket_messages ?? []);
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(messages) });
+  });
+
+  // Opening a ticket goes through the open-ticket Edge Function, which verifies the
+  // Turnstile token with the production secret: a test token would be refused, and
+  // nothing a test does may reach the real function.
+  await page.route('**/functions/v1/open-ticket', async (route) => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ id: MOCK_TICKET_ID })
+    });
+  });
+
+  // Turnstile's script (sign-in modal email form, Help ticket form).
+  await setupTurnstileStub(page);
 
   // Count queries (`select('id', { count: 'exact', head: true })`, e.g. the admin
   // Overview's stats) are HEAD requests. The table handlers above only answer
