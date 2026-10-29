@@ -174,6 +174,47 @@ test('losing the token (expired, errored) disables Send again', () => {
   expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
 })
 
+// A widget that can never produce a token must not leave Send disabled without a word.
+// The server always requires a token, so Send stays disabled; the member is told why.
+test('a widget failure says so, as an alert, and Send stays disabled', () => {
+  render(<OpenTicket faq={FAQ} />)
+  openForm('Other')
+  fillForm()
+  expect(typeof turnstileProps.onFail).toBe('function')
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+
+  act(() => {
+    turnstileProps.onToken(null)
+    turnstileProps.onFail()
+  })
+  expect(screen.getByRole('alert')).toHaveTextContent("We couldn't confirm you're a person. Refresh the page and try again.")
+  expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
+  expect(openTicket).not.toHaveBeenCalled()
+})
+
+test('the widget-failure sentence survives editing the fields', () => {
+  render(<OpenTicket faq={FAQ} />)
+  openForm('Other')
+  act(() => turnstileProps.onFail())
+  fillForm()
+  expect(screen.getByRole('alert')).toHaveTextContent("We couldn't confirm you're a person. Refresh the page and try again.")
+  expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
+})
+
+test('a token that arrives after a widget failure clears the sentence and lets Send through', async () => {
+  render(<OpenTicket faq={FAQ} />)
+  openForm('Other')
+  fillForm()
+  act(() => turnstileProps.onFail())
+  expect(screen.getByRole('alert')).toBeInTheDocument()
+
+  act(() => turnstileProps.onToken('tok'))
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled()
+  fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+  await waitFor(() => expect(openTicket).toHaveBeenCalledWith(expect.objectContaining({ captchaToken: 'tok' })))
+})
+
 test('success thanks the member and links to My tickets', async () => {
   render(<OpenTicket faq={FAQ} />)
   openForm('Other')

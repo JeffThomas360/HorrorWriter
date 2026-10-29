@@ -6,20 +6,33 @@ import { loadTurnstile, turnstileSiteKey } from '../lib/turnstile'
  * onToken(null) whenever the token stops being usable (expired, errored, timed out,
  * script blocked, or reset). The token is only a claim: the server must verify it.
  *
+ * `onFail` is optional, and is called (after onToken(null)) when the widget cannot give
+ * a token at all: the script is blocked or fails to load, or the widget errors or times
+ * out. Without it a broken widget leaves the parent waiting for a token that never
+ * comes, with nothing to tell the visitor. An expiry or a reset is not a failure.
+ *
  * Bump `resetKey` after a submit (a token is good for one check) to get a fresh challenge.
  * `action` is baked into the token and checked server-side, so it must match there.
  */
-export default function Turnstile({ action, onToken, resetKey }) {
+export default function Turnstile({ action, onToken, onFail, resetKey }) {
   const hostRef = useRef(null)
   const apiRef = useRef(null)
   const widgetIdRef = useRef(null)
   const lastResetKeyRef = useRef(resetKey)
   const onTokenRef = useRef(onToken)
+  const onFailRef = useRef(onFail)
 
-  // Widget callbacks fire long after render; keep them pointed at the latest handler.
+  // Widget callbacks fire long after render; keep them pointed at the latest handlers.
   useEffect(() => {
     onTokenRef.current = onToken
+    onFailRef.current = onFail
   })
+
+  // Nothing will arrive from the widget: no token now, and the parent should say why.
+  const failed = () => {
+    onTokenRef.current?.(null)
+    onFailRef.current?.()
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -34,12 +47,12 @@ export default function Turnstile({ action, onToken, resetKey }) {
           size: 'flexible',
           callback: (token) => onTokenRef.current?.(token),
           'expired-callback': () => onTokenRef.current?.(null),
-          'error-callback': () => onTokenRef.current?.(null),
-          'timeout-callback': () => onTokenRef.current?.(null),
+          'error-callback': failed,
+          'timeout-callback': failed,
         })
       })
       .catch(() => {
-        if (!cancelled) onTokenRef.current?.(null)
+        if (!cancelled) failed()
       })
 
     return () => {

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../AuthContext'
 import { withProviders } from '../Providers'
 import Turnstile from '../Turnstile'
+import { TURNSTILE_FAILED } from '../../lib/turnstile'
 import { TOPICS, openTicket, ticketErrorMessage } from '../../lib/tickets'
 
 /**
@@ -40,6 +41,9 @@ function OpenTicket({ faq = [] }) {
   const [body, setBody] = useState('')
   const [token, setToken] = useState(null)
   const [resetKey, setResetKey] = useState(0)
+  // The widget itself is broken (script blocked, errored, timed out). The server
+  // always requires a token, so Send stays disabled; the member is told why.
+  const [widgetFailed, setWidgetFailed] = useState(false)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState(null)
   const focusRef = useRef(null)
@@ -56,9 +60,18 @@ function OpenTicket({ faq = [] }) {
 
   function goTo(next) {
     // A token belongs to a mounted widget; leaving the form discards it.
-    if (next !== 'form') setToken(null)
+    if (next !== 'form') {
+      setToken(null)
+      setWidgetFailed(false)
+    }
     setError(null)
     setStep(next)
+  }
+
+  function handleToken(next) {
+    setToken(next)
+    // A widget that recovers on its own (it retries) takes its own warning back.
+    if (next) setWidgetFailed(false)
   }
 
   function startSignin() {
@@ -107,6 +120,10 @@ function OpenTicket({ faq = [] }) {
       setSending(false)
     }
   }
+
+  // A send or validation error wins; the widget sentence fills in when there is none, so
+  // typing in the fields (which clears `error`) never leaves Send disabled in silence.
+  const alertText = error ?? (widgetFailed ? TURNSTILE_FAILED : null)
 
   let content
   if (active === 'idle') {
@@ -209,10 +226,10 @@ function OpenTicket({ faq = [] }) {
           />
           <span id="ticket-body-count" className={COUNT}>{`${body.length} / ${BODY.max}`}</span>
         </div>
-        <Turnstile action="open_ticket" onToken={setToken} resetKey={resetKey} />
-        {error && (
+        <Turnstile action="open_ticket" onToken={handleToken} onFail={() => setWidgetFailed(true)} resetKey={resetKey} />
+        {alertText && (
           <p role="alert" className="font-serif text-sm text-[var(--color-ember)]">
-            {error}
+            {alertText}
           </p>
         )}
         <div className="flex flex-wrap gap-3">

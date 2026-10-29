@@ -19,6 +19,13 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+describe('TURNSTILE_FAILED', () => {
+  it('is the one failure sentence members read, wherever a bot check cannot be completed', async () => {
+    const { TURNSTILE_FAILED } = await fresh()
+    expect(TURNSTILE_FAILED).toBe("We couldn't confirm you're a person. Refresh the page and try again.")
+  })
+})
+
 describe('turnstileSiteKey', () => {
   it('falls back to the always-pass test key when no key is configured', async () => {
     vi.stubEnv('VITE_TURNSTILE_SITE_KEY', '')

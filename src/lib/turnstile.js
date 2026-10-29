@@ -5,6 +5,10 @@ import { isPlaywrightTest } from './testMode.js'
 const TEST_SITE_KEY = '1x00000000000000000000AA'
 const SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
 
+// What a member reads when a bot check cannot be completed: the widget failed, or the
+// server (Supabase Auth, or the open-ticket function) refused the token.
+export const TURNSTILE_FAILED = "We couldn't confirm you're a person. Refresh the page and try again."
+
 // The site key is public by design (it ships in the page). The secret key is not,
 // and only the open-ticket Edge Function and Supabase Auth ever hold it.
 export function turnstileSiteKey() {

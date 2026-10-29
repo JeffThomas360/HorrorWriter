@@ -4,13 +4,13 @@ import { signInWithPasskey, prefetchPasskeyChallenge } from '../lib/passkey'
 import { rememberReturnPath } from '../lib/returnPath'
 import { MIN_AGE, PASSED, BLOCKED, meetsMinimumAge, selectableYears, readGate, writeGate } from '../lib/ageGate'
 import Turnstile from './Turnstile'
+import { TURNSTILE_FAILED } from '../lib/turnstile'
 
 // What a stranger is told after asking for a link. It must read the same whether or
 // not the address has an account, so it never says which.
 const LINK_ON_ITS_WAY = 'If that email has an account, a sign-in link is on its way. Check your inbox (and spam).'
 // Account creation (age gate passed) always sends a link, so it can say so plainly.
 const LINK_SENT = 'Link sent. Check your inbox (and spam) and click it to sign in.'
-const TURNSTILE_FAILED = "We couldn't confirm you're a person. Refresh the page and try again."
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -56,15 +56,37 @@ export default function SignInModal({ isOpen, onClose }) {
   // after each attempt so the widget issues a fresh one.
   const [captchaToken, setCaptchaToken] = useState(null)
   const [captchaKey, setCaptchaKey] = useState(0)
+  // The widget itself is broken (script blocked, errored, timed out): it will never
+  // give a token. The send is then allowed without one, and Supabase Auth's captcha,
+  // once enabled, is what refuses it. Otherwise a blocked script would silently lock
+  // a member out of the one way back in.
+  const [widgetFailed, setWidgetFailed] = useState(false)
 
   // The email form (and the widget inside it) is on screen only in these views.
   const emailFormShown = isOpen && showEmail && gate !== BLOCKED && (gate === PASSED || mode === 'signin')
 
-  // A token belongs to a mounted widget. When the form goes away (age gate, close)
-  // the widget goes with it, and its token must not outlive it.
+  // A token (or a failure) belongs to a mounted widget. When the form goes away (age
+  // gate, close) the widget goes with it, and neither may outlive it.
   useEffect(() => {
-    if (!emailFormShown) setCaptchaToken(null)
+    if (!emailFormShown) {
+      setCaptchaToken(null)
+      setWidgetFailed(false)
+    }
   }, [emailFormShown])
+
+  function handleToken(token) {
+    setCaptchaToken(token)
+    // A widget that recovers on its own (it retries) takes its own warning back.
+    if (token) {
+      setWidgetFailed(false)
+      setError((current) => (current === TURNSTILE_FAILED ? null : current))
+    }
+  }
+
+  function handleWidgetFail() {
+    setWidgetFailed(true)
+    setError(TURNSTILE_FAILED)
+  }
 
   // Load email cookie and the stored age verdict only on client mount
   useEffect(() => {
@@ -236,8 +258,9 @@ export default function SignInModal({ isOpen, onClose }) {
       return
     }
 
-    // The button is disabled without a token; this covers a submit that gets around it.
-    if (!captchaToken) {
+    // The button is disabled without a token (unless the widget failed); this covers a
+    // submit that gets around it.
+    if (!captchaToken && !widgetFailed) {
       setIsSubmitting(false)
       return
     }
@@ -268,7 +291,8 @@ export default function SignInModal({ isOpen, onClose }) {
         options: {
           emailRedirectTo: window.location.origin + '/auth/callback?via=email',
           shouldCreateUser: gate === PASSED,
-          captchaToken,
+          // Absent, not undefined, after a widget failure: the server decides.
+          ...(captchaToken ? { captchaToken } : {}),
         }
       })
       if (error && (error.code === 'otp_disabled' || /signups not allowed/i.test(error.message || ''))) {
@@ -429,11 +453,11 @@ export default function SignInModal({ isOpen, onClose }) {
                 autoFocus
                 className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
               />
-              <Turnstile action="email_link" onToken={setCaptchaToken} resetKey={captchaKey} />
+              <Turnstile action="email_link" onToken={handleToken} onFail={handleWidgetFail} resetKey={captchaKey} />
               <button
                 type="submit"
                 className="w-full border border-[var(--color-line)] text-[var(--color-text-primary)] font-mono text-xs uppercase py-3 cursor-pointer hover:border-white disabled:opacity-40 disabled:cursor-not-allowed"
-                disabled={anyBusy || !captchaToken}
+                disabled={anyBusy || (!captchaToken && !widgetFailed)}
               >
                 {isSubmitting ? 'Sending…' : 'Email me a sign-in link'}
               </button>

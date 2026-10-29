@@ -352,3 +352,112 @@ describe('SignInModal Turnstile on the email link', () => {
   })
 })
 
+
+// If the widget can never produce a token (script blocked, challenge errored or timed
+// out), the member must be told, and must not be locked out of the one path back in.
+// Supabase Auth's captcha is the real guard: once it is on, a token-less request is
+// refused there and the same sentence comes back.
+describe('SignInModal when the Turnstile widget fails', () => {
+  // What the real widget does: onToken(null), then onFail().
+  const failTurnstile = () =>
+    act(() => {
+      turnstileProps.onToken(null)
+      turnstileProps.onFail()
+    })
+
+  test('the widget is given an onFail handler', async () => {
+    open()
+    await revealEmail()
+    expect(typeof turnstileProps.onFail).toBe('function')
+  })
+
+  test('shows the Turnstile sentence', async () => {
+    open()
+    await revealEmail()
+    expect(screen.queryByText(TURNSTILE_FAILED)).toBeNull()
+    failTurnstile()
+    expect(screen.getByText(TURNSTILE_FAILED)).toBeInTheDocument()
+  })
+
+  test('lets the email be sent without a token, and the call carries no captchaToken', async () => {
+    open()
+    fireEvent.change(await revealEmail(), { target: { value: 'member@example.com' } })
+    expect(sendButton()).toBeDisabled()
+    failTurnstile()
+    expect(sendButton()).toBeEnabled()
+
+    fireEvent.click(sendButton())
+    await waitFor(() => expect(signInWithOtp).toHaveBeenCalledTimes(1))
+    const { options, email } = signInWithOtp.mock.calls[0][0]
+    expect(email).toBe('member@example.com')
+    expect('captchaToken' in options).toBe(false)
+    expect(options.shouldCreateUser).toBe(false)
+    expect(options.emailRedirectTo.endsWith('/auth/callback?via=email')).toBe(true)
+    expect(await screen.findByText(NEUTRAL)).toBeInTheDocument()
+  })
+
+  test('stays open for another try while the widget stays broken', async () => {
+    open()
+    fireEvent.change(await revealEmail(), { target: { value: 'member@example.com' } })
+    failTurnstile()
+    fireEvent.click(sendButton())
+    await waitFor(() => expect(signInWithOtp).toHaveBeenCalledTimes(1))
+    await screen.findByText(NEUTRAL)
+    expect(sendButton()).toBeEnabled()
+    fireEvent.click(sendButton())
+    await waitFor(() => expect(signInWithOtp).toHaveBeenCalledTimes(2))
+  })
+
+  test('once Supabase enforces captcha, the token-less request is refused and the same sentence appears', async () => {
+    signInWithOtp.mockResolvedValue({ error: { message: 'captcha protection: request disallowed (no-captcha-response)' } })
+    open()
+    fireEvent.change(await revealEmail(), { target: { value: 'member@example.com' } })
+    failTurnstile()
+    fireEvent.click(sendButton())
+    await waitFor(() => expect(signInWithOtp).toHaveBeenCalledTimes(1))
+    expect('captchaToken' in signInWithOtp.mock.calls[0][0].options).toBe(false)
+    expect(await screen.findByText(TURNSTILE_FAILED)).toBeInTheDocument()
+    expect(screen.queryByText(/no-captcha-response/i)).toBeNull()
+  })
+
+  test('a token that arrives later clears the sentence and is the one that gets sent', async () => {
+    open()
+    fireEvent.change(await revealEmail(), { target: { value: 'member@example.com' } })
+    failTurnstile()
+    expect(screen.getByText(TURNSTILE_FAILED)).toBeInTheDocument()
+
+    passTurnstile('tok-late')
+    expect(screen.queryByText(TURNSTILE_FAILED)).toBeNull()
+    fireEvent.click(sendButton())
+    await waitFor(() => expect(signInWithOtp).toHaveBeenCalledTimes(1))
+    expect(signInWithOtp.mock.calls[0][0].options.captchaToken).toBe('tok-late')
+  })
+
+  test('only a widget failure unlocks a token-less send: an expired token still needs a new one', async () => {
+    open()
+    await revealEmail()
+    passTurnstile('tok')
+    passTurnstile(null)
+    expect(sendButton()).toBeDisabled()
+  })
+
+  test('a fresh widget starts clean: leaving and returning to the form forgets the failure', async () => {
+    open()
+    await revealEmail()
+    failTurnstile()
+    expect(sendButton()).toBeEnabled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'New here? Create an account' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Already a member? Sign in' }))
+    await screen.findByLabelText(/email address/i)
+    expect(sendButton()).toBeDisabled()
+  })
+
+  test('Google and passkey are unaffected', async () => {
+    open()
+    await revealEmail()
+    failTurnstile()
+    expect(screen.getByRole('button', { name: /continue with google/i })).toBeEnabled()
+    expect(screen.getByRole('button', { name: /sign in with passkey/i })).toBeEnabled()
+  })
+})
