@@ -15,11 +15,13 @@ export function buildCsp({ supabaseUrl, transcribeUrl } = {}) {
   const img = ["'self'", 'data:', ...(supabaseUrl ? [supabaseUrl] : [])]
   return [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com",
+    // challenges.cloudflare.com is Turnstile: its script, and the iframe it draws the challenge in.
+    "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com https://challenges.cloudflare.com",
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self'",
     `connect-src ${connect.join(' ')}`,
     `img-src ${img.join(' ')}`,
+    'frame-src https://challenges.cloudflare.com',
     "object-src 'none'",
     "base-uri 'self'",
     "frame-ancestors 'none'",
