@@ -19,7 +19,7 @@ const faq = topics.flatMap((t) => groups[t.id].map(toFaqItem))
 const faqSchema = faq.length > 0 ? buildFAQSchema(faq.map(({ question, html }) => ({ question, answer: html }))) : null
 ---
 
-<MainLayout title="Help | Horror Writer" description="Answers to common questions about Horror Writer, and a way to reach the Keeper.">
+<MainLayout title="Help | Horror Writer">
   {faqSchema && <StructuredData data={faqSchema} />}
   <div class="max-w-2xl mx-auto mt-8">
     <h1 class="title text-4xl font-serif font-black mb-10">Help</h1>
