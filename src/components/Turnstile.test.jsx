@@ -47,6 +47,13 @@ test('renders a flexible, dark widget for the site key and action', async () => 
   })
 })
 
+test('stays out of sight unless Cloudflare needs the visitor to click', async () => {
+  const { container } = await mounted()
+  expect(widgetOptions.appearance).toBe('interaction-only')
+  // No reserved blank space for a widget that usually never shows.
+  expect(container.firstChild.style.minHeight).toBe('')
+})
+
 test('hands the token to onToken when the challenge passes', async () => {
   const { onToken } = await mounted()
   widgetOptions.callback('tok')

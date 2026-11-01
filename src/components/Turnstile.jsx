@@ -45,6 +45,8 @@ export default function Turnstile({ action, onToken, onFail, resetKey }) {
           action,
           theme: 'dark',
           size: 'flexible',
+          // Runs silently; the box appears only when Cloudflare wants a click.
+          appearance: 'interaction-only',
           callback: (token) => onTokenRef.current?.(token),
           'expired-callback': () => onTokenRef.current?.(null),
           'error-callback': failed,
@@ -81,6 +83,6 @@ export default function Turnstile({ action, onToken, onFail, resetKey }) {
     api.reset(id)
   }, [resetKey])
 
-  // The reserved height keeps the form from jumping when the widget appears.
-  return <div ref={hostRef} style={{ minHeight: 65 }} />
+  // No reserved height: the widget is usually invisible, and a rare challenge may move the form.
+  return <div ref={hostRef} />
 }
