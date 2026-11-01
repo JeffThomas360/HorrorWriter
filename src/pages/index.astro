@@ -15,11 +15,11 @@ const faqs = [
   },
   {
     question: "Who owns the copyright to stories published on Horror Writer?",
-    answer: "You retain 100% of your copyright. By publishing on Horror Writer, you only grant a non-exclusive display license to show your work to members. You can edit or delete your stories at any time."
+    answer: "You retain 100% of your copyright. By publishing on Horror Writer, you only grant a non-exclusive display license to show your work to members. You can edit your stories at any time."
   },
   {
     question: "How does critique work in The Crypt?",
-    answer: "Members critique under the core rule: 'Critique the art, respect the author.' Authors can tag their stories with specific feedback goals (opening hook, pacing, dread, or line edits) to receive genre-literate constructive criticism."
+    answer: "Members critique under the core rule: 'Critique the art, respect the author.' Post a thread or enter a Midnight Ritual, and other writers reply with critique right in the thread."
   },
   {
     question: "What is The Midnight Ritual writing challenge?",
@@ -89,7 +89,10 @@ try {
       tiles = data.map((t, i) => ({
         tag: `▸ ${(t.categories?.name || 'THREAD').split('·')[0].toUpperCase().trim()}`,
         title: t.title,
-        body: `Started by @${t.profiles?.handle || 'someone'}. Open the thread to read and reply.`,
+        // Ritual threads are opened by the site, so they have no author to name.
+        body: t.profiles?.handle
+          ? `Started by @${t.profiles.handle}. Open the thread to read and reply.`
+          : 'Open the thread to read the entries and reply.',
         meta: `${t.replies_count || 0} ${t.replies_count === 1 ? 'reply' : 'replies'} · read thread →`,
         id: t.id,
       }));
@@ -203,7 +206,7 @@ const isFallback = tiles === FALLBACK_TILES;
       <!-- Sub stack tiles -->
       <div class="flex flex-col gap-6">
         {restTiles.map((t) => (
-          <a href={t.id ? `/forum/thread/${t.id}/` : '/forum/'} class="vintage-card flex-1 flex flex-col justify-between hover:border-white transition-all min-h-[120px]">
+          <a href={t.id ? `/forum/thread/${t.id}/` : '/forum/'} class="vintage-card grow flex flex-col justify-between hover:border-white transition-all min-h-[120px]">
             <div>
               <span class="block font-mono text-xs tracking-wider text-[var(--color-text-secondary)] mb-2 font-bold">{t.tag}</span>
               <h3 class="text-base font-serif font-bold mb-2 leading-snug hover:text-[var(--color-accent-crimson)] transition-colors">{t.title}</h3>
