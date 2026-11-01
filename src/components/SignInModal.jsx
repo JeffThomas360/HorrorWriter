@@ -497,8 +497,13 @@ export default function SignInModal({ isOpen, onClose, initialMode = 'signin' })
             <button
               type="button"
               onClick={() => setShowEmail(true)}
-              className={`${SWITCH_CLASS} self-center font-mono text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-ember)]`}
+              disabled={anyBusy}
+              className="w-full min-h-11 border border-[var(--color-line)] text-[var(--color-text-primary)] font-mono text-xs uppercase py-3 flex items-center justify-center gap-2 cursor-pointer hover:border-white"
             >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="3" y="5" width="18" height="14" rx="1" />
+                <path d="M3 7l9 6 9-6" />
+              </svg>
               {joining ? 'Continue with email' : 'Sign in with email'}
             </button>
           )}
