@@ -4,8 +4,8 @@
 // new members and signup surges. Storm alerts are a separate function and stay
 // high priority. No email here.
 //
-// Only public.keeper_dispatch() calls this, via pg_net with the service-role
-// key read from Vault. The push text is built by buildKeeperAlert() from a
+// Only public.keeper_dispatch() calls this, via pg_net with the project's secret
+// key (sb_secret_…) read from Vault. The push text is built by buildKeeperAlert() from a
 // closed set of kinds and topics plus a validated handle and a count; whatever
 // else is in the body is ignored.
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
@@ -23,8 +23,9 @@ const json = (body: unknown, status = 200) =>
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
-  // The public anon key also passes the platform's verify_jwt, so without this
-  // check anyone could send unlimited pushes to Jeff's phone.
+  // verify_jwt is off (config.toml), so this is the only gate: without it anyone
+  // could send unlimited pushes to Jeff's phone. In Edge Functions,
+  // SUPABASE_SERVICE_ROLE_KEY holds the project's secret key, not the legacy JWT.
   if (!bearerMatches(req.headers.get('Authorization'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'))) {
     return json({ error: 'Unauthorized' }, 401)
   }
