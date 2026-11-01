@@ -452,3 +452,13 @@ verify_jwt = false
 # above the [functions.webauthn-register-begin] block.
 [functions.open-ticket]
 verify_jwt = false
+
+# verify_jwt MUST be false: only keeper_dispatch() calls these, with the project's
+# secret key (sb_secret_…) from Vault (hw_service_role_key). That key is not a JWT,
+# so the gateway's check would refuse it. Each function compares the bearer to
+# SUPABASE_SERVICE_ROLE_KEY, which the platform fills with that same secret key.
+[functions.send-keeper-alert]
+verify_jwt = false
+
+[functions.send-storm-alert]
+verify_jwt = false

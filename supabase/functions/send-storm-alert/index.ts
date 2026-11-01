@@ -10,10 +10,11 @@ const corsHeaders = {
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
-  // Only check_for_storm() calls this, via pg_net with
-  // `Authorization: Bearer <app.settings.service_role_key>`. The public anon
-  // key also passes the platform's verify_jwt, so without this check anyone
-  // could send unlimited alert emails and priority pushes.
+  // Only check_for_storm() calls this, through keeper_dispatch() with the
+  // project's secret key (sb_secret_…) from Vault. verify_jwt is off
+  // (config.toml), so without this check anyone could send unlimited alert
+  // emails and priority pushes. In Edge Functions, SUPABASE_SERVICE_ROLE_KEY
+  // holds that secret key, not the legacy JWT.
   if (!bearerMatches(req.headers.get('Authorization'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'))) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders })
   }
