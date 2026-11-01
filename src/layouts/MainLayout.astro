@@ -151,9 +151,9 @@ const ogImageURL = ogImage ? new URL(ogImage, Astro.site) : new URL('/og.png', A
   // the SignInModalWrapper island hasn't attached its own listener yet. Record
   // the request on a global flag that the wrapper replays on mount — otherwise a
   // request that arrives during the cross-island hydration gap is lost and the
-  // modal never opens.
-  window.addEventListener('open-signin', () => {
-    window.__signinPending = true;
+  // modal never opens. The flag carries the screen asked for ('signup' = Join).
+  window.addEventListener('open-signin', (e) => {
+    window.__signinPending = e.detail?.mode === 'signup' ? 'signup' : true;
   });
 
   // Mobile menu toggle

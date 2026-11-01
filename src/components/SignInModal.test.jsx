@@ -31,13 +31,14 @@ const NEUTRAL = 'If that email has an account, a sign-in link is on its way. Che
 const LINK_SENT = 'Link sent. Check your inbox (and spam) and click it to sign in.'
 const TURNSTILE_FAILED = "We couldn't confirm you're a person. Refresh the page and try again."
 
-function open() {
-  return render(<SignInModal isOpen onClose={() => {}} />)
+function open(props = {}) {
+  return render(<SignInModal isOpen onClose={() => {}} {...props} />)
 }
 
-// The email field is collapsed behind a link until the writer asks for it.
+// The email field is collapsed behind a button until the writer asks for it:
+// "Sign in with email" on the sign-in screen, "Continue with email" when joining.
 async function revealEmail() {
-  fireEvent.click(await screen.findByRole('button', { name: /email me a sign-in link/i }))
+  fireEvent.click(await screen.findByRole('button', { name: /^(sign in|continue) with email$/i }))
   return screen.findByLabelText(/email address/i)
 }
 
@@ -46,7 +47,7 @@ function passTurnstile(token = 'tok') {
   act(() => turnstileProps.onToken(token))
 }
 
-const sendButton = () => screen.getByRole('button', { name: /^email me a sign-in link$/i })
+const sendButton = () => screen.getByRole('button', { name: /^email me a (sign-in link|link to join)$/i })
 
 // Reveal the email field, type an address, get a token, press send.
 async function sendLink(address = 'member@example.com') {
@@ -169,20 +170,79 @@ describe('SignInModal age gate', () => {
     const buttons = (await screen.findAllByRole('button')).map((b) => b.textContent.trim())
     const idx = (re) => buttons.findIndex((t) => re.test(t))
     expect(idx(/continue with google/i)).toBeLessThan(idx(/sign in with passkey/i))
-    expect(idx(/sign in with passkey/i)).toBeLessThan(idx(/email me a sign-in link/i))
+    expect(idx(/sign in with passkey/i)).toBeLessThan(idx(/sign in with email/i))
     expect(screen.queryByLabelText(/email address/i)).toBeNull()
     expect(await revealEmail()).toBeInTheDocument()
+  })
+})
+
+// A newcomer must land on a screen that is about joining, and a member on one that is
+// about signing in. Each offers the other, as a full-size button.
+describe('SignInModal Join and Sign in screens', () => {
+  test('opened to join, a browser with no verdict starts at the birth-date check', async () => {
+    open({ initialMode: 'signup' })
+    expect(await screen.findByLabelText('Month')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /sign in with passkey/i })).toBeNull()
+  })
+
+  test('after the birth-date check the newcomer gets the Join screen, not the sign-in one', async () => {
+    open({ initialMode: 'signup' })
+    await screen.findByLabelText('Month')
+    passGate()
+    expect(await screen.findByRole('heading', { name: /join the circle/i })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /summon/i })).toBeNull()
+    expect(screen.getByRole('button', { name: /continue with google/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Continue with email' })).toBeInTheDocument()
+    // A newcomer has no passkey yet.
+    expect(screen.queryByRole('button', { name: /sign in with passkey/i })).toBeNull()
+  })
+
+  test('joining by email creates the account and says the link is sent', async () => {
+    localStorage.setItem(GATE_KEY, PASSED)
+    open({ initialMode: 'signup' })
+    fireEvent.change(await revealEmail(), { target: { value: 'new@example.com' } })
+    passTurnstile()
+    fireEvent.click(screen.getByRole('button', { name: 'Email me a link to join' }))
+    await waitFor(() => expect(signInWithOtp).toHaveBeenCalled())
+    expect(signInWithOtp.mock.calls[0][0].options.shouldCreateUser).toBe(true)
+    expect(await screen.findByText(LINK_SENT)).toBeInTheDocument()
+  })
+
+  test('the Join screen offers Sign in, and the sign-in screen offers Join, even after the check', async () => {
+    localStorage.setItem(GATE_KEY, PASSED)
+    open({ initialMode: 'signup' })
+    fireEvent.click(await screen.findByRole('button', { name: 'Already a member? Sign in' }))
+    expect(await screen.findByRole('heading', { name: /summon/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /sign in with passkey/i })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'New here? Create an account' }))
+    expect(await screen.findByRole('heading', { name: /join the circle/i })).toBeInTheDocument()
+  })
+
+  test('the switch buttons are full-size tap targets, not small links', async () => {
+    open()
+    expect((await screen.findByRole('button', { name: 'New here? Create an account' })).className).toMatch(/min-h-11/)
+    expect(screen.getByRole('button', { name: 'Sign in with email' }).className).toMatch(/min-h-11/)
+  })
+
+  test('closing and reopening starts again from the screen it was opened to', async () => {
+    localStorage.setItem(GATE_KEY, PASSED)
+    const { rerender } = open({ initialMode: 'signup' })
+    fireEvent.click(await screen.findByRole('button', { name: 'Already a member? Sign in' }))
+    await screen.findByRole('heading', { name: /summon/i })
+    rerender(<SignInModal isOpen={false} onClose={() => {}} initialMode="signup" />)
+    rerender(<SignInModal isOpen onClose={() => {}} initialMode="signup" />)
+    expect(await screen.findByRole('heading', { name: /join the circle/i })).toBeInTheDocument()
   })
 })
 
 // The email link is the way back in for a member who is locked out of Google and
 // passkeys, so it must work for them without ever telling a stranger whether an
 // address has an account.
-describe('SignInModal "Can\'t sign in?" email link', () => {
-  test('the collapsed link reads Can\'t sign in? Email me a sign-in link', async () => {
+describe('SignInModal email sign-in link', () => {
+  test('the collapsed email option is a plain "Sign in with email" button', async () => {
     open()
-    expect(await screen.findByRole('button', { name: "Can't sign in? Email me a sign-in link" })).toBeInTheDocument()
-    expect(screen.queryByText(/no google or passkey/i)).toBeNull()
+    expect(await screen.findByRole('button', { name: 'Sign in with email' })).toBeInTheDocument()
+    expect(screen.queryByText(/can't sign in/i)).toBeNull()
   })
 
   test('the email link lands on /auth/callback?via=email, so the callback knows how they came in', async () => {

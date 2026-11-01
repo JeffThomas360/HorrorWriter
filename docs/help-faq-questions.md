@@ -24,8 +24,8 @@ copied from the code.
 2. **Someone who can't sign in can't open a ticket.** Tickets need a signed-in account, and by your decision
    a ticket never gives anyone access to an account. "I can't sign in at all" and "I lost access to my email"
    therefore have to be answered here, in the FAQ.
-3. **The sign-in wording changed on this branch.** The "Can't sign in?" rework is in: the small link now reads
-   "Can't sign in? Email me a sign-in link", the "No account uses that email" message is gone, the email button
+3. **The sign-in wording changed on this branch.** The "Can't sign in?" rework is in: the email option now reads
+   "Sign in with email" (it read "Can't sign in? Email me a sign-in link" until 2026-11-01), the "No account uses that email" message is gone, the email button
    waits for a bot check (Cloudflare Turnstile), and an email-link sign-in can be followed by an add-a-passkey
    prompt. The details are under "How do I sign in?" and "I can't sign in at all" below.
 4. **Is Google sign-in on?** The button shows only when `VITE_ENABLE_GOOGLE_LOGIN === 'true'` at build time
@@ -50,8 +50,13 @@ File: `how-do-i-sign-in.md`
 - The header's **Sign In** button (`src/components/UserMenu.jsx`) opens the modal "Summon Yourself", which says
   "No password needed." There are no passwords on the site.
 - Three ways in (`src/components/SignInModal.jsx`): **Continue with Google** (see note 4 above),
-  **Sign in with passkey**, and a small link, "Can't sign in? Email me a sign-in link", which reveals an
-  email box and the button "Email me a sign-in link". The link lands on `/auth/callback`.
+  **Sign in with passkey**, and **Sign in with email**, which reveals an email box and the button "Email me a
+  sign-in link". The link lands on `/auth/callback`. (Changed 2026-11-01: this used to be the small link
+  "Can't sign in? Email me a sign-in link".)
+- Joining: the homepage's **Join free and start writing** buttons open the Join path: the birth-date check, then
+  "Join the Circle" with **Continue with Google** and **Continue with email** (button "Email me a link to join").
+  No passkey there; it is offered after the first sign-in. Each screen links to the other: "New here? Create an
+  account" / "Already a member? Sign in".
 - What the modal says after sending depends only on the browser, never on the address: in a browser that hasn't
   passed the age check (ordinary sign-in) it is always "If that email has an account, a sign-in link is on its
   way. Check your inbox (and spam)." In one that has (after "New here? Create an account"), which can create an
