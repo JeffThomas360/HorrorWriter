@@ -61,14 +61,14 @@ function MidnightRitual() {
       const dbP = activePrompts?.[i]
       const freq = `CH 13.${i}`
       const isDbPrompt = Boolean(dbP?.id)
-      const weekLabel = i === 0 ? 'Current Transmission' : `Signal ${i + 1} (Week ${i + 1} of 5)`
+      const weekLabel = i === 0 ? 'This week' : `Prompt ${i + 1} of 5`
       return {
         id: dbP?.id || `channel-${i}`,
         dbPromptId: dbP?.id || null,
         freq,
         name: weekLabel,
         prompt: dbP?.body || ROTATING_FALLBACK_PROMPTS[i],
-        category: i === 0 ? 'Latest Prompt' : `Active Prompt ${i + 1}`,
+        category: i === 0 ? "This week's prompt" : `Still open · prompt ${i + 1}`,
         isDbPrompt,
         goes_live_at: dbP?.goes_live_at,
       }
@@ -229,7 +229,7 @@ function MidnightRitual() {
     if (!trimmedTitle || trimmedTitle.length > 200 || !user || !activeChannel) return
     if (savingRef.current) return
     savingRef.current = true
-    setStatus({ kind: 'saving', message: 'Publishing to The Crypt…' })
+    setStatus({ kind: 'saving', message: 'Posting to The Crypt…' })
 
     try {
       let threadId
@@ -278,14 +278,14 @@ function MidnightRitual() {
         <div className="flex items-center gap-3">
           <span className="w-2.5 h-2.5 rounded-full bg-[var(--color-ember)] shadow-[0_0_10px_var(--color-ember)] animate-pulse" />
           <span className="font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-upside)] font-bold">
-            The Midnight Ritual • Channel 13 Receiver
+            The Midnight Ritual · weekly writing prompt
           </span>
         </div>
 
         {/* Multi-Channel Frequencies Tuner */}
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="font-mono text-[10px] uppercase text-[var(--color-text-secondary)] mr-1">
-            Signal:
+            Prompts:
           </span>
           {channels.map((ch, idx) => {
             const count = ch.dbPromptId ? entryCounts[ch.dbPromptId] || 0 : 0
@@ -295,7 +295,8 @@ function MidnightRitual() {
               type="button"
               onClick={() => handleTune(idx)}
               aria-label={count ? `${ch.freq}, ${count} ${count === 1 ? 'entry' : 'entries'}` : ch.freq}
-              className={`font-mono text-[10px] px-2 py-0.5 border transition-all cursor-pointer ${
+              title={idx === 0 ? "This week's prompt" : `Prompt from ${idx} ${idx === 1 ? 'week' : 'weeks'} ago, still open`}
+              className={`font-mono text-xs px-3 py-2 min-h-[36px] border transition-all cursor-pointer ${
                 activeChannelIndex === idx
                   ? 'bg-[var(--color-upside)] text-[var(--color-void)] border-[var(--color-upside)] font-black shadow-[0_0_10px_rgba(25,165,184,0.3)]'
                   : 'bg-[var(--color-surface)] text-[var(--color-text-secondary)] border-[var(--color-line)] hover:border-white'
@@ -348,7 +349,7 @@ function MidnightRitual() {
             onClick={() => setIsWriting(!isWriting)}
             className="border border-[var(--color-upside)] text-[var(--color-upside)] font-mono text-xs uppercase px-5 py-3 tracking-wider shadow-[0_0_20px_rgba(25,165,184,0.25)] hover:bg-[var(--color-upside)] hover:text-[var(--color-void)] transition-all cursor-pointer text-center font-bold"
           >
-            {isWriting ? 'Close the box' : '⚡ Write to this signal'}
+            {isWriting ? 'Close the editor' : 'Write your response'}
           </button>
         </div>
       </div>
@@ -357,7 +358,7 @@ function MidnightRitual() {
         <form onSubmit={handleSave} className="mt-6 border-t border-[var(--color-line)] pt-6 flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <label htmlFor="ritual-text" className="font-mono text-xs uppercase text-[var(--color-text-secondary)]">
-              Your response ({activeChannel.freq})
+              Your response to prompt {activeChannelIndex + 1}
             </label>
             <span className={`font-mono text-xs font-bold ${overLimit ? 'text-[var(--color-ember)]' : 'text-[var(--color-upside)]'}`}>
               {wordCount} / {WORD_LIMIT} words
@@ -377,7 +378,7 @@ function MidnightRitual() {
             <div className="p-4 bg-[var(--color-surface)] border border-[var(--color-upside)] mt-2">
               <div className="flex items-center justify-between mb-2">
                 <label htmlFor="ritual-title" className="font-mono text-xs uppercase tracking-wider text-[var(--color-upside)] font-bold">
-                  Title your story for The Crypt:
+                  Title your story:
                 </label>
                 <span className="font-mono text-[10px] text-[var(--color-text-secondary)]">Required (max 200 chars)</span>
               </div>
@@ -408,7 +409,7 @@ function MidnightRitual() {
                   disabled={!storyTitle.trim() || status.kind === 'saving'}
                   className="btn-vhs bg-[var(--color-accent-crimson)] text-white hover:bg-red-700 border-red-800 disabled:opacity-40 cursor-pointer"
                 >
-                  {status.kind === 'saving' ? 'Publishing…' : 'Summon to The Crypt →'}
+                  {status.kind === 'saving' ? 'Publishing…' : 'Post to The Crypt →'}
                 </button>
               </div>
             </div>
@@ -419,7 +420,7 @@ function MidnightRitual() {
                 {status.kind === 'idle' && wordCount > 0 && tooShort && ` ${MIN_WORDS - wordCount} more ${MIN_WORDS - wordCount === 1 ? 'word' : 'words'} to publish.`}
                 {status.kind === 'saving' && (status.message || 'Saving…')}
                 {status.kind === 'saved' && (status.message || 'Saved to your account. Only you can see it.')}
-                {status.kind === 'published' && 'Published! Directing to The Crypt…'}
+                {status.kind === 'published' && 'Published! Taking you to The Crypt…'}
                 {status.kind === 'needs-signin' && (status.message || 'Sign in to save. Your draft is kept on this device and saves as soon as you’re in.')}
                 {status.kind === 'error' && <span className="text-[var(--color-ember)]">{status.message}</span>}
               </p>
