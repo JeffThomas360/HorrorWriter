@@ -446,3 +446,9 @@ verify_jwt = false
 # [functions.webauthn-register-begin] block.
 [functions.sealed-writing]
 verify_jwt = false
+
+# verify_jwt MUST be false: open-ticket checks the session itself (getUser) and
+# must return CORS-bearing 401s (`not_signed_in`). See the verify_jwt explanation
+# above the [functions.webauthn-register-begin] block.
+[functions.open-ticket]
+verify_jwt = false

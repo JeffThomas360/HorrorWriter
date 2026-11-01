@@ -3,6 +3,7 @@ import { supabase } from '../supabaseClient'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 import { withProviders } from '../components/Providers'
 import { takeReturnPath } from '../lib/returnPath'
+import { setPasskeyPrompt, takeEmailLinkRequest } from '../lib/passkeyPrompt'
 
 function AuthCallback() {
   useDocumentTitle('Summoning…')
@@ -44,6 +45,22 @@ function AuthCallback() {
       return
     }
 
+    // An email-link sign-in (the modal asks for /auth/callback?via=email) leaves a
+    // flag so PasskeyPrompt, on the page they land on, can offer a passkey. The URL
+    // alone proves nothing, so the flag is only set once a session is confirmed, just
+    // before the redirect: never on an error, and never on the no-session fallback.
+    // Even then the session may belong to an account somebody else requested the link
+    // for, so it also needs the marker the modal leaves when THIS browser asks for a link
+    // (less than an hour old). The marker is used up either way. Google and passkey
+    // sign-in never carry `via=email`. The flag names the account that signed in, so
+    // the prompt only ever shows to that member.
+    const viaEmail = params.get('via') === 'email'
+    const redirectBack = (signedIn) => {
+      const askedHere = takeEmailLinkRequest()
+      if (viaEmail && askedHere) setPasskeyPrompt(signedIn?.user?.id)
+      window.location.replace(takeReturnPath())
+    }
+
     let active = true
 
     // Check session immediately on mount
@@ -56,7 +73,7 @@ function AuthCallback() {
             window.opener.postMessage({ type: 'AUTH_SUCCESS' }, window.location.origin)
             window.close()
           } else {
-            window.location.replace(takeReturnPath())
+            redirectBack(data.session)
           }
         }
       } catch (err) {
@@ -73,7 +90,7 @@ function AuthCallback() {
           window.opener.postMessage({ type: 'AUTH_SUCCESS' }, window.location.origin)
           window.close()
         } else {
-          window.location.replace(takeReturnPath())
+          redirectBack(session)
         }
       }
     })
@@ -87,7 +104,7 @@ function AuthCallback() {
             window.opener.postMessage({ type: 'AUTH_SUCCESS' }, window.location.origin)
             window.close()
           } else {
-            window.location.replace(takeReturnPath())
+            redirectBack(data.session)
           }
         }
       } else {

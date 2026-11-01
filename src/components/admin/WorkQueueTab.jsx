@@ -5,6 +5,8 @@ import { fetchOpenTasks, resolveTask, snoozeTask, addManualTask } from '../../li
 import {
   visibleTasks, sortTasks, countsByType, typeInfo, describeTask, actionsFor, isSnoozed, TASK_TYPES,
 } from '../../lib/keeperTasks'
+import { TOPICS } from '../../lib/tickets'
+import TicketCard from './TicketCard'
 
 /**
  * Keeper work queue. Renders any task from the registry in src/lib/keeperTasks.js.
@@ -14,8 +16,8 @@ import {
 
 export const TASKS_KEY = ['admin', 'keeper-tasks']
 
-const FIELD = 'bg-[var(--color-void)] border border-[var(--color-line)] px-3 py-2 text-sm text-[var(--color-bone)] focus:border-[var(--color-ember)] outline-none'
-const btn = 'font-mono text-xs uppercase px-3 py-1 border border-[var(--color-line-hi)] text-[var(--color-bone)] hover:border-[var(--color-bone)] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed'
+export const FIELD = 'bg-[var(--color-void)] border border-[var(--color-line)] px-3 py-2 text-sm text-[var(--color-bone)] focus:border-[var(--color-ember)] outline-none'
+export const btn = 'font-mono text-xs uppercase px-3 py-1 border border-[var(--color-line-hi)] text-[var(--color-bone)] hover:border-[var(--color-bone)] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed'
 
 function TaskCard({ task, busy, onAction, onSnooze }) {
   const info = typeInfo(task.type)
@@ -49,6 +51,7 @@ export default function WorkQueueTab() {
   const queryClient = useQueryClient()
   const { data: tasks = [], isLoading, error } = useQuery({ queryKey: TASKS_KEY, queryFn: fetchOpenTasks })
   const [type, setType] = useState('all')
+  const [topic, setTopic] = useState('all')
   const [showSnoozed, setShowSnoozed] = useState(false)
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
@@ -75,7 +78,7 @@ export default function WorkQueueTab() {
   const busy = act.isPending || snooze.isPending
   const counts = countsByType(tasks)
   const types = [...new Set([...Object.keys(TASK_TYPES), ...tasks.map((t) => t.type)])]
-  const shown = sortTasks(visibleTasks(tasks, { type, showSnoozed }))
+  const shown = sortTasks(visibleTasks(tasks, { type, topic, showSnoozed }))
 
   if (isLoading) return <p className="font-mono text-xs uppercase tracking-widest text-[var(--color-ash)] animate-pulse">Reading the queue…</p>
   if (error && !tasks.length) return <p className="text-sm text-[var(--color-ember)]">{error.message}</p>
@@ -93,6 +96,17 @@ export default function WorkQueueTab() {
             ))}
           </select>
         </label>
+        {(type === 'all' || type === 'ticket') && (
+          <label className="font-mono text-xs uppercase text-[var(--color-ash)]">
+            <span className="sr-only">Filter by topic</span>
+            <select aria-label="Filter by topic" value={topic} onChange={(e) => setTopic(e.target.value)} className={FIELD}>
+              <option value="all">All topics</option>
+              {TOPICS.map((t) => (
+                <option key={t.id} value={t.id}>{t.label}</option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-[var(--color-ash)] cursor-pointer">
           <input type="checkbox" checked={showSnoozed} onChange={(e) => setShowSnoozed(e.target.checked)} />
           Show snoozed
@@ -103,7 +117,9 @@ export default function WorkQueueTab() {
         <p className="text-sm text-[var(--color-ash)] font-serif italic">Nothing waiting. The queue is quiet.</p>
       ) : (
         <ul className="flex flex-col gap-3">
-          {shown.map((t) => (
+          {shown.map((t) => (t.type === 'ticket' ? (
+            <TicketCard key={t.id} task={t} onChanged={refresh} />
+          ) : (
             <TaskCard
               key={t.id}
               task={t}
@@ -111,7 +127,7 @@ export default function WorkQueueTab() {
               onAction={(id, action) => act.mutate({ id, action })}
               onSnooze={(id, days) => snooze.mutate({ id, days })}
             />
-          ))}
+          )))}
         </ul>
       )}
 

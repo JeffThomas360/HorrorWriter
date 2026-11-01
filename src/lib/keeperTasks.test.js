@@ -31,6 +31,22 @@ describe('registry', () => {
   })
 })
 
+describe('ticket type', () => {
+  const ticket = (payload) => task({ type: 'ticket', target_type: 'ticket', target_id: 'tk', payload })
+  it('is labelled Ticket and described by its subject', () => {
+    expect(TASK_TYPES.ticket.label).toBe('Ticket')
+    expect(describeTask(ticket({ topic: 'rituals', subject: 'Entry missing', handle: 'mara' }))).toBe('Entry missing')
+  })
+  it('details the topic label and the member handle', () => {
+    const detail = (p) => typeInfo('ticket').detail(ticket(p))
+    expect(detail({ topic: 'broken', subject: 's', handle: 'mara' })).toBe("Something's broken — @mara")
+    expect(detail({ topic: 'signing-in', subject: 's' })).toBe('Signing in')
+  })
+  it('has no generic actions: the ticket card owns reply, resolve and dismiss', () => {
+    expect(actionsFor(ticket({}))).toEqual([])
+  })
+})
+
 describe('isSnoozed', () => {
   it('is true only while snoozed_until is in the future', () => {
     expect(isSnoozed(task({ snoozed_until: '2026-10-11T00:00:00Z' }), NOW)).toBe(true)
@@ -63,6 +79,18 @@ describe('visibleTasks / counts', () => {
   it('can show snoozed ones, and filter by type', () => {
     expect(visibleTasks(tasks, { now: NOW, showSnoozed: true }).map((t) => t.id).sort()).toEqual(['open', 'other', 'snoozed'])
     expect(visibleTasks(tasks, { now: NOW, type: 'tag_review' }).map((t) => t.id)).toEqual(['other'])
+  })
+  it('filters tickets by topic and leaves every other type alone', () => {
+    const mixed = [
+      task({ id: 'todo' }),
+      task({ id: 'in', type: 'ticket', payload: { topic: 'signing-in' } }),
+      task({ id: 'rit', type: 'ticket', payload: { topic: 'rituals' } }),
+      task({ id: 'bare', type: 'ticket', payload: null }),
+    ]
+    const ids = (opts) => visibleTasks(mixed, { now: NOW, ...opts }).map((t) => t.id).sort()
+    expect(ids({ topic: 'rituals' })).toEqual(['rit', 'todo'])
+    expect(ids({ topic: 'all' })).toEqual(['bare', 'in', 'rit', 'todo'])
+    expect(ids({ type: 'ticket', topic: 'signing-in' })).toEqual(['in'])
   })
   it('counts only open, un-snoozed tasks', () => {
     expect(openCount(tasks, NOW)).toBe(2)

@@ -194,10 +194,9 @@ export async function fetchUserCaseFile(userId, { includeAudit = false } = {}) {
 export async function fetchOverviewCounts() {
   if (!supabase) throw new Error('Supabase not configured')
 
-  const [reports, appeals, support, storms, sanctioned] = await Promise.all([
+  const [reports, appeals, storms, sanctioned] = await Promise.all([
     supabase.from('reports').select('id', { count: 'exact', head: true }).eq('status', 'open').not('target_type', 'in', '(appeal,site)'),
     supabase.from('reports').select('id', { count: 'exact', head: true }).eq('status', 'open').eq('target_type', 'appeal'),
-    supabase.from('reports').select('id', { count: 'exact', head: true }).eq('status', 'open').eq('target_type', 'site'),
     supabase.from('storm_alerts').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
     supabase.rpc('mod_active_sanctions'),
   ])
@@ -205,7 +204,6 @@ export async function fetchOverviewCounts() {
   return {
     openReports: reports.count ?? 0,
     openAppeals: appeals.count ?? 0,
-    openSupport: support.count ?? 0,
     pendingStorms: storms.count ?? 0,
     activeSanctions: sanctioned.data?.length ?? 0,
   }
