@@ -61,7 +61,7 @@ export default function WitchingHourBar() {
       {/* Witching Hour Countdown */}
       <div className="flex items-center gap-2">
         <span className="w-2 h-2 rounded-full bg-[var(--color-ember)] animate-pulse shadow-[0_0_8px_var(--color-ember)]" aria-hidden="true" />
-        <span className="text-[var(--color-text-primary)] font-bold tracking-wider">THE WITCHING HOUR (03:00)</span>
+        <span className="text-[var(--color-text-primary)] font-bold tracking-wider">Witching hour, 3:00 AM</span>
         <span className="text-[var(--color-ember)] tabular-nums font-bold">in {timeLeft || '--:--:--'}</span>
       </div>
 

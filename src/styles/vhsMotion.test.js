@@ -27,4 +27,9 @@ describe('VHS Phase 5 motion set piece', () => {
     expect(src).toMatch(/\.vhs-signal-lock/)
     expect(src).toMatch(/animation:\s*none\s*!important/)
   })
+
+  it('stops animate-pulse under prefers-reduced-motion', () => {
+    const blocks = css().split(/@media\s*\(\s*prefers-reduced-motion:\s*reduce\s*\)/).slice(1)
+    expect(blocks.some((b) => /\.animate-pulse\s*\{\s*animation:\s*none/.test(b.split(/\n\}/)[0]))).toBe(true)
+  })
 })
