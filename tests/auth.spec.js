@@ -7,10 +7,10 @@ const LINK_ON_ITS_WAY = 'If that email has an account, a sign-in link is on its 
 
 const EMAIL_LINK_BUTTON = 'Email me a sign-in link';
 
-// The email form is collapsed behind a small link under the passkey button.
+// The email form is collapsed behind a "Sign in with email" button under the passkey button.
 async function openEmailForm(page) {
   await page.getByText('Sign In', { exact: true }).first().click();
-  await page.getByRole('button', { name: `Can't sign in? ${EMAIL_LINK_BUTTON}` }).click();
+  await page.getByRole('button', { name: 'Sign in with email' }).click();
   await expect(page.locator('#email')).toBeVisible();
 }
 
@@ -210,8 +210,8 @@ test.describe('Authentication Flows', () => {
     await expect(modal.getByRole('button', { name: 'Sign in with passkey' })).toBeEnabled();
     await expect(page.locator('#email')).toHaveCount(0);
 
-    // The email link is the fallback, offered as a small link.
-    await modal.getByRole('button', { name: `Can't sign in? ${EMAIL_LINK_BUTTON}` }).click();
+    // The email link comes after Google and passkey, opened on request.
+    await modal.getByRole('button', { name: 'Sign in with email' }).click();
     await expect(page.locator('#email')).toBeVisible();
     await expect(modal.getByRole('button', { name: EMAIL_LINK_BUTTON, exact: true })).toBeVisible();
   });
@@ -225,6 +225,23 @@ test.describe('Authentication Flows', () => {
 
     await expect(modal.getByRole('heading', { name: /Before You/ })).toBeVisible();
     await expect(modal.getByText('When were you born?')).toBeVisible();
+  });
+
+  test('"Join free" opens the Join path: birth-date check, then Join the Circle', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Join free and start writing' }).first().click();
+
+    const modal = page.locator('.modal-content');
+    await expect(modal.getByRole('heading', { name: /Before You/ })).toBeVisible();
+    await modal.getByLabel('Month').selectOption('1');
+    await modal.getByLabel('Year').selectOption('1980');
+    await modal.getByRole('button', { name: 'Continue' }).click();
+
+    await expect(modal.getByRole('heading', { name: /Join the/ })).toBeVisible();
+    await expect(modal.getByRole('button', { name: 'Continue with email' })).toBeVisible();
+    // A newcomer has no passkey yet.
+    await expect(modal.getByRole('button', { name: 'Sign in with passkey' })).toHaveCount(0);
+    await expect(modal.getByRole('button', { name: 'Already a member? Sign in' })).toBeVisible();
   });
 
   test('Disposable email address is rejected', async ({ page }) => {
