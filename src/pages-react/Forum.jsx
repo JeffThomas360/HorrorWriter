@@ -437,7 +437,7 @@ function Forum() {
                   </div>
                   <div className="text-right shrink-0">
                     <span className="block font-mono text-sm font-bold text-[var(--color-text-primary)]">{t.replies_count || 0}</span>
-                    <span className="block font-mono text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">replies</span>
+                    <span className="block font-mono text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">{t.replies_count === 1 ? 'reply' : 'replies'}</span>
                   </div>
                 </a>
               )
