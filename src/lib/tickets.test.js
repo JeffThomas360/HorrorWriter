@@ -71,12 +71,25 @@ describe('ticketErrorMessage', () => {
       expect(api.ticketErrorMessage({ message: key })).not.toBe(key)
     }
   })
-  it('passes an unknown message through', () => {
-    expect(api.ticketErrorMessage({ message: 'odd' })).toBe('odd')
+  it('never shows a member a raw database or network message', () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const raw = "Could not find the table 'public.tickets' in the schema cache"
+    expect(api.ticketErrorMessage({ message: raw })).toBe('Something went wrong on our side. Try again in a minute.')
+    expect(log).toHaveBeenCalledWith('[tickets]', raw)
+    log.mockRestore()
+  })
+  it('passes its own sentences through, so translating twice is harmless', () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const once = api.ticketErrorMessage({ message: 'daily_limit' })
+    expect(api.ticketErrorMessage({ message: once })).toBe(once)
+    const fallback = api.ticketErrorMessage(null)
+    expect(api.ticketErrorMessage({ message: fallback })).toBe(fallback)
+    expect(log).not.toHaveBeenCalled()
+    log.mockRestore()
   })
   it('has a fallback when there is no error or message', () => {
-    expect(api.ticketErrorMessage(null)).toBe('Something went wrong.')
-    expect(api.ticketErrorMessage({})).toBe('Something went wrong.')
+    expect(api.ticketErrorMessage(null)).toBe('Something went wrong on our side. Try again in a minute.')
+    expect(api.ticketErrorMessage({})).toBe('Something went wrong on our side. Try again in a minute.')
   })
 })
 
@@ -124,14 +137,14 @@ describe('openTicket', () => {
     invoke.mockResolvedValue({ data: { error: 'daily_limit' }, error: null })
     await expect(api.openTicket(input)).rejects.toThrow("You've opened 3 tickets today. Try again tomorrow.")
   })
-  it('falls back to the error message when the response body is not JSON', async () => {
+  it('falls back to plain copy when the response body is not JSON', async () => {
     const context = new Response('<html>bad gateway</html>', { status: 502 })
     invoke.mockResolvedValue({ data: null, error: { message: 'Edge Function returned a non-2xx status code', context } })
-    await expect(api.openTicket(input)).rejects.toThrow('Edge Function returned a non-2xx status code')
+    await expect(api.openTicket(input)).rejects.toThrow('Something went wrong on our side. Try again in a minute.')
   })
-  it('falls back to the error message when there is no response to read', async () => {
+  it('falls back to plain copy when there is no response to read', async () => {
     invoke.mockResolvedValue({ data: null, error: { message: 'Failed to send a request to the Edge Function' } })
-    await expect(api.openTicket(input)).rejects.toThrow('Failed to send a request to the Edge Function')
+    await expect(api.openTicket(input)).rejects.toThrow('Something went wrong on our side. Try again in a minute.')
   })
 })
 
@@ -230,9 +243,9 @@ describe('reads', () => {
       result = { data: null, error: null }
       expect(await api.fetchMyTickets('u1')).toEqual([])
     })
-    it('throws the error message when the read fails', async () => {
+    it('throws plain copy when the read fails', async () => {
       result = { data: null, error: { message: 'boom' } }
-      await expect(api.fetchMyTickets('u1')).rejects.toThrow('boom')
+      await expect(api.fetchMyTickets('u1')).rejects.toThrow('Something went wrong on our side. Try again in a minute.')
     })
   })
 
@@ -258,9 +271,9 @@ describe('reads', () => {
       result = { data: [], error: null }
       expect(await api.fetchUnseenAnswered('u1')).toBeNull()
     })
-    it('throws the error message when the read fails', async () => {
+    it('throws plain copy when the read fails', async () => {
       result = { data: null, error: { message: 'boom' } }
-      await expect(api.fetchUnseenAnswered('u1')).rejects.toThrow('boom')
+      await expect(api.fetchUnseenAnswered('u1')).rejects.toThrow('Something went wrong on our side. Try again in a minute.')
     })
   })
 
@@ -285,9 +298,9 @@ describe('reads', () => {
       result = { data: null, error: null }
       expect(await api.fetchTicket('nope')).toBeNull()
     })
-    it('throws the error message when the read fails', async () => {
+    it('throws plain copy when the read fails', async () => {
       result = { data: null, error: { message: 'boom' } }
-      await expect(api.fetchTicket('t1')).rejects.toThrow('boom')
+      await expect(api.fetchTicket('t1')).rejects.toThrow('Something went wrong on our side. Try again in a minute.')
     })
   })
 })

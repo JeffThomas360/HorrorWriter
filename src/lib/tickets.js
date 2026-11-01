@@ -41,9 +41,18 @@ const MESSAGES = {
   bad_reason: "That isn't a way to close a ticket.",
 }
 
+const UNEXPECTED = 'Something went wrong on our side. Try again in a minute.'
+const SENTENCES = new Set([...Object.values(MESSAGES), UNEXPECTED])
+
+// Anything that isn't one of our keys (a database, network or gateway message) is
+// for the console, never the member. A sentence we already wrote passes through, so
+// translating twice (the API, then the form) is harmless.
 export function ticketErrorMessage(error) {
-  if (!error) return 'Something went wrong.'
-  return MESSAGES[error.message] ?? error.message ?? 'Something went wrong.'
+  const known = MESSAGES[error?.message]
+  if (known) return known
+  if (SENTENCES.has(error?.message)) return error.message
+  if (error?.message) console.error('[tickets]', error.message)
+  return UNEXPECTED
 }
 
 export function memberStatus(ticket) {
@@ -63,7 +72,7 @@ export function closedLabel(ticket) {
 }
 
 function need() {
-  if (!supabase) throw new Error('Supabase not configured')
+  if (!supabase) throw new Error(ticketErrorMessage({ message: 'Supabase not configured' }))
   return supabase
 }
 
@@ -76,7 +85,7 @@ async function call(fn, args) {
 // A non-2xx answer from the Edge Function arrives as FunctionsHttpError, whose
 // `context` is the Response; the error key is in its JSON body. When there is
 // no readable body (network drop, gateway page), fall back to the error's own
-// message.
+// message, which ticketErrorMessage keeps off the screen.
 async function functionErrorKey(error) {
   try {
     const body = await error.context?.json()
@@ -132,7 +141,7 @@ export async function fetchMyTickets(userId) {
     .eq('user_id', userId)
     .order('updated_at', { ascending: false })
     .order('created_at', { ascending: true, referencedTable: 'ticket_messages' })
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(ticketErrorMessage(error))
   return (data ?? []).map(shapeTicket)
 }
 
@@ -155,7 +164,7 @@ export async function fetchUnseenAnswered(userId) {
     .is('member_seen_at', null)
     .order('updated_at', { ascending: false })
     .limit(1)
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(ticketErrorMessage(error))
   const row = data?.[0]
   return row ? { id: row.id, subject: row.subject } : null
 }
@@ -169,6 +178,6 @@ export async function fetchTicket(id) {
     .eq('id', id)
     .order('created_at', { ascending: true, referencedTable: 'ticket_messages' })
     .maybeSingle()
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(ticketErrorMessage(error))
   return data ? shapeTicket(data) : null
 }
