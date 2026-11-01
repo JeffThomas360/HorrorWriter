@@ -323,6 +323,10 @@ a:hover {
     display: none !important;
     opacity: 0 !important;
   }
+  /* On-air dots and loading labels hold still. */
+  .animate-pulse {
+    animation: none !important;
+  }
 }
 
 /* ==========================================================================
