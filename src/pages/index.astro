@@ -296,10 +296,11 @@ const isFallback = tiles === FALLBACK_TILES;
   upgradeCtaForSession();
 
   // Listen to custom signin clicks
+  // Both "Join free" buttons open the Join screen, not sign-in.
   document.getElementById('cta-join')?.addEventListener('click', () => {
-    window.dispatchEvent(new CustomEvent('open-signin'));
+    window.dispatchEvent(new CustomEvent('open-signin', { detail: { mode: 'signup' } }));
   });
   document.getElementById('cta-join-closing')?.addEventListener('click', () => {
-    window.dispatchEvent(new CustomEvent('open-signin'));
+    window.dispatchEvent(new CustomEvent('open-signin', { detail: { mode: 'signup' } }));
   });
 </script>

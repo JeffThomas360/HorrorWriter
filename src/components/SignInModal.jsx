@@ -34,7 +34,12 @@ const saveEmailCookie = (emailToSave) => {
   document.cookie = `hw_last_email=${encodeURIComponent(emailToSave)}; max-age=${60 * 60 * 24 * 365}; path=/; SameSite=Strict`
 }
 
-export default function SignInModal({ isOpen, onClose }) {
+// The switch between Join and Sign in, and the collapsed email option: full-size
+// tap targets (44px), not small text links.
+const SWITCH_CLASS = 'inline-flex items-center justify-center min-h-11 px-3 underline cursor-pointer bg-transparent'
+
+// `initialMode` is the screen it opens on: 'signup' (Join) or 'signin'.
+export default function SignInModal({ isOpen, onClose, initialMode = 'signin' }) {
   const [email, setEmail] = useState('')
   const [honeypot, setHoneypot] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -47,8 +52,9 @@ export default function SignInModal({ isOpen, onClose }) {
   // that assumes a verdict either way.
   const [gate, setGate] = useState(null)
   // 'signin' needs no gate: passkeys and a create-off email link only reach
-  // existing accounts. 'signup' shows the gate until this browser has passed.
-  const [mode, setMode] = useState('signin')
+  // existing accounts. 'signup' shows the gate until this browser has passed,
+  // then the Join screen.
+  const [mode, setMode] = useState(initialMode)
   const [showEmail, setShowEmail] = useState(false)
   const [birthMonth, setBirthMonth] = useState('')
   const [birthYear, setBirthYear] = useState('')
@@ -126,20 +132,23 @@ export default function SignInModal({ isOpen, onClose }) {
     if (isOpen && gate !== BLOCKED) prefetchPasskeyChallenge()
   }, [isOpen, gate])
 
-  // Reset state when modal closes
+  // Open on the screen asked for; reset everything when the modal closes.
   useEffect(() => {
-    if (!isOpen) {
+    if (isOpen) {
+      setMode(initialMode)
+    } else {
       setEmail(getEmailCookie())
       setError(null)
       setMessage(null)
-      setMode('signin')
       setShowEmail(false)
     }
-  }, [isOpen])
+  }, [isOpen, initialMode])
 
   if (!isOpen) return null
 
   const anyBusy = isSubmitting || isPasskeySubmitting || isGoogleSubmitting
+  // The Join screen: asked to sign up, and past the birth-date check.
+  const joining = mode === 'signup' && gate === PASSED
 
   // The birth date is used to compute a verdict and then dropped. It is never
   // stored, never sent anywhere: keeping the birth date of someone rejected as
@@ -399,7 +408,7 @@ export default function SignInModal({ isOpen, onClose }) {
               <button
                 type="button"
                 onClick={() => setMode('signin')}
-                className="underline text-[var(--color-text-secondary)] hover:text-[var(--color-ember)] cursor-pointer bg-transparent"
+                className={`${SWITCH_CLASS} text-[var(--color-text-secondary)] hover:text-[var(--color-ember)]`}
               >
                 Already a member? Sign in
               </button>
@@ -409,8 +418,12 @@ export default function SignInModal({ isOpen, onClose }) {
 
         {gate !== BLOCKED && (gate === PASSED || mode === 'signin') && (<>
         <div className="mb-6 text-center">
-          <h2 className="text-2xl font-serif mb-2">Summon <em className="text-[var(--color-accent-crimson)] not-italic">Yourself</em></h2>
-          <p className="text-xs text-[var(--color-text-secondary)] font-serif">No password needed.</p>
+          {joining ? (
+            <h2 className="text-2xl font-serif mb-2">Join the <em className="text-[var(--color-accent-crimson)] not-italic">Circle</em></h2>
+          ) : (
+            <h2 className="text-2xl font-serif mb-2">Summon <em className="text-[var(--color-accent-crimson)] not-italic">Yourself</em></h2>
+          )}
+          <p className="text-xs text-[var(--color-text-secondary)] font-serif">{joining ? 'Free, and no password needed.' : 'No password needed.'}</p>
           {error   && <div className="text-[var(--color-ember)] text-xs mt-3 font-mono">{error}</div>}
           {message && <div className="text-[var(--color-text-primary)] text-xs mt-3 font-mono">{message}</div>}
         </div>
@@ -441,19 +454,22 @@ export default function SignInModal({ isOpen, onClose }) {
             </button>
           )}
 
-          <button
-            type="button"
-            onClick={handlePasskey}
-            disabled={anyBusy}
-            className="w-full border border-[var(--color-line)] text-[var(--color-text-primary)] font-mono text-xs uppercase py-3 flex items-center justify-center gap-2 cursor-pointer hover:border-white"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
-              </svg>
-            {isPasskeySubmitting ? 'Awaiting your device…' : 'Sign in with passkey'}
-          </button>
+          {/* A newcomer has no passkey yet; it is offered after their first sign-in. */}
+          {!joining && (
+            <button
+              type="button"
+              onClick={handlePasskey}
+              disabled={anyBusy}
+              className="w-full border border-[var(--color-line)] text-[var(--color-text-primary)] font-mono text-xs uppercase py-3 flex items-center justify-center gap-2 cursor-pointer hover:border-white"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+                </svg>
+              {isPasskeySubmitting ? 'Awaiting your device…' : 'Sign in with passkey'}
+            </button>
+          )}
 
-          {/* Email link: the fallback, kept small and below the main two. */}
+          {/* Email link: below the main buttons, opened on request. */}
           {showEmail ? (
             <div className="flex flex-col gap-2 border-t border-[var(--color-line)] pt-4">
               <label htmlFor="email" className="text-xs font-mono text-[var(--color-text-secondary)]">Email Address</label>
@@ -474,31 +490,29 @@ export default function SignInModal({ isOpen, onClose }) {
                 className="w-full border border-[var(--color-line)] text-[var(--color-text-primary)] font-mono text-xs uppercase py-3 cursor-pointer hover:border-white disabled:opacity-40 disabled:cursor-not-allowed"
                 disabled={anyBusy || (!captchaToken && !widgetFailed)}
               >
-                {isSubmitting ? 'Sending…' : 'Email me a sign-in link'}
+                {isSubmitting ? 'Sending…' : joining ? 'Email me a link to join' : 'Email me a sign-in link'}
               </button>
             </div>
           ) : (
             <button
               type="button"
               onClick={() => setShowEmail(true)}
-              className="self-center font-mono text-xs text-[var(--color-text-secondary)] underline hover:text-[var(--color-ember)] cursor-pointer bg-transparent"
+              className={`${SWITCH_CLASS} self-center font-mono text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-ember)]`}
             >
-              Can't sign in? Email me a sign-in link
+              {joining ? 'Continue with email' : 'Sign in with email'}
             </button>
           )}
         </form>
 
-        {gate !== PASSED && (
-          <p className="text-center text-xs font-serif mt-6">
-            <button
-              type="button"
-              onClick={() => setMode('signup')}
-              className="underline text-[var(--color-text-primary)] hover:text-[var(--color-ember)] cursor-pointer bg-transparent"
-            >
-              New here? Create an account
-            </button>
-          </p>
-        )}
+        <p className="text-center text-xs font-serif mt-4">
+          <button
+            type="button"
+            onClick={() => setMode(joining ? 'signin' : 'signup')}
+            className={`${SWITCH_CLASS} text-[var(--color-text-primary)] hover:text-[var(--color-ember)]`}
+          >
+            {joining ? 'Already a member? Sign in' : 'New here? Create an account'}
+          </button>
+        </p>
 
         <p className="text-center text-xs text-[var(--color-text-secondary)] mt-6 font-serif">
           By entering, you agree to the <a href="/rules/" className="underline hover:text-[var(--color-accent-crimson)]" onClick={onClose}>House Rules</a>. No algorithms, no ads.
