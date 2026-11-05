@@ -4,6 +4,7 @@ import { useAuth } from '../components/AuthContext'
 import { useQuery } from '@tanstack/react-query'
 import { withProviders } from '../components/Providers'
 import VhsSleeveCard from '../components/VhsSleeveCard'
+import LoadError from '../components/LoadError'
 import ForbiddenTape from '../components/ForbiddenTape'
 import { filterOneExamplePerGroup } from '../lib/storyHelpers'
 
@@ -33,7 +34,7 @@ function Library() {
   const { session } = useAuth()
   const [feedMode, setFeedMode] = useState('all')
 
-  const { data: books = [], isLoading: loading, error: queryError } = useQuery({
+  const { data: books = [], isLoading: loading, error: queryError, refetch } = useQuery({
     queryKey: ['books', feedMode, session?.user?.id],
     queryFn: async () => {
       if (!supabase) return []
@@ -78,7 +79,7 @@ function Library() {
     }
   })
 
-  const error = queryError ? queryError.message : null
+  const error = queryError || null
 
   return (
     <div className="mt-8">
@@ -133,8 +134,13 @@ function Library() {
       )}
 
       {error && (
-        <div className="vintage-card border-red-950 text-[var(--color-accent-crimson)] font-mono text-xs py-4 mb-8">
-          Error loading library: {error}
+        <div className="mb-8">
+          <LoadError
+            title="The shelves are dark"
+            message="We couldn't load the stories just now. Check your connection, then try again."
+            error={error}
+            onRetry={() => refetch()}
+          />
         </div>
       )}
 
