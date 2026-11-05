@@ -27,6 +27,14 @@ vi.mock('../../lib/keeperTaskApi', () => ({
   }),
 }))
 
+// PulsePanel has its own tests; here it just needs to render quietly.
+vi.mock('../../lib/pulse', () => ({
+  fetchPulse: vi.fn(async () => {
+    const t = { this: 0, last: 0 }
+    return { newMembers: t, firstTimePosters: t, ritualEntries: t, critiques: t, firstTimersThisWeek: [], waiting: [], quietNewcomers: [] }
+  }),
+}))
+
 const AdminOverviewTab = (await import('./AdminOverviewTab')).default
 
 function renderIt(onNavigate = vi.fn()) {
@@ -85,13 +93,13 @@ test('says nothing when the queue is empty or the read fails', async () => {
   renderIt()
   await screen.findByText(/site stats/i)
   await new Promise((r) => setTimeout(r, 0))
-  expect(screen.queryByText(/waiting/i)).toBeNull()
+  expect(screen.queryByText(/tasks? waiting/i)).toBeNull()
   cleanup()
   tasksFail = true
   renderIt()
   await screen.findByText(/site stats/i)
   await new Promise((r) => setTimeout(r, 0))
-  expect(screen.queryByText(/waiting/i)).toBeNull()
+  expect(screen.queryByText(/tasks? waiting/i)).toBeNull()
 })
 
 // Under vitest nothing is baked in, so the stamp says so instead of inventing one.
