@@ -1,0 +1,34 @@
+---
+export const prerender = false;
+
+import MainLayout from '../layouts/MainLayout.astro';
+import FirstReader from '../pages-react/FirstReader.jsx';
+import { fetchWaiting } from '../lib/firstReader';
+import { isPlaywrightTest } from '../lib/testMode';
+
+// Rendered on every request so the list is current and readable without JS.
+// A failed read leaves `initialItems` null and the island fetches it instead.
+let initialItems = null;
+try {
+  if (!isPlaywrightTest()) initialItems = await fetchWaiting();
+} catch (e) {
+  console.error('Error fetching first-reader list:', e);
+}
+---
+
+<MainLayout
+  title="Needs a First Reader | Horror Writer"
+  description="Stories, threads and Midnight Ritual entries nobody has answered yet. Be the first to read them and leave a critique."
+>
+  <div class="mt-8 max-w-3xl mx-auto">
+    <div class="border-b border-[var(--color-line)] pb-6 mb-8">
+      <span class="block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-text-secondary)] mb-2">The Crypt · the Library · the Ritual</span>
+      <h1 class="text-3xl font-serif font-black mb-3">Needs a <em class="italic text-[var(--color-ember)] font-serif">first reader</em></h1>
+      <p class="font-serif text-[var(--color-text-secondary)] leading-relaxed">
+        Everything here was posted in the last 30 days and hasn't heard back yet, longest wait first.
+        A first reply is the one writers remember. Critique the art, respect the author.
+      </p>
+    </div>
+    <FirstReader client:load initialItems={initialItems} />
+  </div>
+</MainLayout>
