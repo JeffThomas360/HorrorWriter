@@ -9,6 +9,7 @@ import { fetchSiteSettings } from '../../lib/siteSettings'
 import { countFutureScheduled } from '../../lib/ritualAdmin'
 import { fetchOpenTasks } from '../../lib/keeperTaskApi'
 import { openCount } from '../../lib/keeperTasks'
+import PulsePanel from './PulsePanel'
 
 const STAT_TILES = [
   { key: 'totalUsers', label: 'Registered users', jump: 'users' },
@@ -125,6 +126,8 @@ export default function AdminOverviewTab({ onNavigate }) {
           </button>
         </div>
       )}
+
+      <PulsePanel />
 
       <div>
         <h3 className="font-mono text-xs uppercase tracking-widest text-[var(--color-ash)] mb-3">Site stats</h3>
