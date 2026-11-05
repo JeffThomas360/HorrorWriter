@@ -51,17 +51,7 @@ export async function onRequest(context) {
           element.setAttribute('content', newTitle);
         }
       })
-      .on('meta[name="twitter:title"]', {
-        element(element) {
-          element.setAttribute('content', newTitle);
-        }
-      })
       .on('meta[property="og:description"]', {
-        element(element) {
-          element.setAttribute('content', newDesc);
-        }
-      })
-      .on('meta[name="twitter:description"]', {
         element(element) {
           element.setAttribute('content', newDesc);
         }
