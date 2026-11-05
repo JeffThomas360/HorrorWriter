@@ -34,6 +34,7 @@ const PILL = 'font-mono text-xs uppercase tracking-widest border px-2 py-0.5'
 // Same live count as the Help page's ticket form (OpenTicket).
 const COUNT = 'self-end font-mono text-xs text-[var(--color-ash)]'
 const REPLY_MAX = 2000
+const REPLY_MIN = 25 // reply_ticket refuses fewer (20261107000000)
 
 function StatusPill({ ticket }) {
   const status = memberStatus(ticket)
@@ -71,6 +72,7 @@ function ReplyBox({ ticketId }) {
   const body = text.trim()
   const fieldId = `reply-${ticketId}`
   const countId = `${fieldId}-count`
+  const hintId = `${fieldId}-hint`
 
   return (
     <form
@@ -83,6 +85,7 @@ function ReplyBox({ ticketId }) {
       <label htmlFor={fieldId} className={LABEL}>
         Reply
       </label>
+      <span id={hintId} className="font-serif text-sm text-[var(--color-ash)]">{`At least ${REPLY_MIN} characters`}</span>
       <textarea
         id={fieldId}
         rows={4}
@@ -92,7 +95,7 @@ function ReplyBox({ ticketId }) {
           setText(e.target.value)
           if (send.isError) send.reset()
         }}
-        aria-describedby={countId}
+        aria-describedby={`${hintId} ${countId}`}
         className={FIELD}
       />
       <span id={countId} className={COUNT}>{`${text.length} / ${REPLY_MAX}`}</span>

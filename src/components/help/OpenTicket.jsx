@@ -19,12 +19,13 @@ import { TOPICS, openTicket, ticketErrorMessage } from '../../lib/tickets'
  */
 
 const SUBJECT = { min: 5, max: 120 }
-const BODY = { min: 20, max: 2000 }
+const BODY = { min: 25, max: 2000 }
 
 const FIELD =
   'bg-[var(--color-void)] border border-[var(--color-line)] px-3 py-2 text-base text-[var(--color-bone)] focus:border-[var(--color-ember)] outline-none w-full'
 const LABEL = 'font-mono text-xs uppercase tracking-widest text-[var(--color-ash)]'
 const COUNT = 'self-end font-mono text-xs text-[var(--color-ash)]'
+const HINT = 'font-serif text-sm text-[var(--color-ash)]'
 const PRIMARY = 'btn-vhs items-center min-h-[44px] disabled:opacity-40 disabled:cursor-not-allowed'
 const SECONDARY =
   'inline-flex items-center font-mono text-xs uppercase tracking-widest px-4 min-h-[44px] border border-[var(--color-line-hi)] text-[var(--color-bone)] hover:border-[var(--color-ember)] hover:text-[var(--color-ember)] cursor-pointer'
@@ -212,6 +213,7 @@ function OpenTicket({ faq = [] }) {
           <label htmlFor="ticket-subject" className={LABEL}>
             Subject
           </label>
+          <span id="ticket-subject-hint" className={HINT}>{`At least ${SUBJECT.min} characters`}</span>
           <input
             id="ticket-subject"
             type="text"
@@ -221,7 +223,7 @@ function OpenTicket({ faq = [] }) {
               setSubject(e.target.value)
               setError(null)
             }}
-            aria-describedby="ticket-subject-count"
+            aria-describedby="ticket-subject-hint ticket-subject-count"
             className={FIELD}
           />
           <span id="ticket-subject-count" className={COUNT}>{`${subject.length} / ${SUBJECT.max}`}</span>
@@ -230,6 +232,7 @@ function OpenTicket({ faq = [] }) {
           <label htmlFor="ticket-body" className={LABEL}>
             Message
           </label>
+          <span id="ticket-body-hint" className={HINT}>{`At least ${BODY.min} characters`}</span>
           <textarea
             id="ticket-body"
             rows={8}
@@ -239,7 +242,7 @@ function OpenTicket({ faq = [] }) {
               setBody(e.target.value)
               setError(null)
             }}
-            aria-describedby="ticket-body-count"
+            aria-describedby="ticket-body-hint ticket-body-count"
             className={FIELD}
           />
           <span id="ticket-body-count" className={COUNT}>{`${body.length} / ${BODY.max}`}</span>

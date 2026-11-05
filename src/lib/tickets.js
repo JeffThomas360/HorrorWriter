@@ -30,7 +30,7 @@ const MESSAGES = {
   banned: 'Your account is suspended, so tickets are closed to you for now.',
   message_limit: "You've sent 10 messages today. Try again tomorrow.",
   duplicate: 'You already sent that message today.',
-  bad_body: 'Write between 20 and 2,000 characters.',
+  bad_body: 'Write between 25 and 2,000 characters.',
   bad_subject: 'A subject needs 5 to 120 characters.',
   closed: 'This ticket is closed.',
   captcha_failed: "We couldn't confirm you're a person. Refresh the page and try again.",
