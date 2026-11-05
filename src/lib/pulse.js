@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient'
-import { storyPath, threadPath, profilePath } from './urls'
+import { profilePath } from './urls'
+import { postClassifier, computeWaiting, WAITING_UNTIL } from './firstReader'
 
 /**
  * The Keeper's weekly pulse: how the community is doing and who could use a
@@ -15,10 +16,8 @@ import { storyPath, threadPath, profilePath } from './urls'
 
 const DAY = 24 * 60 * 60 * 1000
 export const WEEK = 7 * DAY
-/** A post is "waiting" once it has gone this long with no reply… */
+/** For the Keeper, a post is "waiting" once it has gone this long with no reply. */
 export const WAITING_AFTER = 2 * DAY
-/** …and stops being listed after this long (it's no longer a welcome). */
-export const WAITING_UNTIL = 30 * DAY
 
 const ms = (t) => new Date(t).getTime()
 
@@ -58,21 +57,7 @@ export function computePulse(raw, now) {
     if (w) newMembers[w]++
   }
 
-  // A thread's opening post is a posts row too; it isn't a reply. In a ritual
-  // thread the opening post is the prompt and each top-level post is an entry.
-  const openingPostOf = {}
-  for (const p of posts) {
-    const cur = openingPostOf[p.thread_id]
-    if (!cur || ms(p.created_at) < ms(cur.created_at)) openingPostOf[p.thread_id] = p
-  }
-  const isOpeningPost = (p) => {
-    // Only trust "earliest post we fetched" when the thread itself is recent
-    // enough that its opening post is inside the fetched window.
-    const threadCreated = p.threads?.created_at
-    if (!threadCreated || now - ms(threadCreated) >= WAITING_UNTIL) return false
-    return openingPostOf[p.thread_id]?.id === p.id
-  }
-  const isRitualEntry = (p) => Boolean(p.threads?.prompt_id) && !p.parent_post_id && !isOpeningPost(p)
+  const { isOpeningPost, isRitualEntry } = postClassifier(posts, now)
 
   const ritualEntries = tally()
   const critiques = tally()
@@ -110,34 +95,7 @@ export function computePulse(raw, now) {
   firstTimersThisWeek.sort()
 
   // Waiting for a reply: public work, 2–30 days old, that nobody has answered.
-  const inWaitingWindow = (t) => {
-    const age = now - ms(t)
-    return age >= WAITING_AFTER && age < WAITING_UNTIL
-  }
-  const waiting = []
-  for (const t of threads) {
-    if (t.prompt_id) continue // ritual threads are judged per entry, below
-    if ((t.replies_count ?? 0) === 0 && inWaitingWindow(t.created_at)) {
-      waiting.push({ kind: 'Thread', title: t.title, href: threadPath(t.id), handle: handles[t.author_id], created_at: t.created_at })
-    }
-  }
-  for (const s of stories) {
-    if ((s.comments_count ?? 0) === 0 && inWaitingWindow(s.created_at)) {
-      waiting.push({ kind: 'Story', title: s.title, href: storyPath(s.id), handle: handles[s.author_id], created_at: s.created_at })
-    }
-  }
-  const hasCritique = new Set(posts.filter((p) => p.parent_post_id).map((p) => p.parent_post_id))
-  for (const p of posts) {
-    if (!p.author_id || !isRitualEntry(p) || hasCritique.has(p.id) || !inWaitingWindow(p.created_at)) continue
-    waiting.push({
-      kind: 'Ritual entry',
-      title: p.title || p.threads?.title || 'Midnight Ritual',
-      href: `${threadPath(p.thread_id)}#post-${p.id}`,
-      handle: handles[p.author_id],
-      created_at: p.created_at,
-    })
-  }
-  waiting.sort((a, b) => ms(a.created_at) - ms(b.created_at)) // longest-waiting first
+  const waiting = computeWaiting({ threads, posts, stories, handles }, now, { minAge: WAITING_AFTER })
 
   // Newcomers who haven't posted anything yet: a gentle hello, not a nudge quota.
   const posted = new Set([

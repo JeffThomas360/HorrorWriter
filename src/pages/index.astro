@@ -1,4 +1,8 @@
 ---
+// Rendered per request: built once at deploy, the tiles below froze until the
+// next deploy, so new posts never showed up here.
+export const prerender = false;
+
 import MainLayout from '../layouts/MainLayout.astro';
 import StructuredData from '../components/StructuredData.astro';
 import MidnightRitual from '../components/MidnightRitual.jsx';
@@ -7,6 +11,7 @@ import VoidWhispers from '../components/VoidWhispers.jsx';
 import { supabase } from '../supabaseClient';
 import { buildWebSiteSchema, buildFAQSchema } from '../lib/seo';
 import { isPlaywrightTest } from '../lib/testMode';
+import { fetchWaiting } from '../lib/firstReader';
 
 const faqs = [
   {
@@ -75,9 +80,35 @@ const WHY = [
 ];
 
 let tiles = FALLBACK_TILES;
+// 'waiting' when the tiles are work nobody has answered yet; 'latest' otherwise.
+let tileMode = 'latest';
+
+const waitedFor = (days) => (days <= 0 ? 'posted today' : days === 1 ? 'waiting 1 day' : `waiting ${days} days`);
 
 try {
   if (supabase && !isPlaywrightTest()) {
+    // Lead with people waiting to be read: a quiet night then reads as an
+    // invitation, not an empty room.
+    const waiting = await fetchWaiting();
+    if (waiting.length > 0) {
+      tileMode = 'waiting';
+      tiles = waiting.slice(0, 3).map((w) => ({
+        tag: `▸ ${w.kind.toUpperCase()} · ${waitedFor(w.days).toUpperCase()}`,
+        title: w.title,
+        body: w.handle
+          ? `By @${w.handle}. No one has replied yet. Be the first to read it.`
+          : 'No one has replied yet. Be the first to read it.',
+        meta: 'Read and reply →',
+        href: w.href,
+      }));
+    }
+  }
+} catch (e) {
+  console.error('Error fetching first-reader tiles:', e);
+}
+
+try {
+  if (tileMode === 'latest' && supabase && !isPlaywrightTest()) {
     const { data } = await supabase
       .from('threads')
       .select('*, categories(name), profiles(handle)')
@@ -94,12 +125,12 @@ try {
           ? `Started by @${t.profiles.handle}. Open the thread to read and reply.`
           : 'Open the thread to read the entries and reply.',
         meta: `${t.replies_count || 0} ${t.replies_count === 1 ? 'reply' : 'replies'} · read thread →`,
-        id: t.id,
+        href: `/forum/thread/${t.id}/`,
       }));
     }
   }
 } catch (e) {
-  console.error('Error fetching dynamic stats/threads during build:', e);
+  console.error('Error fetching latest threads:', e);
 }
 
 const [heroTile, ...restTiles] = tiles;
@@ -180,6 +211,11 @@ const isFallback = tiles === FALLBACK_TILES;
               Every long-running forum you love was empty once. The threads you start tonight are the ones new members find in a year — with your name on them.
             </p>
           </>
+        ) : tileMode === 'waiting' ? (
+          <>
+            <span class="block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-text-secondary)] mb-2">No replies yet · longest wait first</span>
+            <h2 class="text-2xl md:text-3xl font-serif font-black">Needs a <em class="italic text-[var(--color-ember)] font-serif">first reader</em></h2>
+          </>
         ) : (
           <>
             <span class="block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-text-secondary)] mb-2">The Crypt · latest threads</span>
@@ -187,12 +223,16 @@ const isFallback = tiles === FALLBACK_TILES;
           </>
         )}
       </div>
-      <a href="/forum/" class="inline-block shrink-0 font-mono text-xs py-2 hover:text-[var(--color-ember)] transition-colors border-b border-[var(--color-line)] pb-1">See all threads →</a>
+      {tileMode === 'waiting' ? (
+        <a href="/first-reader/" class="inline-block shrink-0 font-mono text-xs py-2 hover:text-[var(--color-ember)] transition-colors border-b border-[var(--color-line)] pb-1">See everything waiting →</a>
+      ) : (
+        <a href="/forum/" class="inline-block shrink-0 font-mono text-xs py-2 hover:text-[var(--color-ember)] transition-colors border-b border-[var(--color-line)] pb-1">See all threads →</a>
+      )}
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
       <!-- Hero Tile (Large) -->
-      <a href={heroTile.id ? `/forum/thread/${heroTile.id}/` : '/forum/'} class="md:col-span-2 vintage-card relative flex flex-col justify-between hover:border-white transition-all min-h-[260px]">
+      <a href={heroTile.href || '/forum/'} class="md:col-span-2 vintage-card relative flex flex-col justify-between hover:border-white transition-all min-h-[260px]">
         <div>
           <div class="flex justify-between items-start mb-4">
             <span class="font-mono text-xs tracking-wider text-[var(--color-text-secondary)] font-bold">{heroTile.tag}</span>
@@ -206,7 +246,7 @@ const isFallback = tiles === FALLBACK_TILES;
       <!-- Sub stack tiles -->
       <div class="flex flex-col gap-6">
         {restTiles.map((t) => (
-          <a href={t.id ? `/forum/thread/${t.id}/` : '/forum/'} class="vintage-card grow flex flex-col justify-between hover:border-white transition-all min-h-[120px]">
+          <a href={t.href || '/forum/'} class="vintage-card grow flex flex-col justify-between hover:border-white transition-all min-h-[120px]">
             <div>
               <span class="block font-mono text-xs tracking-wider text-[var(--color-text-secondary)] mb-2 font-bold">{t.tag}</span>
               <h3 class="text-base font-serif font-bold mb-2 leading-snug hover:text-[var(--color-accent-crimson)] transition-colors">{t.title}</h3>
