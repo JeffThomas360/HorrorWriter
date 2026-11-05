@@ -27,6 +27,6 @@ $tmp = Join-Path ([IO.Path]::GetTempPath()) ("rehearse-" + [guid]::NewGuid() + "
 # UTF-8 without BOM on both Windows PowerShell 5.1 and PowerShell 7.
 [IO.File]::WriteAllText($tmp, $combined, [Text.UTF8Encoding]::new($false))
 try {
-  cmd /c "npx supabase db query --linked -f `"$tmp`""
+  cmd /c "npx supabase db query --remote -f `"$tmp`""
   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 } finally { Remove-Item $tmp -ErrorAction SilentlyContinue }
