@@ -302,7 +302,8 @@ test('the reply box shows a live n / 2000 count, tied to the box', async () => {
   fireEvent.click(header('My passkey vanished'))
   const box = screen.getByLabelText('Reply')
   const count = screen.getByText('0 / 2000')
-  expect(box).toHaveAttribute('aria-describedby', count.id)
+  const hint = screen.getByText('At least 25 characters')
+  expect(box).toHaveAttribute('aria-describedby', `${hint.id} ${count.id}`)
 
   const text = 'Thanks, the email link worked for me.'
   fireEvent.change(box, { target: { value: text } })

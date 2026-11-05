@@ -6,6 +6,7 @@
 --   powershell -File scripts/sql/rehearse.ps1 -Test scripts/sql/test-tickets.sql -Migration supabase/migrations/20261028010000_tickets.sql
 -- While both are unmerged, pass a scratch file holding the two migrations concatenated
 -- (keeper_alerts first) as -Migration. Local dev points at PRODUCTION, so only run it this way.
+-- Since 20261107000000 (message minimum 25), rehearse with that migration as -Migration.
 --
 -- Actors: M and O are existing ordinary accounts over an hour old (auth.users.created_at) with
 -- no tickets (O is only ever refused), K is the keeper. Throwaway accounts (...c30xx) cover
@@ -303,7 +304,7 @@ begin
   perform pg_temp.expect_err(format(call, m, 'other', 'a' || repeat(' ', 30) || 'b', ok_body), 'bad_subject');
   perform pg_temp.expect_err(format(call, m, 'other', repeat('s', 121), ok_body), 'bad_subject');
   -- body
-  perform pg_temp.expect_err(format(call, m, 'other', ok_subject, repeat('b', 19)), 'bad_body');
+  perform pg_temp.expect_err(format(call, m, 'other', ok_subject, repeat('b', 24)), 'bad_body');
   perform pg_temp.expect_err(format(call, m, 'other', ok_subject, 'short' || repeat(E' \n\t', 20) || 'body'), 'bad_body');
   perform pg_temp.expect_err(format(call, m, 'other', ok_subject, repeat('b', 2001)), 'bad_body');
   -- 1,991 characters normalised, but over 2,000 as stored (the line breaks are kept)
@@ -312,9 +313,9 @@ begin
   perform pg_temp.expect_err(format(call, m, 'other', ok_subject,
     E'\n I  cannot sign in   with my passkey on   my new phone.\t'), 'duplicate');
 
-  -- The boundaries pass (then are undone): 5 / 120 subject, 20 / 2,000 body.
+  -- The boundaries pass (then are undone): 5 / 120 subject, 25 / 2,000 body (20261107000000).
   begin
-    perform public.open_ticket(m::uuid, 'other', repeat('s', 5), repeat('b', 20));
+    perform public.open_ticket(m::uuid, 'other', repeat('s', 5), repeat('b', 25));
     perform public.open_ticket(m::uuid, 'other', repeat('s', 120), repeat('c', 2000));
     raise exception 'undo-boundaries';
   exception when others then
@@ -509,6 +510,7 @@ begin
   perform pg_temp.expect_err(format('select public.reply_ticket(%L, %L)', t,
     '  That worked,  but now the passkey' || E'\n' || 'prompt loops.'), 'duplicate');
   perform pg_temp.expect_err(format('select public.reply_ticket(%L, %L)', t, 'too short'), 'bad_body');
+  perform pg_temp.expect_err(format('select public.reply_ticket(%L, %L)', t, repeat('r', 24)), 'bad_body');
   perform pg_temp.expect_err(format('select public.reply_ticket(%L, %L)', gen_random_uuid(), 'A reply to a ticket that does not exist.'), 'not_found');
   -- A second reply while waiting just adds the message.
   perform public.reply_ticket(t, 'Here is one more detail about the loop.');

@@ -135,6 +135,10 @@ test('the fields cap their length and show live character counts', () => {
   expect(message).toHaveAttribute('maxlength', '2000')
   expect(screen.getByText('0 / 120')).toBeInTheDocument()
   expect(screen.getByText('0 / 2000')).toBeInTheDocument()
+  // The minimums are on screen before Send, not only in the error.
+  expect(screen.getByText('At least 5 characters')).toBeInTheDocument()
+  expect(screen.getByText('At least 25 characters')).toBeInTheDocument()
+  expect(screen.getByLabelText('Message')).toHaveAttribute('aria-describedby', 'ticket-body-hint ticket-body-count')
   fireEvent.change(subject, { target: { value: SUBJECT } })
   fireEvent.change(message, { target: { value: BODY } })
   expect(screen.getByText(`${SUBJECT.length} / 120`)).toBeInTheDocument()
@@ -262,6 +266,17 @@ test('server error keys the client does not know are shown as plain sentences', 
   expect(await screen.findByRole('alert')).toHaveTextContent("You've opened 3 tickets today. Try again tomorrow.")
 })
 
+test('24 characters is one short; the form says so and sends nothing', () => {
+  render(<OpenTicket faq={FAQ} />)
+  openForm('Other')
+  fireEvent.change(screen.getByLabelText('Subject'), { target: { value: SUBJECT } })
+  fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'x'.repeat(24) } })
+  act(() => turnstileProps.onToken('tok'))
+  fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+  expect(screen.getByRole('alert')).toHaveTextContent('Write between 25 and 2,000 characters.')
+  expect(openTicket).not.toHaveBeenCalled()
+})
+
 test('a message the server would refuse for length is caught first, without spending the token', () => {
   render(<OpenTicket faq={FAQ} />)
   openForm('Other')
@@ -270,7 +285,7 @@ test('a message the server would refuse for length is caught first, without spen
   act(() => turnstileProps.onToken('tok'))
   fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
-  expect(screen.getByRole('alert')).toHaveTextContent('Write between 20 and 2,000 characters.')
+  expect(screen.getByRole('alert')).toHaveTextContent('Write between 25 and 2,000 characters.')
   expect(openTicket).not.toHaveBeenCalled()
   expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled()
 })
