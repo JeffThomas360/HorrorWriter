@@ -68,6 +68,11 @@ with allow(name, role, why) as (values
   ('ritual_vault_prepare',     'authenticated', 'reads own entry + seals it, nothing changed'),
   ('ritual_vault_commit',      'authenticated', 'archive own entry into the vault, snapshot must match'),
   ('ritual_vault_restore',     'authenticated', 'restore own vault row, every seal re-verified, sanction re-checked'),
+  -- Story vault "Keep it" (20261106000000). Same shape as the Ritual vault: all bind to
+  -- auth.uid(); story_vault_collect / story_vault_seal are not SECURITY DEFINER and have no grant.
+  ('story_vault_prepare',      'authenticated', 'reads own story + seals it, nothing changed'),
+  ('story_vault_commit',       'authenticated', 'archive own story into the vault, seal must match'),
+  ('story_vault_restore',      'authenticated', 'restore own vault row, seal re-verified, sanction re-checked'),
   -- Public by design: the next unlock TIME, never the prompt text.
   ('ritual_next_unlock',       'anon',          'next weekly unlock time for the home countdown'),
   ('ritual_next_unlock',       'authenticated', 'next weekly unlock time for the home countdown'),
