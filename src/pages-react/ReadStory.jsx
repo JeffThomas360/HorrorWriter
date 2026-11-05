@@ -15,7 +15,6 @@ import KindleReader, { useKindlePrefs } from '../components/KindleReader'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import ShareBar from '../components/ShareBar'
-import QuoteSharer from '../components/QuoteSharer'
 import { fetchStorySeriesContext } from '../lib/series'
 import SeriesContextBar from '../components/SeriesContextBar'
 import SeriesSidebar from '../components/SeriesSidebar'
@@ -218,8 +217,6 @@ function ReadStory({ id, initialBook }) {
         paddingRight: '1rem'
       }}>
         <div className="mt-8">
-          {!isTombstone(book) && <QuoteSharer title={book?.title} />}
-
           {isArchive(book) && (
             <div className="mb-8 p-4 border border-[var(--color-upside)]/50 bg-[var(--color-upside)]/10 font-mono text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-left">
               <div className="flex items-center gap-2.5 text-[var(--color-upside)]">
@@ -373,7 +370,7 @@ function ReadStory({ id, initialBook }) {
 
           {/* Share Bar */}
           <div className="max-w-2xl mx-auto border-t border-[var(--color-line)] pt-8">
-            <ShareBar title={book?.title} />
+            <ShareBar />
           </div>
         </>
       )}
