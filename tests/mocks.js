@@ -854,6 +854,7 @@ export async function setupSupabaseMocks(page, opts = {}) {
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ waiting: false }) });
   });
   await page.route('**/rest/v1/ritual_vault*', jsonGet([]));
+  await page.route('**/rest/v1/story_vault*', jsonGet([]));
 
   // Sign out tells the server to end the session. Unanswered, the request fails, the
   // client keeps the session, and the member is never signed out.

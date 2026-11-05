@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { withProviders } from '../components/Providers'
 import RequireAuth from '../components/RequireAuth'
+import StoryRemoveControl from '../components/StoryRemoveControl'
 import {
   fetchMySeriesWithBooks,
   fetchMyBooks,
@@ -35,6 +36,7 @@ function MyStories() {
   const [newTitle, setNewTitle] = useState('')
   const [newDescription, setNewDescription] = useState('')
   const [newInitialBookId, setNewInitialBookId] = useState('')
+  const [removingId, setRemovingId] = useState(null)
 
   const seriesQuery = useQuery({
     queryKey: ['my-series', user?.id],
@@ -285,7 +287,8 @@ function MyStories() {
         ) : (
           <ul className="flex flex-col gap-4">
             {books.map(b => (
-              <li key={b.id} className="vintage-card flex items-center justify-between gap-4">
+              <li key={b.id} className="vintage-card flex flex-col gap-4">
+                <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <p className="font-serif font-bold text-[var(--color-text-primary)]">{b.title}</p>
                   <p className="font-mono text-xs text-[var(--color-text-secondary)] mt-1">
@@ -300,6 +303,14 @@ function MyStories() {
                   >
                     Edit
                   </a>
+                  <button
+                    type="button"
+                    onClick={() => setRemovingId(b.id)}
+                    aria-expanded={removingId === b.id}
+                    className="font-mono text-xs uppercase border border-[var(--color-line)] hover:border-[var(--color-ember)] hover:text-[var(--color-ember)] px-3 py-1 text-[var(--color-bone)] transition-colors cursor-pointer"
+                  >
+                    Remove
+                  </button>
                   {b.seriesId ? (
                     <>
                       <span className="font-mono text-xs text-[var(--color-text-secondary)] uppercase">In: {b.seriesTitle}</span>
@@ -323,6 +334,18 @@ function MyStories() {
                   <span className="shrink-0 font-mono text-xs text-[var(--color-text-secondary)] uppercase">Not in a series</span>
                 )}
                 </div>
+                </div>
+                {removingId === b.id && (
+                  <StoryRemoveControl
+                    book={b}
+                    onCancel={() => setRemovingId(null)}
+                    onRemoved={(how) => {
+                      setRemovingId(null)
+                      toast.success(how === 'kept' ? 'Story kept in your vault' : 'Story deleted')
+                      invalidateAll()
+                    }}
+                  />
+                )}
               </li>
             ))}
           </ul>
