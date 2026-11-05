@@ -446,3 +446,19 @@ verify_jwt = false
 # [functions.webauthn-register-begin] block.
 [functions.sealed-writing]
 verify_jwt = false
+
+# verify_jwt MUST be false: open-ticket checks the session itself (getUser) and
+# must return CORS-bearing 401s (`not_signed_in`). See the verify_jwt explanation
+# above the [functions.webauthn-register-begin] block.
+[functions.open-ticket]
+verify_jwt = false
+
+# verify_jwt MUST be false: only keeper_dispatch() calls these, with the project's
+# secret key (sb_secret_…) from Vault (hw_service_role_key). That key is not a JWT,
+# so the gateway's check would refuse it. Each function compares the bearer to
+# SUPABASE_SERVICE_ROLE_KEY, which the platform fills with that same secret key.
+[functions.send-keeper-alert]
+verify_jwt = false
+
+[functions.send-storm-alert]
+verify_jwt = false

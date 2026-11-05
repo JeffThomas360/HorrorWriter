@@ -29,8 +29,9 @@ function UserMenu() {
             )}
             <span className="text-sm font-mono">@{profile?.handle}</span>
           </a>
+          <a href="/help/" className="inline-block py-2 text-xs font-mono hover:text-[var(--color-ember)]">Help</a>
           <button 
-            className="text-xs font-mono border border-[var(--color-line)] px-3 py-1.5 hover:border-[var(--color-accent-crimson)] hover:text-[var(--color-accent-crimson)] cursor-pointer"
+            className="text-xs font-mono whitespace-nowrap border border-[var(--color-line)] px-3 py-1.5 hover:border-[var(--color-accent-crimson)] hover:text-[var(--color-accent-crimson)] cursor-pointer"
             onClick={() => supabase?.auth.signOut()}
           >
             Sign Out
@@ -38,8 +39,9 @@ function UserMenu() {
         </div>
       ) : (
         <div className="flex items-center gap-3">
+          <a href="/help/" className="inline-block py-2 text-xs font-mono hover:text-[var(--color-ember)]">Help</a>
           <button 
-            className="text-xs font-mono border border-[var(--color-line)] px-3 py-1.5 hover:border-[var(--color-accent-crimson)] hover:text-[var(--color-accent-crimson)] cursor-pointer"
+            className="text-xs font-mono whitespace-nowrap border border-[var(--color-line)] px-3 py-1.5 hover:border-[var(--color-accent-crimson)] hover:text-[var(--color-accent-crimson)] cursor-pointer"
             onClick={() => {
               window.dispatchEvent(new CustomEvent('open-signin'));
             }}

@@ -5,7 +5,6 @@ import OverviewTab from '../components/mod/OverviewTab'
 import RegistryTab from '../components/mod/RegistryTab'
 import BadgesTab from '../components/mod/BadgesTab'
 import ReportsTab from '../components/mod/ReportsTab'
-import SupportTab from '../components/mod/SupportTab'
 import FilterRulesTab from '../components/mod/FilterRulesTab'
 import SanctionsTab from '../components/mod/SanctionsTab'
 import StormAlertsTab from '../components/mod/StormAlertsTab'
@@ -42,7 +41,6 @@ function Moderation() {
     modCan(profile, 'handle_report', 'all') && { id: 'reports', label: 'Reports' },
     modCan(profile, 'handle_report', 'all') && { id: 'appeals', label: 'Appeals' },
     modCan(profile, 'handle_report', 'all') && { id: 'storms', label: 'Storms' },
-    modCan(profile, 'handle_report', 'all') && { id: 'support', label: 'Support' },
     modCan(profile, 'configure', 'all') && { id: 'filters', label: 'AutoMod' },
     modCan(profile, 'assign_role', 'all') && { id: 'sanctions', label: 'Sanctions' },
     modCan(profile, 'assign_role', 'all') && { id: 'registry', label: 'Registry' },
@@ -105,7 +103,6 @@ function Moderation() {
         {activeId === 'reports' && <ReportsTab />}
         {activeId === 'appeals' && <AppealsTab />}
         {activeId === 'storms' && <StormAlertsTab />}
-        {activeId === 'support' && <SupportTab />}
         {activeId === 'filters' && <FilterRulesTab />}
         {activeId === 'sanctions' && <SanctionsTab />}
         {activeId === 'registry' && <RegistryTab profile={profile} />}

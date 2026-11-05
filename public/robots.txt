@@ -4,6 +4,7 @@ Disallow: /moderation
 Disallow: /my-reports
 Disallow: /profile
 Disallow: /my-stories
+Disallow: /my-tickets
 Disallow: /library/publish
 Disallow: /forum/new
 Disallow: /auth/callback

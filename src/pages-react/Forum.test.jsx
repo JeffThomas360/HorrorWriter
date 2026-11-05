@@ -28,11 +28,14 @@ const fakeChannel = () => {
 const channel = vi.fn(fakeChannel)
 const removeChannel = vi.fn()
 const query = { select: () => query, order: () => query, then: (r) => r({ data: [], error: null }) }
+// Threads the list should show; empty unless a test fills it.
+let threadRows = []
+const threadQuery = { select: () => threadQuery, order: () => threadQuery, then: (r) => r({ data: threadRows, error: null }) }
 vi.mock('../supabaseClient', () => ({
   supabase: {
     channel: (...a) => channel(...a),
     removeChannel: (...a) => removeChannel(...a),
-    from: () => query,
+    from: (table) => (table === 'threads' ? threadQuery : query),
   },
 }))
 
@@ -62,4 +65,15 @@ test('leaving the page removes the channel from the client', () => {
   const created = channel.mock.results[0].value
   unmount()
   expect(removeChannel).toHaveBeenCalledWith(created)
+})
+
+test('a thread with one reply says "reply", not "replies"', async () => {
+  threadRows = [
+    { id: 't1', title: 'Hello there', category_id: 'notice', replies_count: 1, profiles: { handle: 'beetlebub' }, updated_at: new Date().toISOString() },
+    { id: 't2', title: 'Second', category_id: 'notice', replies_count: 3, profiles: { handle: 'beetlebub' }, updated_at: new Date().toISOString() },
+  ]
+  const { findByText, getByText } = render(<Forum />)
+  expect((await findByText('Hello there')).closest('a').textContent).toMatch(/1\s*reply$/i)
+  expect(getByText('Second').closest('a').textContent).toMatch(/3\s*replies$/i)
+  threadRows = []
 })

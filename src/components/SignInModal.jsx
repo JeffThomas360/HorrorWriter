@@ -3,6 +3,15 @@ import { supabase } from '../supabaseClient'
 import { signInWithPasskey, prefetchPasskeyChallenge } from '../lib/passkey'
 import { rememberReturnPath } from '../lib/returnPath'
 import { MIN_AGE, PASSED, BLOCKED, meetsMinimumAge, selectableYears, readGate, writeGate } from '../lib/ageGate'
+import Turnstile from './Turnstile'
+import { TURNSTILE_FAILED } from '../lib/turnstile'
+import { markEmailLinkRequested } from '../lib/passkeyPrompt'
+
+// What a stranger is told after asking for a link. It must read the same whether or
+// not the address has an account, so it never says which.
+const LINK_ON_ITS_WAY = 'If that email has an account, a sign-in link is on its way. Check your inbox (and spam).'
+// Account creation (age gate passed) always sends a link, so it can say so plainly.
+const LINK_SENT = 'Link sent. Check your inbox (and spam) and click it to sign in.'
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -25,7 +34,12 @@ const saveEmailCookie = (emailToSave) => {
   document.cookie = `hw_last_email=${encodeURIComponent(emailToSave)}; max-age=${60 * 60 * 24 * 365}; path=/; SameSite=Strict`
 }
 
-export default function SignInModal({ isOpen, onClose }) {
+// The switch between Join and Sign in, and the collapsed email option: full-size
+// tap targets (44px), not small text links.
+const SWITCH_CLASS = 'inline-flex items-center justify-center min-h-11 px-3 underline cursor-pointer bg-transparent'
+
+// `initialMode` is the screen it opens on: 'signup' (Join) or 'signin'.
+export default function SignInModal({ isOpen, onClose, initialMode = 'signin' }) {
   const [email, setEmail] = useState('')
   const [honeypot, setHoneypot] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -38,13 +52,48 @@ export default function SignInModal({ isOpen, onClose }) {
   // that assumes a verdict either way.
   const [gate, setGate] = useState(null)
   // 'signin' needs no gate: passkeys and a create-off email link only reach
-  // existing accounts. 'signup' shows the gate until this browser has passed.
-  const [mode, setMode] = useState('signin')
-  const [noAccount, setNoAccount] = useState(false)
+  // existing accounts. 'signup' shows the gate until this browser has passed,
+  // then the Join screen.
+  const [mode, setMode] = useState(initialMode)
   const [showEmail, setShowEmail] = useState(false)
   const [birthMonth, setBirthMonth] = useState('')
   const [birthYear, setBirthYear] = useState('')
   const [gateError, setGateError] = useState(null)
+  // Turnstile token for the email link. Good for one send: `captchaKey` is bumped
+  // after each attempt so the widget issues a fresh one.
+  const [captchaToken, setCaptchaToken] = useState(null)
+  const [captchaKey, setCaptchaKey] = useState(0)
+  // The widget itself is broken (script blocked, errored, timed out): it will never
+  // give a token. The send is then allowed without one, and Supabase Auth's captcha,
+  // once enabled, is what refuses it. Otherwise a blocked script would silently lock
+  // a member out of the one way back in.
+  const [widgetFailed, setWidgetFailed] = useState(false)
+
+  // The email form (and the widget inside it) is on screen only in these views.
+  const emailFormShown = isOpen && showEmail && gate !== BLOCKED && (gate === PASSED || mode === 'signin')
+
+  // A token (or a failure) belongs to a mounted widget. When the form goes away (age
+  // gate, close) the widget goes with it, and neither may outlive it.
+  useEffect(() => {
+    if (!emailFormShown) {
+      setCaptchaToken(null)
+      setWidgetFailed(false)
+    }
+  }, [emailFormShown])
+
+  function handleToken(token) {
+    setCaptchaToken(token)
+    // A widget that recovers on its own (it retries) takes its own warning back.
+    if (token) {
+      setWidgetFailed(false)
+      setError((current) => (current === TURNSTILE_FAILED ? null : current))
+    }
+  }
+
+  function handleWidgetFail() {
+    setWidgetFailed(true)
+    setError(TURNSTILE_FAILED)
+  }
 
   // Load email cookie and the stored age verdict only on client mount
   useEffect(() => {
@@ -83,21 +132,23 @@ export default function SignInModal({ isOpen, onClose }) {
     if (isOpen && gate !== BLOCKED) prefetchPasskeyChallenge()
   }, [isOpen, gate])
 
-  // Reset state when modal closes
+  // Open on the screen asked for; reset everything when the modal closes.
   useEffect(() => {
-    if (!isOpen) {
+    if (isOpen) {
+      setMode(initialMode)
+    } else {
       setEmail(getEmailCookie())
       setError(null)
       setMessage(null)
-      setMode('signin')
-      setNoAccount(false)
       setShowEmail(false)
     }
-  }, [isOpen])
+  }, [isOpen, initialMode])
 
   if (!isOpen) return null
 
   const anyBusy = isSubmitting || isPasskeySubmitting || isGoogleSubmitting
+  // The Join screen: asked to sign up, and past the birth-date check.
+  const joining = mode === 'signup' && gate === PASSED
 
   // The birth date is used to compute a verdict and then dropped. It is never
   // stored, never sent anywhere: keeping the birth date of someone rejected as
@@ -208,13 +259,21 @@ export default function SignInModal({ isOpen, onClose }) {
     setIsSubmitting(true)
     setError(null)
     setMessage(null)
-    setNoAccount(false)
 
+    // A bot filled the hidden field: send nothing, leave no marker, and answer exactly as
+    // a real send would for this gate, so it can't tell it was caught.
     if (honeypot.trim()) {
       setTimeout(() => {
-        setMessage('Check your email for the magic link.')
+        setMessage(gate === PASSED ? LINK_SENT : LINK_ON_ITS_WAY)
         setIsSubmitting(false)
       }, 500)
+      return
+    }
+
+    // The button is disabled without a token (unless the widget failed); this covers a
+    // submit that gets around it.
+    if (!captchaToken && !widgetFailed) {
+      setIsSubmitting(false)
       return
     }
 
@@ -236,24 +295,48 @@ export default function SignInModal({ isOpen, onClose }) {
       rememberReturnPath()
       // Only a browser that has passed the gate may create an account by email;
       // otherwise the link can only sign in to an account that already exists.
+      // `via=email` tells /auth/callback this was an email-link sign-in, so it can
+      // leave the add-a-passkey nudge. Supabase Auth verifies `captchaToken` once
+      // captcha is enabled for the project; the check here is only a convenience.
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: window.location.origin + '/auth/callback',
+          emailRedirectTo: window.location.origin + '/auth/callback?via=email',
           shouldCreateUser: gate === PASSED,
+          // Absent, not undefined, after a widget failure: the server decides.
+          ...(captchaToken ? { captchaToken } : {}),
         }
       })
       if (error && (error.code === 'otp_disabled' || /signups not allowed/i.test(error.message || ''))) {
-        setNoAccount(true)
-        setShowEmail(true)
+        // An address with no account must look exactly like one with an account.
+        setMessage(LINK_ON_ITS_WAY)
+        return
+      }
+      if (error && /captcha/i.test(error.message || '')) {
+        setError(TURNSTILE_FAILED)
+        return
+      }
+      // GoTrue's per-address limit ("you can only request this after N seconds") fires
+      // only for an address that already has an account, when account creation is off.
+      // Raw, it would reveal that; a link really was sent a moment ago, so say so.
+      if (error && gate !== PASSED && /only request this after/i.test(error.message || '')) {
+        // A link did go out inside the window, so this browser did ask for one.
+        markEmailLinkRequested()
+        setMessage(LINK_ON_ITS_WAY)
         return
       }
       if (error) throw error
-      setMessage('Link sent. Check your inbox (and spam) and click it to sign in.')
+      // A link is on its way: /auth/callback will only offer the add-a-passkey nudge to
+      // a browser that asked for one (the honeypot path above never reaches here).
+      markEmailLinkRequested()
+      setMessage(gate === PASSED ? LINK_SENT : LINK_ON_ITS_WAY)
     } catch (err) {
       setError(err.message)
     } finally {
       setIsSubmitting(false)
+      // The token was spent on this attempt; ask the widget for a new one.
+      setCaptchaToken(null)
+      setCaptchaKey((k) => k + 1)
     }
   }
 
@@ -325,7 +408,7 @@ export default function SignInModal({ isOpen, onClose }) {
               <button
                 type="button"
                 onClick={() => setMode('signin')}
-                className="underline text-[var(--color-text-secondary)] hover:text-[var(--color-ember)] cursor-pointer bg-transparent"
+                className={`${SWITCH_CLASS} text-[var(--color-text-secondary)] hover:text-[var(--color-ember)]`}
               >
                 Already a member? Sign in
               </button>
@@ -335,18 +418,14 @@ export default function SignInModal({ isOpen, onClose }) {
 
         {gate !== BLOCKED && (gate === PASSED || mode === 'signin') && (<>
         <div className="mb-6 text-center">
-          <h2 className="text-2xl font-serif mb-2">Summon <em className="text-[var(--color-accent-crimson)] not-italic">Yourself</em></h2>
-          <p className="text-xs text-[var(--color-text-secondary)] font-serif">No password needed.</p>
+          {joining ? (
+            <h2 className="text-2xl font-serif mb-2">Join the <em className="text-[var(--color-accent-crimson)] not-italic">Circle</em></h2>
+          ) : (
+            <h2 className="text-2xl font-serif mb-2">Summon <em className="text-[var(--color-accent-crimson)] not-italic">Yourself</em></h2>
+          )}
+          <p className="text-xs text-[var(--color-text-secondary)] font-serif">{joining ? 'Free, and no password needed.' : 'No password needed.'}</p>
           {error   && <div className="text-[var(--color-ember)] text-xs mt-3 font-mono">{error}</div>}
           {message && <div className="text-[var(--color-text-primary)] text-xs mt-3 font-mono">{message}</div>}
-          {noAccount && (
-            <div className="text-[var(--color-ember)] text-xs mt-3 font-mono">
-              No account uses that email.{' '}
-              <button type="button" onClick={() => setMode('signup')} className="underline cursor-pointer bg-transparent">
-                New here? Create an account
-              </button>
-            </div>
-          )}
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -375,19 +454,22 @@ export default function SignInModal({ isOpen, onClose }) {
             </button>
           )}
 
-          <button
-            type="button"
-            onClick={handlePasskey}
-            disabled={anyBusy}
-            className="w-full border border-[var(--color-line)] text-[var(--color-text-primary)] font-mono text-xs uppercase py-3 flex items-center justify-center gap-2 cursor-pointer hover:border-white"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
-              </svg>
-            {isPasskeySubmitting ? 'Awaiting your device…' : 'Sign in with passkey'}
-          </button>
+          {/* A newcomer has no passkey yet; it is offered after their first sign-in. */}
+          {!joining && (
+            <button
+              type="button"
+              onClick={handlePasskey}
+              disabled={anyBusy}
+              className="w-full border border-[var(--color-line)] text-[var(--color-text-primary)] font-mono text-xs uppercase py-3 flex items-center justify-center gap-2 cursor-pointer hover:border-white"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+                </svg>
+              {isPasskeySubmitting ? 'Awaiting your device…' : 'Sign in with passkey'}
+            </button>
+          )}
 
-          {/* Email link: the fallback, kept small and below the main two. */}
+          {/* Email link: below the main buttons, opened on request. */}
           {showEmail ? (
             <div className="flex flex-col gap-2 border-t border-[var(--color-line)] pt-4">
               <label htmlFor="email" className="text-xs font-mono text-[var(--color-text-secondary)]">Email Address</label>
@@ -402,36 +484,40 @@ export default function SignInModal({ isOpen, onClose }) {
                 autoFocus
                 className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
               />
+              <Turnstile action="email_link" onToken={handleToken} onFail={handleWidgetFail} resetKey={captchaKey} />
               <button
                 type="submit"
-                className="w-full border border-[var(--color-line)] text-[var(--color-text-primary)] font-mono text-xs uppercase py-3 cursor-pointer hover:border-white"
-                disabled={anyBusy}
+                className="w-full border border-[var(--color-line)] text-[var(--color-text-primary)] font-mono text-xs uppercase py-3 cursor-pointer hover:border-white disabled:opacity-40 disabled:cursor-not-allowed"
+                disabled={anyBusy || (!captchaToken && !widgetFailed)}
               >
-                {isSubmitting ? 'Sending…' : 'Email me a sign-in link'}
+                {isSubmitting ? 'Sending…' : joining ? 'Email me a link to join' : 'Email me a sign-in link'}
               </button>
             </div>
           ) : (
             <button
               type="button"
               onClick={() => setShowEmail(true)}
-              className="self-center font-mono text-xs text-[var(--color-text-secondary)] underline hover:text-[var(--color-ember)] cursor-pointer bg-transparent"
+              disabled={anyBusy}
+              className="w-full min-h-11 border border-[var(--color-line)] text-[var(--color-text-primary)] font-mono text-xs uppercase py-3 flex items-center justify-center gap-2 cursor-pointer hover:border-white"
             >
-              No Google or passkey? Email me a sign-in link
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="3" y="5" width="18" height="14" rx="1" />
+                <path d="M3 7l9 6 9-6" />
+              </svg>
+              {joining ? 'Continue with email' : 'Sign in with email'}
             </button>
           )}
         </form>
 
-        {gate !== PASSED && (
-          <p className="text-center text-xs font-serif mt-6">
-            <button
-              type="button"
-              onClick={() => setMode('signup')}
-              className="underline text-[var(--color-text-primary)] hover:text-[var(--color-ember)] cursor-pointer bg-transparent"
-            >
-              New here? Create an account
-            </button>
-          </p>
-        )}
+        <p className="text-center text-xs font-serif mt-4">
+          <button
+            type="button"
+            onClick={() => setMode(joining ? 'signin' : 'signup')}
+            className={`${SWITCH_CLASS} text-[var(--color-text-primary)] hover:text-[var(--color-ember)]`}
+          >
+            {joining ? 'Already a member? Sign in' : 'New here? Create an account'}
+          </button>
+        </p>
 
         <p className="text-center text-xs text-[var(--color-text-secondary)] mt-6 font-serif">
           By entering, you agree to the <a href="/rules/" className="underline hover:text-[var(--color-accent-crimson)]" onClick={onClose}>House Rules</a>. No algorithms, no ads.

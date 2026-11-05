@@ -3,6 +3,7 @@ import { supabase } from '../supabaseClient'
 import { useAuth } from '../components/AuthContext'
 import { useQuery } from '@tanstack/react-query'
 import { withProviders } from '../components/Providers'
+import LoadError from '../components/LoadError'
 import { authorLabel, isTombstone, TOMBSTONE_TEXT } from '../lib/storyHelpers'
 import { fetchActivePrompts } from '../lib/ritualDraft'
 
@@ -74,7 +75,7 @@ function Forum() {
   const [query, setQuery] = useState('')
   const [onlineUsers, setOnlineUsers] = useState([])
 
-  const { data: categories = [], isLoading: catLoading, error: catError } = useQuery({
+  const { data: categories = [], isLoading: catLoading, error: catError, refetch: refetchCategories } = useQuery({
     queryKey: ['categories'],
     queryFn: fetchCategories,
   })
@@ -84,7 +85,7 @@ function Forum() {
     queryFn: () => fetchActivePrompts(5),
   })
 
-  const { data: threads = [], isLoading: threadLoading, error: threadError } = useQuery({
+  const { data: threads = [], isLoading: threadLoading, error: threadError, refetch: refetchThreads } = useQuery({
     queryKey: ['threads'],
     queryFn: fetchThreads,
   })
@@ -133,7 +134,7 @@ function Forum() {
   }, [userId, handle])
 
   const loading = catLoading || threadLoading
-  const error = catError ? catError.message : threadError ? threadError.message : null
+  const error = catError || threadError || null
 
   const allCategories = useMemo(() => {
     const list = [...categories]
@@ -206,10 +207,12 @@ function Forum() {
     </div>
   )
   if (error) return (
-    <div className="vintage-card text-center py-12 border-red-950 mt-8">
-      <p className="font-mono text-xs uppercase tracking-widest text-[var(--color-accent-crimson)] mb-4">Error</p>
-      <p className="font-serif italic text-sm text-[var(--color-text-secondary)]">{error}</p>
-    </div>
+    <LoadError
+      title="The Crypt didn't open"
+      message="We couldn't load the threads just now. Check your connection, then try again."
+      error={error}
+      onRetry={() => { refetchCategories(); refetchThreads() }}
+    />
   )
 
   return (
@@ -437,7 +440,7 @@ function Forum() {
                   </div>
                   <div className="text-right shrink-0">
                     <span className="block font-mono text-sm font-bold text-[var(--color-text-primary)]">{t.replies_count || 0}</span>
-                    <span className="block font-mono text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">replies</span>
+                    <span className="block font-mono text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">{t.replies_count === 1 ? 'reply' : 'replies'}</span>
                   </div>
                 </a>
               )

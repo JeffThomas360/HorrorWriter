@@ -26,9 +26,9 @@ try {
         {directory.map((c) => (
           <section>
             <h3 class="font-serif text-lg font-bold mb-3">{c.label}</h3>
-            <ul class="flex flex-col gap-1 font-serif text-[var(--color-text-secondary)]">
+            <ul class="flex flex-col gap-1 font-serif text-[var(--color-text-primary)]">
               {c.threads.map((t) => (
-                <li><a href={threadPath(t.id)} class="inline-block py-1 hover:text-[var(--color-ember)] hover:underline">{t.title}</a></li>
+                <li><a href={threadPath(t.id)} class="inline-block py-1 underline decoration-[var(--color-ash)] underline-offset-4 hover:text-[var(--color-ember)] hover:decoration-[var(--color-ember)]">{t.title}</a></li>
               ))}
             </ul>
           </section>

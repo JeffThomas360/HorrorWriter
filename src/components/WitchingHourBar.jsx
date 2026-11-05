@@ -1,8 +1,7 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 
-function getMoonPhase() {
+export function getMoonPhase(now = new Date()) {
   // Approximate moon phase calculation based on known new moon reference
-  const now = new Date()
   const ref = new Date(Date.UTC(2000, 0, 6, 18, 14, 0)) // Known new moon
   const diffDays = (now.getTime() - ref.getTime()) / (1000 * 60 * 60 * 24)
   const synodicMonth = 29.53058867
@@ -22,9 +21,15 @@ function getMoonPhase() {
 
 export default function WitchingHourBar() {
   const [timeLeft, setTimeLeft] = useState('')
-  const moon = useMemo(() => getMoonPhase(), [])
+  // Read the clock only after mount. The homepage HTML is built ahead of time,
+  // so a moon phase computed during render is days stale on the server and
+  // never matches the browser's — React logged a hydration error (#418) on
+  // every homepage load. The countdown already worked this way.
+  const [moon, setMoon] = useState(null)
 
   useEffect(() => {
+    setMoon(getMoonPhase())
+
     function updateCountdown() {
       const now = new Date()
       // Target next 3:00 AM local time
@@ -45,15 +50,7 @@ export default function WitchingHourBar() {
 
     updateCountdown()
     const timer = setInterval(updateCountdown, 1000)
-
-    // Subtle drift in nocturnal active writers
-    const writerInterval = setInterval(() => {
-    }, 18000)
-
-    return () => {
-      clearInterval(timer)
-      clearInterval(writerInterval)
-    }
+    return () => clearInterval(timer)
   }, [])
 
   return (
@@ -61,17 +58,19 @@ export default function WitchingHourBar() {
       {/* Witching Hour Countdown */}
       <div className="flex items-center gap-2">
         <span className="w-2 h-2 rounded-full bg-[var(--color-ember)] animate-pulse shadow-[0_0_8px_var(--color-ember)]" aria-hidden="true" />
-        <span className="text-[var(--color-text-primary)] font-bold tracking-wider">THE WITCHING HOUR (03:00)</span>
+        <span className="text-[var(--color-text-primary)] font-bold tracking-wider">Witching hour, 3:00 AM</span>
         <span className="text-[var(--color-ember)] tabular-nums font-bold">in {timeLeft || '--:--:--'}</span>
       </div>
 
       {/* Atmospheric Telemetry */}
       <div className="flex items-center gap-4 text-xs">
-        <span className="hidden md:inline-flex items-center gap-1.5">
-          <span>{moon.symbol}</span>
-          <span className="text-[var(--color-text-secondary)]">{moon.name}</span>
-          <span className="text-[var(--color-upside)]">({moon.illum}%)</span>
-        </span>
+        {moon && (
+          <span className="hidden md:inline-flex items-center gap-1.5">
+            <span>{moon.symbol}</span>
+            <span className="text-[var(--color-text-secondary)]">{moon.name}</span>
+            <span className="text-[var(--color-upside)]">({moon.illum}%)</span>
+          </span>
+        )}
 
       </div>
     </aside>

@@ -68,8 +68,8 @@ export default function VoidWhispers() {
       const newWhisper = {
         id: 'whisper-' + Date.now(),
         text: inputVal.trim(),
-    seed: true,
-        category: 'Fresh Confession',
+        seed: false,
+        category: 'Your seed',
       }
 
       const updated = [newWhisper, ...whispers]
@@ -89,10 +89,10 @@ export default function VoidWhispers() {
 
   function handleClaimSeed(item) {
     playTypewriterKey(false)
-    navigator.clipboard.writeText(item.text).then(() => {
+    navigator.clipboard?.writeText(item.text).then(() => {
       setClaimedId(item.id)
       setTimeout(() => setClaimedId(null), 2500)
-    })
+    }).catch(() => {})
   }
 
   return (
@@ -100,13 +100,13 @@ export default function VoidWhispers() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--color-line)] pb-4 mb-8">
         <div>
           <span className="block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-upside)] mb-1">
-            ▸ Writing Seeds · Prompt Well
+            ▸ Story seeds · short ideas to start from
           </span>
           <h2 className="text-2xl sm:text-3xl font-serif font-black">
             Whispers in <em className="italic text-[var(--color-ember)] font-serif">the Void</em>
           </h2>
-          <p className="text-xs text-[var(--color-text-secondary)] font-serif mt-1">
-            The fears we never speak aloud are the ones that beg to be written. Claim a seed, or write your own — anything you release stays in this browser, on this device.
+          <p className="text-sm text-[var(--color-text-secondary)] font-serif mt-2 max-w-2xl leading-relaxed">
+            Each card is a one-paragraph horror premise. Tap "Copy seed" to copy it, then paste it into a story or a Ritual to build from. Seeds you add stay on this device only; no one else sees them.
           </p>
         </div>
 
@@ -117,7 +117,7 @@ export default function VoidWhispers() {
           }}
           className="font-mono text-xs uppercase px-4 py-2.5 border border-[var(--color-ember)] text-[var(--color-ember)] hover:bg-[var(--color-ember)] hover:text-white transition-colors cursor-pointer self-start sm:self-auto"
         >
-          {isWhispering ? 'Close Well' : '+ Whisper a Fear'}
+          {isWhispering ? 'Close' : '+ Add your own seed'}
         </button>
       </div>
 
@@ -125,7 +125,7 @@ export default function VoidWhispers() {
       {isWhispering && (
         <form onSubmit={handleRelease} className="mb-8 p-6 bg-[#0e060c] border border-[var(--color-line)] relative">
           <label className="block font-mono text-xs uppercase tracking-widest text-[var(--color-text-primary)] mb-2">
-            Speak an unspoken fear into the dark (kept on this device only):
+            Write a seed (kept on this device only):
           </label>
           <textarea
             value={inputVal}
@@ -139,14 +139,14 @@ export default function VoidWhispers() {
           />
           <div className="flex justify-between items-center mt-3">
             <span className="font-mono text-xs text-[var(--color-text-secondary)]">
-              {280 - inputVal.length} glyphs left
+              {280 - inputVal.length} characters left
             </span>
             <button
               type="submit"
               disabled={dissolving || !inputVal.trim()}
               className="font-mono text-xs uppercase px-5 py-2.5 bg-[var(--color-accent-crimson)] text-white hover:bg-red-700 disabled:opacity-50 transition-colors cursor-pointer"
             >
-              {dissolving ? 'Dissolving into the dark…' : 'Release into the Dark'}
+              {dissolving ? 'Saving…' : 'Save seed'}
             </button>
           </div>
         </form>
@@ -168,7 +168,7 @@ export default function VoidWhispers() {
                   {item.seed ? 'Seed' : 'Yours · this device'}
                 </span>
               </div>
-              <p className="font-serif italic text-sm text-[var(--color-text-primary)] leading-relaxed mb-4">
+              <p className="font-serif italic text-base text-[var(--color-text-primary)] leading-relaxed mb-4">
                 "{item.text}"
               </p>
             </div>
@@ -176,9 +176,9 @@ export default function VoidWhispers() {
             <div className="flex items-center justify-end pt-3 border-t border-[var(--color-line)]/50">
               <button
                 onClick={() => handleClaimSeed(item)}
-                className="font-mono text-xs uppercase text-[var(--color-upside)] hover:text-white transition-colors cursor-pointer"
+                className="font-mono text-xs uppercase text-[var(--color-upside)] hover:text-white transition-colors cursor-pointer py-2 px-1 min-h-[44px]"
               >
-                {claimedId === item.id ? '✓ Seed Claimed!' : 'Claim as Story Seed →'}
+                {claimedId === item.id ? '✓ Copied. Paste it into your story' : 'Copy seed'}
               </button>
             </div>
           </div>
