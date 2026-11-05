@@ -1,6 +1,6 @@
 -- Behaviour test for delete_member (20260927000000, 20260928000000). Rolls back; nothing is kept.
 -- Success = final row 'ALL PASS'. Any failure raises 'FAIL: ...'.
--- Run: npx supabase db query --linked -f scripts/sql/test-delete-member.sql
+-- Run: npx supabase db query --remote -f scripts/sql/test-delete-member.sql
 begin;
 
 -- Three throwaway members. handle_new_user() creates their profiles.
