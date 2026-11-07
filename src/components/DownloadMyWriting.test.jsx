@@ -2,6 +2,8 @@ import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/re
 import { test, expect, describe, vi, beforeEach, afterEach } from 'vitest'
 
 const downloadMyWriting = vi.fn()
+const reportClientError = vi.fn()
+vi.mock('../lib/errorReporter', () => ({ reportClientError: (...a) => reportClientError(...a) }))
 vi.mock('../lib/writingExport', () => ({ downloadMyWriting: (...a) => downloadMyWriting(...a) }))
 vi.mock('./AuthContext', () => ({
   useAuth: () => ({ user: { id: 'u-1' }, profile: { handle: 'testwriter' } }),
@@ -12,6 +14,7 @@ const DownloadMyWriting = (await import('./DownloadMyWriting')).default
 beforeEach(() => {
   cleanup()
   downloadMyWriting.mockReset()
+  reportClientError.mockReset()
 })
 
 afterEach(() => {
@@ -25,7 +28,7 @@ describe('DownloadMyWriting', () => {
     const { container } = render(<DownloadMyWriting />)
     expect(container.querySelector('#download-writing')).not.toBeNull()
     expect(screen.getByRole('heading', { name: 'Your writing' })).toBeInTheDocument()
-    expect(screen.getByText("Everything you've written here, in one .zip of plain text files.")).toBeInTheDocument()
+    expect(screen.getByText("Everything you've written here, in one .zip of plain text files. Kept stories and entries aren't in it. Each has its own Download, because it needs your recovery code.")).toBeInTheDocument()
   })
 
   test('downloads for the signed-in user and reports how many pieces', async () => {
@@ -34,6 +37,7 @@ describe('DownloadMyWriting', () => {
     fireEvent.click(button())
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Saved 3 pieces.'))
     expect(downloadMyWriting).toHaveBeenCalledWith({ userId: 'u-1', handle: 'testwriter' })
+    expect(reportClientError).not.toHaveBeenCalled()
   })
 
   test('says "1 piece" for a count of one', async () => {
@@ -47,14 +51,16 @@ describe('DownloadMyWriting', () => {
     downloadMyWriting.mockResolvedValue({ count: 0 })
     render(<DownloadMyWriting />)
     fireEvent.click(button())
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent("You haven't written anything yet."))
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent("There's nothing to download yet. Anything you've kept has its own Download."))
   })
 
   test('shows a failure in an alert and lets the member try again', async () => {
-    downloadMyWriting.mockRejectedValueOnce(new Error('boom'))
+    const boom = new Error('boom')
+    downloadMyWriting.mockRejectedValueOnce(boom)
     render(<DownloadMyWriting />)
     fireEvent.click(button())
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent("The download didn't finish, so nothing was saved. Please try again."))
+    expect(reportClientError).toHaveBeenCalledWith('promise', boom)
     expect(button()).toBeEnabled()
 
     downloadMyWriting.mockResolvedValueOnce({ count: 2 })

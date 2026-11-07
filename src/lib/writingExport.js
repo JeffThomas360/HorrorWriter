@@ -16,14 +16,18 @@ const DRAFT_COLS = 'prompt_id, content, created_at, updated_at'
 const SERIES_COLS = 'id, title, description, created_at'
 
 // makeQuery() must return a fresh, ordered query each call; this adds .range() per page.
+// The server may cap a page below what was asked for, so this advances by the rows it actually
+// received and stops only on an empty page, never on a short one.
 export async function fetchAllRows(makeQuery, pageSize = 1000) {
   const all = []
-  for (let from = 0; ; from += pageSize) {
+  let from = 0
+  for (;;) {
     const { data, error } = await makeQuery().range(from, from + pageSize - 1)
     if (error) throw new Error(`Could not read your writing: ${error.message || 'query failed'}`)
     if (!Array.isArray(data)) throw new Error('Could not read your writing: unexpected response')
+    if (data.length === 0) return all
     all.push(...data)
-    if (data.length < pageSize) return all
+    from += data.length
   }
 }
 
@@ -119,7 +123,7 @@ const STATUS_LINES = {
   screening: '> Under review when you downloaded this.',
 }
 
-const trimEnds = (s) => s.replace(/^\s+/, '').replace(/[.\s]+$/, '')
+const trimEnds = (s) => s.replace(/^[.\s]+/, '').replace(/[.\s]+$/, '')
 
 // A file name (no extension) that is legal on Windows, macOS and Linux.
 export function safeFileName(title, fallback) {
@@ -147,16 +151,33 @@ const dateLine = (d) => (day(d) ? `Written ${day(d)}` : '')
 
 const quote = (s) => s.split(/\r?\n/).map((l) => `> ${l}`).join('\n')
 
+const SEPARATOR = '\n\n---\n\n'
+
 // Join the non-empty blocks with a blank line between them.
 const blocks = (...parts) => parts.filter((p) => p).join('\n\n') + '\n'
 
-// One kept story or entry as a { name, text } Markdown file: title, date, any extra blocks
-// (a story's lede), then the writer's own content. Nobody else's words belong here.
-export function keptItemFile(item, fallback, ...extra) {
-  const title = text(item?.title).trim() || fallback
+// The member's own rows from a kept bundle (their comments on their own story, their replies
+// under their own entry). Keep it deletes the live rows, so this bundle is the only copy of
+// those words. A row counts only when its author_id strictly equals the item's non-null
+// author_id, so a missing id on both sides can never match.
+export function ownRows(rows, authorId) {
+  if (authorId == null || !Array.isArray(rows)) return []
+  return rows.filter((r) => r && r.author_id === authorId)
+}
+
+// One kept story or entry as a { name, text } Markdown file: title, date, any `before` blocks
+// (a story's lede), the writer's own content, then `own` rows under "## Your own critiques".
+// Nobody else's words belong here.
+export function keptItemFile(item, fallback, { before = [], own = [] } = {}) {
+  if (!item) throw new Error('corrupt-bundle')
+  const title = text(item.title).trim() || fallback
+  const mine = own.map((r) => blocks(dateLine(r.created_at), text(r.content)).trimEnd())
   return {
-    name: safeFileName(item?.title, fallback) + '.md',
-    text: blocks(`# ${title}`, dateLine(item?.created_at), ...extra.map(text), text(item?.content)),
+    name: safeFileName(item.title, fallback) + '.md',
+    text: blocks(
+      `# ${title}`, dateLine(item.created_at), ...before.map(text), text(item.content),
+      mine.length && '## Your own critiques', mine.join(SEPARATOR),
+    ),
   }
 }
 
@@ -231,11 +252,13 @@ function readme(handle, exportedAt) {
     'series.md       Your series, and the stories in each.',
     'ritual-entries/ Your titled entries to ritual prompts.',
     'ritual-drafts/  Your ritual drafts, with the prompt at the top when it could be read.',
-    'forum/          Your forum threads and posts, grouped by thread.',
+    'forum/          Your forum threads and posts, and your replies in ritual threads, grouped by thread.',
     'critiques/      Your critiques, grouped by story.',
     '',
     'Work a moderator removed is included. A line under its title says so.',
     'Work still under review is marked too.',
+    '',
+    'Stories and entries you kept in your vault are not in this zip. Each has its own Download on your profile, and needs your recovery code.',
     '',
   ].join('\n')
 }
@@ -307,6 +330,9 @@ export function buildExportFiles(collected, { handle, exportedAt }) {
 // Saving to the member's device, and the whole "Download my writing" flow.
 // ---------------------------------------------------------------------------
 
+// iOS Safari may read the blob only after its download prompt, so keep the URL alive for a while.
+const REVOKE_AFTER_MS = 60_000
+
 export function saveBlob(blob, name) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -315,7 +341,7 @@ export function saveBlob(blob, name) {
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  setTimeout(() => URL.revokeObjectURL(url), REVOKE_AFTER_MS)
 }
 
 export function saveTextFile(name, text) {

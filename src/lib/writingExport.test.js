@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { unzipSync, strFromU8 } from 'fflate'
-import { fetchAllRows, collectMyWriting, countWork, safeFileName, buildExportFiles, downloadMyWriting } from './writingExport'
+import { fetchAllRows, collectMyWriting, countWork, safeFileName, buildExportFiles, downloadMyWriting, saveBlob, keptItemFile } from './writingExport'
 
 const mockSupabase = vi.hoisted(() => ({ current: null }))
 vi.mock('../supabaseClient', () => ({
@@ -9,7 +9,9 @@ vi.mock('../supabaseClient', () => ({
 
 // A tiny fake of the supabase-js query builder. Every query is recorded in `calls`;
 // `respond(call)` returns { data, error } for it. The builder is awaitable.
-function fakeClient(respond) {
+// Like PostgREST it honours .range(), so `respond` can return a whole table and the fake
+// slices out the requested page; `cap` is a server-side maximum rows per request.
+function fakeClient(respond, { cap = Infinity } = {}) {
   const calls = []
   const client = {
     calls,
@@ -22,7 +24,13 @@ function fakeClient(respond) {
         in(col, ids) { call.in.push([col, ids]); return b },
         order(col, opts) { call.order.push([col, opts]); return b },
         range(a, z) { call.range = [a, z]; return b },
-        then(res, rej) { return Promise.resolve(respond(call)).then(res, rej) },
+        then(res, rej) {
+          return Promise.resolve(respond(call)).then((r) => {
+            if (!call.range || !Array.isArray(r?.data)) return r
+            const [a, z] = call.range
+            return { ...r, data: r.data.slice(a, a + Math.min(z - a + 1, cap)) }
+          }).then(res, rej)
+        },
       }
       return b
     },
@@ -32,26 +40,40 @@ function fakeClient(respond) {
 
 const rows = (n, prefix = 'r') => Array.from({ length: n }, (_, i) => ({ id: `${prefix}${i}` }))
 
+// A paged source that honours the range and caps a page at `cap` rows.
+function pagedSource(total, cap = Infinity) {
+  const ranges = []
+  const make = () => ({
+    range(a, z) {
+      ranges.push([a, z])
+      const n = Math.min(z - a + 1, cap)
+      return Promise.resolve({ data: total.slice(a, a + n), error: null })
+    },
+  })
+  return { make, ranges }
+}
+
 describe('fetchAllRows', () => {
-  it('joins a full page and a short page, asking for 0-999 then 1000-1999', async () => {
-    const ranges = []
-    const out = await fetchAllRows(() => ({
-      range(a, z) {
-        ranges.push([a, z])
-        return Promise.resolve({ data: a === 0 ? rows(1000) : rows(3, 'x'), error: null })
-      },
-    }))
+  it('advances by the rows received: a 1000 page, a 3 page, then an empty page', async () => {
+    const src = pagedSource(rows(1003))
+    const out = await fetchAllRows(src.make)
     expect(out).toHaveLength(1003)
-    expect(ranges).toEqual([[0, 999], [1000, 1999]])
+    expect(src.ranges).toEqual([[0, 999], [1000, 1999], [1003, 2002]])
   })
 
-  it('stops after one page when it is shorter than the page size', async () => {
-    let asked = 0
-    const out = await fetchAllRows(() => ({
-      range() { asked += 1; return Promise.resolve({ data: rows(5), error: null }) },
-    }))
+  it('follows a short page with one more read, and an empty page ends it', async () => {
+    const src = pagedSource(rows(5))
+    const out = await fetchAllRows(src.make)
     expect(out).toHaveLength(5)
-    expect(asked).toBe(1)
+    expect(src.ranges).toEqual([[0, 999], [5, 1004]])
+  })
+
+  it('returns everything when the server caps a page at 500 rows', async () => {
+    const src = pagedSource(rows(1003), 500)
+    const out = await fetchAllRows(src.make)
+    expect(out).toHaveLength(1003)
+    expect(out.map((r) => r.id)).toEqual(rows(1003).map((r) => r.id))
+    expect(src.ranges).toEqual([[0, 999], [500, 1499], [1000, 1999], [1003, 2002]])
   })
 
   it('throws if the second page errors', async () => {
@@ -207,6 +229,10 @@ describe('safeFileName', () => {
     expect(safeFileName('...', 'x')).toBe('x')
     expect(safeFileName(null, 'x')).toBe('x')
     expect(safeFileName('  <>  ', 'x')).toBe('x')
+  })
+  it('strips leading dots so a title never becomes a hidden file', () => {
+    expect(safeFileName('...And Then She Screamed', 'x')).toBe('And Then She Screamed')
+    expect(safeFileName('.env', 'x')).toBe('env')
   })
   it('cuts to 80 characters', () => {
     expect(safeFileName('a'.repeat(300), 'x')).toHaveLength(80)
@@ -427,13 +453,19 @@ describe('buildExportFiles', () => {
 describe('downloadMyWriting', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
+    vi.restoreAllMocks()
     mockSupabase.current = null
   })
 
+  // jsdom has no URL.createObjectURL and does not implement navigating on an anchor click.
   function stubDownload() {
     const created = []
-    URL.createObjectURL = vi.fn((blob) => { created.push(blob); return 'blob:test' })
-    URL.revokeObjectURL = vi.fn()
+    class FakeURL extends URL {
+      static createObjectURL = vi.fn((blob) => { created.push(blob); return 'blob:test' })
+      static revokeObjectURL = vi.fn()
+    }
+    vi.stubGlobal('URL', FakeURL)
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
     return created
   }
 
@@ -468,7 +500,7 @@ describe('downloadMyWriting', () => {
 
   it('saves a real zip that unzips to the README and the story', async () => {
     const created = stubDownload()
-    const story = { id: 'b1', title: 'Ça va être noir', lede: '', content: 'The dark text.', mod_status: 'visible', created_at: '2026-03-05T10:00:00Z' }
+    const story = { id: 'b1', title: 'Ça va être noir', lede: '', content: 'The dark text.', mod_status: 'live', created_at: '2026-03-05T10:00:00Z' }
     mockSupabase.current = fakeClient((call) => ({ data: call.table === 'books' ? [story] : [], error: null }))
     await expect(downloadMyWriting({ userId: 'u1', handle: 'writer' })).resolves.toEqual({ count: 1 })
     expect(created).toHaveLength(1)
@@ -476,5 +508,117 @@ describe('downloadMyWriting', () => {
     expect(Object.keys(files).sort()).toEqual(['README.txt', 'stories/Ça va être noir.md'])
     expect(strFromU8(files['stories/Ça va être noir.md'])).toContain('The dark text.')
     expect(strFromU8(files['README.txt'])).toContain('Handle: writer')
+  })
+})
+
+describe('saveBlob', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  it('keeps the blob URL for 60 seconds before revoking it', () => {
+    vi.useFakeTimers()
+    class FakeURL extends URL {
+      static createObjectURL = vi.fn(() => 'blob:test')
+      static revokeObjectURL = vi.fn()
+    }
+    vi.stubGlobal('URL', FakeURL)
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    saveBlob(new Blob(['x']), 'a.txt')
+    vi.advanceTimersByTime(59_999)
+    expect(FakeURL.revokeObjectURL).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(1)
+    expect(FakeURL.revokeObjectURL).toHaveBeenCalledWith('blob:test')
+  })
+})
+
+describe('README', () => {
+  const readme = () => get(build({}), 'README.txt').text
+  it('says kept work is not in the zip and has its own Download', () => {
+    expect(readme()).toContain('Stories and entries you kept in your vault are not in this zip. Each has its own Download on your profile, and needs your recovery code.')
+  })
+  it('says forum/ also holds replies in ritual threads', () => {
+    expect(readme()).toContain('forum/          Your forum threads and posts, and your replies in ritual threads, grouped by thread.')
+  })
+})
+
+describe('keptItemFile', () => {
+  it('throws corrupt-bundle when there is no item', () => {
+    expect(() => keptItemFile(undefined, 'Untitled story')).toThrow('corrupt-bundle')
+    expect(() => keptItemFile(null, 'Untitled story')).toThrow('corrupt-bundle')
+  })
+})
+
+describe('conservation', () => {
+  const stories = [
+    { id: 's1', title: 'Story One', lede: 'LEDE-ALPHA', content: 'WORDS-STORY-ALPHA', mod_status: 'live', created_at: '2026-01-01T00:00:00Z' },
+    { id: 's2', title: 'Who/What?', content: 'WORDS-BAD-ONE', created_at: '2026-01-02T00:00:00Z' },
+    { id: 's3', title: 'CON', content: 'WORDS-BAD-TWO', created_at: '2026-01-03T00:00:00Z' },
+    { id: 's4', title: '...', content: 'WORDS-BAD-THREE', created_at: '2026-01-04T00:00:00Z' },
+    { id: 's5', title: 'q'.repeat(300), content: 'WORDS-BAD-FOUR', created_at: '2026-01-05T00:00:00Z' },
+    { id: 's6', title: null, lede: null, content: null, created_at: null },
+  ]
+  const threads = [{ id: 't-own', title: 'My hidden thread', prompt_id: null, mod_status: 'hidden', created_at: '2026-02-01T00:00:00Z' }]
+  const posts = [
+    { id: 'p1', thread_id: 't-own', title: null, content: 'WORDS-OWN-THREAD-ONE', mod_status: 'hidden', created_at: '2026-02-01T01:00:00Z' },
+    { id: 'p2', thread_id: 't-own', title: null, content: 'WORDS-OWN-THREAD-TWO', mod_status: 'hidden', created_at: '2026-02-01T02:00:00Z' },
+    { id: 'p3', thread_id: 't-known', title: 'A titled forum post', content: 'WORDS-KNOWN-THREAD', created_at: '2026-02-02T00:00:00Z' },
+    { id: 'p4', thread_id: null, title: 'Orphan', content: 'WORDS-NULL-THREAD', created_at: '2026-02-03T00:00:00Z' },
+    { id: 'p5', thread_id: 't-prompt', title: 'My ritual entry', content: 'WORDS-RITUAL-ENTRY', created_at: '2026-02-04T00:00:00Z' },
+    { id: 'p6', thread_id: 't-prompt', title: null, content: 'WORDS-RITUAL-REPLY', created_at: '2026-02-05T00:00:00Z' },
+    { id: 'p7', thread_id: 'gone', title: 'Lost titled post', content: 'WORDS-UNSEEN-THREAD', created_at: '2026-02-06T00:00:00Z' },
+    { id: 'p8', thread_id: 'gone', title: null, content: null, created_at: null },
+  ]
+  const critiques = [
+    { id: 'k1', book_id: 'zz', content: 'WORDS-CRIT-UNSEEN', created_at: '2026-03-01T00:00:00Z' },
+    { id: 'k2', book_id: 's1', content: 'WORDS-CRIT-OWN', created_at: '2026-03-02T00:00:00Z' },
+  ]
+  const drafts = [{ prompt_id: 'pr', content: 'WORDS-DRAFT', created_at: '2026-04-01T00:00:00Z', updated_at: null }]
+  const series = [{ id: 'sr1', title: 'A Cycle', description: 'WORDS-SERIES-DESC', created_at: '2026-01-01T00:00:00Z' }]
+  const seriesBooks = [{ series_id: 'sr1', book_id: 's1', sort_order: 1 }]
+  const collected = {
+    ...empty(),
+    stories, threads, posts, critiques, drafts, series, seriesBooks,
+    threadsById: {
+      't-own': { id: 't-own', title: 'My hidden thread', prompt_id: null },
+      't-known': { id: 't-known', title: 'Someone elses thread', prompt_id: null },
+      't-prompt': { id: 't-prompt', title: 'Ritual night', prompt_id: 'pr' },
+    },
+    storyTitlesById: { s1: 'Story One' },
+    promptBodiesById: { pr: 'PROMPT-BODY' },
+  }
+  const files = build(collected)
+
+  const everyContent = [
+    'LEDE-ALPHA', 'WORDS-STORY-ALPHA', 'WORDS-BAD-ONE', 'WORDS-BAD-TWO', 'WORDS-BAD-THREE', 'WORDS-BAD-FOUR',
+    'WORDS-OWN-THREAD-ONE', 'WORDS-OWN-THREAD-TWO', 'WORDS-KNOWN-THREAD', 'WORDS-NULL-THREAD',
+    'WORDS-RITUAL-ENTRY', 'WORDS-RITUAL-REPLY', 'WORDS-UNSEEN-THREAD', 'WORDS-CRIT-UNSEEN', 'WORDS-CRIT-OWN',
+    'WORDS-DRAFT', 'WORDS-SERIES-DESC',
+  ]
+
+  it.each(everyContent)('puts %s in exactly one file', (str) => {
+    expect(files.filter((f) => f.text.includes(str)).map((f) => f.path)).toHaveLength(1)
+  })
+
+  it('never writes null or undefined into any file', () => {
+    for (const f of files) expect(f.text, f.path).not.toMatch(/null|undefined/)
+  })
+
+  it('gives every file a unique, legal, visible path', () => {
+    const ps = paths(files)
+    expect(new Set(ps.map((p) => p.toLowerCase())).size).toBe(ps.length)
+    for (const p of ps) {
+      for (const seg of p.split('/')) {
+        expect(seg, p).not.toMatch(/^[.\s]|[.\s]$/)
+        // eslint-disable-next-line no-control-regex
+        expect(seg, p).not.toMatch(/[<>:"\\|?*\u0000-\u001f]/)
+        expect(seg.length, p).toBeLessThanOrEqual(84)
+      }
+    }
+    expect(ps).toContain('stories/Who What.md')
+    expect(ps).toContain('stories/CON_.md')
+    expect(ps).toContain('stories/' + 'q'.repeat(80) + '.md')
   })
 })

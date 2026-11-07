@@ -1,6 +1,6 @@
 import { supabase } from '../supabaseClient'
 import { bytesToBase64, byteaToBytes } from './ritualKeep'
-import { keptItemFile } from './writingExport'
+import { keptItemFile, ownRows } from './writingExport'
 
 /**
  * Delete forever / Keep it for Library stories: the browser side of
@@ -107,9 +107,13 @@ export async function restoreKeptStory({ vaultId, code, sealApi }) {
   return { title: payload?.story?.title ?? null, result: data }
 }
 
-/** The story as a { name, text } Markdown file. Comments are other people's words and stay out. */
+/**
+ * The story as a { name, text } Markdown file. Other people's comments stay out; the writer's own
+ * comments on their own story are kept, because Keep it deleted the live rows.
+ */
 export function keptStoryFile(payload) {
-  return keptItemFile(payload?.story, 'Untitled story', payload?.story?.lede)
+  const story = payload?.story
+  return keptItemFile(story, 'Untitled story', { before: [story?.lede], own: ownRows(payload?.comments, story?.author_id) })
 }
 
 /** Permanently removes a kept story. No code needed: it is the owner's own row. */

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from './AuthContext'
 import { loadSealModules } from '../lib/sealLoader'
 import { saveTextFile } from '../lib/writingExport'
+import { reportClientError } from '../lib/errorReporter'
 import { listKeptEntries, restoreKeptEntry, openKeptEntry, keptEntryFile, deleteKeptEntry } from '../lib/ritualKeep'
 
 const WRONG_CODE_ERROR = "That code doesn't open this entry."
@@ -61,7 +62,11 @@ function KeptRow({ item, onGone }) {
       // The typed code never reaches an error message: only these fixed strings do.
       if (err?.message === 'wrong-code') setError(WRONG_CODE_ERROR)
       else if (err?.message === 'corrupt-bundle') setError(CORRUPT_ERROR)
-      else setError('Nothing was saved. Your kept entry is safe; please try again.')
+      else {
+        // Not a wrong code or a damaged bundle, so worth logging. Nothing in this path carries the typed code.
+        reportClientError('promise', err)
+        setError('Nothing was saved. Your kept entry is safe; please try again.')
+      }
     } finally {
       setBusy(false)
     }

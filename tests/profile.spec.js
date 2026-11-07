@@ -181,6 +181,18 @@ test.describe('Profile Editor Flows', () => {
   });
 
   test('Download my writing saves a dated zip', async ({ page }) => {
+    // The export pages with .range(), which supabase-js sends as offset/limit. The shared mocks
+    // ignore offset and would hand back the same rows forever, so every later page is empty.
+    // Registered after the shared setup, so it runs first; the first page falls through to it.
+    await page.route('**/rest/v1/**', async (route) => {
+      const request = route.request();
+      if (request.method() === 'GET' && /[?&]offset=[1-9]/.test(request.url())) {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+      } else {
+        await route.fallback();
+      }
+    });
+
     await page.goto('/profile');
 
     const downloadPromise = page.waitForEvent('download');

@@ -1,6 +1,6 @@
 import { supabase } from '../supabaseClient'
 import { buildVaultPayload } from './ritualVault'
-import { keptItemFile } from './writingExport'
+import { keptItemFile, ownRows } from './writingExport'
 
 /**
  * "Keep it" for Midnight Ritual entries: the browser side of the vault RPCs in
@@ -137,9 +137,13 @@ export async function restoreKeptEntry({ vaultId, code, sealApi }) {
   return data
 }
 
-/** The entry as a { name, text } Markdown file. Critiques, posts and feedback are other people's words and stay out. */
+/**
+ * The entry as a { name, text } Markdown file. Other people's critiques, posts and feedback stay out;
+ * the writer's own replies under their own entry are kept, because Keep it deleted the live rows.
+ */
 export function keptEntryFile(payload) {
-  return keptItemFile(payload?.entry, 'Untitled entry')
+  const entry = payload?.entry
+  return keptItemFile(entry, 'Untitled entry', { own: ownRows(payload?.critiques, entry?.author_id) })
 }
 
 /** Permanently removes a kept entry. No code needed: it is the owner's own row. */

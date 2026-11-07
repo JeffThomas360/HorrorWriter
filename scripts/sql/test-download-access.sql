@@ -5,7 +5,9 @@
 --
 -- The promise: a member can always read back everything they wrote, even work a moderator
 -- hid, even with banned_until in 2099. The column lists below are EXACTLY what
--- src/lib/writingExport.js selects, so a misnamed column fails here first.
+-- src/lib/writingExport.js selects, so a misnamed column fails here first. It also proves
+-- the bundle of a kept story and a kept ritual entry stays readable to a banned owner (the
+-- kept-file Download reads it with no RPC) and unreadable to anyone else.
 -- Every actor is a throwaway account (...0d50xx); no real profile is touched.
 begin;
 
@@ -72,6 +74,16 @@ insert into public.book_comments (id, book_id, author_id, content, mod_status) v
   ('00000000-0000-4000-8000-0000000d5502', '00000000-0000-4000-8000-0000000d5102', '00000000-0000-4000-8000-0000000d5001', 'A critique on the host''s hidden story.', 'hidden'),
   ('00000000-0000-4000-8000-0000000d5503', '00000000-0000-4000-8000-0000000d5101', '00000000-0000-4000-8000-0000000d5001', 'A critique on own hidden story.', 'hidden');
 
+-- A's kept work: one row in each vault. Bundles are opaque filler of the minimum legal size
+-- (45 bytes); nothing here is, or needs, a real ciphertext or secret. key_version points at
+-- an existing key version, looked up by number only.
+insert into public.story_vault (owner_id, book_id, nonce, key_version, bundle) values
+  ('00000000-0000-4000-8000-0000000d5001', gen_random_uuid(), gen_random_uuid(),
+   (select version from public.ritual_vault_keys order by version limit 1), decode(repeat('ab', 45), 'hex'));
+insert into public.ritual_vault (owner_id, prompt_id, entry_id, nonce, key_version, bundle) values
+  ('00000000-0000-4000-8000-0000000d5001', '00000000-0000-4000-8000-0000000d5f01', gen_random_uuid(), gen_random_uuid(),
+   (select version from public.ritual_vault_keys order by version limit 1), decode(repeat('cd', 45), 'hex'));
+
 -- Ban A until 2099 (admin role, no JWT, so the self-sanction guard does not apply).
 update public.profiles set banned_until = '2099-01-01T00:00:00Z' where id = '00000000-0000-4000-8000-0000000d5001';
 
@@ -132,6 +144,21 @@ begin
     where id in ('00000000-0000-4000-8000-0000000d5f01')) q;
   perform pg_temp.must(n = 1, format('A reads the prompt behind their draft: got %s', n));
 
+  -- Kept work: the Download button reads exactly this, with no RPC, so a ban must not block it.
+  select count(*) into n from (
+    select bundle from public.story_vault where owner_id = a) q;
+  perform pg_temp.must(n = 1, format('banned A reads the bundle of their kept story: got %s', n));
+  perform pg_temp.must(
+    (select octet_length(bundle) from public.story_vault where owner_id = a) = 45,
+    'banned A gets the whole story bundle');
+
+  select count(*) into n from (
+    select bundle from public.ritual_vault where owner_id = a) q;
+  perform pg_temp.must(n = 1, format('banned A reads the bundle of their kept ritual entry: got %s', n));
+  perform pg_temp.must(
+    (select octet_length(bundle) from public.ritual_vault where owner_id = a) = 45,
+    'banned A gets the whole ritual bundle');
+
   -- ── The host's thread and story are themselves unreadable to A ──
   perform pg_temp.must(
     (select count(*) from public.threads where id = '00000000-0000-4000-8000-0000000d5202') = 0,
@@ -139,10 +166,6 @@ begin
   perform pg_temp.must(
     (select count(*) from public.books where id = '00000000-0000-4000-8000-0000000d5102') = 0,
     'A cannot read the host''s hidden story');
-  -- So the lookups find nothing for them, which is normal and not an error.
-  perform pg_temp.must(
-    (select count(*) from public.threads where id in ('00000000-0000-4000-8000-0000000d5202')) = 0,
-    'thread lookup returns no row for the hidden thread');
 
   -- ── A stranger cannot read A's hidden work ──
   perform pg_temp.be(c);
@@ -151,6 +174,9 @@ begin
   perform pg_temp.must((select count(*) from public.posts where author_id = a) = 0, 'a stranger cannot read A''s hidden posts');
   perform pg_temp.must((select count(*) from public.book_comments where author_id = a) = 0, 'a stranger cannot read A''s hidden critiques');
   perform pg_temp.must((select count(*) from public.ritual_drafts where author_id = a) = 0, 'a stranger cannot read A''s ritual draft');
+
+  perform pg_temp.must((select count(*) from public.story_vault where owner_id = a) = 0, 'a stranger cannot read A''s kept stories');
+  perform pg_temp.must((select count(*) from public.ritual_vault where owner_id = a) = 0, 'a stranger cannot read A''s kept entries');
 
   perform pg_temp.be(null);
 end $$;

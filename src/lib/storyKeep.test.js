@@ -121,6 +121,32 @@ describe('keptStoryFile', () => {
     expect(text).toBe('# The Story\n\nWritten 2026-10-02\n\nA lede.\n\nText\n')
     expect(text).not.toMatch(/SOMEONE ELSES/)
   })
+  it('adds the writer own comments after the story under their own heading, and no one elses', () => {
+    const { text } = keptStoryFile({
+      ...PAYLOAD,
+      comments: [
+        { id: 'c-1', author_id: 'u-1', content: 'MY OWN COMMENT', created_at: '2026-10-03T00:00:00Z' },
+        { id: 'c-2', author_id: 'u-2', content: 'SOMEONE ELSES COMMENT', created_at: '2026-10-04T00:00:00Z' },
+        { id: 'c-3', author_id: 'u-1', content: 'MY SECOND COMMENT', created_at: '2026-10-05T00:00:00Z' },
+      ],
+    })
+    expect(text).toBe('# The Story\n\nWritten 2026-10-02\n\nText\n\n## Your own critiques\n\nWritten 2026-10-03\n\nMY OWN COMMENT\n\n---\n\nWritten 2026-10-05\n\nMY SECOND COMMENT\n')
+    expect(text).not.toMatch(/SOMEONE ELSES/)
+  })
+  it('omits the heading when the writer has no comments of their own', () => {
+    expect(keptStoryFile(PAYLOAD).text).not.toMatch(/Your own critiques/)
+  })
+  it('leaks nothing when the story has no author_id, even if a comment has none either', () => {
+    const comments = [{ id: 'c-1', content: 'SOMEONE ELSES COMMENT' }, { id: 'c-2', author_id: null, content: 'ALSO NOT MINE' }]
+    for (const story of [{ title: 'T', content: 'Body' }, { title: 'T', content: 'Body', author_id: null }]) {
+      const { text } = keptStoryFile({ story, comments })
+      expect(text).not.toMatch(/SOMEONE ELSES|ALSO NOT MINE|Your own critiques/)
+    }
+  })
+  it('throws corrupt-bundle when the payload has no story', () => {
+    expect(() => keptStoryFile({})).toThrow('corrupt-bundle')
+    expect(() => keptStoryFile(undefined)).toThrow('corrupt-bundle')
+  })
   it('falls back for an empty title and omits missing fields', () => {
     const { name, text } = keptStoryFile({ story: { title: '', content: 'Body' } })
     expect(name).toBe('Untitled story.md')

@@ -118,6 +118,30 @@ describe('keptEntryFile', () => {
     expect(text).toBe('# My Entry\n\nWritten 2026-10-02\n\nEntry text\n')
     expect(text).not.toMatch(/SOMEONE ELSES/)
   })
+  it('adds the writer own replies after the entry under their own heading, and no one elses', () => {
+    const { text } = keptEntryFile({
+      entry: { ...OPENED.entry, author_id: 'u-1' },
+      critiques: [
+        { key: 'c-1', author_id: 'u-1', content: 'MY OWN REPLY', created_at: '2026-10-03T00:00:00Z' },
+        { key: 'c-2', author_id: 'u-2', content: 'SOMEONE ELSES CRITIQUE', created_at: '2026-10-04T00:00:00Z' },
+      ],
+    })
+    expect(text).toBe('# My Entry\n\nWritten 2026-10-02\n\nEntry text\n\n## Your own critiques\n\nWritten 2026-10-03\n\nMY OWN REPLY\n')
+    expect(text).not.toMatch(/SOMEONE ELSES/)
+  })
+  it('omits the heading when the writer has no replies of their own', () => {
+    expect(keptEntryFile({ ...OPENED, entry: { ...OPENED.entry, author_id: 'u-1' } }).text).not.toMatch(/Your own critiques/)
+  })
+  it('leaks nothing when the entry has no author_id, even if a critique has none either', () => {
+    const critiques = [{ key: 'c-1', content: 'SOMEONE ELSES CRITIQUE' }, { key: 'c-2', author_id: null, content: 'ALSO NOT MINE' }]
+    for (const entry of [{ title: 'T', content: 'Body' }, { title: 'T', content: 'Body', author_id: null }]) {
+      const { text } = keptEntryFile({ entry, critiques })
+      expect(text).not.toMatch(/SOMEONE ELSES|ALSO NOT MINE|Your own critiques/)
+    }
+  })
+  it('throws corrupt-bundle when the payload has no entry', () => {
+    expect(() => keptEntryFile({})).toThrow('corrupt-bundle')
+  })
   it('falls back for an empty title and omits missing fields', () => {
     const { name, text } = keptEntryFile({ entry: { title: null, content: 'Body' } })
     expect(name).toBe('Untitled entry.md')
