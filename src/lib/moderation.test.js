@@ -1,5 +1,23 @@
 import { test, expect, describe } from 'vitest'
-import { isMod, modCan } from './moderation'
+import { isMod, modCan, isPermanentBan } from './moderation'
+
+describe('isPermanentBan', () => {
+  test('the date mod_apply_sanction writes for a permanent ban counts', () => {
+    expect(isPermanentBan('2099-12-31T23:59:59Z')).toBe(true)
+    // PostgREST returns it with an offset, not a Z.
+    expect(isPermanentBan('2099-12-31T23:59:59+00:00')).toBe(true)
+  })
+
+  test('a suspension with an ordinary end date does not', () => {
+    expect(isPermanentBan('2098-12-31T23:59:59Z')).toBe(false)
+    expect(isPermanentBan('2026-11-13T00:00:00Z')).toBe(false)
+  })
+
+  test('no sanction at all does not', () => {
+    expect(isPermanentBan(null)).toBe(false)
+    expect(isPermanentBan(undefined)).toBe(false)
+  })
+})
 
 const keeper    = { mod_role: 'keeper',    mod_scope: 'all' }
 const warden    = { mod_role: 'warden',    mod_scope: 'all' }

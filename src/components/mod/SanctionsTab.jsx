@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { searchUsers, fetchActiveSanctions } from '../../lib/modActions'
+import { isPermanentBan } from '../../lib/moderation'
 import UserModProfile from './UserModProfile'
 
 const GHOST = 'border border-[var(--color-line-hi)] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-bone)] transition-colors hover:border-[var(--color-bone)] cursor-pointer disabled:opacity-50'
@@ -56,7 +57,7 @@ export default function SanctionsTab() {
         <div>
           <h3 className="font-['Fraunces'] font-bold text-lg text-[var(--color-bone)] mb-1">Sanctions &amp; Suspensions</h3>
           <p className="text-sm text-[var(--color-ash)]">
-            Search for a user to open their case file — suspensions, shadowbans and revokes all happen there.
+            Search for a user to open their case file — suspensions, bans and revokes all happen there.
           </p>
         </div>
 
@@ -102,18 +103,15 @@ export default function SanctionsTab() {
             <p className="text-sm text-[var(--color-ash)] italic font-serif">Nobody is currently suspended.</p>
           ) : (
             <ul className="flex flex-col">
-              {roster.map((u) => {
-                const permanent = new Date(u.banned_until).getFullYear() >= 2099
-                return (
-                  <li key={u.id} className="mod-user-row flex items-center justify-between gap-3 border-b border-[var(--color-line)] py-3">
-                    <span className="font-mono text-sm text-[var(--color-bone)]">@{u.handle}</span>
-                    <span className="text-xs text-[var(--color-blood)]">
-                      {permanent ? 'Permanent shadowban' : `Until ${new Date(u.banned_until).toLocaleString()}`}
-                    </span>
-                    <button className={GHOST} onClick={() => setActiveUserId(u.id)}>Open case file</button>
-                  </li>
-                )
-              })}
+              {roster.map((u) => (
+                <li key={u.id} className="mod-user-row flex items-center justify-between gap-3 border-b border-[var(--color-line)] py-3">
+                  <span className="font-mono text-sm text-[var(--color-bone)]">@{u.handle}</span>
+                  <span className="text-xs text-[var(--color-blood)]">
+                    {isPermanentBan(u.banned_until) ? 'Permanent ban' : `Until ${new Date(u.banned_until).toLocaleString()}`}
+                  </span>
+                  <button className={GHOST} onClick={() => setActiveUserId(u.id)}>Open case file</button>
+                </li>
+              ))}
             </ul>
           )}
         </div>

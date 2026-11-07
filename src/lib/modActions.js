@@ -118,6 +118,24 @@ export async function submitAppeal({ modActionId, targetType, explanation }) {
   if (error) throw new Error(error.message)
 }
 
+/**
+ * Suspend a member for `days`, or ban them permanently when `days` is null.
+ * The RPC checks the caller's role, then saves the sanction and its mod_actions
+ * row together.
+ */
+export async function applyUserSanction(userId, days, reason) {
+  if (!supabase) throw new Error('Supabase not configured')
+  const { error } = await supabase.rpc('mod_apply_sanction', { p_user_id: userId, p_days: days, p_reason: reason })
+  if (error) throw new Error(error.message)
+}
+
+/** Lift a member's active suspension or ban. Logged the same way. */
+export async function revokeUserSanction(userId, reason) {
+  if (!supabase) throw new Error('Supabase not configured')
+  const { error } = await supabase.rpc('mod_revoke_sanction', { p_user_id: userId, p_reason: reason })
+  if (error) throw new Error(error.message)
+}
+
 export async function resolveAppeal(reportId, upheld, reason) {
   if (!supabase) throw new Error('Supabase not configured')
   const { error } = await supabase.rpc('resolve_appeal', {
@@ -171,7 +189,7 @@ export async function fetchUserCaseFile(userId, { includeAudit = false } = {}) {
   if (includeAudit) {
     const { data } = await supabase
       .from('mod_actions')
-      .select('id, action, target_type, target_id, reason, created_at')
+      .select('id, action, target_type, target_id, reason, metadata, created_at, profiles!actor_id(handle)')
       .eq('target_user_id', userId)
       .order('created_at', { ascending: false })
       .limit(10)

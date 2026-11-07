@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { fetchAllUsers } from '../../lib/siteSettings'
+import { isPermanentBan } from '../../lib/moderation'
 import UserModProfile from '../mod/UserModProfile'
 
 /**
@@ -30,9 +31,7 @@ const SORTS = [
 
 function sanctionState(u) {
   if (u.banned_until && new Date(u.banned_until) > new Date()) {
-    const until = new Date(u.banned_until)
-    // The UI writes year 9999 for a permanent ban.
-    return until.getFullYear() > 9000 ? 'Banned' : `Suspended → ${until.toLocaleDateString()}`
+    return isPermanentBan(u.banned_until) ? 'Banned' : `Suspended → ${new Date(u.banned_until).toLocaleDateString()}`
   }
   if (u.is_shadowbanned) return 'Shadowbanned'
   return null
@@ -44,10 +43,16 @@ export default function UsersTab() {
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState(null)
 
-  const { data: users = [], isLoading, error } = useQuery({
+  const { data: users = [], isLoading, error, refetch } = useQuery({
     queryKey: ['admin', 'all-users'],
     queryFn: fetchAllUsers,
   })
+
+  // The case file can change a member's status, so re-read the list on the way back.
+  const closeCaseFile = () => {
+    setSelected(null)
+    refetch()
+  }
 
   const rows = useMemo(() => {
     let out = users
@@ -77,12 +82,12 @@ export default function UsersTab() {
       <div className="flex flex-col gap-4">
         <button
           type="button"
-          onClick={() => setSelected(null)}
+          onClick={closeCaseFile}
           className="self-start font-mono text-xs uppercase text-[var(--color-ash)] hover:text-[var(--color-bone)] cursor-pointer"
         >
           ← Back to directory
         </button>
-        <UserModProfile userId={selected} onClose={() => setSelected(null)} />
+        <UserModProfile userId={selected} onClose={closeCaseFile} />
       </div>
     )
   }
