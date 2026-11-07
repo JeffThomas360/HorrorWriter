@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { supabase } from '../../supabaseClient'
 import { useAuth } from '../AuthContext'
-import { modCan } from '../../lib/moderation'
-import { fetchUserCaseFile, contentHref } from '../../lib/modActions'
+import { modCan, isPermanentBan } from '../../lib/moderation'
+import { fetchUserCaseFile, contentHref, applyUserSanction, revokeUserSanction } from '../../lib/modActions'
 import { authorLabel } from '../../lib/storyHelpers'
 import ConfirmDialog from './ConfirmDialog'
 
@@ -13,8 +13,15 @@ const SANCTION_OPTIONS = [
   { key: '1d', label: '1 Day', days: 1 },
   { key: '7d', label: '7 Days', days: 7 },
   { key: '30d', label: '30 Days', days: 30 },
-  { key: 'perm', label: 'Permanent Shadowban', days: -1 },
+  { key: 'perm', label: 'Permanent Ban', days: null },
 ]
+
+/** How long a logged sanction was for, from the metadata mod_apply_sanction wrote. */
+function sanctionDuration(a) {
+  if (a.action === 'ban') return 'permanent'
+  if (a.action !== 'suspend' || !a.metadata?.days) return null
+  return a.metadata.days === 1 ? '1 day' : `${a.metadata.days} days`
+}
 
 /**
  * The moderation "case file" for one user: identity, current sanction status
@@ -28,12 +35,13 @@ const SANCTION_OPTIONS = [
 export default function UserModProfile({ userId, onClose }) {
   const { user, profile: viewerProfile } = useAuth()
   const canReadAudit = modCan(viewerProfile, 'read_audit', 'all')
+  const canSanction = modCan(viewerProfile, 'ban', 'all')
 
   const [profile, setProfile] = useState(null)
   const [caseFile, setCaseFile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [newNote, setNewNote] = useState('')
-  const [pendingSanction, setPendingSanction] = useState(null) // { key, label, days }
+  const [pendingSanction, setPendingSanction] = useState(null) // a SANCTION_OPTIONS entry, or { key: 'revoke', label }
   const [busy, setBusy] = useState(false)
 
   const load = async () => {
@@ -70,32 +78,35 @@ export default function UserModProfile({ userId, onClose }) {
   }
 
   const isSanctioned = profile?.banned_until && new Date(profile.banned_until) > new Date()
+  const isPermanent = isPermanentBan(profile?.banned_until)
+  const revokeLabel = isPermanent ? 'Revoke Ban' : 'Revoke Suspension'
 
-  const applySanction = async () => {
-    if (!pendingSanction) return
+  const confirmSanction = async (reason) => {
+    const choice = pendingSanction
     setBusy(true)
-    const until = pendingSanction.days === -1
-      ? '2099-12-31T23:59:59Z'
-      : new Date(Date.now() + pendingSanction.days * 24 * 60 * 60 * 1000).toISOString()
-    const { error } = await supabase.from('profiles').update({ banned_until: until }).eq('id', userId)
-    setBusy(false)
-    setPendingSanction(null)
-    if (error) toast.error(error.message)
-    else {
-      setProfile((p) => ({ ...p, banned_until: until }))
-      toast.success(pendingSanction.days === -1 ? 'User permanently shadowbanned' : `User suspended for ${pendingSanction.label}`)
+    try {
+      if (choice.key === 'revoke') {
+        await revokeUserSanction(userId, reason)
+        toast.success(isPermanent ? 'Ban revoked' : 'Suspension revoked')
+      } else {
+        await applyUserSanction(userId, choice.days, reason)
+        toast.success(choice.key === 'perm' ? 'User permanently banned' : `User suspended for ${choice.label}`)
+      }
+    } catch (err) {
+      toast.error(err.message)
+      return
+    } finally {
+      setBusy(false)
+      setPendingSanction(null)
     }
+    // Re-read rather than assume: this shows the saved status and the new log row.
+    await load()
   }
 
-  const revokeSanction = async () => {
-    setBusy(true)
-    const { error } = await supabase.from('profiles').update({ banned_until: null }).eq('id', userId)
-    setBusy(false)
-    if (error) toast.error(error.message)
-    else {
-      setProfile((p) => ({ ...p, banned_until: null }))
-      toast.success('Suspension revoked')
-    }
+  const dialogTitle = (handle) => {
+    if (pendingSanction?.key === 'revoke') return `${revokeLabel} on @${handle}?`
+    if (pendingSanction?.key === 'perm') return `Permanently ban @${handle}?`
+    return `Suspend @${handle} for ${pendingSanction?.label}?`
   }
 
   if (loading) {
@@ -118,13 +129,15 @@ export default function UserModProfile({ userId, onClose }) {
     <div className="card-raised flex flex-col gap-6 p-5 max-h-[calc(100vh-6rem)] overflow-y-auto">
       <ConfirmDialog
         open={!!pendingSanction}
-        title={pendingSanction?.key === 'perm' ? `Permanently shadowban @${profile.handle}?` : `Suspend @${profile.handle} for ${pendingSanction?.label}?`}
-        description={pendingSanction?.key === 'perm' ? 'This is effectively indefinite. It can be revoked here later, but treat it as a last resort.' : undefined}
+        title={dialogTitle(profile.handle)}
+        description={pendingSanction?.key === 'perm' ? "They can't post, and their writing is hidden from readers, with no end date. It can be revoked here later, but treat it as a last resort." : undefined}
         danger={pendingSanction?.key === 'perm'}
+        requireReason
+        reasonLabel="Reason (kept in the case file, not published)"
         confirmLabel={pendingSanction?.label}
         busy={busy}
         onCancel={() => setPendingSanction(null)}
-        onConfirm={applySanction}
+        onConfirm={confirmSanction}
       />
 
       <div className="flex items-center justify-between gap-3">
@@ -142,21 +155,27 @@ export default function UserModProfile({ userId, onClose }) {
         <div>
           <span className="block font-mono text-[10px] uppercase tracking-wider text-[var(--color-ash)]">Status</span>
           {isSanctioned ? (
-            <span className="text-[var(--color-blood)]">Suspended until {new Date(profile.banned_until).toLocaleString()}</span>
+            <span className="text-[var(--color-blood)]">
+              {isPermanent ? 'Permanently banned' : `Suspended until ${new Date(profile.banned_until).toLocaleString()}`}
+            </span>
           ) : (
             <span className="text-[var(--color-upside)]">Active</span>
           )}
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {SANCTION_OPTIONS.map((opt) => (
-          <button key={opt.key} className={GHOST_BTN} onClick={() => setPendingSanction(opt)}>{opt.label}</button>
-        ))}
-        {isSanctioned && (
-          <button className={GHOST_BTN} disabled={busy} onClick={revokeSanction}>Revoke Suspension</button>
-        )}
-      </div>
+      {canSanction ? (
+        <div className="flex flex-wrap gap-2">
+          {SANCTION_OPTIONS.map((opt) => (
+            <button key={opt.key} className={GHOST_BTN} onClick={() => setPendingSanction(opt)}>{opt.label}</button>
+          ))}
+          {isSanctioned && (
+            <button className={GHOST_BTN} disabled={busy} onClick={() => setPendingSanction({ key: 'revoke', label: revokeLabel })}>{revokeLabel}</button>
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-[var(--color-ash)]">Suspending or banning requires Warden access.</p>
+      )}
 
       <section>
         <h4 className="font-mono text-xs uppercase tracking-wider text-[var(--color-ash)] border-b border-[var(--color-line)] pb-2 mb-2">
@@ -214,7 +233,9 @@ export default function UserModProfile({ userId, onClose }) {
               <li key={a.id} className="text-xs text-[var(--color-bone)]">
                 <span className="font-mono text-[var(--color-ash)]">{new Date(a.created_at).toLocaleDateString()}</span>{' '}
                 <span className="text-[var(--color-blood)]">{a.action.replace(/_/g, ' ')}</span>
+                {sanctionDuration(a) && <span className="text-[var(--color-ash)]"> · {sanctionDuration(a)}</span>}
                 {a.reason && <span className="text-[var(--color-ash)] italic"> — {a.reason}</span>}
+                {a.profiles?.handle && <span className="font-mono text-[var(--color-ash)]"> · by @{a.profiles.handle}</span>}
               </li>
             ))}
           </ul>
