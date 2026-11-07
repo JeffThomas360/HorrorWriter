@@ -163,7 +163,8 @@ export default function DeleteAccount() {
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
+    // Keep the blob alive long enough for iOS Safari to read it after the download prompt.
+    setTimeout(() => URL.revokeObjectURL(url), 60000)
   }
 
   // Printing the live page would print the whole dark-themed site (bone text
