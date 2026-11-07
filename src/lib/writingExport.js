@@ -96,3 +96,197 @@ export function countWork(collected) {
   const n = (k) => (collected?.[k] || []).length
   return n('stories') + n('threads') + n('posts') + n('critiques') + n('drafts') + n('series')
 }
+
+// ---------------------------------------------------------------------------
+// Turning collected rows into plain-text files. Everything below is pure: no network,
+// no clock, no time zone. The caller zips the { path, text } list.
+// ---------------------------------------------------------------------------
+
+const NAME_MAX = 80
+const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?=\.|$)/i
+// eslint-disable-next-line no-control-regex
+const ILLEGAL = /[<>:"/\\|?*\u0000-\u001f\u007f]/g
+
+const FALLBACK_STORY = 'Untitled story'
+const FALLBACK_ENTRY = 'Untitled entry'
+const FALLBACK_THREAD = 'A thread you can no longer see'
+const FALLBACK_SEEN_STORY = 'A story you can no longer see'
+
+const STATUS_LINES = {
+  hidden: '> Removed from the site by moderation.',
+  screening: '> Under review when you downloaded this.',
+}
+
+const trimEnds = (s) => s.replace(/^\s+/, '').replace(/[.\s]+$/, '')
+
+// A file name (no extension) that is legal on Windows, macOS and Linux.
+export function safeFileName(title, fallback) {
+  if (title == null) return fallback
+  let name = String(title).replace(ILLEGAL, ' ').replace(/\s+/g, ' ')
+  name = trimEnds(name)
+  // Cut by code points so an emoji is never split, then trim again: the cut can end on a dot or space.
+  name = trimEnds(Array.from(name).slice(0, NAME_MAX).join(''))
+  if (!name) return fallback
+  // Windows treats "Con.txt" and "Con. Man.md" as the device CON, so a dot after the name counts too.
+  return name.replace(RESERVED, (m) => `${m}_`)
+}
+
+const text = (v) => (v == null ? '' : String(v))
+
+// YYYY-MM-DD from the ISO string, in UTC. Empty for a missing date.
+function day(d) {
+  if (!d) return ''
+  const iso = d instanceof Date ? (Number.isNaN(d.getTime()) ? '' : d.toISOString()) : String(d)
+  return iso.slice(0, 10)
+}
+
+const statusLine = (modStatus) => STATUS_LINES[modStatus] || ''
+const dateLine = (d) => (day(d) ? `Written ${day(d)}` : '')
+
+const quote = (s) => s.split(/\r?\n/).map((l) => `> ${l}`).join('\n')
+
+// Join the non-empty blocks with a blank line between them.
+const blocks = (...parts) => parts.filter((p) => p).join('\n\n') + '\n'
+
+// Oldest first. A missing date sorts last. Array.sort is stable, so ties keep input order.
+function byDate(a, b, key = 'created_at') {
+  const x = a[key] || ''
+  const y = b[key] || ''
+  if (x === y) return 0
+  if (!x) return 1
+  if (!y) return -1
+  return x < y ? -1 : 1
+}
+
+// Hands out paths that are free in their folder, ignoring case: Title.md, Title (2).md, ...
+function pathAllocator() {
+  const taken = new Set()
+  return (folder, name) => {
+    let n = 1
+    for (;;) {
+      const path = `${folder}/${n === 1 ? name : `${name} (${n})`}.md`
+      const key = path.toLowerCase()
+      if (!taken.has(key)) {
+        taken.add(key)
+        return path
+      }
+      n += 1
+    }
+  }
+}
+
+function storyFile(s) {
+  const title = text(s.title).trim() || FALLBACK_STORY
+  return blocks(`# ${title}`, statusLine(s.mod_status), dateLine(s.created_at), text(s.lede), text(s.content))
+}
+
+// One post or critique inside a grouped file.
+function entryBlock(row) {
+  const title = text(row.title).trim()
+  return blocks(title && `## ${title}`, statusLine(row.mod_status), dateLine(row.created_at), text(row.content)).trimEnd()
+}
+
+function groupedFile(heading, status, date, rows) {
+  const body = rows.map(entryBlock).join('\n\n---\n\n')
+  return blocks(`# ${heading}`, status, date, body)
+}
+
+function seriesFile(c) {
+  const out = ['# Series']
+  for (const s of c.series) {
+    const books = c.seriesBooks
+      .filter((b) => b.series_id === s.id)
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    const list = books.map((b, i) => {
+      const t = b.book_id in c.storyTitlesById ? text(c.storyTitlesById[b.book_id]).trim() || FALLBACK_STORY : FALLBACK_SEEN_STORY
+      return `${i + 1}. ${t}`
+    })
+    out.push(blocks(`## ${text(s.title).trim() || 'Untitled series'}`, dateLine(s.created_at), text(s.description), list.join('\n')).trimEnd())
+  }
+  return out.join('\n\n') + '\n'
+}
+
+function readme(handle, exportedAt) {
+  return [
+    'Your writing from horrorwriter.org',
+    '',
+    `Handle: ${handle}`,
+    `Downloaded: ${day(exportedAt)}`,
+    '',
+    'What is in each folder. A folder appears only if you have writing of that kind.',
+    '',
+    'stories/        Your stories.',
+    'series.md       Your series, and the stories in each.',
+    'ritual-entries/ Your titled entries to ritual prompts.',
+    'ritual-drafts/  Your ritual drafts, with the prompt at the top when it could be read.',
+    'forum/          Your forum threads and posts, grouped by thread.',
+    'critiques/      Your critiques, grouped by story.',
+    '',
+    'Work a moderator removed is included. A line under its title says so.',
+    'Work still under review is marked too.',
+    '',
+  ].join('\n')
+}
+
+export function buildExportFiles(collected, { handle, exportedAt }) {
+  const c = collected
+  const alloc = pathAllocator()
+  const files = [{ path: 'README.txt', text: readme(handle, exportedAt) }]
+  const add = (folder, name, body) => files.push({ path: alloc(folder, name), text: body })
+
+  for (const s of [...c.stories].sort(byDate)) {
+    add('stories', safeFileName(s.title, FALLBACK_STORY), storyFile(s))
+  }
+
+  if (c.series.length) files.push({ path: 'series.md', text: seriesFile(c) })
+
+  // Own posts split into ritual entries (titled, in a prompt thread) and everything else.
+  const isEntry = (p) => text(p.title).trim() !== '' && !!c.threadsById[p.thread_id]?.prompt_id
+  const posts = [...c.posts].sort(byDate)
+  for (const p of posts.filter(isEntry)) {
+    add('ritual-entries', safeFileName(p.title, FALLBACK_ENTRY), blocks(`# ${text(p.title).trim()}`, statusLine(p.mod_status), dateLine(p.created_at), text(p.content)))
+  }
+
+  const drafts = [...c.drafts].sort((a, b) => byDate({ k: a.updated_at || a.created_at }, { k: b.updated_at || b.created_at }, 'k'))
+  for (const d of drafts) {
+    const when = d.updated_at || d.created_at
+    const prompt = text(c.promptBodiesById[d.prompt_id]).trim()
+    add('ritual-drafts', safeFileName(day(when), 'Undated draft'), blocks('# Ritual draft', dateLine(when), prompt && quote(prompt), text(d.content)))
+  }
+
+  // Forum: grouped by thread id, so two unseen threads stay two files.
+  const ownThreads = new Map(c.threads.map((t) => [t.id, t]))
+  const groups = new Map()
+  for (const p of posts.filter((p) => !isEntry(p))) {
+    if (!groups.has(p.thread_id)) groups.set(p.thread_id, [])
+    groups.get(p.thread_id).push(p)
+  }
+  const forum = []
+  for (const [id, rows] of groups) forum.push({ id, rows, first: rows[0].created_at })
+  const postedIn = new Set(c.posts.map((p) => p.thread_id))
+  for (const t of c.threads) {
+    if (!postedIn.has(t.id)) forum.push({ id: t.id, rows: [], first: t.created_at })
+  }
+  forum.sort((a, b) => byDate(a, b, 'first'))
+  for (const g of forum) {
+    const own = ownThreads.get(g.id)
+    const known = c.threadsById[g.id] || own
+    const title = known ? text(known.title).trim() || FALLBACK_THREAD : FALLBACK_THREAD
+    add('forum', safeFileName(known?.title, FALLBACK_THREAD), groupedFile(title, own ? statusLine(own.mod_status) : '', own ? dateLine(own.created_at) : '', g.rows))
+  }
+
+  // Critiques: grouped by story id.
+  const byStory = new Map()
+  for (const k of [...c.critiques].sort(byDate)) {
+    if (!byStory.has(k.book_id)) byStory.set(k.book_id, [])
+    byStory.get(k.book_id).push(k)
+  }
+  for (const [id, rows] of byStory) {
+    const seen = id in c.storyTitlesById
+    const raw = seen ? c.storyTitlesById[id] : null
+    const title = seen ? text(raw).trim() || FALLBACK_STORY : FALLBACK_SEEN_STORY
+    add('critiques', safeFileName(seen ? raw : null, seen ? FALLBACK_STORY : FALLBACK_SEEN_STORY), groupedFile(title, '', '', rows))
+  }
+
+  return files
+}
