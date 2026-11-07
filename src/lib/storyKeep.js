@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient'
 import { bytesToBase64, byteaToBytes } from './ritualKeep'
+import { keptItemFile, ownRows } from './writingExport'
 
 /**
  * Delete forever / Keep it for Library stories: the browser side of
@@ -82,19 +83,37 @@ export async function listKeptStories() {
 }
 
 /**
+ * Reads the bundle and opens it with the code. Never calls an RPC, so it still works for a
+ * suspended member (restore is refused then). Throws Error('wrong-code') / Error('corrupt-bundle'),
+ * or a user-facing message when the bundle can't be read.
+ */
+export async function openKeptStory({ vaultId, code, sealApi }) {
+  if (!supabase) throw new Error(restoreStoryErrorMessage(null))
+  const { data: row, error } = await supabase.from('story_vault').select('bundle').eq('id', vaultId).maybeSingle()
+  if (error) throw new Error(restoreStoryErrorMessage(null))
+  if (!row) throw new Error(restoreStoryErrorMessage({ code: 'P0002' }))
+  return sealApi.unsealWriting(byteaToBytes(row.bundle), code)
+}
+
+/**
  * Opens the bundle with the code and puts everything back. Throws Error('wrong-code') /
  * Error('corrupt-bundle') before anything is sent, or a user-facing message after.
  * Resolves to { title, result } where result is the restore RPC's answer.
  */
 export async function restoreKeptStory({ vaultId, code, sealApi }) {
-  if (!supabase) throw new Error(restoreStoryErrorMessage(null))
-  const { data: row, error } = await supabase.from('story_vault').select('bundle').eq('id', vaultId).maybeSingle()
-  if (error) throw new Error(restoreStoryErrorMessage(null))
-  if (!row) throw new Error(restoreStoryErrorMessage({ code: 'P0002' }))
-  const payload = await sealApi.unsealWriting(byteaToBytes(row.bundle), code)
+  const payload = await openKeptStory({ vaultId, code, sealApi })
   const { data, error: rpcError } = await supabase.rpc('story_vault_restore', { p_vault_id: vaultId, p_payload: payload })
   if (rpcError) throw new Error(restoreStoryErrorMessage(rpcError))
   return { title: payload?.story?.title ?? null, result: data }
+}
+
+/**
+ * The story as a { name, text } Markdown file. Other people's comments stay out; the writer's own
+ * comments on their own story are kept, because Keep it deleted the live rows.
+ */
+export function keptStoryFile(payload) {
+  const story = payload?.story
+  return keptItemFile(story, 'Untitled story', { before: [story?.lede], own: ownRows(payload?.comments, story?.author_id) })
 }
 
 /** Permanently removes a kept story. No code needed: it is the owner's own row. */
