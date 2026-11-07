@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from './AuthContext'
 import { loadSealModules } from '../lib/sealLoader'
-import { listKeptEntries, restoreKeptEntry, deleteKeptEntry } from '../lib/ritualKeep'
+import { saveTextFile } from '../lib/writingExport'
+import { listKeptEntries, restoreKeptEntry, openKeptEntry, keptEntryFile, deleteKeptEntry } from '../lib/ritualKeep'
 
 const WRONG_CODE_ERROR = "That code doesn't open this entry."
 const CORRUPT_ERROR = "This kept entry looks damaged. Please contact the keeper — don't delete it."
@@ -14,11 +15,12 @@ function excerpt(text, max = 140) {
 }
 
 function KeptRow({ item, onGone }) {
-  const [mode, setMode] = useState('idle') // idle | restore | delete
+  const [mode, setMode] = useState('idle') // idle | restore | download | delete
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [restored, setRestored] = useState(null)
+  const [saved, setSaved] = useState(false)
   const codeId = `kept-code-${item.id}`
   const errorId = `kept-error-${item.id}`
 
@@ -39,6 +41,36 @@ function KeptRow({ item, onGone }) {
     } finally {
       setBusy(false)
     }
+  }
+
+  // Download only opens the bundle and saves a file. It makes no RPC, so it works while restore is refused.
+  const download = async (e) => {
+    e.preventDefault()
+    if (!code.trim() || busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      const api = await loadSealModules()
+      const payload = await openKeptEntry({ vaultId: item.id, code, sealApi: api })
+      const file = keptEntryFile(payload)
+      saveTextFile(file.name, file.text)
+      setCode('')
+      setMode('idle')
+      setSaved(true)
+    } catch (err) {
+      // The typed code never reaches an error message: only these fixed strings do.
+      if (err?.message === 'wrong-code') setError(WRONG_CODE_ERROR)
+      else if (err?.message === 'corrupt-bundle') setError(CORRUPT_ERROR)
+      else setError('Nothing was saved. Your kept entry is safe; please try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const openMode = (next) => {
+    setError(null)
+    setSaved(false)
+    setMode(next)
   }
 
   const remove = async () => {
@@ -79,14 +111,19 @@ function KeptRow({ item, onGone }) {
       </div>
 
       {mode === 'idle' && (
-        <div className="flex items-center gap-2">
-          <button type="button" onClick={() => { setError(null); setMode('restore') }} className={SMALL_BTN}>Restore</button>
-          <button type="button" onClick={() => { setError(null); setMode('delete') }} className={SMALL_BTN}>Delete from vault</button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={() => openMode('restore')} className={SMALL_BTN}>Restore</button>
+          <button type="button" onClick={() => openMode('download')} className={SMALL_BTN}>Download</button>
+          <button type="button" onClick={() => openMode('delete')} className={SMALL_BTN}>Delete from vault</button>
         </div>
       )}
 
-      {mode === 'restore' && (
-        <form onSubmit={restore} className="flex flex-col gap-2">
+      {saved && mode === 'idle' && (
+        <p role="status" className="font-mono text-xs text-[var(--color-text-secondary)]">Saved.</p>
+      )}
+
+      {(mode === 'restore' || mode === 'download') && (
+        <form onSubmit={mode === 'download' ? download : restore} className="flex flex-col gap-2">
           <label htmlFor={codeId} className="font-mono text-xs uppercase">Recovery code</label>
           <input
             id={codeId}
@@ -103,7 +140,7 @@ function KeptRow({ item, onGone }) {
           {error && <p id={errorId} role="alert" className="text-[var(--color-ember)] text-xs font-mono">{error}</p>}
           <div className="flex items-center gap-2">
             <button type="submit" disabled={!code.trim() || busy} className="btn-vhs disabled:opacity-40 cursor-pointer">
-              {busy ? 'Restoring…' : 'Restore'}
+              {busy ? (mode === 'download' ? 'Opening…' : 'Restoring…') : (mode === 'download' ? 'Download' : 'Restore')}
             </button>
             <button type="button" disabled={busy} onClick={() => setMode('idle')} className={LINK}>Cancel</button>
           </div>

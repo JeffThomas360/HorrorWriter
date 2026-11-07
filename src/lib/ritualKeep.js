@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient'
 import { buildVaultPayload } from './ritualVault'
+import { safeFileName } from './writingExport'
 
 /**
  * "Keep it" for Midnight Ritual entries: the browser side of the vault RPCs in
@@ -112,19 +113,43 @@ export async function listKeptEntries() {
 }
 
 /**
+ * Reads the bundle and opens it with the code. Never calls an RPC, so it still works for a
+ * suspended member (restore is refused then). Throws Error('wrong-code') / Error('corrupt-bundle'),
+ * or a user-facing message when the bundle can't be read.
+ */
+export async function openKeptEntry({ vaultId, code, sealApi }) {
+  if (!supabase) throw new Error(restoreErrorMessage(null))
+  const { data: row, error } = await supabase.from('ritual_vault').select('bundle').eq('id', vaultId).maybeSingle()
+  if (error) throw new Error(restoreErrorMessage(null))
+  if (!row) throw new Error(restoreErrorMessage({ code: 'P0002' }))
+  return sealApi.unsealWriting(byteaToBytes(row.bundle), code)
+}
+
+/**
  * Opens the bundle with the code and puts everything back. Throws Error('wrong-code') /
  * Error('corrupt-bundle') before anything is sent, or a user-facing message after.
  * Resolves to the restore RPC's result ({ thread_id, entry_id, critiques_restored, … }).
  */
 export async function restoreKeptEntry({ vaultId, code, sealApi }) {
-  if (!supabase) throw new Error(restoreErrorMessage(null))
-  const { data: row, error } = await supabase.from('ritual_vault').select('bundle').eq('id', vaultId).maybeSingle()
-  if (error) throw new Error(restoreErrorMessage(null))
-  if (!row) throw new Error(restoreErrorMessage({ code: 'P0002' }))
-  const payload = await sealApi.unsealWriting(byteaToBytes(row.bundle), code)
+  const payload = await openKeptEntry({ vaultId, code, sealApi })
   const { data, error: rpcError } = await supabase.rpc('ritual_vault_restore', { p_vault_id: vaultId, p_payload: payload })
   if (rpcError) throw new Error(restoreErrorMessage(rpcError))
   return data
+}
+
+const str = (v) => (v == null ? '' : String(v))
+
+/** A kept item as one Markdown file: title, date, then the writer's own words. Nobody else's. */
+function keptFile(item, fallback, ...extra) {
+  const title = str(item?.title).trim() || fallback
+  const day = str(item?.created_at).slice(0, 10)
+  const text = ['# ' + title, day && 'Written ' + day, ...extra.map(str), str(item?.content)].filter(Boolean).join('\n\n')
+  return { name: safeFileName(item?.title, fallback) + '.md', text: text + '\n' }
+}
+
+/** The entry as a { name, text } Markdown file. Critiques, posts and feedback are other people's words and stay out. */
+export function keptEntryFile(payload) {
+  return keptFile(payload?.entry, 'Untitled entry')
 }
 
 /** Permanently removes a kept entry. No code needed: it is the owner's own row. */

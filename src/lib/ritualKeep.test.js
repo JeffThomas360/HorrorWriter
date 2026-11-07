@@ -9,7 +9,7 @@ vi.mock('../supabaseClient', () => ({
   },
 }))
 
-const { bytesToBase64, byteaToBytes, keepRitualEntry, keepErrorMessage, restoreErrorMessage } = await import('./ritualKeep')
+const { bytesToBase64, byteaToBytes, keepRitualEntry, openKeptEntry, restoreKeptEntry, keptEntryFile, keepErrorMessage, restoreErrorMessage } = await import('./ritualKeep')
 
 const PREP = {
   nonce: 'n-1',
@@ -22,7 +22,16 @@ const PREP = {
   revision: null,
   seals: { 'e-1': 'se', 'c-1': 'sc' },
 }
-const sealApi = { sealWriting: vi.fn(async () => new Uint8Array([1, 2, 3])) }
+const OPENED = {
+  entry: { title: 'My Entry', content: 'Entry text', created_at: '2026-10-02T00:00:00.123456+00:00' },
+  critiques: [{ key: 'c-1', content: 'SOMEONE ELSES CRITIQUE' }],
+  posts: [{ content: 'SOMEONE ELSES POST' }],
+  feedback: [{ content: 'SOMEONE ELSES FEEDBACK' }],
+}
+const sealApi = {
+  sealWriting: vi.fn(async () => new Uint8Array([1, 2, 3])),
+  unsealWriting: vi.fn(async () => OPENED),
+}
 
 beforeEach(() => {
   rpc.mockReset()
@@ -75,6 +84,45 @@ describe('keepRitualEntry', () => {
   it('a full vault says so, and nothing is committed', async () => {
     rpc.mockImplementation(async (name) => (name === 'ritual_vault_prepare' ? { data: PREP } : { error: { code: 'HW031' } }))
     await expect(keepRitualEntry({ postId: 'e-1', threadId: 't-1', code: 'CODE', sealApi })).rejects.toThrow(/vault is full/)
+  })
+})
+
+describe('openKeptEntry', () => {
+  it('returns the unsealed payload and never calls rpc, so it works during a ban', async () => {
+    threadLookup.mockResolvedValue({ data: { bundle: '\\x010203' } })
+    expect(await openKeptEntry({ vaultId: 'v-1', code: 'CODE', sealApi })).toEqual(OPENED)
+    expect(sealApi.unsealWriting).toHaveBeenCalledWith(new Uint8Array([1, 2, 3]), 'CODE')
+    expect(rpc).not.toHaveBeenCalled()
+  })
+  it('rejects with wrong-code when the code does not open it', async () => {
+    threadLookup.mockResolvedValue({ data: { bundle: '\\x010203' } })
+    sealApi.unsealWriting.mockRejectedValueOnce(new Error('wrong-code'))
+    await expect(openKeptEntry({ vaultId: 'v-1', code: 'nope', sealApi })).rejects.toThrow('wrong-code')
+    expect(rpc).not.toHaveBeenCalled()
+  })
+})
+
+describe('restoreKeptEntry still restores', () => {
+  it('calls ritual_vault_restore', async () => {
+    threadLookup.mockResolvedValue({ data: { bundle: '\\x010203' } })
+    rpc.mockResolvedValue({ data: { thread_id: 't-1' } })
+    await restoreKeptEntry({ vaultId: 'v-1', code: 'CODE', sealApi })
+    expect(rpc).toHaveBeenCalledWith('ritual_vault_restore', { p_vault_id: 'v-1', p_payload: OPENED })
+  })
+})
+
+describe('keptEntryFile', () => {
+  it('holds the entry text and none of the critiques, posts or feedback', () => {
+    const { name, text } = keptEntryFile(OPENED)
+    expect(name).toBe('My Entry.md')
+    expect(text).toBe('# My Entry\n\nWritten 2026-10-02\n\nEntry text\n')
+    expect(text).not.toMatch(/SOMEONE ELSES/)
+  })
+  it('falls back for an empty title and omits missing fields', () => {
+    const { name, text } = keptEntryFile({ entry: { title: null, content: 'Body' } })
+    expect(name).toBe('Untitled entry.md')
+    expect(text).toBe('# Untitled entry\n\nBody\n')
+    expect(text).not.toMatch(/null|undefined/)
   })
 })
 
