@@ -10,11 +10,11 @@ import { useEffect, useRef, useState } from 'react'
  * Usage:
  *   <ConfirmDialog
  *     open={open}
- *     title="Permanently shadowban @user?"
- *     description="This hides all future content and cannot be undone from here."
+ *     title="Permanently ban @user?"
+ *     description="They can't post, and their writing is hidden from readers."
  *     danger
  *     requireReason
- *     confirmLabel="Shadowban"
+ *     confirmLabel="Permanent Ban"
  *     busy={busy}
  *     onCancel={() => setOpen(false)}
  *     onConfirm={(reason) => doThing(reason)}

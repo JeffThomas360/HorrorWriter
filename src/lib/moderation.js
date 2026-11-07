@@ -15,6 +15,15 @@ const MATRIX = {
   configure:     [],   // keeper-only
 }
 
+/**
+ * A permanent ban is stored as an end date of 2099-12-31 (written by the SQL
+ * function mod_apply_sanction). Suspensions there are capped at a year, so
+ * nothing else reaches that year.
+ */
+export function isPermanentBan(bannedUntil) {
+  return !!bannedUntil && new Date(bannedUntil).getUTCFullYear() >= 2099
+}
+
 /** True when the profile holds any moderation role. */
 export function isMod(profile) {
   return !!profile?.mod_role
