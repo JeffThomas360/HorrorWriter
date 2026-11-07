@@ -56,6 +56,40 @@ beforeEach(() => {
 })
 afterEach(() => cleanup())
 
+test('the case file opens on Administrative and loads no submissions until asked', async () => {
+  await openCaseFile()
+  expect(screen.getByRole('tab', { name: 'Administrative' })).toHaveAttribute('aria-selected', 'true')
+  expect(screen.getByRole('button', { name: '7 Days' })).toBeInTheDocument()
+  expect(screen.getByText(/Reports against this user/)).toBeInTheDocument()
+  expect(h.rpcs.map((c) => c.name)).not.toContain('mod_user_submissions')
+})
+
+test('the Submissions tab loads this member and swaps out the administrative view', async () => {
+  await openCaseFile()
+  fireEvent.click(screen.getByRole('tab', { name: 'Submissions' }))
+  await screen.findByRole('tablist', { name: 'Submission types' })
+  expect(h.rpcs).toContainEqual({ name: 'mod_user_submissions', args: { p_user: 'target' } })
+  expect(screen.queryByRole('button', { name: '7 Days' })).toBeNull()
+  expect(screen.queryByText(/Reports against this user/)).toBeNull()
+  // The member's name stays above both tabs.
+  expect(screen.getByText('@spooky')).toBeInTheDocument()
+})
+
+test('going back to Administrative brings the sanction buttons back', async () => {
+  await openCaseFile()
+  fireEvent.click(screen.getByRole('tab', { name: 'Submissions' }))
+  await screen.findByRole('tablist', { name: 'Submission types' })
+  fireEvent.click(screen.getByRole('tab', { name: 'Administrative' }))
+  expect(screen.getByRole('button', { name: '7 Days' })).toBeInTheDocument()
+})
+
+test('the Submissions tab warns when the member is suspended', async () => {
+  h.target.banned_until = NEXT_WEEK
+  await openCaseFile()
+  fireEvent.click(screen.getByRole('tab', { name: 'Submissions' }))
+  expect(await screen.findByRole('status')).toHaveTextContent(/Readers can.t see any of this/)
+})
+
 test('a moderator gets no sanction buttons: the server would refuse them', async () => {
   h.viewer = { mod_role: 'moderator', mod_scope: 'all' }
   await openCaseFile()
