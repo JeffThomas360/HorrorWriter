@@ -1,6 +1,6 @@
 import { supabase } from '../supabaseClient'
 import { buildVaultPayload } from './ritualVault'
-import { safeFileName } from './writingExport'
+import { keptItemFile } from './writingExport'
 
 /**
  * "Keep it" for Midnight Ritual entries: the browser side of the vault RPCs in
@@ -137,19 +137,9 @@ export async function restoreKeptEntry({ vaultId, code, sealApi }) {
   return data
 }
 
-const str = (v) => (v == null ? '' : String(v))
-
-/** A kept item as one Markdown file: title, date, then the writer's own words. Nobody else's. */
-function keptFile(item, fallback, ...extra) {
-  const title = str(item?.title).trim() || fallback
-  const day = str(item?.created_at).slice(0, 10)
-  const text = ['# ' + title, day && 'Written ' + day, ...extra.map(str), str(item?.content)].filter(Boolean).join('\n\n')
-  return { name: safeFileName(item?.title, fallback) + '.md', text: text + '\n' }
-}
-
 /** The entry as a { name, text } Markdown file. Critiques, posts and feedback are other people's words and stay out. */
 export function keptEntryFile(payload) {
-  return keptFile(payload?.entry, 'Untitled entry')
+  return keptItemFile(payload?.entry, 'Untitled entry')
 }
 
 /** Permanently removes a kept entry. No code needed: it is the owner's own row. */

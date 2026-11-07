@@ -1,6 +1,6 @@
 import { supabase } from '../supabaseClient'
 import { bytesToBase64, byteaToBytes } from './ritualKeep'
-import { safeFileName } from './writingExport'
+import { keptItemFile } from './writingExport'
 
 /**
  * Delete forever / Keep it for Library stories: the browser side of
@@ -107,19 +107,9 @@ export async function restoreKeptStory({ vaultId, code, sealApi }) {
   return { title: payload?.story?.title ?? null, result: data }
 }
 
-const str = (v) => (v == null ? '' : String(v))
-
-/** A kept item as one Markdown file: title, date, then the writer's own words. Nobody else's. */
-function keptFile(item, fallback, ...extra) {
-  const title = str(item?.title).trim() || fallback
-  const day = str(item?.created_at).slice(0, 10)
-  const text = ['# ' + title, day && 'Written ' + day, ...extra.map(str), str(item?.content)].filter(Boolean).join('\n\n')
-  return { name: safeFileName(item?.title, fallback) + '.md', text: text + '\n' }
-}
-
 /** The story as a { name, text } Markdown file. Comments are other people's words and stay out. */
 export function keptStoryFile(payload) {
-  return keptFile(payload?.story, 'Untitled story', payload?.story?.lede)
+  return keptItemFile(payload?.story, 'Untitled story', payload?.story?.lede)
 }
 
 /** Permanently removes a kept story. No code needed: it is the owner's own row. */

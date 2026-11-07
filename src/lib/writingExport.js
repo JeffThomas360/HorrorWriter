@@ -150,6 +150,16 @@ const quote = (s) => s.split(/\r?\n/).map((l) => `> ${l}`).join('\n')
 // Join the non-empty blocks with a blank line between them.
 const blocks = (...parts) => parts.filter((p) => p).join('\n\n') + '\n'
 
+// One kept story or entry as a { name, text } Markdown file: title, date, any extra blocks
+// (a story's lede), then the writer's own content. Nobody else's words belong here.
+export function keptItemFile(item, fallback, ...extra) {
+  const title = text(item?.title).trim() || fallback
+  return {
+    name: safeFileName(item?.title, fallback) + '.md',
+    text: blocks(`# ${title}`, dateLine(item?.created_at), ...extra.map(text), text(item?.content)),
+  }
+}
+
 // Oldest first. A missing date sorts last. Array.sort is stable, so ties keep input order.
 function byDate(a, b, key = 'created_at') {
   const x = a[key] || ''
