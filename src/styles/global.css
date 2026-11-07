@@ -264,6 +264,18 @@ a:hover {
   box-shadow: 0 0 12px rgba(200, 16, 46, 0.4);
 }
 
+/* The permanent choice in a dialog ("Delete forever"): filled, so it can't be mistaken for the
+   outlined choice beside it. It has to be a class here. .btn-vhs is unlayered, so it beats any
+   bg-, text- or border- utility put next to it in className. Bone on blood is 4.6:1. */
+.btn-vhs-danger {
+  background: var(--color-blood);
+  color: var(--color-bone);
+}
+
+.btn-vhs-danger:hover {
+  border-color: var(--color-bone);
+}
+
 /* VHS Motion Set Piece — Signal Lock (Phase 5) */
 .vhs-signal-lock {
   pointer-events: none;
