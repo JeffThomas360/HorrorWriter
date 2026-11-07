@@ -262,7 +262,7 @@ function MyStories() {
                             onClick={() => removeMutation.mutate({ seriesId: s.id, bookId: b.id })}
                             disabled={removeMutation.isPending}
                           >
-                            Remove
+                            Remove from series
                           </button>
                         </div>
                       </li>

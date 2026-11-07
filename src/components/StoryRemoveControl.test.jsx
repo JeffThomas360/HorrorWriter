@@ -26,6 +26,12 @@ test('asks first, naming the story and its critiques', () => {
   expect(deleteStoryForever).not.toHaveBeenCalled()
 })
 
+test('Delete forever is the filled button, so it cannot be mistaken for Keep it', () => {
+  render(<StoryRemoveControl book={book} />)
+  expect(screen.getByRole('button', { name: 'Delete forever' })).toHaveClass('btn-vhs-danger')
+  expect(screen.getByRole('button', { name: 'Keep it' })).not.toHaveClass('btn-vhs-danger')
+})
+
 test('Delete forever deletes and reports back', async () => {
   deleteStoryForever.mockResolvedValue()
   const onRemoved = vi.fn()
