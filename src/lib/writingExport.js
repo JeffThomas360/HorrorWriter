@@ -4,6 +4,8 @@
 // work a moderator removed. So this is all-or-nothing: any failed query throws, and a
 // caller must never get a partial result it could mistake for the whole account.
 
+import { supabase } from '../supabaseClient'
+
 const CHUNK = 100
 
 const BOOK_COLS = 'id, title, lede, content, mod_status, prompt_id, created_at, updated_at'
@@ -289,4 +291,42 @@ export function buildExportFiles(collected, { handle, exportedAt }) {
   }
 
   return files
+}
+
+// ---------------------------------------------------------------------------
+// Saving to the member's device, and the whole "Download my writing" flow.
+// ---------------------------------------------------------------------------
+
+export function saveBlob(blob, name) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = name
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+export function saveTextFile(name, text) {
+  saveBlob(new Blob([text], { type: 'text/markdown' }), name)
+}
+
+// Collect, zip, save. Throws on any failure and saves nothing unless every step worked,
+// so a member can never end up holding a partial download. Resolves { count: 0 } without
+// saving when there is nothing to export.
+export async function downloadMyWriting({ userId, handle }) {
+  if (!supabase) throw new Error('Could not read your writing: not connected')
+  const collected = await collectMyWriting(supabase, userId)
+  const count = countWork(collected)
+  if (count === 0) return { count: 0 }
+
+  const exportedAt = new Date()
+  const files = buildExportFiles(collected, { handle, exportedAt })
+  const { zipSync, strToU8 } = await import('fflate')
+  const entries = {}
+  for (const f of files) entries[f.path] = strToU8(f.text)
+  const blob = new Blob([zipSync(entries)], { type: 'application/zip' })
+  saveBlob(blob, `horrorwriter-writing-${exportedAt.toISOString().slice(0, 10)}.zip`)
+  return { count }
 }

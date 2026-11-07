@@ -179,4 +179,15 @@ test.describe('Profile Editor Flows', () => {
     // Verify the passkey is removed from the UI
     await expect(page.getByText('No passkeys set up yet.')).toBeVisible();
   });
+
+  test('Download my writing saves a dated zip', async ({ page }) => {
+    await page.goto('/profile');
+
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Download my writing' }).click();
+    const download = await downloadPromise;
+
+    expect(download.suggestedFilename()).toMatch(/^horrorwriter-writing-\d{4}-\d{2}-\d{2}\.zip$/);
+    await expect(page.getByRole('status').filter({ hasText: /Saved \d+ pieces?\./ })).toBeVisible();
+  });
 });

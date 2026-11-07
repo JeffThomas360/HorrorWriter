@@ -1,5 +1,11 @@
-import { describe, it, expect } from 'vitest'
-import { fetchAllRows, collectMyWriting, countWork, safeFileName, buildExportFiles } from './writingExport'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { unzipSync, strFromU8 } from 'fflate'
+import { fetchAllRows, collectMyWriting, countWork, safeFileName, buildExportFiles, downloadMyWriting } from './writingExport'
+
+const mockSupabase = vi.hoisted(() => ({ current: null }))
+vi.mock('../supabaseClient', () => ({
+  get supabase() { return mockSupabase.current },
+}))
 
 // A tiny fake of the supabase-js query builder. Every query is recorded in `calls`;
 // `respond(call)` returns { data, error } for it. The builder is awaitable.
@@ -415,5 +421,60 @@ describe('buildExportFiles', () => {
     const files = build({ stories: [{ id: 'a', title: 'T', content: 'x', created_at: '2026-03-04T23:59:59Z' }] })
     expect(get(files, 'stories/T.md').text).toContain('2026-03-04')
     expect(get(files, 'stories/T.md').text).not.toContain('2026-03-05')
+  })
+})
+
+describe('downloadMyWriting', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    mockSupabase.current = null
+  })
+
+  function stubDownload() {
+    const created = []
+    URL.createObjectURL = vi.fn((blob) => { created.push(blob); return 'blob:test' })
+    URL.revokeObjectURL = vi.fn()
+    return created
+  }
+
+  const readBytes = (blob) => new Promise((resolve, reject) => {
+    const r = new FileReader()
+    r.onload = () => resolve(new Uint8Array(r.result))
+    r.onerror = reject
+    r.readAsArrayBuffer(blob)
+  })
+
+  it('rejects and saves nothing when a query fails', async () => {
+    const created = stubDownload()
+    mockSupabase.current = fakeClient(() => ({ data: null, error: { message: 'boom' } }))
+    await expect(downloadMyWriting({ userId: 'u1', handle: 'h' })).rejects.toThrow(/Could not read your writing/)
+    expect(created).toHaveLength(0)
+    expect(URL.createObjectURL).not.toHaveBeenCalled()
+  })
+
+  it('rejects when there is no supabase client, rather than reporting an empty account', async () => {
+    const created = stubDownload()
+    mockSupabase.current = null
+    await expect(downloadMyWriting({ userId: 'u1', handle: 'h' })).rejects.toThrow()
+    expect(created).toHaveLength(0)
+  })
+
+  it('resolves { count: 0 } and saves nothing for an empty account', async () => {
+    const created = stubDownload()
+    mockSupabase.current = fakeClient(() => ({ data: [], error: null }))
+    await expect(downloadMyWriting({ userId: 'u1', handle: 'h' })).resolves.toEqual({ count: 0 })
+    expect(created).toHaveLength(0)
+  })
+
+  it('saves a real zip that unzips to the README and the story', async () => {
+    const created = stubDownload()
+    const story = { id: 'b1', title: 'Ça va être noir', lede: '', content: 'The dark text.', mod_status: 'visible', created_at: '2026-03-05T10:00:00Z' }
+    mockSupabase.current = fakeClient((call) => ({ data: call.table === 'books' ? [story] : [], error: null }))
+    await expect(downloadMyWriting({ userId: 'u1', handle: 'writer' })).resolves.toEqual({ count: 1 })
+    expect(created).toHaveLength(1)
+    const files = unzipSync(await readBytes(created[0]))
+    expect(Object.keys(files).sort()).toEqual(['README.txt', 'stories/Ça va être noir.md'])
+    expect(strFromU8(files['stories/Ça va être noir.md'])).toContain('The dark text.')
+    expect(strFromU8(files['README.txt'])).toContain('Handle: writer')
   })
 })
