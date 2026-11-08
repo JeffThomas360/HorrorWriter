@@ -65,10 +65,14 @@ insert into public.books (id, title, lede, content, author_id, version, mod_stat
 insert into public.threads (id, title, category_id, author_id, created_at) values
   ('00000000-0000-4000-8000-0000000f5001', 'Own thread',    (select id from public.categories where id <> 'rituals' order by id limit 1), '00000000-0000-4000-8000-0000000c5001', '2026-10-06T12:00:00Z'),
   ('00000000-0000-4000-8000-0000000f5002', 'Others thread', (select id from public.categories where id <> 'rituals' order by id limit 1), '00000000-0000-4000-8000-0000000c5002', '2026-10-06T12:00:00Z');
+-- Opening posts and replies go in separate statements, as they do on the site: on_post_created
+-- is an AFTER ROW trigger, which runs once the whole statement is in, so an opening post inserted
+-- together with its reply sees the reply and gets counted in replies_count as well.
 insert into public.posts (id, thread_id, author_id, content, created_at) values
   ('00000000-0000-4000-8000-0000000b5001', '00000000-0000-4000-8000-0000000f5001', '00000000-0000-4000-8000-0000000c5001', 'Own opening post.',    '2026-10-06T12:00:00Z'),
+  ('00000000-0000-4000-8000-0000000b5003', '00000000-0000-4000-8000-0000000f5002', '00000000-0000-4000-8000-0000000c5002', 'Others opening post.', '2026-10-06T12:00:00Z');
+insert into public.posts (id, thread_id, author_id, content, created_at) values
   ('00000000-0000-4000-8000-0000000b5002', '00000000-0000-4000-8000-0000000f5001', '00000000-0000-4000-8000-0000000c5002', 'A reply to the writer.', '2026-10-06T13:00:00Z'),
-  ('00000000-0000-4000-8000-0000000b5003', '00000000-0000-4000-8000-0000000f5002', '00000000-0000-4000-8000-0000000c5002', 'Others opening post.', '2026-10-06T12:00:00Z'),
   ('00000000-0000-4000-8000-0000000b5004', '00000000-0000-4000-8000-0000000f5002', '00000000-0000-4000-8000-0000000c5001', repeat('word   ', 40),  '2026-10-06T14:00:00Z');
 
 -- A Ritual: a prompt thread nobody owns, two entries by the writer (one edited before edits
