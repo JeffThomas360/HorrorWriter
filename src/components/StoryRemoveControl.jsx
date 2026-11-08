@@ -4,7 +4,7 @@ import { keepStory, deleteStoryForever } from '../lib/storyKeep'
 
 const LINK = 'font-mono text-xs uppercase tracking-wide text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] cursor-pointer'
 const SMALL_BTN = 'font-mono text-xs uppercase tracking-wide text-[var(--color-text-primary)] border border-[var(--color-line)] hover:border-[var(--color-text-primary)] px-4 py-2 min-h-[44px] disabled:opacity-40 cursor-pointer'
-const DANGER_BTN = 'btn-vhs bg-[var(--color-accent-crimson)] text-white hover:bg-red-700 border-red-800 disabled:opacity-40 cursor-pointer'
+const DANGER_BTN = 'btn-vhs btn-vhs-danger disabled:opacity-40 cursor-pointer'
 const COPY_FAILED = 'Copy failed — select the code and copy it'
 
 /** Keep it: a fresh recovery code, a "saved it" tick, then the story is locked away. */
