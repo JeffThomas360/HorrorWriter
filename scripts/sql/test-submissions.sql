@@ -203,7 +203,11 @@ begin
   perform pg_temp.must((select edit_count from public.posts where id = new_entry) = 2, 'a title change counts');
   update public.posts set content = 'Changed.' where id = new_entry;
   perform pg_temp.must((select edit_count from public.posts where id = new_entry) = 2, 'saving the same text does not count');
+  -- prevent_mod_status_reset only lets a moderator, or the automated pipeline's flag, change
+  -- mod_status. The admin role is neither, so it borrows the flag for this one statement.
+  perform set_config('app.automated_mod_action', 'true', true);
   update public.posts set mod_status = 'hidden' where id = others_entry;
+  perform set_config('app.automated_mod_action', '', true);
   perform pg_temp.must((select edit_count from public.posts where id = others_entry) = 0, 'a moderation change is not an edit');
 
   update public.posts set content = 'Changed again.', edited_at = now() where id = old_entry;
