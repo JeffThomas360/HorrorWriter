@@ -163,7 +163,7 @@ function KeptRow({ item, onGone }) {
               type="button"
               disabled={busy}
               onClick={remove}
-              className="btn-vhs bg-[var(--color-accent-crimson)] text-white hover:bg-red-700 border-red-800 disabled:opacity-40 cursor-pointer"
+              className="btn-vhs btn-vhs-danger disabled:opacity-40 cursor-pointer"
             >
               {busy ? 'Deleting…' : 'Delete forever'}
             </button>
