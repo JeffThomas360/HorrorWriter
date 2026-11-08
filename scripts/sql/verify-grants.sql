@@ -97,6 +97,8 @@ with allow(name, role, why) as (values
   ('mod_get_profile',          'authenticated', 'mod RPC, mod_can(handle_report, all)'),
   ('mod_list_users',           'authenticated', 'warden/keeper RPC, mod_can(ban, all)'),
   ('mod_active_sanctions',     'authenticated', 'mod RPC, mod_can(handle_report, all)'),
+  -- Member submissions (20261109000000). Same gate as opening a case file; hidden rows follow the moderator's scope.
+  ('mod_user_submissions',     'authenticated', 'mod RPC, mod_can(handle_report, all)'),
   -- Logged sanctions (20261108000000). The only client path to a sanction; each writes mod_actions.
   ('mod_apply_sanction',       'authenticated', 'warden/keeper RPC, mod_can(ban, all), reason required, logged'),
   ('mod_revoke_sanction',      'authenticated', 'warden/keeper RPC, mod_can(ban, all), reason required, logged'),

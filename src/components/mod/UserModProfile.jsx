@@ -6,6 +6,13 @@ import { modCan, isPermanentBan } from '../../lib/moderation'
 import { fetchUserCaseFile, contentHref, applyUserSanction, revokeUserSanction } from '../../lib/modActions'
 import { authorLabel } from '../../lib/storyHelpers'
 import ConfirmDialog from './ConfirmDialog'
+import CaseFileTabs from './CaseFileTabs'
+import UserSubmissions from './UserSubmissions'
+
+const CASE_FILE_TABS = [
+  { id: 'admin', label: 'Administrative' },
+  { id: 'submissions', label: 'Submissions' },
+]
 
 const GHOST_BTN = 'border border-[var(--color-line-hi)] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-bone)] transition-colors hover:border-[var(--color-bone)] cursor-pointer disabled:opacity-50'
 
@@ -24,10 +31,11 @@ function sanctionDuration(a) {
 }
 
 /**
- * The moderation "case file" for one user: identity, current sanction status
- * with quick sanction actions, reports filed against them, reports they've
- * filed themselves (for spotting bad-faith reporters), the audit trail of
- * actions taken against them (Warden+ only), and free-form mod notes.
+ * The moderation "case file" for one user. The Administrative tab has identity,
+ * current sanction status with quick sanction actions, reports filed against them,
+ * reports they've filed themselves (for spotting bad-faith reporters), the audit
+ * trail of actions taken against them (Warden+ only), and free-form mod notes. The
+ * Submissions tab lists what they've put on the site.
  *
  * Used as a slide-in drawer from Reports/Sanctions ("View User Context") and
  * can be dropped in anywhere a userId is known.
@@ -43,6 +51,7 @@ export default function UserModProfile({ userId, onClose }) {
   const [newNote, setNewNote] = useState('')
   const [pendingSanction, setPendingSanction] = useState(null) // a SANCTION_OPTIONS entry, or { key: 'revoke', label }
   const [busy, setBusy] = useState(false)
+  const [tab, setTab] = useState('admin')
 
   const load = async () => {
     if (!userId) return
@@ -147,129 +156,139 @@ export default function UserModProfile({ userId, onClose }) {
         {onClose && <button onClick={onClose} className={GHOST_BTN} aria-label="Close case file">✕</button>}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 text-sm">
-        <div>
-          <span className="block font-mono text-[10px] uppercase tracking-wider text-[var(--color-ash)]">Joined</span>
-          <span className="text-[var(--color-bone)]">{new Date(profile.created_at).toLocaleDateString()}</span>
-        </div>
-        <div>
-          <span className="block font-mono text-[10px] uppercase tracking-wider text-[var(--color-ash)]">Status</span>
-          {isSanctioned ? (
-            <span className="text-[var(--color-blood)]">
-              {isPermanent ? 'Permanently banned' : `Suspended until ${new Date(profile.banned_until).toLocaleString()}`}
-            </span>
-          ) : (
-            <span className="text-[var(--color-upside)]">Active</span>
-          )}
-        </div>
-      </div>
+      <CaseFileTabs label="Case file sections" idPrefix="case-file" tabs={CASE_FILE_TABS} active={tab} onChange={setTab} />
 
-      {canSanction ? (
-        <div className="flex flex-wrap gap-2">
-          {SANCTION_OPTIONS.map((opt) => (
-            <button key={opt.key} className={GHOST_BTN} onClick={() => setPendingSanction(opt)}>{opt.label}</button>
-          ))}
-          {isSanctioned && (
-            <button className={GHOST_BTN} disabled={busy} onClick={() => setPendingSanction({ key: 'revoke', label: revokeLabel })}>{revokeLabel}</button>
-          )}
-        </div>
-      ) : (
-        <p className="text-xs text-[var(--color-ash)]">Suspending or banning requires Warden access.</p>
-      )}
-
-      <section>
-        <h4 className="font-mono text-xs uppercase tracking-wider text-[var(--color-ash)] border-b border-[var(--color-line)] pb-2 mb-2">
-          Reports against this user ({caseFile?.reportsAgainst.length ?? 0})
-        </h4>
-        {(caseFile?.reportsAgainst.length ?? 0) === 0 ? (
-          <p className="text-xs text-[var(--color-ash)] italic font-serif">None on file.</p>
+      <div role="tabpanel" id="case-file-panel" aria-labelledby={`case-file-tab-${tab}`}>
+        {tab === 'submissions' ? (
+          <UserSubmissions userId={userId} bannedUntil={profile.banned_until} />
         ) : (
-          <ul className="flex flex-col gap-2">
-            {caseFile.reportsAgainst.map((r) => (
-              <li key={r.id} className="text-xs text-[var(--color-bone)]">
-                <span className="font-mono text-[var(--color-ash)]">{new Date(r.created_at).toLocaleDateString()}</span>{' '}
-                <span className="uppercase text-[var(--color-blood)]">{r.category}</span> — {r.details || 'no details'}{' '}
-                <span className="font-mono text-[var(--color-ash)]">[{r.status}]</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section>
-        <h4 className="font-mono text-xs uppercase tracking-wider text-[var(--color-ash)] border-b border-[var(--color-line)] pb-2 mb-2">
-          Reports filed by this user ({caseFile?.reportsFiled.length ?? 0})
-        </h4>
-        {(caseFile?.reportsFiled.length ?? 0) === 0 ? (
-          <p className="text-xs text-[var(--color-ash)] italic font-serif">None on file.</p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {caseFile.reportsFiled.map((r) => {
-              const href = contentHref(r.target_type, r.target_id)
-              return (
-                <li key={r.id} className="text-xs text-[var(--color-bone)]">
-                  <span className="font-mono text-[var(--color-ash)]">{new Date(r.created_at).toLocaleDateString()}</span>{' '}
-                  reported a <span className="uppercase">{r.target_type}</span> for <span className="text-[var(--color-blood)]">{r.category}</span>{' '}
-                  <span className="font-mono text-[var(--color-ash)]">[{r.status}]</span>
-                  {href && <a href={href} className="underline ml-1 hover:text-[var(--color-blood)]">view</a>}
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </section>
-
-      <section>
-        <h4 className="font-mono text-xs uppercase tracking-wider text-[var(--color-ash)] border-b border-[var(--color-line)] pb-2 mb-2">
-          Actions taken against this user
-        </h4>
-        {!canReadAudit ? (
-          <p className="text-xs text-[var(--color-ash)]">Requires Warden access.</p>
-        ) : (caseFile?.actionsAgainst.length ?? 0) === 0 ? (
-          <p className="text-xs text-[var(--color-ash)] italic font-serif">None on file.</p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {caseFile.actionsAgainst.map((a) => (
-              <li key={a.id} className="text-xs text-[var(--color-bone)]">
-                <span className="font-mono text-[var(--color-ash)]">{new Date(a.created_at).toLocaleDateString()}</span>{' '}
-                <span className="text-[var(--color-blood)]">{a.action.replace(/_/g, ' ')}</span>
-                {sanctionDuration(a) && <span className="text-[var(--color-ash)]"> · {sanctionDuration(a)}</span>}
-                {a.reason && <span className="text-[var(--color-ash)] italic"> — {a.reason}</span>}
-                {a.profiles?.handle && <span className="font-mono text-[var(--color-ash)]"> · by @{a.profiles.handle}</span>}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section>
-        <h4 className="font-mono text-xs uppercase tracking-wider text-[var(--color-ash)] border-b border-[var(--color-line)] pb-2 mb-2">
-          Mod notes
-        </h4>
-        <div className="flex flex-col gap-2 mb-3">
-          {(caseFile?.notes.length ?? 0) === 0 ? (
-            <p className="text-xs text-[var(--color-ash)] italic font-serif">No internal notes on this user.</p>
-          ) : caseFile.notes.map((n) => (
-            <div key={n.id} className="card-surface p-3 text-xs">
-              <div className="flex justify-between mb-1">
-                <strong className="text-[var(--color-blood)]">{authorLabel(n.profiles)}</strong>
-                <span className="text-[var(--color-ash)]">{new Date(n.created_at).toLocaleString()}</span>
+          <div className="flex flex-col gap-6">
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <span className="block font-mono text-[10px] uppercase tracking-wider text-[var(--color-ash)]">Joined</span>
+                <span className="text-[var(--color-bone)]">{new Date(profile.created_at).toLocaleDateString()}</span>
               </div>
-              <div className="text-[var(--color-bone)]">{n.note}</div>
+              <div>
+                <span className="block font-mono text-[10px] uppercase tracking-wider text-[var(--color-ash)]">Status</span>
+                {isSanctioned ? (
+                  <span className="text-[var(--color-blood)]">
+                    {isPermanent ? 'Permanently banned' : `Suspended until ${new Date(profile.banned_until).toLocaleString()}`}
+                  </span>
+                ) : (
+                  <span className="text-[var(--color-upside)]">Active</span>
+                )}
+              </div>
             </div>
-          ))}
-        </div>
-        <form onSubmit={handleAddNote} className="flex gap-2">
-          <input
-            type="text"
-            value={newNote}
-            onChange={(e) => setNewNote(e.target.value)}
-            placeholder="Leave a behavioral note…"
-            className="flex-1 bg-[var(--color-void)] border border-[var(--color-line)] px-3 py-2 text-xs text-[var(--color-bone)] focus:border-[var(--color-ember)] outline-none"
-          />
-          <button type="submit" className={GHOST_BTN}>Add</button>
-        </form>
-      </section>
+
+            {canSanction ? (
+              <div className="flex flex-wrap gap-2">
+                {SANCTION_OPTIONS.map((opt) => (
+                  <button key={opt.key} className={GHOST_BTN} onClick={() => setPendingSanction(opt)}>{opt.label}</button>
+                ))}
+                {isSanctioned && (
+                  <button className={GHOST_BTN} disabled={busy} onClick={() => setPendingSanction({ key: 'revoke', label: revokeLabel })}>{revokeLabel}</button>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-[var(--color-ash)]">Suspending or banning requires Warden access.</p>
+            )}
+
+            <section>
+              <h4 className="font-mono text-xs uppercase tracking-wider text-[var(--color-ash)] border-b border-[var(--color-line)] pb-2 mb-2">
+                Reports against this user ({caseFile?.reportsAgainst.length ?? 0})
+              </h4>
+              {(caseFile?.reportsAgainst.length ?? 0) === 0 ? (
+                <p className="text-xs text-[var(--color-ash)] italic font-serif">None on file.</p>
+              ) : (
+                <ul className="flex flex-col gap-2">
+                  {caseFile.reportsAgainst.map((r) => (
+                    <li key={r.id} className="text-xs text-[var(--color-bone)]">
+                      <span className="font-mono text-[var(--color-ash)]">{new Date(r.created_at).toLocaleDateString()}</span>{' '}
+                      <span className="uppercase text-[var(--color-blood)]">{r.category}</span> — {r.details || 'no details'}{' '}
+                      <span className="font-mono text-[var(--color-ash)]">[{r.status}]</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section>
+              <h4 className="font-mono text-xs uppercase tracking-wider text-[var(--color-ash)] border-b border-[var(--color-line)] pb-2 mb-2">
+                Reports filed by this user ({caseFile?.reportsFiled.length ?? 0})
+              </h4>
+              {(caseFile?.reportsFiled.length ?? 0) === 0 ? (
+                <p className="text-xs text-[var(--color-ash)] italic font-serif">None on file.</p>
+              ) : (
+                <ul className="flex flex-col gap-2">
+                  {caseFile.reportsFiled.map((r) => {
+                    const href = contentHref(r.target_type, r.target_id)
+                    return (
+                      <li key={r.id} className="text-xs text-[var(--color-bone)]">
+                        <span className="font-mono text-[var(--color-ash)]">{new Date(r.created_at).toLocaleDateString()}</span>{' '}
+                        reported a <span className="uppercase">{r.target_type}</span> for <span className="text-[var(--color-blood)]">{r.category}</span>{' '}
+                        <span className="font-mono text-[var(--color-ash)]">[{r.status}]</span>
+                        {href && <a href={href} className="underline ml-1 hover:text-[var(--color-blood)]">view</a>}
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </section>
+
+            <section>
+              <h4 className="font-mono text-xs uppercase tracking-wider text-[var(--color-ash)] border-b border-[var(--color-line)] pb-2 mb-2">
+                Actions taken against this user
+              </h4>
+              {!canReadAudit ? (
+                <p className="text-xs text-[var(--color-ash)]">Requires Warden access.</p>
+              ) : (caseFile?.actionsAgainst.length ?? 0) === 0 ? (
+                <p className="text-xs text-[var(--color-ash)] italic font-serif">None on file.</p>
+              ) : (
+                <ul className="flex flex-col gap-2">
+                  {caseFile.actionsAgainst.map((a) => (
+                    <li key={a.id} className="text-xs text-[var(--color-bone)]">
+                      <span className="font-mono text-[var(--color-ash)]">{new Date(a.created_at).toLocaleDateString()}</span>{' '}
+                      <span className="text-[var(--color-blood)]">{a.action.replace(/_/g, ' ')}</span>
+                      {sanctionDuration(a) && <span className="text-[var(--color-ash)]"> · {sanctionDuration(a)}</span>}
+                      {a.reason && <span className="text-[var(--color-ash)] italic"> — {a.reason}</span>}
+                      {a.profiles?.handle && <span className="font-mono text-[var(--color-ash)]"> · by @{a.profiles.handle}</span>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section>
+              <h4 className="font-mono text-xs uppercase tracking-wider text-[var(--color-ash)] border-b border-[var(--color-line)] pb-2 mb-2">
+                Mod notes
+              </h4>
+              <div className="flex flex-col gap-2 mb-3">
+                {(caseFile?.notes.length ?? 0) === 0 ? (
+                  <p className="text-xs text-[var(--color-ash)] italic font-serif">No internal notes on this user.</p>
+                ) : caseFile.notes.map((n) => (
+                  <div key={n.id} className="card-surface p-3 text-xs">
+                    <div className="flex justify-between mb-1">
+                      <strong className="text-[var(--color-blood)]">{authorLabel(n.profiles)}</strong>
+                      <span className="text-[var(--color-ash)]">{new Date(n.created_at).toLocaleString()}</span>
+                    </div>
+                    <div className="text-[var(--color-bone)]">{n.note}</div>
+                  </div>
+                ))}
+              </div>
+              <form onSubmit={handleAddNote} className="flex gap-2">
+                <input
+                  type="text"
+                  value={newNote}
+                  onChange={(e) => setNewNote(e.target.value)}
+                  placeholder="Leave a behavioral note…"
+                  className="flex-1 bg-[var(--color-void)] border border-[var(--color-line)] px-3 py-2 text-xs text-[var(--color-bone)] focus:border-[var(--color-ember)] outline-none"
+                />
+                <button type="submit" className={GHOST_BTN}>Add</button>
+              </form>
+            </section>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

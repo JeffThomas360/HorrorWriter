@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { fetchAllUsers } from '../../lib/siteSettings'
 import { isPermanentBan } from '../../lib/moderation'
+import { SUBMISSION_KINDS, flagText, totalSubmissions } from '../../lib/submissions'
 import UserModProfile from '../mod/UserModProfile'
 
 /**
@@ -27,7 +28,20 @@ const SORTS = [
   { id: 'newest', label: 'Newest' },
   { id: 'oldest', label: 'Oldest' },
   { id: 'handle', label: 'Handle A–Z' },
+  { id: 'most', label: 'Most submissions' },
 ]
+
+/** A member's count of one kind. Red, with the reason on hover, when any of it is hidden or in screening. */
+function CountCell({ tally }) {
+  const total = tally?.total ?? 0
+  const flag = flagText(tally)
+  const color = flag ? 'text-[var(--color-ember)]' : total ? 'text-[var(--color-bone)]' : 'text-[var(--color-ash)]'
+  return (
+    <td className={`py-2 pr-4 text-right font-mono text-xs ${color}`} title={flag || undefined}>
+      {total}{flag && <span className="sr-only"> ({flag})</span>}
+    </td>
+  )
+}
 
 function sanctionState(u) {
   if (u.banned_until && new Date(u.banned_until) > new Date()) {
@@ -72,6 +86,7 @@ export default function UsersTab() {
     const sorted = [...out]
     if (sort === 'newest') sorted.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
     else if (sort === 'oldest') sorted.sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+    else if (sort === 'most') sorted.sort((a, b) => totalSubmissions(b) - totalSubmissions(a) || new Date(b.created_at) - new Date(a.created_at))
     else sorted.sort((a, b) => (a.handle || '').localeCompare(b.handle || ''))
 
     return sorted
@@ -148,6 +163,9 @@ export default function UsersTab() {
                 <th className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-ash)] py-2 pr-3">Handle</th>
                 <th className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-ash)] py-2 pr-3">Role</th>
                 <th className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-ash)] py-2 pr-3">Status</th>
+                {SUBMISSION_KINDS.map((k) => (
+                  <th key={k.id} className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-ash)] py-2 pr-4 text-right">{k.label}</th>
+                ))}
                 <th className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-ash)] py-2">Joined</th>
               </tr>
             </thead>
@@ -182,6 +200,7 @@ export default function UsersTab() {
                           ? <span className="text-[var(--color-ash)]">Screened</span>
                           : <span className="text-[var(--color-ash)]">—</span>}
                     </td>
+                    {SUBMISSION_KINDS.map((k) => <CountCell key={k.id} tally={u.submissions?.[k.id]} />)}
                     <td className="py-2 font-mono text-xs text-[var(--color-ash)]">
                       {new Date(u.created_at).toLocaleDateString()}
                     </td>
