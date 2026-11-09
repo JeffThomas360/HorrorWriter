@@ -237,7 +237,8 @@ function Forum() {
                   setActivePromptId('all')
                 }}
               >
-                <span>All Threads</span>
+                {/* Not "All Threads": Ritual threads are left out on purpose (generalThreads) and live in their own room. */}
+                <span>All Discussion</span>
                 <span className="font-mono text-xs">{generalThreads.length}</span>
               </li>
               {allCategories.map(c => {
