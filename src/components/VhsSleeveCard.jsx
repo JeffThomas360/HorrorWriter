@@ -77,7 +77,7 @@ export default function VhsSleeveCard({ story }) {
             <span className={`truncate ${isSeries ? 'text-[var(--color-upside)]' : ''}`}>{kind}</span>
           </div>
 
-          <div className="relative flex-1 flex flex-col gap-2.5 px-3.5 pt-4 pb-2.5">
+          <div className="relative flex-1 flex flex-col gap-2.5 px-3 sm:px-3.5 pt-4 pb-2.5">
             {look.residue.show && (
               <span
                 className="tape-residue"
@@ -89,12 +89,12 @@ export default function VhsSleeveCard({ story }) {
                 }}
               />
             )}
-            <h3 className="tape-title font-['Fraunces'] font-black text-xl sm:text-2xl uppercase leading-[0.98] tracking-tight break-words line-clamp-4">
+            <h3 className="tape-title font-['Fraunces'] font-black text-base sm:text-2xl uppercase leading-[0.98] tracking-tight break-words line-clamp-4">
               {story.title}
             </h3>
             <div className="h-[3px] w-11 bg-current opacity-60" aria-hidden="true" />
             {story.lede && (
-              <p className="font-serif italic font-light text-[11px] leading-relaxed opacity-85 line-clamp-4">
+              <p className="font-serif italic font-light text-[11px] leading-relaxed opacity-85 line-clamp-3 sm:line-clamp-4">
                 {story.lede}
               </p>
             )}
@@ -117,7 +117,7 @@ export default function VhsSleeveCard({ story }) {
                   <span className="text-[7px] tracking-[0.14em] text-[var(--color-ash)]">MIN READ</span>
                 </div>
               )}
-              <div className="flex flex-col justify-center items-center gap-0.5 px-1" aria-hidden="true">
+              <div className="hidden sm:flex flex-col justify-center items-center gap-0.5 px-1" aria-hidden="true">
                 <span className="tape-barcode" />
                 <span className="text-[6px] tracking-[0.12em] text-[var(--color-ash)]">BE KIND · REWIND</span>
               </div>
