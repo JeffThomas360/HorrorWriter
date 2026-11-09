@@ -185,7 +185,7 @@ function ReadStory({ id, initialBook }) {
         title={isTombstone(book) ? TOMBSTONE_TEXT : book?.title}
         lede={isTombstone(book) ? null : book?.lede}
         endNote={isTombstone(book) ? null : <p className="mb-4 not-italic font-mono text-xs">{copyrightNotice(book)}</p>}
-        exitLabel="Exit Kindle Mode & Return to Discussions"
+        exitLabel="Exit Focus Mode & Return to Discussions"
         footerLeft={storyAuthorLabel(book)}
         wordCount={book?.content?.trim().split(/\s+/).length || 0}
       >
@@ -291,10 +291,10 @@ function ReadStory({ id, initialBook }) {
               setIsKindleMode(true)
             }}
             className="flex items-center gap-1.5 px-3 py-1 bg-[var(--color-blood)] hover:bg-[var(--color-blood)]/80 text-white font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer shadow-sm"
-            title="Open full distraction-free Kindle reading mode"
+            title="Open full distraction-free Focus mode"
           >
             <span className="text-sm">⛶</span>
-            <span>Kindle Focus Mode</span>
+            <span>Focus Mode</span>
           </button>
 
           <span className="text-[var(--color-line)] hidden sm:inline">|</span>
