@@ -6,6 +6,7 @@ import { withProviders } from '../components/Providers'
 import LoadError from '../components/LoadError'
 import { authorLabel, isTombstone, TOMBSTONE_TEXT } from '../lib/storyHelpers'
 import { fetchActivePrompts } from '../lib/ritualDraft'
+import { splitPresence } from '../lib/presence'
 
 const AV_COLORS = ['', 'av-1', 'av-2', 'av-3', 'av-4', 'av-5', 'av-6']
 
@@ -173,6 +174,7 @@ function Forum() {
 
   // Ritual threads live in their own category, not in the general list.
   const generalThreads = useMemo(() => threads.filter(t => t.category_id !== 'rituals'), [threads])
+  const { writers: writersOnline, readers: readersOnline } = splitPresence(onlineUsers)
 
   const visible = useMemo(() => {
     let base = activeCat === 'all' ? generalThreads : threads.filter(t => t.category_id === activeCat)
@@ -275,30 +277,28 @@ function Forum() {
           {/* Users Online */}
           <div className="vintage-card p-4">
             <h4 className="font-mono text-xs uppercase tracking-wider text-[var(--color-text-primary)] mb-3 border-b border-[var(--color-line)] pb-2 flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-800 animate-pulse"></span>
-              Writers Online ({onlineUsers.length})
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-ember)] animate-pulse"></span>
+              Writers Online ({writersOnline.length})
             </h4>
             <div className="flex flex-wrap gap-2">
-              {onlineUsers.map((u) => {
-                const isGuest = u.handle === 'Guest' || u.handle === 'Summoning...'
-                const name = isGuest ? 'Guest' : `@${u.handle}`
-                const initialsStr = isGuest ? '??' : initials(u.handle)
-                return (
-                  <div
-                    key={u.id}
-                    title={name}
-                    className="w-8 h-8 rounded-full bg-[var(--color-bg-primary)] border border-[var(--color-line)] flex items-center justify-center font-mono text-xs text-[var(--color-text-secondary)] hover:border-white transition-colors"
-                  >
-                    {initialsStr}
-                  </div>
-                )
-              })}
-              {onlineUsers.length === 0 && (
+              {writersOnline.map((u) => (
+                <div
+                  key={u.id}
+                  title={`@${u.handle}`}
+                  className="w-8 h-8 rounded-full bg-[var(--color-bg-primary)] border border-[var(--color-line)] flex items-center justify-center font-mono text-xs text-[var(--color-text-secondary)] hover:border-white transition-colors"
+                >
+                  {initials(u.handle)}
+                </div>
+              ))}
+              {writersOnline.length === 0 && (
                 <span className="font-serif italic text-xs text-[var(--color-text-secondary)] py-2">
                   The dark is quiet.
                 </span>
               )}
             </div>
+            {readersOnline > 0 && (
+              <p className="font-mono text-xs text-[var(--color-text-secondary)] mt-2">+ {readersOnline} reading</p>
+            )}
           </div>
         </aside>
 
