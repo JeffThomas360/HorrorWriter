@@ -34,6 +34,7 @@ describe('VhsSleeveCard', () => {
     expect(container.querySelector('a').getAttribute('href')).toBe('/library/read/story-1/')
   })
 
+  // series_books.sort_order is 0-based (src/lib/series.js), so position 1 is the second story.
   test('renders a series story with its volume', () => {
     const story = {
       id: 'story-2',
@@ -41,7 +42,7 @@ describe('VhsSleeveCard', () => {
       created_at: daysAgo(40),
       profiles: { handle: 'ghoul' },
       comments_count: 1,
-      series_books: [{ sort_order: 2, series: { id: 'ser-1', title: 'Haunted Chronicles' } }]
+      series_books: [{ sort_order: 1, series: { id: 'ser-1', title: 'Haunted Chronicles' } }]
     }
     render(<VhsSleeveCard story={story} />)
 
@@ -49,6 +50,27 @@ describe('VhsSleeveCard', () => {
     expect(screen.getByTestId('tape-band')).toHaveTextContent('Haunted Chronicles · Vol 2')
     expect(screen.getByText('CRITIQUE')).toBeInTheDocument()
     expect(screen.queryByText('New')).toBeNull()
+  })
+
+  // Regression: positions 0 and 1 both rendered "Vol 1", and every later story read one volume low.
+  test('the first two stories in a series get different volumes', () => {
+    const inSeries = (id, sortOrder) => ({
+      id,
+      title: id,
+      created_at: daysAgo(40),
+      series_books: [{ sort_order: sortOrder, series: { id: 'ser-1', title: 'Haunted Chronicles' } }]
+    })
+
+    render(<VhsSleeveCard story={inSeries('first', 0)} />)
+    expect(screen.getByText('Vol 1')).toBeInTheDocument()
+    cleanup()
+
+    render(<VhsSleeveCard story={inSeries('second', 1)} />)
+    expect(screen.getByText('Vol 2')).toBeInTheDocument()
+    cleanup()
+
+    render(<VhsSleeveCard story={inSeries('seventh', 6)} />)
+    expect(screen.getByText('Vol 7')).toBeInTheDocument()
   })
 
   // Honesty rule: no invented numbers. Without text there is no read time.

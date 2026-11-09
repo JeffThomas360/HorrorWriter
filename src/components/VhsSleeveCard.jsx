@@ -26,7 +26,8 @@ export default function VhsSleeveCard({ story }) {
 
   const seriesLink = Array.isArray(story.series_books) && story.series_books.length > 0 ? story.series_books[0] : null
   const isSeries = Boolean(seriesLink?.series)
-  const vol = seriesLink?.sort_order || 1
+  // sort_order is 0-based; readers count from 1, same as SeriesContextBar's "Part N of M".
+  const vol = (Number(seriesLink?.sort_order) || 0) + 1
   const archive = isArchive(story)
   const cover = COVERS.includes(story.cover) ? story.cover : 'blood'
   const critiqueCount = story.comments_count || 0
