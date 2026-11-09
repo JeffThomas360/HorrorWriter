@@ -7,6 +7,11 @@ test.describe('Forum Flows', () => {
     await setupSupabaseMocks(page);
   });
 
+  test('/crypt redirects to the forum', async ({ page }) => {
+    await page.goto('/crypt');
+    await expect(page).toHaveURL(/\/forum\/?$/);
+  });
+
   test('Navigate to forum, view categories and open thread details', async ({ page }) => {
     await page.goto('/forum');
     

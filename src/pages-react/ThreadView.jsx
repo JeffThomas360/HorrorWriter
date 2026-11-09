@@ -482,10 +482,10 @@ function ThreadView({ id, initialThread, initialPosts }) {
                     type="button"
                     onClick={() => setFocusEntryId(entry.id)}
                     className="self-start flex items-center gap-1.5 px-3 py-1 bg-[var(--color-blood)] hover:bg-[var(--color-blood)]/80 text-white font-mono font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer shadow-sm"
-                    title="Read this entry in distraction-free Kindle Focus Mode"
+                    title="Read this entry in distraction-free Focus mode"
                   >
                     <span className="text-sm">⛶</span>
-                    <span>Kindle Focus Mode</span>
+                    <span>Focus Mode</span>
                   </button>
                 </div>
                 {entry.mod_status === 'hidden' && <RitualRevisionPanel entry={entry} />}
