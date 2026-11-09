@@ -170,12 +170,13 @@ export async function fetchAuthorSeriesOptions(authorId) {
 
   const { data, error } = await supabase
     .from('series')
-    .select('id, title')
+    .select('id, title, series_books(count)')
     .eq('author_id', authorId)
     .order('title', { ascending: true })
 
   if (error || !data) return []
-  return data
+  // bookCount lets the publish preview show the Vol a new story would get.
+  return data.map(({ id, title, series_books }) => ({ id, title, bookCount: series_books?.[0]?.count ?? 0 }))
 }
 
 /**

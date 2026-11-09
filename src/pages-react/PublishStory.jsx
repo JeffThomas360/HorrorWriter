@@ -6,7 +6,7 @@ import { supabase } from '../supabaseClient'
 import { screenContent } from '../lib/screenContent'
 import { useAuth } from '../components/AuthContext'
 import MarkdownEditor from '../components/MarkdownEditor'
-import VhsSleeveCustomizer from '../components/VhsSleeveCustomizer'
+import StoryCardPreview from '../components/StoryCardPreview'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { fetchAuthorSeriesOptions, addBookToSeries } from '../lib/series'
 import { validateStoryContent, countWords } from '../lib/storyValidation'
@@ -24,13 +24,12 @@ const CRITIQUE_TAGS = [
 ]
 
 function PublishStory({ bookId }) {
-  const { session, isLoading: authLoading } = useAuth()
+  const { session, profile, isLoading: authLoading } = useAuth()
   const queryClient = useQueryClient()
 
   const [title, setTitle] = useState('')
   const [lede, setLede] = useState('')
   const [cover, setCover] = useState('blood')
-  const [sticker, setSticker] = useState('rewind')
   const [critiqueFocus, setCritiqueFocus] = useState('atmosphere')
   const [content, setContent] = useState('')
   const [error, setError] = useState(null)
@@ -38,6 +37,8 @@ function PublishStory({ bookId }) {
   const [activeTab, setActiveTab] = useState('write') // 'write' | 'preview'
   const [currentVersion, setCurrentVersion] = useState(1)
   const [fetchingBook, setFetchingBook] = useState(Boolean(bookId))
+  // Edit mode: what the preview card needs from the saved story.
+  const [existing, setExisting] = useState(null)
 
   const [pendingDraft, setPendingDraft] = useState(null)
 
@@ -63,7 +64,7 @@ function PublishStory({ bookId }) {
       try {
         const { data, error: fetchErr } = await supabase
           .from('books')
-          .select('*, series_books(series_id)')
+          .select('*, series_books(series_id, sort_order)')
           .eq('id', bookId)
           .single()
 
@@ -76,9 +77,14 @@ function PublishStory({ bookId }) {
           setCover(data.cover || 'blood')
           setContent(data.content || '')
           setCurrentVersion(data.version || 1)
-          if (Array.isArray(data.series_books) && data.series_books.length > 0) {
-            setSeriesId(data.series_books[0].series_id || '')
-          }
+          const link = Array.isArray(data.series_books) && data.series_books.length > 0 ? data.series_books[0] : null
+          if (link) setSeriesId(link.series_id || '')
+          setExisting({
+            createdAt: data.created_at,
+            critiqueCount: data.comments_count || 0,
+            seriesId: link?.series_id || null,
+            sortOrder: link?.sort_order ?? 0,
+          })
         }
       } catch (err) {
         if (isMounted) setError(err.message || 'Failed to load story for editing.')
@@ -219,7 +225,16 @@ function PublishStory({ bookId }) {
   const isSubmitting = mutation.isPending
   const wc = countWords(content)
   const readMins = wc > 0 ? Math.ceil(wc / 200) : null
-  const authorHandle = session?.user?.user_metadata?.handle || session?.user?.email?.split('@')[0] || 'you'
+  // The card's Vol sticker: the story's saved place if it stays in its series,
+  // otherwise the next place in the chosen series (positions are 0-based).
+  const chosenSeries = seriesOptions.find((s) => s.id === seriesId)
+  const previewSeries = chosenSeries
+    ? {
+        id: chosenSeries.id,
+        title: chosenSeries.title,
+        position: existing?.seriesId === chosenSeries.id ? existing.sortOrder : (chosenSeries.bookCount ?? 0),
+      }
+    : null
 
   if (authLoading || !session || fetchingBook) return (
     <div className="flex flex-col items-center justify-center min-h-[40vh]">
@@ -384,17 +399,20 @@ function PublishStory({ bookId }) {
           </form>
         </div>
 
-        {/* Right Column: Live Tactile VHS Sleeve Customizer (5 cols) */}
+        {/* Right Column: the real Library card, live from the form (5 cols) */}
         <div className="lg:col-span-5">
           <div className="sticky top-6">
-            <VhsSleeveCustomizer
+            <StoryCardPreview
+              storyId={bookId}
+              createdAt={existing?.createdAt}
+              critiqueCount={existing?.critiqueCount}
               title={title}
-              author={authorHandle}
               lede={lede}
+              content={content}
               cover={cover}
-              sticker={sticker}
-              onCoverChange={(c) => setCover(c)}
-              onStickerChange={(s) => setSticker(s)}
+              handle={profile?.handle}
+              series={previewSeries}
+              onCoverChange={setCover}
             />
           </div>
         </div>
