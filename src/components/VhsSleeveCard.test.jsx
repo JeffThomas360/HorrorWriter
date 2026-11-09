@@ -102,6 +102,13 @@ describe('VhsSleeveCard', () => {
     expect(screen.getByText('9')).toBeInTheDocument()
   })
 
+  test('preview mode draws the same card without a link', () => {
+    const { container } = render(<VhsSleeveCard story={{ id: 'preview', title: 'Draft', created_at: daysAgo(0) }} preview />)
+    expect(container.querySelector('a')).toBeNull()
+    expect(container.querySelector('.tape')).not.toBeNull()
+    expect(screen.getByRole('img', { name: /Preview of your Library card: Draft/ })).toBeInTheDocument()
+  })
+
   test('the same story always gets the same tilt', () => {
     const story = { id: 'stable', title: 'Same', created_at: daysAgo(5) }
     const a = render(<VhsSleeveCard story={story} />).container.querySelector('a').style.getPropertyValue('--tape-tilt')

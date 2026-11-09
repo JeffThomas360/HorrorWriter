@@ -20,8 +20,9 @@ const NEW_DAYS = 14
 /**
  * A Library story as a worn VHS rental box. The wear is seeded per story and
  * scaled by real data only (see src/lib/tapeWear.js); every number shown is real.
+ * `preview` renders the same card without the link, for the publish form.
  */
-export default function VhsSleeveCard({ story }) {
+export default function VhsSleeveCard({ story, preview = false }) {
   if (!story) return null
 
   const seriesLink = Array.isArray(story.series_books) && story.series_books.length > 0 ? story.series_books[0] : null
@@ -46,9 +47,14 @@ export default function VhsSleeveCard({ story }) {
   const kind = archive ? 'Public domain' : isSeries ? `${seriesLink.series.title} · Vol ${vol}` : 'Standalone'
   const age = archive && story.created_at ? String(new Date(story.created_at).getUTCFullYear()) : postedAgo(story.created_at)
 
+  const Shell = preview ? 'div' : 'a'
+  const shellProps = preview
+    ? { role: 'img', 'aria-label': `Preview of your Library card: ${story.title}` }
+    : { href: `/library/read/${storyUrlKey(story)}/` }
+
   return (
-    <a
-      href={`/library/read/${storyUrlKey(story)}/`}
+    <Shell
+      {...shellProps}
       className="tape group"
       style={{
         '--tape-tilt': `${look.tilt}deg`,
@@ -132,6 +138,6 @@ export default function VhsSleeveCard({ story }) {
           <div className="tape-roll" aria-hidden="true" />
         </div>
       </div>
-    </a>
+    </Shell>
   )
 }
