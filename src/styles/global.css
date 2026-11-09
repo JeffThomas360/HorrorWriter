@@ -592,10 +592,13 @@ a:hover {
   transform-origin: top;
   pointer-events: none;
 }
+/* In flow at the foot of the cover, so it can never sit on the title or lede.
+   If a long title and lede fill the cover, the sticker is clipped instead of
+   covering text; the band above still names the series volume. */
 .tape-sticker {
-  position: absolute;
-  top: 12px;
-  right: 10px;
+  margin-top: auto;
+  align-self: flex-end;
+  flex-shrink: 0;
   width: 46px;
   height: 46px;
   border-radius: 50%;

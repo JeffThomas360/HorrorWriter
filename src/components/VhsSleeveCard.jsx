@@ -78,11 +78,6 @@ export default function VhsSleeveCard({ story }) {
           </div>
 
           <div className="relative flex-1 flex flex-col gap-2.5 px-3.5 pt-4 pb-2.5">
-            {sticker && (
-              <span className={`tape-sticker ${sticker.cls}`} style={{ transform: `rotate(${look.stickerTilt}deg)` }}>
-                {sticker.text}
-              </span>
-            )}
             {look.residue.show && (
               <span
                 className="tape-residue"
@@ -94,7 +89,7 @@ export default function VhsSleeveCard({ story }) {
                 }}
               />
             )}
-            <h3 className="tape-title font-['Fraunces'] font-black text-2xl uppercase leading-[0.98] tracking-tight pr-10 line-clamp-4">
+            <h3 className="tape-title font-['Fraunces'] font-black text-2xl uppercase leading-[0.98] tracking-tight break-words line-clamp-4">
               {story.title}
             </h3>
             <div className="h-[3px] w-11 bg-current opacity-60" aria-hidden="true" />
@@ -102,6 +97,11 @@ export default function VhsSleeveCard({ story }) {
               <p className="font-serif italic font-light text-[11px] leading-relaxed opacity-85 line-clamp-4">
                 {story.lede}
               </p>
+            )}
+            {sticker && (
+              <span className={`tape-sticker ${sticker.cls}`} style={{ transform: `rotate(${look.stickerTilt}deg)` }}>
+                {sticker.text}
+              </span>
             )}
           </div>
 
