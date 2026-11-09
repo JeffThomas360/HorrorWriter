@@ -121,7 +121,7 @@ function Library() {
       )}
 
       {loading && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 sm:gap-8">
           {[1, 2, 3, 4, 5, 6].map(i => (
             <div key={i} className="animate-pulse flex flex-col gap-4">
               <div className="w-full aspect-[4/5] bg-neutral-900 border border-[var(--color-line)]" />
@@ -164,7 +164,8 @@ function Library() {
             <span className="font-mono text-xs uppercase tracking-widest text-[var(--color-text-secondary)]">Community Tapes</span>
             <span className="font-mono text-xs text-[var(--color-text-secondary)]">{books.length} {books.length === 1 ? 'story' : 'stories'}</span>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {/* Two-up on phones: one-up made every tape about a full screen tall. */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
             {books.map((b) => (
               <VhsSleeveCard key={b.id} story={b} />
             ))}
@@ -196,7 +197,7 @@ function Library() {
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
             {archives.map((story) => (
               <VhsSleeveCard key={story.id} story={story} />
             ))}

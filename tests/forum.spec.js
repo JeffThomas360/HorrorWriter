@@ -27,7 +27,7 @@ test.describe('Forum Flows', () => {
     await expect(page.getByText(MOCK_POSTS[1].content)).toBeVisible();
   });
 
-  test('Ritual threads stay out of All Threads and live in their own category', async ({ page }) => {
+  test('Ritual threads stay out of All Discussion and live in their own category', async ({ page }) => {
     const ritual = {
       ...MOCK_THREADS[0],
       id: 'thread-ritual',
