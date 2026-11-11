@@ -8,6 +8,7 @@ import DeleteAccount from '../components/DeleteAccount'
 import SealedWritingPrompt from '../components/SealedWritingPrompt'
 import KeptRitualEntries from '../components/KeptRitualEntries'
 import KeptStories from '../components/KeptStories'
+import DownloadMyWriting from '../components/DownloadMyWriting'
 import { toast } from 'sonner'
 import { withProviders } from '../components/Providers'
 import RequireAuth from '../components/RequireAuth'
@@ -183,6 +184,7 @@ function Profile() {
   return (
     <div className="mt-8 max-w-2xl mx-auto">
       <SealedWritingPrompt />
+      <DownloadMyWriting />
       <KeptStories />
       <KeptRitualEntries />
       <div className="flex justify-between items-center mb-8 border-b border-[var(--color-line)] pb-6">

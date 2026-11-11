@@ -9,7 +9,7 @@ vi.mock('../supabaseClient', () => ({
   },
 }))
 
-const { bytesToBase64, byteaToBytes, keepRitualEntry, keepErrorMessage, restoreErrorMessage } = await import('./ritualKeep')
+const { bytesToBase64, byteaToBytes, keepRitualEntry, openKeptEntry, restoreKeptEntry, keptEntryFile, keepErrorMessage, restoreErrorMessage } = await import('./ritualKeep')
 
 const PREP = {
   nonce: 'n-1',
@@ -22,7 +22,16 @@ const PREP = {
   revision: null,
   seals: { 'e-1': 'se', 'c-1': 'sc' },
 }
-const sealApi = { sealWriting: vi.fn(async () => new Uint8Array([1, 2, 3])) }
+const OPENED = {
+  entry: { title: 'My Entry', content: 'Entry text', created_at: '2026-10-02T00:00:00.123456+00:00' },
+  critiques: [{ key: 'c-1', content: 'SOMEONE ELSES CRITIQUE' }],
+  posts: [{ content: 'SOMEONE ELSES POST' }],
+  feedback: [{ content: 'SOMEONE ELSES FEEDBACK' }],
+}
+const sealApi = {
+  sealWriting: vi.fn(async () => new Uint8Array([1, 2, 3])),
+  unsealWriting: vi.fn(async () => OPENED),
+}
 
 beforeEach(() => {
   rpc.mockReset()
@@ -75,6 +84,69 @@ describe('keepRitualEntry', () => {
   it('a full vault says so, and nothing is committed', async () => {
     rpc.mockImplementation(async (name) => (name === 'ritual_vault_prepare' ? { data: PREP } : { error: { code: 'HW031' } }))
     await expect(keepRitualEntry({ postId: 'e-1', threadId: 't-1', code: 'CODE', sealApi })).rejects.toThrow(/vault is full/)
+  })
+})
+
+describe('openKeptEntry', () => {
+  it('returns the unsealed payload and never calls rpc, so it works during a ban', async () => {
+    threadLookup.mockResolvedValue({ data: { bundle: '\\x010203' } })
+    expect(await openKeptEntry({ vaultId: 'v-1', code: 'CODE', sealApi })).toEqual(OPENED)
+    expect(sealApi.unsealWriting).toHaveBeenCalledWith(new Uint8Array([1, 2, 3]), 'CODE')
+    expect(rpc).not.toHaveBeenCalled()
+  })
+  it('rejects with wrong-code when the code does not open it', async () => {
+    threadLookup.mockResolvedValue({ data: { bundle: '\\x010203' } })
+    sealApi.unsealWriting.mockRejectedValueOnce(new Error('wrong-code'))
+    await expect(openKeptEntry({ vaultId: 'v-1', code: 'nope', sealApi })).rejects.toThrow('wrong-code')
+    expect(rpc).not.toHaveBeenCalled()
+  })
+})
+
+describe('restoreKeptEntry still restores', () => {
+  it('calls ritual_vault_restore', async () => {
+    threadLookup.mockResolvedValue({ data: { bundle: '\\x010203' } })
+    rpc.mockResolvedValue({ data: { thread_id: 't-1' } })
+    await restoreKeptEntry({ vaultId: 'v-1', code: 'CODE', sealApi })
+    expect(rpc).toHaveBeenCalledWith('ritual_vault_restore', { p_vault_id: 'v-1', p_payload: OPENED })
+  })
+})
+
+describe('keptEntryFile', () => {
+  it('holds the entry text and none of the critiques, posts or feedback', () => {
+    const { name, text } = keptEntryFile(OPENED)
+    expect(name).toBe('My Entry.md')
+    expect(text).toBe('# My Entry\n\nWritten 2026-10-02\n\nEntry text\n')
+    expect(text).not.toMatch(/SOMEONE ELSES/)
+  })
+  it('adds the writer own replies after the entry under their own heading, and no one elses', () => {
+    const { text } = keptEntryFile({
+      entry: { ...OPENED.entry, author_id: 'u-1' },
+      critiques: [
+        { key: 'c-1', author_id: 'u-1', content: 'MY OWN REPLY', created_at: '2026-10-03T00:00:00Z' },
+        { key: 'c-2', author_id: 'u-2', content: 'SOMEONE ELSES CRITIQUE', created_at: '2026-10-04T00:00:00Z' },
+      ],
+    })
+    expect(text).toBe('# My Entry\n\nWritten 2026-10-02\n\nEntry text\n\n## Your own critiques\n\nWritten 2026-10-03\n\nMY OWN REPLY\n')
+    expect(text).not.toMatch(/SOMEONE ELSES/)
+  })
+  it('omits the heading when the writer has no replies of their own', () => {
+    expect(keptEntryFile({ ...OPENED, entry: { ...OPENED.entry, author_id: 'u-1' } }).text).not.toMatch(/Your own critiques/)
+  })
+  it('leaks nothing when the entry has no author_id, even if a critique has none either', () => {
+    const critiques = [{ key: 'c-1', content: 'SOMEONE ELSES CRITIQUE' }, { key: 'c-2', author_id: null, content: 'ALSO NOT MINE' }]
+    for (const entry of [{ title: 'T', content: 'Body' }, { title: 'T', content: 'Body', author_id: null }]) {
+      const { text } = keptEntryFile({ entry, critiques })
+      expect(text).not.toMatch(/SOMEONE ELSES|ALSO NOT MINE|Your own critiques/)
+    }
+  })
+  it('throws corrupt-bundle when the payload has no entry', () => {
+    expect(() => keptEntryFile({})).toThrow('corrupt-bundle')
+  })
+  it('falls back for an empty title and omits missing fields', () => {
+    const { name, text } = keptEntryFile({ entry: { title: null, content: 'Body' } })
+    expect(name).toBe('Untitled entry.md')
+    expect(text).toBe('# Untitled entry\n\nBody\n')
+    expect(text).not.toMatch(/null|undefined/)
   })
 })
 

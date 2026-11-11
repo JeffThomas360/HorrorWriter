@@ -43,12 +43,14 @@ const tally = () => ({ this: 0, last: 0 })
  *   comments:     live story critiques, last 14 days    [{ author_id, created_at }]
  *   priorAuthors: ids (among recent authors) with any content older than 14 days
  *   handles:      { [userId]: handle }
+ *   tickets:      tickets waiting on the Keeper         [{ id, created_at, updated_at }]
+ *   errors:       client errors from the last 14 days   [{ created_at, message }]
  * }
  */
 export function computePulse(raw, now) {
   const {
     members = [], threads = [], posts = [], stories = [], comments = [],
-    priorAuthors = [], handles = {},
+    priorAuthors = [], handles = {}, tickets = [], errors = [],
   } = raw
 
   const newMembers = tally()
@@ -109,7 +111,31 @@ export function computePulse(raw, now) {
     .sort((a, b) => ms(b.created_at) - ms(a.created_at))
     .map((m) => ({ handle: m.handle, href: profilePath(m.handle), created_at: m.created_at }))
 
-  return { newMembers, firstTimePosters, ritualEntries, critiques, firstTimersThisWeek, waiting, quietNewcomers }
+  // Tickets whose last word is the member's. Oldest wait first: updated_at moves when the
+  // member replies, so it is when they started waiting this time.
+  const waitingTickets = tickets
+    .map((t) => ({ id: t.id, since: t.updated_at || t.created_at }))
+    .sort((a, b) => ms(a.since) - ms(b.since))
+
+  // Site errors members' browsers reported, grouped so one bug is one line.
+  const siteErrors = tally()
+  const byMessage = {}
+  for (const e of errors) {
+    const w = weekOf(e.created_at, now)
+    if (!w) continue
+    siteErrors[w]++
+    if (w !== 'this') continue
+    const key = String(e.message || 'Unknown error').slice(0, 120)
+    const g = (byMessage[key] ||= { message: key, count: 0, last: e.created_at })
+    g.count++
+    if (ms(e.created_at) > ms(g.last)) g.last = e.created_at
+  }
+  const topErrors = Object.values(byMessage).sort((a, b) => b.count - a.count).slice(0, 3)
+
+  return {
+    newMembers, firstTimePosters, ritualEntries, critiques, firstTimersThisWeek, waiting, quietNewcomers,
+    waitingTickets, siteErrors, topErrors,
+  }
 }
 
 async function rows(query) {
@@ -124,7 +150,7 @@ export async function fetchPulse(now = Date.now()) {
   const twoWeeksAgo = new Date(now - 2 * WEEK).toISOString()
   const monthAgo = new Date(now - WAITING_UNTIL).toISOString()
 
-  const [members, threads, posts, stories, comments] = await Promise.all([
+  const [members, threads, posts, stories, comments, tickets, errors] = await Promise.all([
     rows(supabase.from('profiles').select('id, handle, created_at').gte('created_at', twoWeeksAgo)),
     rows(supabase.from('threads')
       .select('id, title, author_id, created_at, prompt_id, replies_count')
@@ -142,6 +168,10 @@ export async function fetchPulse(now = Date.now()) {
       .select('author_id, created_at')
       .eq('mod_status', 'live')
       .gte('created_at', twoWeeksAgo)),
+    // Keeper-only by RLS (mod_can('configure', 'all')), like this whole panel.
+    rows(supabase.from('tickets').select('id, created_at, updated_at').eq('status', 'waiting')),
+    rows(supabase.from('client_errors').select('created_at, message')
+      .gte('created_at', twoWeeksAgo).order('created_at', { ascending: false }).limit(1000)),
   ])
 
   // Anyone who posted recently but also posted before the two-week window
@@ -168,5 +198,5 @@ export async function fetchPulse(now = Date.now()) {
     for (const p of found) handles[p.id] = p.handle
   }
 
-  return computePulse({ members, threads, posts, stories, comments, priorAuthors, handles }, now)
+  return computePulse({ members, threads, posts, stories, comments, priorAuthors, handles, tickets, errors }, now)
 }

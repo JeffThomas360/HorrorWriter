@@ -13,7 +13,7 @@ vi.mock('../supabaseClient', () => ({
   },
 }))
 
-const { keepStory, deleteStoryForever, restoreKeptStory, keepStoryErrorMessage, restoreStoryErrorMessage } = await import('./storyKeep')
+const { keepStory, deleteStoryForever, restoreKeptStory, openKeptStory, keptStoryFile, keepStoryErrorMessage, restoreStoryErrorMessage } = await import('./storyKeep')
 
 const PAYLOAD = {
   v: 1,
@@ -91,6 +91,76 @@ describe('restoreKeptStory', () => {
     sealApi.unsealWriting.mockRejectedValueOnce(new Error('wrong-code'))
     await expect(restoreKeptStory({ vaultId: 'v-1', code: 'nope', sealApi })).rejects.toThrow('wrong-code')
     expect(rpc).not.toHaveBeenCalled()
+  })
+})
+
+describe('openKeptStory', () => {
+  it('returns the unsealed payload and never calls rpc, so it works during a ban', async () => {
+    vaultRow.mockResolvedValue({ data: { bundle: '\\x010203' } })
+    const payload = await openKeptStory({ vaultId: 'v-1', code: 'CODE', sealApi })
+    expect(sealApi.unsealWriting).toHaveBeenCalledWith(new Uint8Array([1, 2, 3]), 'CODE')
+    expect(payload).toEqual({ ...PAYLOAD, seal: 'seal-hex' })
+    expect(rpc).not.toHaveBeenCalled()
+  })
+  it('rejects with wrong-code when the code does not open it', async () => {
+    vaultRow.mockResolvedValue({ data: { bundle: '\\x010203' } })
+    sealApi.unsealWriting.mockRejectedValueOnce(new Error('wrong-code'))
+    await expect(openKeptStory({ vaultId: 'v-1', code: 'nope', sealApi })).rejects.toThrow('wrong-code')
+    expect(rpc).not.toHaveBeenCalled()
+  })
+})
+
+describe('keptStoryFile', () => {
+  it('holds the story text and none of the comments', () => {
+    const { name, text } = keptStoryFile({
+      ...PAYLOAD,
+      story: { ...PAYLOAD.story, lede: 'A lede.' },
+      comments: [{ id: 'c-1', content: 'SOMEONE ELSES CRITIQUE' }],
+    })
+    expect(name).toBe('The Story.md')
+    expect(text).toBe('# The Story\n\nWritten 2026-10-02\n\nA lede.\n\nText\n')
+    expect(text).not.toMatch(/SOMEONE ELSES/)
+  })
+  it('adds the writer own comments after the story under their own heading, and no one elses', () => {
+    const { text } = keptStoryFile({
+      ...PAYLOAD,
+      comments: [
+        { id: 'c-1', author_id: 'u-1', content: 'MY OWN COMMENT', created_at: '2026-10-03T00:00:00Z' },
+        { id: 'c-2', author_id: 'u-2', content: 'SOMEONE ELSES COMMENT', created_at: '2026-10-04T00:00:00Z' },
+        { id: 'c-3', author_id: 'u-1', content: 'MY SECOND COMMENT', created_at: '2026-10-05T00:00:00Z' },
+      ],
+    })
+    expect(text).toBe('# The Story\n\nWritten 2026-10-02\n\nText\n\n## Your own critiques\n\nWritten 2026-10-03\n\nMY OWN COMMENT\n\n---\n\nWritten 2026-10-05\n\nMY SECOND COMMENT\n')
+    expect(text).not.toMatch(/SOMEONE ELSES/)
+  })
+  it('omits the heading when the writer has no comments of their own', () => {
+    expect(keptStoryFile(PAYLOAD).text).not.toMatch(/Your own critiques/)
+  })
+  it('leaks nothing when the story has no author_id, even if a comment has none either', () => {
+    const comments = [{ id: 'c-1', content: 'SOMEONE ELSES COMMENT' }, { id: 'c-2', author_id: null, content: 'ALSO NOT MINE' }]
+    for (const story of [{ title: 'T', content: 'Body' }, { title: 'T', content: 'Body', author_id: null }]) {
+      const { text } = keptStoryFile({ story, comments })
+      expect(text).not.toMatch(/SOMEONE ELSES|ALSO NOT MINE|Your own critiques/)
+    }
+  })
+  it('throws corrupt-bundle when the payload has no story', () => {
+    expect(() => keptStoryFile({})).toThrow('corrupt-bundle')
+    expect(() => keptStoryFile(undefined)).toThrow('corrupt-bundle')
+  })
+  it('falls back for an empty title and omits missing fields', () => {
+    const { name, text } = keptStoryFile({ story: { title: '', content: 'Body' } })
+    expect(name).toBe('Untitled story.md')
+    expect(text).toBe('# Untitled story\n\nBody\n')
+    expect(text).not.toMatch(/null|undefined/)
+  })
+})
+
+describe('restoreKeptStory still restores', () => {
+  it('calls story_vault_restore', async () => {
+    vaultRow.mockResolvedValue({ data: { bundle: '\\x010203' } })
+    rpc.mockResolvedValue({ data: { book_id: 'b-1' } })
+    await restoreKeptStory({ vaultId: 'v-1', code: 'CODE', sealApi })
+    expect(rpc).toHaveBeenCalledWith('story_vault_restore', expect.any(Object))
   })
 })
 

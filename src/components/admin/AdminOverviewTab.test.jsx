@@ -31,7 +31,7 @@ vi.mock('../../lib/keeperTaskApi', () => ({
 vi.mock('../../lib/pulse', () => ({
   fetchPulse: vi.fn(async () => {
     const t = { this: 0, last: 0 }
-    return { newMembers: t, firstTimePosters: t, ritualEntries: t, critiques: t, firstTimersThisWeek: [], waiting: [], quietNewcomers: [] }
+    return { newMembers: t, firstTimePosters: t, ritualEntries: t, critiques: t, firstTimersThisWeek: [], waiting: [], quietNewcomers: [], waitingTickets: [], siteErrors: t, topErrors: [] }
   }),
 }))
 
