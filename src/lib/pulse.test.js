@@ -117,4 +117,27 @@ describe('computePulse', () => {
     expect(p.quietNewcomers.map((m) => m.handle)).toEqual(['alice', 'cass'])
     expect(p.quietNewcomers[0].href).toBe('/u/alice/')
   })
+
+  it('lists tickets waiting on the Keeper, longest wait first', () => {
+    const p = computePulse({ tickets: [
+      { id: 'new', created_at: ago(1), updated_at: ago(1) },
+      { id: 'old', created_at: ago(20), updated_at: ago(9) },
+    ] }, NOW)
+    expect(p.waitingTickets.map((t) => t.id)).toEqual(['old', 'new'])
+    expect(p.waitingTickets[0].since).toBe(ago(9))
+  })
+
+  it('counts site errors per week and groups this week by message', () => {
+    const p = computePulse({ errors: [
+      { created_at: ago(1), message: 'A' },
+      { created_at: ago(2), message: 'A' },
+      { created_at: ago(3), message: 'B' },
+      { created_at: ago(9), message: 'A' },
+    ] }, NOW)
+    expect(p.siteErrors).toEqual({ this: 3, last: 1 })
+    expect(p.topErrors).toEqual([
+      { message: 'A', count: 2, last: ago(1) },
+      { message: 'B', count: 1, last: ago(3) },
+    ])
+  })
 })
