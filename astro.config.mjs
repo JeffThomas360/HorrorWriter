@@ -34,6 +34,10 @@ export default defineConfig({
     }),
   ],
   adapter: cloudflare(),
+  // The nav calls the forum "The Crypt", so people type /crypt; it used to 404.
+  redirects: {
+    '/crypt': '/forum/',
+  },
   // We don't use Astro sessions (auth is Supabase). Pin a no-op in-memory
   // session driver so the Cloudflare adapter doesn't auto-require a SESSION
   // KV namespace binding at deploy time.

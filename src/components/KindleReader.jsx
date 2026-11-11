@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 
 /**
- * Kindle Focus Mode: the full-screen, distraction-free reader shared by
+ * Focus mode: the full-screen, distraction-free reader shared by
  * Library stories (ReadStory) and Ritual entries in The Crypt (ThreadView).
+ * Readers never see the word "Kindle" (Amazon's trademark); it survives only
+ * in internal names (KindleReader, useKindlePrefs, .kindle-* classes, hw_kindle_* keys).
  *
  * useKindlePrefs() owns the reader's typography (persisted per browser under
  * hw_kindle_* / hw_reader_format) so the inline reader and Focus Mode agree.
@@ -75,7 +77,7 @@ export function useKindlePrefs() {
  */
 export default function KindleReader({
   prefs, onExit, hudTitle, eyebrow, title, lede, children, endNote = null,
-  exitLabel = 'Exit Kindle Mode', footerLeft, wordCount = 0, onNext, nextLabel,
+  exitLabel = 'Exit Focus mode', footerLeft, wordCount = 0, onNext, nextLabel,
 }) {
   const [showSettings, setShowSettings] = useState(false)
   const [scrollPercent, setScrollPercent] = useState(0)
@@ -125,7 +127,7 @@ export default function KindleReader({
             onExit()
           }}
           className="flex items-center gap-2 px-3 py-1.5 border text-xs font-mono uppercase tracking-wider transition-colors cursor-pointer"
-          title="Exit Kindle Focus Mode (or press Esc)"
+          title="Exit Focus mode (or press Esc)"
         >
           <span>←</span>
           <span>Exit Focus <kbd className="hidden sm:inline opacity-60 text-[10px] font-sans">[Esc]</kbd></span>
@@ -152,7 +154,7 @@ export default function KindleReader({
           {showSettings && (
             <div className="absolute right-0 top-12 w-80 sm:w-96 p-5 rounded-sm border shadow-2xl z-50 kindle-hud bg-[var(--color-surface)] text-[var(--color-text-primary)]">
               <div className="flex items-center justify-between border-b border-[var(--color-line)] pb-3 mb-4">
-                <h3 className="font-mono text-xs uppercase tracking-widest text-[var(--color-ember)]">Kindle Reader Settings</h3>
+                <h3 className="font-mono text-xs uppercase tracking-widest text-[var(--color-ember)]">Reader Settings</h3>
                 <button
                   type="button"
                   onClick={() => setShowSettings(false)}

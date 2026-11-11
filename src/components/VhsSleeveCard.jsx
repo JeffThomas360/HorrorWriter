@@ -20,13 +20,15 @@ const NEW_DAYS = 14
 /**
  * A Library story as a worn VHS rental box. The wear is seeded per story and
  * scaled by real data only (see src/lib/tapeWear.js); every number shown is real.
+ * `preview` renders the same card without the link, for the publish form.
  */
-export default function VhsSleeveCard({ story }) {
+export default function VhsSleeveCard({ story, preview = false }) {
   if (!story) return null
 
   const seriesLink = Array.isArray(story.series_books) && story.series_books.length > 0 ? story.series_books[0] : null
   const isSeries = Boolean(seriesLink?.series)
-  const vol = seriesLink?.sort_order || 1
+  // sort_order is 0-based; readers count from 1, same as SeriesContextBar's "Part N of M".
+  const vol = (Number(seriesLink?.sort_order) || 0) + 1
   const archive = isArchive(story)
   const cover = COVERS.includes(story.cover) ? story.cover : 'blood'
   const critiqueCount = story.comments_count || 0
@@ -45,9 +47,14 @@ export default function VhsSleeveCard({ story }) {
   const kind = archive ? 'Public domain' : isSeries ? `${seriesLink.series.title} · Vol ${vol}` : 'Standalone'
   const age = archive && story.created_at ? String(new Date(story.created_at).getUTCFullYear()) : postedAgo(story.created_at)
 
+  const Shell = preview ? 'div' : 'a'
+  const shellProps = preview
+    ? { role: 'img', 'aria-label': `Preview of your Library card: ${story.title}` }
+    : { href: `/library/read/${storyUrlKey(story)}/` }
+
   return (
-    <a
-      href={`/library/read/${storyUrlKey(story)}/`}
+    <Shell
+      {...shellProps}
       className="tape group"
       style={{
         '--tape-tilt': `${look.tilt}deg`,
@@ -77,12 +84,7 @@ export default function VhsSleeveCard({ story }) {
             <span className={`truncate ${isSeries ? 'text-[var(--color-upside)]' : ''}`}>{kind}</span>
           </div>
 
-          <div className="relative flex-1 flex flex-col gap-2.5 px-3.5 pt-4 pb-2.5">
-            {sticker && (
-              <span className={`tape-sticker ${sticker.cls}`} style={{ transform: `rotate(${look.stickerTilt}deg)` }}>
-                {sticker.text}
-              </span>
-            )}
+          <div className="relative flex-1 flex flex-col gap-2.5 px-3 sm:px-3.5 pt-4 pb-2.5">
             {look.residue.show && (
               <span
                 className="tape-residue"
@@ -94,14 +96,19 @@ export default function VhsSleeveCard({ story }) {
                 }}
               />
             )}
-            <h3 className="tape-title font-['Fraunces'] font-black text-2xl uppercase leading-[0.98] tracking-tight pr-10 line-clamp-4">
+            <h3 className="tape-title font-['Fraunces'] font-black text-[length:clamp(14px,4.2vw,16px)] sm:text-2xl uppercase leading-[0.98] tracking-tight break-words line-clamp-4">
               {story.title}
             </h3>
             <div className="h-[3px] w-11 bg-current opacity-60" aria-hidden="true" />
             {story.lede && (
-              <p className="font-serif italic font-light text-[11px] leading-relaxed opacity-85 line-clamp-4">
+              <p className="font-serif italic font-light text-[11px] leading-relaxed opacity-85 line-clamp-3 sm:line-clamp-4">
                 {story.lede}
               </p>
+            )}
+            {sticker && (
+              <span className={`tape-sticker ${sticker.cls}`} style={{ transform: `rotate(${look.stickerTilt}deg)` }}>
+                {sticker.text}
+              </span>
             )}
           </div>
 
@@ -117,7 +124,7 @@ export default function VhsSleeveCard({ story }) {
                   <span className="text-[7px] tracking-[0.14em] text-[var(--color-ash)]">MIN READ</span>
                 </div>
               )}
-              <div className="flex flex-col justify-center items-center gap-0.5 px-1" aria-hidden="true">
+              <div className="hidden sm:flex flex-col justify-center items-center gap-0.5 px-1" aria-hidden="true">
                 <span className="tape-barcode" />
                 <span className="text-[6px] tracking-[0.12em] text-[var(--color-ash)]">BE KIND · REWIND</span>
               </div>
@@ -131,6 +138,6 @@ export default function VhsSleeveCard({ story }) {
           <div className="tape-roll" aria-hidden="true" />
         </div>
       </div>
-    </a>
+    </Shell>
   )
 }

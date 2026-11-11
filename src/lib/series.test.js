@@ -163,12 +163,18 @@ describe('fetchMyBooks', () => {
 })
 
 describe('fetchAuthorSeriesOptions', () => {
-  it('returns id/title pairs for the dropdown', async () => {
+  it('returns id/title pairs plus how many stories each series holds', async () => {
     mockSupabase.from.mockReturnValueOnce(makeQuery({
-      data: [{ id: 'series-1', title: 'The Hollow Chronicles' }],
+      data: [
+        { id: 'series-1', title: 'The Hollow Chronicles', series_books: [{ count: 3 }] },
+        { id: 'series-2', title: 'Empty Rooms', series_books: [] },
+      ],
       error: null
     }))
-    expect(await fetchAuthorSeriesOptions('author-1')).toEqual([{ id: 'series-1', title: 'The Hollow Chronicles' }])
+    expect(await fetchAuthorSeriesOptions('author-1')).toEqual([
+      { id: 'series-1', title: 'The Hollow Chronicles', bookCount: 3 },
+      { id: 'series-2', title: 'Empty Rooms', bookCount: 0 },
+    ])
   })
 })
 

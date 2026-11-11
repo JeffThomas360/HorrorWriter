@@ -7,6 +7,11 @@ test.describe('Forum Flows', () => {
     await setupSupabaseMocks(page);
   });
 
+  test('/crypt redirects to the forum', async ({ page }) => {
+    await page.goto('/crypt');
+    await expect(page).toHaveURL(/\/forum\/?$/);
+  });
+
   test('Navigate to forum, view categories and open thread details', async ({ page }) => {
     await page.goto('/forum');
     
@@ -27,7 +32,7 @@ test.describe('Forum Flows', () => {
     await expect(page.getByText(MOCK_POSTS[1].content)).toBeVisible();
   });
 
-  test('Ritual threads stay out of All Threads and live in their own category', async ({ page }) => {
+  test('Ritual threads stay out of All Discussion and live in their own category', async ({ page }) => {
     const ritual = {
       ...MOCK_THREADS[0],
       id: 'thread-ritual',
