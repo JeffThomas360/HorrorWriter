@@ -28,6 +28,7 @@ scratch/
 # Environment variables (DO NOT COMMIT)
 .env*
 !.env.example
+!.env.development
 
 # IDE and editor directories
 .vscode/*
