@@ -63,6 +63,11 @@ export default defineConfig({
     timeout: 120 * 1000,
     env: {
       VITE_TRANSCRIBE_URL: 'http://localhost:5173',
+      // Process env outranks .env.development, so E2E keeps the project ref that
+      // tests/mocks.js builds its auth storage key from. Requests are mocked; pages skip
+      // their server-side lookups in test mode (src/lib/testMode.js).
+      VITE_SUPABASE_URL: 'https://bmvvugrfnuedjlucmlbw.supabase.co',
+      VITE_SUPABASE_ANON_KEY: 'sb_publishable_-Y5K0e8qQrpsybmuQyyqxg_llQOokRY',
       PLAYWRIGHT_TEST: 'true',
       ASTRO_DEV_BACKGROUND: '0',
     },

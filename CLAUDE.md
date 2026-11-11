@@ -8,7 +8,7 @@ Obsidian vault (`D:\CLAUDECODE\Vault\02_Projects\horrorwriter\`, not in git) —
 - Claude branches, commits, opens the PR. Jeff reviews and merges. Never push `main`; `main` auto-deploys.
 - `main` requires passing `vitest` on an up-to-date branch, no bypass.
 - When Jeff must run something: exact command + what to look for. Don't narrate.
-- Verification is against the live database.
+- `npm run dev` uses a **local** Supabase stack (`.env.development`); real members' data is never a dev target. Verification of a PR is on its Workers preview, against the live database.
 - Check state before diagnosing: `git status`, which environment, is it deployed, browser console.
 
 ## Traps (each cost a prod bug)
@@ -20,7 +20,7 @@ Obsidian vault (`D:\CLAUDECODE\Vault\02_Projects\horrorwriter\`, not in git) —
 - `supabase` may be null — guard before querying.
 - `public/_headers`: `microphone=(self)` (else Dictate dies silently); CSP `script-src` keeps `'unsafe-inline'` (else no island hydrates). Only exit: Astro build hashes **and** remove `script-src` from `_headers` in the same change.
 - `_headers` is invisible to `npm run dev` — verify on the PR's Workers preview. Dead hydration tell: network shows CSS/fonts, zero JS.
-- `wrangler.toml` has no `main`/`[assets]` on purpose. It also points local dev at **production** Supabase — local writes are live writes.
+- `wrangler.toml` has no `main`/`[assets]` on purpose. Its `[vars]` name production Supabase, but `.env.development` outranks them for `npm run dev`. If dev ever shows real stories, stop: that file is missing or overridden by a `.env.development.local`.
 - `package.json` overrides pin `vite ^8`. Don't let npm downgrade it.
 - Pages render inside workerd, even in `npm run dev`: the shell's `process.env` is empty there. `process.env.PLAYWRIGHT_TEST` was always undefined, so every SSR "skip in tests" guard hit the live DB. Test mode is `isPlaywrightTest()` (`src/lib/testMode.js`), baked in by `vite.define` in `astro.config.mjs`.
 - Schema change = numbered migration in `supabase/migrations/` + `NOTIFY pgrst, 'reload schema';`.
@@ -33,7 +33,9 @@ Obsidian vault (`D:\CLAUDECODE\Vault\02_Projects\horrorwriter\`, not in git) —
 
 ## Commands
 ```powershell
-npm run dev          # http://localhost:5173
+npx supabase start   # local stack (Docker Desktop running); Studio :54323, mailbox :54324
+npx supabase db reset  # wipe, replay every migration, load supabase/seed.sql
+npm run dev          # http://localhost:5173 — local data. Sign in: keeper@ / writer@ / reader@horrorwriter.local (magic link lands in the mailbox)
 npm run build
 npm run test:unit
 cmd /c npx playwright test
