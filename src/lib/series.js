@@ -241,6 +241,28 @@ export async function addBookToSeries({ seriesId, bookId }) {
 }
 
 /**
+ * What saving a story has to do to its series membership.
+ * Nothing when the choice didn't change: adding a story to the series it is
+ * already in violates the (series_id, book_id) primary key.
+ */
+export function planSeriesChange(previousSeriesId, chosenSeriesId) {
+  const previous = previousSeriesId || null
+  const chosen = chosenSeriesId || null
+  if (previous === chosen) return { remove: null, add: null }
+  return { remove: previous, add: chosen }
+}
+
+/**
+ * Bring a saved story's series membership in line with the form's choice:
+ * leave the old series (if any), then join the new one (if any).
+ */
+export async function applySeriesChoice({ bookId, previousSeriesId, chosenSeriesId }) {
+  const { remove, add } = planSeriesChange(previousSeriesId, chosenSeriesId)
+  if (remove) await removeBookFromSeries({ seriesId: remove, bookId })
+  if (add) await addBookToSeries({ seriesId: add, bookId })
+}
+
+/**
  * Unassign a story from a series. The story itself is untouched.
  */
 export async function removeBookFromSeries({ seriesId, bookId }) {
