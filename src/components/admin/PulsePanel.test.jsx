@@ -25,6 +25,9 @@ const base = () => ({
   firstTimersThisWeek: ['srhollister13-37cb'],
   waiting: [],
   quietNewcomers: [],
+  waitingTickets: [],
+  siteErrors: { this: 0, last: 0 },
+  topErrors: [],
 })
 
 afterEach(() => { cleanup(); fail = false; fetchPulse.mockClear() })
@@ -67,4 +70,27 @@ test('a failed read says so and can be retried', async () => {
   result = base()
   fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
   expect(await screen.findByTestId('pulse-newMembers')).toBeInTheDocument()
+})
+
+test('shows tickets waiting on the Keeper and this week\'s site errors', async () => {
+  result = {
+    ...base(),
+    waitingTickets: [{ id: 't1', since: new Date(Date.now() - 9 * 86400000).toISOString() }],
+    siteErrors: { this: 13, last: 33 },
+    topErrors: [{ message: 'Minified React error #418', count: 13, last: new Date().toISOString() }],
+  }
+  renderIt()
+  expect(await screen.findByText('Tickets waiting on you (1)')).toBeInTheDocument()
+  expect(screen.getByTestId('pulse-tickets')).toHaveTextContent('Oldest has waited since 9 days ago.')
+  expect(screen.getByRole('link', { name: 'Open the work queue' })).toHaveAttribute('href', '/admin/?tab=queue')
+  expect(screen.getByText('Site errors (13)')).toBeInTheDocument()
+  expect(screen.getByText(/13× Minified React error #418/)).toBeInTheDocument()
+  expect(screen.getByText('▼ 20 vs last week (33)')).toBeInTheDocument()
+})
+
+test('no tickets and no errors read as good news', async () => {
+  result = base()
+  renderIt()
+  expect(await screen.findByText('No one is waiting on you.')).toBeInTheDocument()
+  expect(screen.getByText('Nothing reported this week.')).toBeInTheDocument()
 })
