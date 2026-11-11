@@ -67,6 +67,34 @@ export default function PulsePanel() {
             ))}
           </div>
 
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Section title={`Tickets waiting on you (${pulse.waitingTickets.length})`} hint="The member has the last word. Longest wait first.">
+              {pulse.waitingTickets.length === 0 ? (
+                <p className="text-sm font-serif text-[var(--color-ash)]">No one is waiting on you.</p>
+              ) : (
+                <p data-testid="pulse-tickets" className="text-sm font-serif text-[var(--color-bone)]">
+                  Oldest has waited since {daysAgo(pulse.waitingTickets[0].since)}.{' '}
+                  <a href="/admin/?tab=queue" className="underline">Open the work queue</a>
+                </p>
+              )}
+            </Section>
+
+            <Section title={`Site errors (${pulse.siteErrors.this})`} hint="Errors members' browsers reported this week. A fix ships; the count should fall.">
+              <span className="font-mono text-[10px]"><Trend now={pulse.siteErrors.this} before={pulse.siteErrors.last} /></span>
+              {pulse.topErrors.length === 0 ? (
+                <p className="text-sm font-serif text-[var(--color-ash)]">Nothing reported this week.</p>
+              ) : (
+                <ul className="flex flex-col gap-1.5">
+                  {pulse.topErrors.map((e) => (
+                    <li key={e.message} className="text-xs font-mono text-[var(--color-bone)] break-words">
+                      {e.count}× {e.message}<span className="text-[var(--color-ash)]"> · last {daysAgo(e.last)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Section>
+          </div>
+
           {pulse.firstTimersThisWeek.length > 0 && (
             <p className="text-sm font-serif text-[var(--color-bone)]">
               Posted for the first time this week:{' '}
