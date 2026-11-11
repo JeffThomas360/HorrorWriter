@@ -26,6 +26,7 @@ Obsidian vault (`D:\CLAUDECODE\Vault\02_Projects\horrorwriter\`, not in git) —
 - Schema change = numbered migration in `supabase/migrations/` + `NOTIFY pgrst, 'reload schema';`.
 - Backups: the Free plan has none. `.github/workflows/backup.yml` dumps nightly to R2; restore steps in `docs/ops/backup-and-restore.md`. Before a destructive migration, run the Backup workflow by hand and wait for green.
 - Merging a migration applies it to production. Never use MCP `apply_migration`. The site has real members: rehearse **every** migration in `begin; … rollback;` via `npx supabase db query --remote -f <file>`, or `powershell -File scripts/sql/rehearse.ps1 -Test <test.sql> -Migration <migration.sql>`. `--linked` is deprecated in CLI v3 and goes away in v4. A migration on a PR branch must be checked out locally first.
+- Never add a parameter to an RPC with `create function` alone: the old signature survives as an overload, and a call that fits both gets `300 PGRST203` from the API. `drop function` the old one in the same migration. `create_thread_with_post` has two; every caller must name `p_prompt_id` (test: `src/lib/rpcOverloads.test.js`).
 - New functions are private: client-callable ones (incl. RLS helpers) need `GRANT EXECUTE ... TO authenticated` (`anon` only if needed). After any migration, `scripts/sql/verify-grants.sql` must return zero rows.
 - `profiles` has column-level grants (20261020020000): `select('*')` fails — use `PROFILE_COLUMNS` from `src/lib/profile.js`. A new profiles column needs `grant select (col) on public.profiles to anon, authenticated` in its migration. Sanction columns are mod-only via `mod_get_profile` / `mod_list_users` / `mod_active_sanctions`.
 - `transparency_log` is an RPC (`get_transparency_log`), not a view. `site_settings` writes only via `set_site_setting()` — no UPDATE policy.
@@ -48,4 +49,4 @@ cmd /c npx playwright test
 ## Agent environment
 - `gh` is authenticated on Jeff's Windows machine only.
 - Cloud container: no git credentials, no route to GitHub/Supabase. `device_bash` can run git but leaves `.git/*.lock` files unless delete permission is granted.
-- Windows `node_modules` won't load on Linux — copy to `/tmp` and reinstall to run tests there. E2E runs on Jeff's machine.
+- Windows `node_modules` won't load on Linux — copy to `/tmp` and reinstall to run tests there. E2E is not in CI. It runs on Jeff's machine, and in a cloud session with `launchOptions.executablePath: '/opt/pw-browsers/chromium'` (requests are mocked, so no route to Supabase is needed).
