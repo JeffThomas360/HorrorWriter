@@ -62,6 +62,10 @@ function CreateThread() {
         p_title: title.trim(),
         p_category_id: categoryId,
         p_content: content.trim(),
+        // Always sent. The database holds two create_thread_with_post
+        // functions (with and without p_prompt_id); leaving this out makes
+        // the API unable to choose between them and every post fails.
+        p_prompt_id: null,
       })
       if (error) throw error
       return { id: data }
