@@ -491,7 +491,8 @@ export async function setupSupabaseMocks(page, opts = {}) {
     const method = route.request().method();
     if (method === 'GET') {
       const url = route.request().url();
-      if (url.includes('id=eq.')) {
+      // Not url.includes('id=eq.'): that also matches author_id=eq., which the download asks for.
+      if (/[?&]id=eq\./.test(url)) {
         route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -839,6 +840,7 @@ export async function setupSupabaseMocks(page, opts = {}) {
   await page.route('**/rest/v1/mod_actions*', jsonGet(MOCK_MOD_ACTIONS));
   await page.route('**/rest/v1/keeper_tasks*', jsonGet([]));
   await page.route('**/rest/v1/ritual_prompts*', jsonGet([]));
+  await page.route('**/rest/v1/ritual_drafts*', jsonGet([]));
 
   // Post-publish screening (src/lib/screenContent.js). Never reaches the real
   // function from a test.
