@@ -3,18 +3,28 @@
   Register a Windows scheduled task that runs pull-backups.ps1 at sign-in and every 4 hours.
 
 .DESCRIPTION
+  Copies pull-backups.ps1 into the backup folder and schedules that copy, so the task keeps
+  working whichever branch the repo checkout is on. Run this again after changing the script.
+
   Runs as the signed-in user (so it can use gh's sign-in and Google Drive), only while that user
-  is signed in, hidden. Run it again to update the task; unregister with:
+  is signed in, hidden. Unregister with:
     Unregister-ScheduledTask -TaskName 'HorrorWriter backup pull' -Confirm:$false
 #>
-param([string]$TaskName = 'HorrorWriter backup pull')
+param(
+  [string]$TaskName = 'HorrorWriter backup pull',
+  [string]$LocalDir = 'D:\Backups\horrorwriter'
+)
 
-$script = Join-Path $PSScriptRoot 'pull-backups.ps1'
-if (-not (Test-Path $script)) { throw "not found: $script" }
+$ErrorActionPreference = 'Stop'
+$source = Join-Path $PSScriptRoot 'pull-backups.ps1'
+if (-not (Test-Path $source)) { throw "not found: $source" }
+New-Item -ItemType Directory -Force $LocalDir | Out-Null
+$script = Join-Path $LocalDir 'pull-backups.ps1'
+Copy-Item $source $script -Force
 
 $action = New-ScheduledTaskAction -Execute 'powershell.exe' `
-  -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$script`""
-$atLogOn = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
+  -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$script`" -LocalDir `"$LocalDir`""
+$atLogOn = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
 $every4h = New-ScheduledTaskTrigger -Once -At (Get-Date).Date `
   -RepetitionInterval (New-TimeSpan -Hours 4)
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries `
@@ -24,5 +34,5 @@ Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $atLogOn, $e
   -Settings $settings -Description 'Copies horrorwriter.org database backups from GitHub to this PC and Google Drive.' `
   -Force | Out-Null
 
-Write-Host "Registered '$TaskName'. Running it once now..."
+Write-Host "Registered '$TaskName' (runs $script). Running it once now..."
 Start-ScheduledTask -TaskName $TaskName

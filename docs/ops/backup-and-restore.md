@@ -20,12 +20,17 @@ Run it by hand: horrorwriter-backups → Actions → Backup → Run workflow.
    GitHub's runners cannot reach it.
 2. Pick a long passphrase and store it in your password manager. **Without it the backups cannot
    be read.**
-3. Add both as secrets on the backups repo. Each command asks for the value; paste it and press
-   Enter (nothing is shown):
+3. Add both as secrets on the backups repo. Pasting into gh's hidden "Paste your secret" prompt
+   doesn't always register in an embedded terminal, so copy each value, then run the matching
+   line; it reads the clipboard, and the value never appears on screen or in history:
    ```powershell
-   gh secret set SUPABASE_DB_URL -R JeffThomas360/horrorwriter-backups
-   gh secret set BACKUP_PASSPHRASE -R JeffThomas360/horrorwriter-backups
+   gh secret set SUPABASE_DB_URL -R JeffThomas360/horrorwriter-backups --body (Get-Clipboard)
+   gh secret set BACKUP_PASSPHRASE -R JeffThomas360/horrorwriter-backups --body (Get-Clipboard)
    ```
+   Look for `✓ Set Actions secret …`. The URL looks like
+   `postgresql://postgres.<project-ref>:<password>@aws-…pooler.supabase.com:5432/postgres`.
+   Or add them on GitHub: horrorwriter-backups → Settings → Secrets and variables → Actions →
+   New repository secret.
 4. Run the workflow by hand once. Look for a green run with one artifact,
    `horrorwriter-<date>`, under Artifacts on the run's page.
 
@@ -43,8 +48,9 @@ Set up once, from the repo folder:
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\ops\install-backup-pull.ps1
 ```
-That registers the scheduled task "HorrorWriter backup pull" (at sign-in and every 4 hours) and runs
-it once. Look in `D:\Backups\horrorwriter\pull-backups.log` for `local: N backups` and
+That copies the script into `D:\Backups\horrorwriter` (so it keeps working whichever branch the
+checkout is on), registers the scheduled task "HorrorWriter backup pull" (at sign-in and every 4
+hours) and runs it once. Look in `D:\Backups\horrorwriter\pull-backups.log` for `local: N backups` and
 `drive: … copied`. "Google Drive not found" means Google Drive for desktop isn't running or signed
 in; the local copy is still made. "WARNING: newest backup is N days old" means the nightly run is
 failing.
