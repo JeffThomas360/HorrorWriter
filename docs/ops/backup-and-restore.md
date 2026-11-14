@@ -60,10 +60,12 @@ run is failing.
 ## Restore drill (do this once now, then after any big schema change)
 
 ### Part 1: the backup opens and holds the data (2 minutes, nothing to install)
-Copy the backup passphrase from your password manager, then from the repo folder:
+Copy the backup passphrase from your password manager, then from any folder:
 ```powershell
-Get-Clipboard | pwsh -NoProfile -ExecutionPolicy Bypass -File scripts\ops\restore-drill.ps1 -PassphraseFromStdin
+Get-Clipboard | pwsh -NoProfile -ExecutionPolicy Bypass -File D:\Backups\horrorwriter\restore-drill.ps1 -PassphraseFromStdin
 ```
+(`install-backup-pull.ps1` puts the script there, so it works whichever branch the repo checkout is
+on.)
 It decrypts the newest backup in `D:\Backups\horrorwriter`, counts the rows of the main tables, and
 deletes the unpacked copy. Look for both `PASS` lines, then compare the counts with Admin → Overview
 → Site stats (or ask Claude to compare them with the live database). "Could not decrypt" means the
@@ -75,7 +77,7 @@ Restore into the **local** stack, never straight into production.
 
 ```powershell
 # 1. Unpack a copy to work on (it is NOT encrypted: delete it when done):
-Get-Clipboard | pwsh -NoProfile -ExecutionPolicy Bypass -File scripts\ops\restore-drill.ps1 -PassphraseFromStdin -Keep
+Get-Clipboard | pwsh -NoProfile -ExecutionPolicy Bypass -File D:\Backups\horrorwriter\restore-drill.ps1 -PassphraseFromStdin -Keep
 #    It prints the folder; dump\data.sql is inside it.
 # 2. Start an empty local database:
 npx supabase start

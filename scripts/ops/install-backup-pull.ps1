@@ -23,6 +23,8 @@ if (-not (Test-Path $source)) { throw "not found: $source" }
 New-Item -ItemType Directory -Force $LocalDir | Out-Null
 $script = Join-Path $LocalDir 'pull-backups.ps1'
 Copy-Item $source $script -Force
+# The restore drill lives beside the backups too, so it runs whichever branch is checked out.
+Copy-Item (Join-Path $PSScriptRoot 'restore-drill.ps1') (Join-Path $LocalDir 'restore-drill.ps1') -Force
 
 $action = New-ScheduledTaskAction -Execute 'powershell.exe' `
   -Argument ("-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$script`" -LocalDir `"$LocalDir`"" +
