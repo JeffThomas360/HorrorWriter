@@ -6,6 +6,10 @@
 
 export const SITE_DESCRIPTION = 'A community for serious horror writers: publish stories in The Library, get real critique in The Crypt, and write to dark-fiction prompts.';
 
+// The site's own subreddit (created by Jeff 2026-11-13). Linked from the footer and
+// listed as the Organization's `sameAs`, so search engines tie the two together.
+export const SUBREDDIT_URL = 'https://www.reddit.com/r/HorrorWriterOrg/';
+
 /**
  * Build a meta description from free text (a story lede, a bio, a series blurb).
  * Collapses whitespace and light markdown, cuts at a word boundary under `max`,
@@ -44,6 +48,7 @@ export function buildWebSiteSchema({ url = 'https://horrorwriter.org', name = 'H
         '@id': `${url}/#organization`,
         name: 'Horror Writer',
         url,
+        sameAs: [SUBREDDIT_URL],
         logo: {
           '@type': 'ImageObject',
           url: `${url}/og.png`,

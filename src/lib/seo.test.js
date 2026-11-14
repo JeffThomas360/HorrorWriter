@@ -49,6 +49,11 @@ describe('buildWebSiteSchema', () => {
     expect(result['@graph'][0]).toMatchObject({ '@type': 'WebSite', url: 'https://horrorwriter.org', name: 'Horror Writer' })
     expect(result['@graph'][1]).toMatchObject({ '@type': 'Organization', name: 'Horror Writer' })
   })
+
+  it('lists the subreddit as the Organization sameAs', () => {
+    const org = buildWebSiteSchema({})['@graph'][1]
+    expect(org.sameAs).toEqual(['https://www.reddit.com/r/HorrorWriterOrg/'])
+  })
 })
 
 describe('buildCreativeWorkSchema', () => {
