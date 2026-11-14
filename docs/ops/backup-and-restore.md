@@ -58,13 +58,25 @@ account; the local copy is still made. "WARNING: newest backup is N days old" me
 run is failing.
 
 ## Restore drill (do this once now, then after any big schema change)
+
+### Part 1: the backup opens and holds the data (2 minutes, nothing to install)
+Copy the backup passphrase from your password manager, then from the repo folder:
+```powershell
+Get-Clipboard | pwsh -NoProfile -ExecutionPolicy Bypass -File scripts\ops\restore-drill.ps1 -PassphraseFromStdin
+```
+It decrypts the newest backup in `D:\Backups\horrorwriter`, counts the rows of the main tables, and
+deletes the unpacked copy. Look for both `PASS` lines, then compare the counts with Admin → Overview
+→ Site stats (or ask Claude to compare them with the live database). "Could not decrypt" means the
+passphrase in your password manager is not the one saved as `BACKUP_PASSPHRASE`: set the secret
+again from the password manager and run the Backup workflow by hand.
+
+### Part 2: the backup loads into a database (needs Docker running)
 Restore into the **local** stack, never straight into production.
 
 ```powershell
-# 1. Download the newest artifact: horrorwriter-backups → Actions → newest green Backup run →
-#    Artifacts → horrorwriter-<stamp>. It arrives as a .zip holding horrorwriter-<stamp>.tar.gz.gpg.
-# 2. Unzip, then decrypt and unpack (Git Bash or WSL):
-gpg --decrypt horrorwriter-<stamp>.tar.gz.gpg | tar -xzf -
+# 1. Unpack a copy to work on (it is NOT encrypted: delete it when done):
+Get-Clipboard | pwsh -NoProfile -ExecutionPolicy Bypass -File scripts\ops\restore-drill.ps1 -PassphraseFromStdin -Keep
+#    It prints the folder; dump\data.sql is inside it.
 # 3. Start an empty local database:
 npx supabase start
 npx supabase db reset --no-seed
