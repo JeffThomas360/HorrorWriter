@@ -32,6 +32,23 @@ Run it by hand: horrorwriter-backups → Actions → Backup → Run workflow.
 GitHub emails you when a scheduled run fails. A backup that fails silently for a week is the
 failure to watch for: check the backups repo's Actions tab when that email arrives.
 
+## Copies on this PC and in Google Drive
+GitHub keeps each backup 30 days. `scripts/ops/pull-backups.ps1` copies every backup GitHub still
+holds to `D:\Backups\horrorwriter` and to `My Drive\horrorwriter-backups` in Google Drive, and
+keeps them all (each is well under 1 MB). It only adds what is missing, so the PC does not need to
+be on at night: any run catches up on the last 30 days. Files stay encrypted; Google only holds
+locked files.
+
+Set up once, from the repo folder:
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\ops\install-backup-pull.ps1
+```
+That registers the scheduled task "HorrorWriter backup pull" (at sign-in and every 4 hours) and runs
+it once. Look in `D:\Backups\horrorwriter\pull-backups.log` for `local: N backups` and
+`drive: … copied`. "Google Drive not found" means Google Drive for desktop isn't running or signed
+in; the local copy is still made. "WARNING: newest backup is N days old" means the nightly run is
+failing.
+
 ## Restore drill (do this once now, then after any big schema change)
 Restore into the **local** stack, never straight into production.
 
