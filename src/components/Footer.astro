@@ -2,6 +2,7 @@
 const year = new Date().getFullYear();
 import { getCollection } from 'astro:content'
 import { visibleCraft } from '../lib/craft.js'
+import { SUBREDDIT_VISIT_URL } from '../lib/seo.js'
 // Link only once a page is published, never to an empty section.
 const hasCraft = visibleCraft(await getCollection('craft')).length > 0
 ---
@@ -31,6 +32,7 @@ const hasCraft = visibleCraft(await getCollection('craft')).length > 0
         <li><a href="/library/" class="inline-block py-2 hover:text-[var(--color-ember)]">Library</a></li>
         <li><a href="/prompts/" class="inline-block py-2 hover:text-[var(--color-ember)]">Writing Prompts</a></li>
         <li><a href="/first-reader/" class="inline-block py-2 hover:text-[var(--color-ember)]">Needs a First Reader</a></li>
+        <li><a href={SUBREDDIT_VISIT_URL} rel="me noopener" class="inline-block py-2 hover:text-[var(--color-ember)]">r/HorrorWriterOrg on Reddit</a></li>
         <li><a href="/profile/" class="inline-block py-2 hover:text-[var(--color-ember)]">Your Profile</a></li>
       </ul>
     </div>
