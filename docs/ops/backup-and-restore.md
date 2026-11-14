@@ -39,21 +39,23 @@ failure to watch for: check the backups repo's Actions tab when that email arriv
 
 ## Copies on this PC and in Google Drive
 GitHub keeps each backup 30 days. `scripts/ops/pull-backups.ps1` copies every backup GitHub still
-holds to `D:\Backups\horrorwriter` and to `My Drive\horrorwriter-backups` in Google Drive, and
-keeps them all (each is well under 1 MB). It only adds what is missing, so the PC does not need to
-be on at night: any run catches up on the last 30 days. Files stay encrypted; Google only holds
-locked files.
+holds to `D:\Backups\horrorwriter` and to a Google Drive folder you name, and keeps them all (each
+is well under 1 MB). It only adds what is missing, so the PC does not need to be on at night: any
+run catches up on the last 30 days. Files stay encrypted; Google only holds locked files.
 
-Set up once, from the repo folder:
+The Drive folder is never guessed: Google Drive for desktop can hold several accounts. Find the
+account's folder in File Explorer (a drive letter's `My Drive`, or `C:\Users\<you>\My Drive
+(<account>)` in mirror mode), then set up once, from the repo folder:
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\ops\install-backup-pull.ps1
+powershell -ExecutionPolicy Bypass -File scripts\ops\install-backup-pull.ps1 -DriveDir "<that folder>\horrorwriter-backups"
 ```
-That copies the script into `D:\Backups\horrorwriter` (so it keeps working whichever branch the
-checkout is on), registers the scheduled task "HorrorWriter backup pull" (at sign-in and every 4
-hours) and runs it once. Look in `D:\Backups\horrorwriter\pull-backups.log` for `local: N backups` and
-`drive: … copied`. "Google Drive not found" means Google Drive for desktop isn't running or signed
-in; the local copy is still made. "WARNING: newest backup is N days old" means the nightly run is
-failing.
+Leave out `-DriveDir` for a local copy only. The installer copies the script into
+`D:\Backups\horrorwriter` (so it keeps working whichever branch the checkout is on), registers the
+scheduled task "HorrorWriter backup pull" (at sign-in and every 4 hours) and runs it once. Look in
+`D:\Backups\horrorwriter\pull-backups.log` for `local: N backups` and `drive: … copied`. "Google
+Drive folder … not found" means Google Drive for desktop isn't running or signed in to that
+account; the local copy is still made. "WARNING: newest backup is N days old" means the nightly
+run is failing.
 
 ## Restore drill (do this once now, then after any big schema change)
 Restore into the **local** stack, never straight into production.

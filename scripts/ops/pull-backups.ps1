@@ -13,8 +13,9 @@
   Files are copied as they are: encrypted with the backup passphrase, so Google only ever holds
   locked files. Nothing is deleted; a backup is well under 1 MB.
 
-  Needs: gh signed in as the repo owner. Google Drive for desktop running and signed in (if it is
-  not, the local copy is still made and Drive catches up next time).
+  Needs: gh signed in as the repo owner. For the Drive copy, Google Drive for desktop running and
+  signed in to the account behind -DriveDir (if it is not, the local copy is still made and Drive
+  catches up next time).
 
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File scripts\ops\pull-backups.ps1
@@ -22,9 +23,11 @@
 param(
   [string]$Repo = 'JeffThomas360/horrorwriter-backups',
   [string]$LocalDir = 'D:\Backups\horrorwriter',
-  # Empty = find the "My Drive" folder of Google Drive for desktop on any drive letter.
-  [string]$DriveDir = '',
-  [string]$DriveSubfolder = 'horrorwriter-backups'
+  # The Google Drive folder to copy into, e.g. 'G:\My Drive\horrorwriter-backups' or
+  # 'C:\Users\<you>\My Drive (<account>)\horrorwriter-backups'. Named explicitly, never guessed:
+  # Google Drive for desktop can hold several accounts, and a guess could pick the wrong one.
+  # Empty = local copy only.
+  [string]$DriveDir = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -74,13 +77,9 @@ try {
 
   # 2. Mirror to Google Drive.
   if (-not $DriveDir) {
-    $myDrive = Get-PSDrive -PSProvider FileSystem |
-      ForEach-Object { Join-Path $_.Root 'My Drive' } |
-      Where-Object { Test-Path $_ } | Select-Object -First 1
-    if ($myDrive) { $DriveDir = Join-Path $myDrive $DriveSubfolder }
-  }
-  if (-not $DriveDir) {
-    Log 'Google Drive not found (is Google Drive for desktop running and signed in?). Local copy only this time.'
+    Log 'No Google Drive folder set (-DriveDir). Local copy only.'
+  } elseif (-not (Test-Path (Split-Path $DriveDir -Parent))) {
+    Log "Google Drive folder $(Split-Path $DriveDir -Parent) not found (is Google Drive for desktop running and signed in?). Local copy only this time."
   } else {
     New-Item -ItemType Directory -Force $DriveDir | Out-Null
     $copied = 0

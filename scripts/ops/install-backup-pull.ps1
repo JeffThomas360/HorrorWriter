@@ -12,7 +12,9 @@
 #>
 param(
   [string]$TaskName = 'HorrorWriter backup pull',
-  [string]$LocalDir = 'D:\Backups\horrorwriter'
+  [string]$LocalDir = 'D:\Backups\horrorwriter',
+  # Google Drive folder to copy into; see pull-backups.ps1. Empty = local copy only.
+  [string]$DriveDir = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -23,7 +25,8 @@ $script = Join-Path $LocalDir 'pull-backups.ps1'
 Copy-Item $source $script -Force
 
 $action = New-ScheduledTaskAction -Execute 'powershell.exe' `
-  -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$script`" -LocalDir `"$LocalDir`""
+  -Argument ("-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$script`" -LocalDir `"$LocalDir`"" +
+             $(if ($DriveDir) { " -DriveDir `"$DriveDir`"" } else { '' }))
 $atLogOn = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
 $every4h = New-ScheduledTaskTrigger -Once -At (Get-Date).Date `
   -RepetitionInterval (New-TimeSpan -Hours 4)
