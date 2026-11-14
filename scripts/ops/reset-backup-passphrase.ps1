@@ -62,10 +62,24 @@ gh run watch $run.databaseId -R $Repo --exit-status *> $null
 if ($LASTEXITCODE -ne 0) { throw "The Backup run failed: https://github.com/$Repo/actions/runs/$($run.databaseId)" }
 Write-Host '   Backup run succeeded.'
 
-# 4. Bring it to this PC.
-& (Join-Path $here 'pull-backups.ps1') -Repo $Repo -LocalDir $LocalDir | Out-Null
-$newest = Get-ChildItem $LocalDir -Filter 'horrorwriter-*.tar.gz.gpg' | Sort-Object Name | Select-Object -Last 1
-Write-Host "4. Downloaded $($newest.Name)."
+# 4. Bring THIS run's backup to this PC. Its artifact can take a few seconds to be listed after
+# the run finishes; opening "the newest local file" instead once tested an older backup, locked
+# with the old passphrase (2026-11-14).
+$artifact = $null
+for ($i = 0; $i -lt 20 -and -not $artifact; $i++) {
+  $artifact = (gh api "repos/$Repo/actions/runs/$($run.databaseId)/artifacts" | ConvertFrom-Json).artifacts |
+    Where-Object { $_.name -like 'horrorwriter-*' } | Select-Object -First 1
+  if (-not $artifact) { Start-Sleep -Seconds 3 }
+}
+if (-not $artifact) { throw "Run $($run.databaseId) has no backup artifact after a minute. Check the Actions tab." }
+$newest = $null
+for ($i = 0; $i -lt 5 -and -not $newest; $i++) {
+  & (Join-Path $here 'pull-backups.ps1') -Repo $Repo -LocalDir $LocalDir | Out-Null
+  $newest = Get-Item (Join-Path $LocalDir "$($artifact.name).tar.gz.gpg") -ErrorAction SilentlyContinue
+  if (-not $newest) { Start-Sleep -Seconds 5 }
+}
+if (-not $newest) { throw "Could not download $($artifact.name). Run pull-backups.ps1 and check its log." }
+Write-Host "4. Downloaded $($newest.Name) (this run's backup)."
 }
 
 # 5. Open it with the same passphrase.
