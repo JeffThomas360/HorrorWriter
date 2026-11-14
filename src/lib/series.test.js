@@ -58,6 +58,8 @@ const {
   createSeriesWithInitialStory,
   addBookToSeries,
   removeBookFromSeries,
+  planSeriesChange,
+  applySeriesChoice,
   updateBookSortOrder,
   deleteSeries
 } = await import('./series')
@@ -257,5 +259,57 @@ describe('deleteSeries', () => {
   it('throws on error', async () => {
     mockSupabase.from.mockReturnValueOnce(makeMutationQuery({ data: null, error: { message: 'boom' } }))
     await expect(deleteSeries('series-1')).rejects.toBeTruthy()
+  })
+})
+
+describe('planSeriesChange', () => {
+  it('does nothing when the story stays in its series', () => {
+    expect(planSeriesChange('s1', 's1')).toEqual({ remove: null, add: null })
+  })
+  it('does nothing when a standalone story stays standalone', () => {
+    expect(planSeriesChange(null, '')).toEqual({ remove: null, add: null })
+    expect(planSeriesChange(undefined, null)).toEqual({ remove: null, add: null })
+  })
+  it('joins a series from standalone', () => {
+    expect(planSeriesChange(null, 's1')).toEqual({ remove: null, add: 's1' })
+  })
+  it('leaves its series for standalone', () => {
+    expect(planSeriesChange('s1', '')).toEqual({ remove: 's1', add: null })
+  })
+  it('moves from one series to another', () => {
+    expect(planSeriesChange('s1', 's2')).toEqual({ remove: 's1', add: 's2' })
+  })
+})
+
+describe('applySeriesChoice', () => {
+  beforeEach(() => { mockSupabase.from.mockReset() })
+
+  it('touches nothing when an edited story stays in its series', async () => {
+    await applySeriesChoice({ bookId: 'b1', previousSeriesId: 's1', chosenSeriesId: 's1' })
+    expect(mockSupabase.from).not.toHaveBeenCalled()
+  })
+
+  it('leaves the old series before joining the new one', async () => {
+    const steps = []
+    mockSupabase.from.mockImplementation(() => {
+      const q = makeMutationQuery({ data: [], error: null })
+      q.delete.mockImplementation(() => { steps.push('delete'); return q })
+      q.insert.mockImplementation((row) => { steps.push(`insert ${row.series_id}`); return q })
+      return q
+    })
+    await applySeriesChoice({ bookId: 'b1', previousSeriesId: 's1', chosenSeriesId: 's2' })
+    expect(steps).toEqual(['delete', 'insert s2'])
+  })
+
+  it('only leaves when the story becomes standalone', async () => {
+    const steps = []
+    mockSupabase.from.mockImplementation(() => {
+      const q = makeMutationQuery({ data: [], error: null })
+      q.delete.mockImplementation(() => { steps.push('delete'); return q })
+      q.insert.mockImplementation(() => { steps.push('insert'); return q })
+      return q
+    })
+    await applySeriesChoice({ bookId: 'b1', previousSeriesId: 's1', chosenSeriesId: '' })
+    expect(steps).toEqual(['delete'])
   })
 })

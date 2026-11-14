@@ -13,6 +13,8 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
 import { withProviders } from '../components/Providers'
+import LoadError from '../components/LoadError'
+import { isMissingRow } from '../lib/loadFailure'
 import KindleReader, { useKindlePrefs } from '../components/KindleReader'
 import { authorLabel, isTombstone, TOMBSTONE_TEXT } from '../lib/storyHelpers'
 
@@ -52,7 +54,7 @@ function ThreadView({ id, initialThread, initialPosts }) {
   // Ritual entry open in Kindle Focus Mode (its post id), or null.
   const [focusEntryId, setFocusEntryId] = useState(null)
 
-  const { data: thread, isLoading: threadLoading, error: threadError } = useQuery({
+  const { data: thread, isLoading: threadLoading, error: threadError, refetch: refetchThread } = useQuery({
     queryKey: ['thread', id],
     queryFn: async () => {
       if (!supabase) return null
@@ -74,7 +76,8 @@ function ThreadView({ id, initialThread, initialPosts }) {
     hasNextPage,
     isFetchingNextPage,
     isLoading: postsLoading,
-    error: postsError
+    error: postsError,
+    refetch: refetchPosts
   } = useInfiniteQuery({
     queryKey: ['posts', id],
     queryFn: async ({ pageParam = 0 }) => {
@@ -107,9 +110,10 @@ function ThreadView({ id, initialThread, initialPosts }) {
 
   const posts = postsData ? postsData.pages.flat() : []
   const loading = threadLoading || postsLoading
-  const error = threadError
-    ? 'Thread lost to the void. It may have been deleted.'
-    : postsError ? 'Failed to load posts.' : null
+  // Only a definite "no such row" means the thread is gone. A failed re-read
+  // keeps the server-rendered thread on screen; with nothing to show, offer a retry.
+  const notFound = isMissingRow(threadError)
+  const loadFailure = (!thread && threadError) || (!postsData && postsError) || null
 
   // Keyed on the user id, not the session object: AuthContext replaces it on
   // every token refresh, and rebuilding the channel each time stopped live replies.
@@ -352,11 +356,21 @@ function ThreadView({ id, initialThread, initialPosts }) {
       <p className="font-mono text-xs uppercase tracking-widest text-[var(--color-text-secondary)] animate-pulse">Descending…</p>
     </div>
   )
-  if (error) return (
+  if (notFound) return (
     <div className="vintage-card text-center py-12 border-red-950 mt-8 max-w-2xl mx-auto">
-      <p className="font-mono text-xs uppercase tracking-widest text-[var(--color-ember)] mb-4">Error</p>
-      <p className="font-serif italic text-sm text-[var(--color-text-secondary)] mb-6">{error}</p>
+      <p className="font-mono text-xs uppercase tracking-widest text-[var(--color-ember)] mb-4">Not found</p>
+      <p className="font-serif italic text-sm text-[var(--color-text-secondary)] mb-6">Thread lost to the void. It may have been deleted.</p>
       <a href="/forum/" className="border border-[var(--color-line)] hover:border-white font-mono text-xs uppercase px-4 py-2 transition-colors">Back to the Crypt</a>
+    </div>
+  )
+  if (loadFailure || !thread) return (
+    <div className="max-w-2xl mx-auto">
+      <LoadError
+        title="The thread didn't open"
+        message="We couldn't load this thread just now. Check your connection, then try again."
+        error={loadFailure}
+        onRetry={() => { refetchThread(); refetchPosts() }}
+      />
     </div>
   )
 

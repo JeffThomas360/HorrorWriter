@@ -15,6 +15,8 @@ import KindleReader, { useKindlePrefs } from '../components/KindleReader'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import ShareBar from '../components/ShareBar'
+import LoadError from '../components/LoadError'
+import { isMissingRow } from '../lib/loadFailure'
 import { fetchStorySeriesContext } from '../lib/series'
 import SeriesContextBar from '../components/SeriesContextBar'
 import SeriesSidebar from '../components/SeriesSidebar'
@@ -83,7 +85,7 @@ function ReadStory({ id, initialBook }) {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  const { data: book, isLoading: loading, error: queryError } = useQuery({
+  const { data: book, isLoading: loading, error: queryError, refetch } = useQuery({
     queryKey: ['book', id],
     queryFn: async () => {
       if (!supabase) return null
@@ -156,7 +158,9 @@ function ReadStory({ id, initialBook }) {
     commentMutation.mutate(commentContent)
   }
 
-  const error = queryError ? 'Story not found in the archives.' : null
+  // Only a definite "no such row" is Not found. A failed re-read keeps the
+  // server-rendered story on screen; with nothing to show, offer a retry.
+  const notFound = isMissingRow(queryError)
   const isOwner = isStoryOwner(session?.user?.id, book)
 
   if (loading) return (
@@ -164,12 +168,20 @@ function ReadStory({ id, initialBook }) {
       <p className="font-mono text-xs uppercase tracking-widest text-[var(--color-text-secondary)] animate-pulse">Opening dusty pages…</p>
     </div>
   )
-  if (error) return (
+  if (notFound) return (
     <div className="vintage-card text-center py-12 border-red-950">
       <p className="font-mono text-xs uppercase tracking-widest text-[var(--color-accent-crimson)] mb-4">Not found</p>
-      <p className="font-serif italic text-sm text-[var(--color-text-secondary)] mb-6">{error}</p>
+      <p className="font-serif italic text-sm text-[var(--color-text-secondary)] mb-6">Story not found in the archives.</p>
       <a href="/library/" className="border border-[var(--color-line)] hover:border-white font-mono text-xs uppercase px-4 py-2 transition-colors">Back to Library</a>
     </div>
+  )
+  if (!book) return (
+    <LoadError
+      title="The story didn't open"
+      message="We couldn't load this story just now. Check your connection, then try again."
+      error={queryError}
+      onRetry={() => refetch()}
+    />
   )
 
   const isSubmitting = commentMutation.isPending

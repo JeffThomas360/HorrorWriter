@@ -14,6 +14,7 @@ vi.mock('../components/RequireAuth', () => ({ default: ({ children }) => childre
 vi.mock('../lib/series', () => ({
   fetchAuthorSeriesOptions: vi.fn().mockResolvedValue([]),
   addBookToSeries: vi.fn(),
+  applySeriesChoice: vi.fn(),
 }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 

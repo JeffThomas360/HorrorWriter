@@ -8,7 +8,7 @@ import { useAuth } from '../components/AuthContext'
 import MarkdownEditor from '../components/MarkdownEditor'
 import StoryCardPreview from '../components/StoryCardPreview'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
-import { fetchAuthorSeriesOptions, addBookToSeries } from '../lib/series'
+import { fetchAuthorSeriesOptions, applySeriesChoice } from '../lib/series'
 import { validateStoryContent, countWords } from '../lib/storyValidation'
 import { saveDraft, getDraft, clearDraft } from '../lib/draftAutosave'
 import TranscribeButton from '../components/TranscribeButton'
@@ -180,14 +180,16 @@ function PublishStory({ bookId }) {
 
       await screenContent(supabase, 'story', data?.id)
 
+      // Editing a story already in its series must not add it again (that
+      // fails on the primary key); a changed choice leaves the old series first.
       let seriesAttachFailed = false
-      if (seriesId && data?.id) {
+      if (data?.id) {
         try {
-          await addBookToSeries({ seriesId, bookId: data.id })
+          await applySeriesChoice({ bookId: data.id, previousSeriesId: existing?.seriesId, chosenSeriesId: seriesId })
         } catch (err) {
-          console.error('Failed to attach story to series:', err)
+          console.error('Failed to update the story\'s series:', err)
           seriesAttachFailed = true
-          toast.error('Story saved, but attaching it to series failed.')
+          toast.error('Story saved, but its series could not be updated.')
         }
       }
 
