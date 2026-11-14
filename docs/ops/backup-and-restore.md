@@ -77,10 +77,12 @@ Restore into the **local** stack, never straight into production.
 # 1. Unpack a copy to work on (it is NOT encrypted: delete it when done):
 Get-Clipboard | pwsh -NoProfile -ExecutionPolicy Bypass -File scripts\ops\restore-drill.ps1 -PassphraseFromStdin -Keep
 #    It prints the folder; dump\data.sql is inside it.
-# 3. Start an empty local database:
+# 2. Start an empty local database:
 npx supabase start
 npx supabase db reset --no-seed
-# 4. Load data only (the local stack already has the schema from the migrations):
+# 3. Load data only (the local stack already has the schema from the migrations). psql isn't
+#    installed on Jeff's PC; the one inside the local database container works the same:
+#    Get-Content <folder>\dump\data.sql -Raw | docker exec -i supabase_db_horrorwriter psql -U postgres ...
 psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" --single-transaction `
   --variable ON_ERROR_STOP=1 --command "SET session_replication_role = replica" --file dump/data.sql
 ```
