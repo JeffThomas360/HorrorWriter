@@ -69,8 +69,15 @@ on.)
 It decrypts the newest backup in `D:\Backups\horrorwriter`, counts the rows of the main tables, and
 deletes the unpacked copy. Look for both `PASS` lines, then compare the counts with Admin → Overview
 → Site stats (or ask Claude to compare them with the live database). "Could not decrypt" means the
-passphrase in your password manager is not the one saved as `BACKUP_PASSPHRASE`: set the secret
-again from the password manager and run the Backup workflow by hand.
+passphrase in your password manager is not the one saved as `BACKUP_PASSPHRASE`. Copy the
+passphrase from the password manager and run
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File D:\Backups\horrorwriter\reset-backup-passphrase.ps1
+```
+It saves that passphrase on GitHub, takes a fresh backup, downloads it and opens it with the same
+passphrase, ending in `DONE`. Backups from before the reset stay locked with the old passphrase.
+(2026-11-14: the first passphrase, set by pasting into gh's hidden prompt in the app's terminal,
+didn't match the password manager.)
 
 ### Part 2: the backup loads into a database (needs Docker running)
 Restore into the **local** stack, never straight into production.
