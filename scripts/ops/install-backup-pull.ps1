@@ -23,6 +23,11 @@ if (-not (Test-Path $source)) { throw "not found: $source" }
 New-Item -ItemType Directory -Force $LocalDir | Out-Null
 $script = Join-Path $LocalDir 'pull-backups.ps1'
 Copy-Item $source $script -Force
+# The restore drill and the passphrase reset live beside the backups too, so they run whichever
+# branch is checked out.
+foreach ($f in 'restore-drill.ps1', 'reset-backup-passphrase.ps1') {
+  Copy-Item (Join-Path $PSScriptRoot $f) (Join-Path $LocalDir $f) -Force
+}
 
 $action = New-ScheduledTaskAction -Execute 'powershell.exe' `
   -Argument ("-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$script`" -LocalDir `"$LocalDir`"" +
