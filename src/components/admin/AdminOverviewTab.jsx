@@ -10,6 +10,7 @@ import { countFutureScheduled } from '../../lib/ritualAdmin'
 import { fetchOpenTasks } from '../../lib/keeperTaskApi'
 import { openCount } from '../../lib/keeperTasks'
 import PulsePanel from './PulsePanel'
+import AdminWritingExport from './AdminWritingExport'
 
 const STAT_TILES = [
   { key: 'totalUsers', label: 'Registered users', jump: 'users' },
@@ -149,6 +150,8 @@ export default function AdminOverviewTab({ onNavigate }) {
           </div>
         )}
       </div>
+
+      <AdminWritingExport />
 
       <div>
         <h3 className="font-mono text-xs uppercase tracking-widest text-[var(--color-ash)] mb-3">Infrastructure</h3>
