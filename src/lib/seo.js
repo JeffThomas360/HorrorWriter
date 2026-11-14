@@ -6,9 +6,12 @@
 
 export const SITE_DESCRIPTION = 'A community for serious horror writers: publish stories in The Library, get real critique in The Crypt, and write to dark-fiction prompts.';
 
-// The site's own subreddit (created by Jeff 2026-11-13). Linked from the footer and
-// listed as the Organization's `sameAs`, so search engines tie the two together.
+// The site's own subreddit (created by Jeff 2026-11-13). The site only links out to it:
+// Reddit no longer lets outside sites pull posts (RSS ended 2026-11-13, API closed to new apps).
+// SUBREDDIT_URL is the canonical address, listed as the Organization's `sameAs` so search
+// engines tie the two together. Visitors are sent to old.reddit, Jeff's choice.
 export const SUBREDDIT_URL = 'https://www.reddit.com/r/HorrorWriterOrg/';
+export const SUBREDDIT_VISIT_URL = 'https://old.reddit.com/r/HorrorWriterOrg/';
 
 /**
  * Build a meta description from free text (a story lede, a bio, a series blurb).
