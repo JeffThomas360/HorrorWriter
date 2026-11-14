@@ -35,7 +35,15 @@ vi.mock('../../lib/pulse', () => ({
   }),
 }))
 
+// The writing export has its own tests; here it just needs to render.
+vi.mock('../../lib/adminWritingExport', () => ({ downloadAllWriting: vi.fn() }))
+
 const AdminOverviewTab = (await import('./AdminOverviewTab')).default
+
+test('shows the Backups section with the download-all button', async () => {
+  renderIt()
+  expect(await screen.findByRole('button', { name: /download all members' writing/i })).toBeTruthy()
+})
 
 function renderIt(onNavigate = vi.fn()) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
