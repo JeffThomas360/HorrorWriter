@@ -1,8 +1,12 @@
 # Backup and restore
 
-The Supabase Free plan keeps no backups. `.github/workflows/backup.yml` is the only copy of
-members' writing outside the live database. It runs nightly and can be run by hand
-(Actions → Backup → Run workflow).
+The Supabase Free plan keeps no backups. The nightly Backup workflow in the private repo
+[JeffThomas360/horrorwriter-backups](https://github.com/JeffThomas360/horrorwriter-backups) is the
+only copy of members' writing outside the live database. It dumps the database, encrypts it, and
+keeps the file as that run's artifact for 30 days. It costs nothing: a private repo gets 500 MB of
+artifact storage, and a nightly backup is well under 1 MB (public data was 2.5 MB on 2026-11-13).
+
+Run it by hand: horrorwriter-backups → Actions → Backup → Run workflow.
 
 ## What is and is not backed up
 - **Backed up:** roles, schema and all table data, including sign-in accounts (`auth`) and the
@@ -11,27 +15,55 @@ members' writing outside the live database. It runs nightly and can be run by ha
   secrets, and the project's dashboard settings (auth providers, redirect URLs).
 
 ## One-time setup
-1. Cloudflare → R2 → create a private bucket (for example `horrorwriter-backups`). Add a lifecycle
-   rule deleting objects under `db/` after 30 days.
-2. R2 → Manage API tokens → create a token with Object Read & Write on that bucket only.
-3. Supabase → Connect → **Session pooler** connection string (port 5432), with the database password.
-4. Pick a long passphrase and store it in your password manager. **Without it the backups cannot
+1. Supabase → Connect → **Session pooler** connection string (port 5432), with the database
+   password in place of `[YOUR-PASSWORD]`. The direct `db.<ref>.supabase.co` host is IPv6-only and
+   GitHub's runners cannot reach it.
+2. Pick a long passphrase and store it in your password manager. **Without it the backups cannot
    be read.**
-5. GitHub → repo → Settings → Secrets and variables → Actions, add:
-   `SUPABASE_DB_URL`, `BACKUP_PASSPHRASE`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`,
-   `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`.
-6. Run the workflow by hand once. Look for a green run and a `horrorwriter-<date>.tar.gz.gpg`
-   line at the end of the "Store in R2" step.
+3. Add both as secrets on the backups repo. Pasting into gh's hidden "Paste your secret" prompt
+   doesn't always register in an embedded terminal, so copy each value, then run the matching
+   line; it reads the clipboard, and the value never appears on screen or in history:
+   ```powershell
+   gh secret set SUPABASE_DB_URL -R JeffThomas360/horrorwriter-backups --body (Get-Clipboard)
+   gh secret set BACKUP_PASSPHRASE -R JeffThomas360/horrorwriter-backups --body (Get-Clipboard)
+   ```
+   Look for `✓ Set Actions secret …`. The URL looks like
+   `postgresql://postgres.<project-ref>:<password>@aws-…pooler.supabase.com:5432/postgres`.
+   Or add them on GitHub: horrorwriter-backups → Settings → Secrets and variables → Actions →
+   New repository secret.
+4. Run the workflow by hand once. Look for a green run with one artifact,
+   `horrorwriter-<date>`, under Artifacts on the run's page.
 
-GitHub emails the repo owner when a scheduled run fails. A backup that fails silently for a week
-is the failure to watch for: check the Actions tab when that email arrives.
+GitHub emails you when a scheduled run fails. A backup that fails silently for a week is the
+failure to watch for: check the backups repo's Actions tab when that email arrives.
+
+## Copies on this PC and in Google Drive
+GitHub keeps each backup 30 days. `scripts/ops/pull-backups.ps1` copies every backup GitHub still
+holds to `D:\Backups\horrorwriter` and to a Google Drive folder you name, and keeps them all (each
+is well under 1 MB). It only adds what is missing, so the PC does not need to be on at night: any
+run catches up on the last 30 days. Files stay encrypted; Google only holds locked files.
+
+The Drive folder is never guessed: Google Drive for desktop can hold several accounts. Find the
+account's folder in File Explorer (a drive letter's `My Drive`, or `C:\Users\<you>\My Drive
+(<account>)` in mirror mode), then set up once, from the repo folder:
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\ops\install-backup-pull.ps1 -DriveDir "<that folder>\horrorwriter-backups"
+```
+Leave out `-DriveDir` for a local copy only. The installer copies the script into
+`D:\Backups\horrorwriter` (so it keeps working whichever branch the checkout is on), registers the
+scheduled task "HorrorWriter backup pull" (at sign-in and every 4 hours) and runs it once. Look in
+`D:\Backups\horrorwriter\pull-backups.log` for `local: N backups` and `drive: … copied`. "Google
+Drive folder … not found" means Google Drive for desktop isn't running or signed in to that
+account; the local copy is still made. "WARNING: newest backup is N days old" means the nightly
+run is failing.
 
 ## Restore drill (do this once now, then after any big schema change)
 Restore into the **local** stack, never straight into production.
 
 ```powershell
-# 1. Download the newest object from the R2 bucket (dashboard → bucket → db/ → Download).
-# 2. Decrypt and unpack (Git Bash or WSL):
+# 1. Download the newest artifact: horrorwriter-backups → Actions → newest green Backup run →
+#    Artifacts → horrorwriter-<stamp>. It arrives as a .zip holding horrorwriter-<stamp>.tar.gz.gpg.
+# 2. Unzip, then decrypt and unpack (Git Bash or WSL):
 gpg --decrypt horrorwriter-<stamp>.tar.gz.gpg | tar -xzf -
 # 3. Start an empty local database:
 npx supabase start
