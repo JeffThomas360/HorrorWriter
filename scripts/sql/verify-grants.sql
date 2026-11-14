@@ -103,7 +103,9 @@ with allow(name, role, why) as (values
   ('mod_apply_sanction',       'authenticated', 'warden/keeper RPC, mod_can(ban, all), reason required, logged'),
   ('mod_revoke_sanction',      'authenticated', 'warden/keeper RPC, mod_can(ban, all), reason required, logged'),
   ('public_profile_handles',   'anon',          'sitemap: non-shadowbanned handles, flag not exposed'),
-  ('public_profile_handles',   'authenticated', 'sitemap: non-shadowbanned handles, flag not exposed')
+  ('public_profile_handles',   'authenticated', 'sitemap: non-shadowbanned handles, flag not exposed'),
+  -- Admin writing export (20261114000000). Every member's published writing; keepers only.
+  ('admin_export_writing',     'authenticated', 'keeper RPC, mod_can(configure, all)')
 ),
 grants as (
   select
