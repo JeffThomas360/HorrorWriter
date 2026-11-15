@@ -4,7 +4,7 @@ const fetchMock = vi.fn()
 vi.stubGlobal('fetch', fetchMock)
 vi.stubEnv('VITE_SUPABASE_URL', 'https://x.supabase.co')
 const verifyOtp = vi.fn(async () => ({ error: null }))
-vi.mock('../supabaseClient', () => ({ supabase: { auth: { verifyOtp: (...a) => verifyOtp(...a) } } }))
+vi.mock('../supabaseClient', () => ({ loggedFetch: (...a) => fetchMock(...a), supabase: { auth: { verifyOtp: (...a) => verifyOtp(...a) } } }))
 const startAuthentication = vi.fn(async () => ({ id: 'cred' }))
 vi.mock('@simplewebauthn/browser', () => ({ startAuthentication: (...a) => startAuthentication(...a), startRegistration: vi.fn() }))
 
