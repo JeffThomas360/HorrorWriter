@@ -100,7 +100,7 @@ New nullable columns **(call)**: `action text`, `status integer`, `code text`. T
 - Browser only. With no `window` it is the plain `fetch`; server-side failures are a non-goal.
 - It returns the original response untouched and reports from a clone, after the fact. A reporting failure is swallowed.
 - It never reports its own logging call, or it would loop.
-- A short ignore list, kept in one place and unit-tested, for failures that are normal traffic. Known so far: a `.single()` that finds no row (`PGRST116`), a request cancelled because the member navigated away (`AbortError`), and a refresh of an already-expired session. The builder extends it from what the preview shows, and each entry carries a one-line reason.
+- A short ignore list, kept in one place and unit-tested, for failures that are normal traffic. As built: a `.single()` that finds no row (`PGRST116`); a request cut off because the member navigated away, or made while the browser is offline; a refresh of an already-expired session (the token request's action keeps its grant type, so a failed Google sign-in is still logged); and a sign-out whose session was already gone. Nothing is logged at all in Playwright test mode. The builder extends it from what the preview shows, and each entry carries a one-line reason.
 - `supabaseClient.js` and `errorReporter.js` would import each other. Break the cycle however is cleanest (a late-bound reporter is one way). Left to the builder.
 
 **`shown` messages (call).** A thin module wraps sonner's `toast` so `toast.error(...)` also reports the text as kind `shown`, and the 19 files that import `toast` from `sonner` import it from there instead (three test files mock it and are repointed). A unit test fails if any non-test file under `src/` imports `toast` from `sonner` directly, in the style of the banned-colour test. Inline messages set with `setError` (the sign-in modal has 16) are not caught; nearly all follow a failed request, which is. That limit is accepted.
@@ -111,7 +111,7 @@ Validation messages ("message must be at least 25 characters") will land here to
 
 **Limits on volume.** Per page load, the reporter sends at most 5 crashes (as today) plus at most 10 `request`/`shown` entries, never the same one twice **(call)**.
 
-**Retention goes from 30 to 90 days (call).** The Dossier's Trouble section is only as deep as this log. Volume is tiny (about 150 rows in the last 30 days).
+**Retention goes from 30 to 90 days (call).** The Dossier's Trouble section is only as deep as this log. Volume is tiny (83 rows in the table on 2026-11-15).
 
 **Deleting an account deletes its error rows (call, from the standing deletion policy).** `client_errors.user_id` has no link to the member today, so rows outlive the account. Migration 1a adds one that cascades, after clearing any member id that no longer matches an account.
 

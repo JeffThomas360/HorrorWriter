@@ -423,6 +423,7 @@ Then `grep -rn "bare minimum" src tests e2e` and update any test that quotes the
 - [ ] **Step 2:** Push and open PR 1b. Body: what is now logged, what is never logged, the privacy paragraph quoted in full for Jeff to edit, and the check below. Ask Jeff to run `npm run test:unit` and `cmd /c npx playwright test`.
 - [ ] **Step 3: On the PR's Workers preview**, signed in (Jeff signs in on the preview), with DevTools → Network:
   1. Confirm the page hydrates (JS files load; the `_headers` trap in CLAUDE.md).
+  1b. Browse five or six pages signed out and then signed in, with nothing blocked. Expected: no new rows at all. This is the only real test that ordinary browsing does not fill the log.
   2. Block one request URL: `*/rest/v1/user_follows*`. Open another member's profile and press Follow.
   3. Sign out. Block `*/functions/v1/webauthn-authenticate-begin*`, open Sign in, and press the passkey button. (Nothing is sent and no account is touched.)
 - [ ] **Step 4: Read the result** with a read-only query against production:
