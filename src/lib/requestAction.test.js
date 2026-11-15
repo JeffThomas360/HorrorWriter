@@ -10,7 +10,14 @@ test.each([
   ['PATCH',  `${B}/rest/v1/books?id=eq.123`,                     'books:update'],
   ['DELETE', `${B}/rest/v1/user_follows?follower_id=eq.1`,       'user_follows:delete'],
   ['POST',   `${B}/auth/v1/otp`,                                 'auth:otp'],
-  ['POST',   `${B}/auth/v1/token?grant_type=refresh_token`,      'auth:token'],
+  ['POST',   `${B}/auth/v1/token?grant_type=refresh_token`,      'auth:token:refresh_token'],
+  ['POST',   `${B}/auth/v1/token?grant_type=pkce`,               'auth:token:pkce'],
+  ['POST',   `${B}/auth/v1/token?grant_type=<script>`,           'auth:token'],
+  ['POST',   `${B}/auth/v1/token`,                               'auth:token'],
+  ['patch',  `${B}/rest/v1/books?id=eq.1`,                       'books:update'],
+  [undefined, `${B}/rest/v1/books`,                              'books:select'],
+  ['GET',    `${B}/rest/v1/books/`,                              'books:select'],
+  ['GET',    new URL(`${B}/rest/v1/books?id=eq.1`),              'books:select'],
   ['POST',   `${B}/functions/v1/open-ticket`,                    'fn:open-ticket'],
   ['POST',   `${B}/storage/v1/object/avatars/a.png`,             'storage:insert'],
   ['GET',    'https://example.com/anything',                     null],
@@ -28,10 +35,18 @@ test.each([
   [{ action: 'rpc:log_client_error', status: 0 }, true],
   [{ action: 'books:select', status: 406, code: 'PGRST116' }, true], // .single() found no row
   [{ action: 'books:select', status: 0, errorName: 'AbortError' }, true], // member navigated away
-  [{ action: 'auth:token', status: 400 }, true],            // expired session refresh
+  [{ action: 'auth:token:refresh_token', status: 400 }, true], // expired session refresh
+  [{ action: 'auth:token:pkce', status: 400 }, false],
+  [{ action: 'auth:token:refresh_token', status: 500 }, false],
+  [{ action: 'rpc:log_site_event', status: 0 }, true],
   [{ action: 'books:update', status: 409, code: '23505' }, false],
   [{ action: 'auth:otp', status: 429 }, false],
   [{ action: null, status: 500 }, false],
 ])('shouldIgnore(%o) → %s', (event, expected) => {
   expect(shouldIgnore(event)).toBe(expected)
+})
+
+test.each([[undefined], [null], [{}], ['x'], [42]])('shouldIgnore(%o) is false and does not throw', (event) => {
+  expect(() => shouldIgnore(event)).not.toThrow()
+  expect(shouldIgnore(event)).toBe(false)
 })

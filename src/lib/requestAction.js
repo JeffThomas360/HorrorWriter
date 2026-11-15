@@ -6,17 +6,27 @@ const VERBS = {
   PATCH: 'update', PUT: 'update', DELETE: 'delete',
 }
 
+// Only grant types we name are echoed into an action; anything else stays plain.
+const GRANTS = ['refresh_token', 'pkce', 'password', 'id_token']
+
 export function requestAction(method, url) {
-  let path
-  try { path = new URL(url).pathname } catch { return null }
-  const verb = VERBS[String(method).toUpperCase()]
+  let u
+  try { u = new URL(url) } catch { return null }
+  const path = u.pathname
+  const verb = VERBS[String(method ?? 'GET').toUpperCase()]
   const parts = path.split('/').filter(Boolean)
   const [service, , first, second] = parts
   if (service === 'rest' && first) {
     if (first === 'rpc') return second ? `rpc:${second}` : null
     return verb ? `${first}:${verb}` : null
   }
-  if (service === 'auth' && first) return `auth:${first}`
+  if (service === 'auth' && first) {
+    if (first === 'token') {
+      const grant = u.searchParams.get('grant_type')
+      return GRANTS.includes(grant) ? `auth:token:${grant}` : 'auth:token'
+    }
+    return `auth:${first}`
+  }
   if (service === 'functions' && first) return `fn:${first}`
   if (service === 'storage') return verb ? `storage:${verb}` : null
   return null
@@ -30,9 +40,14 @@ const IGNORE_RULES = [
   { reason: 'member navigated away or the request was cancelled',
     test: (e) => e.errorName === 'AbortError' },
   { reason: 'expired session refresh; the member just signs in again',
-    test: (e) => e.action === 'auth:token' && e.status === 400 },
+    test: (e) => e.action === 'auth:token:refresh_token' && e.status === 400 },
 ]
 
 export function shouldIgnore(event) {
-  return IGNORE_RULES.some((rule) => rule.test(event))
+  if (!event || typeof event !== 'object') return false
+  try {
+    return IGNORE_RULES.some((rule) => rule.test(event))
+  } catch {
+    return false
+  }
 }
