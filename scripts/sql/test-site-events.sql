@@ -12,6 +12,12 @@ do $$ begin
   end if;
 end $$;
 
+do $$ begin
+  if (select count(*) from public.client_errors where created_at > now() - interval '1 hour') >= 300 then
+    raise exception 'FAIL: hourly cap already reached (300 rows in the last hour); rerun later';
+  end if;
+end $$;
+
 -- ── Helpers (session-temporary) ────────────────────────
 create function pg_temp.must(p_ok boolean, p_what text)
 returns void language plpgsql as $f$
@@ -50,21 +56,21 @@ insert into auth.users (id, email, aud, role, instance_id, created_at) values
 
 -- ── 1. anon request event: every field stored, url loses query and fragment ──
 select pg_temp.be_anon();
-select public.log_site_event('request', 'duplicate key', null, 'https://horrorwriter.org/my-stories/?x=1#top', 'UA', 'books:update', 409, '23505');
+select public.log_site_event('request', 'hwtest-site-events: duplicate key', null, 'https://horrorwriter.org/my-stories/?x=1#top', 'UA', 'books:update', 409, '23505');
 select pg_temp.be(null);
 select pg_temp.must(
   (select count(*) = 1 and bool_and(kind = 'request' and url = 'https://horrorwriter.org/my-stories/'
      and action = 'books:update' and status = 409 and code = '23505' and user_id is null)
-   from public.client_errors where message = 'duplicate key'),
+   from public.client_errors where message = 'hwtest-site-events: duplicate key'),
   '1: anon request event stored with a clean url, action, status, code and no user');
 
 -- ── 2. member shown event carries the member ──
 select pg_temp.be('00000000-0000-4000-8000-0000000c7001');
-select public.log_site_event('shown', 'Could not save', null, 'https://horrorwriter.org/publish/');
+select public.log_site_event('shown', 'hwtest-site-events: Could not save', null, 'https://horrorwriter.org/publish/');
 select pg_temp.be(null);
 select pg_temp.must(
   (select count(*) = 1 and bool_and(kind = 'shown' and user_id = '00000000-0000-4000-8000-0000000c7001')
-   from public.client_errors where message = 'Could not save'),
+   from public.client_errors where message = 'hwtest-site-events: Could not save'),
   '2: shown event stored with the member as user_id');
 
 -- ── 3. unknown kind adds nothing ──
@@ -74,6 +80,10 @@ select public.log_site_event('nonsense', 'x');
 select pg_temp.must((select count(*) from public.client_errors) = (select n from t_count),
   '3: an unknown kind adds no row');
 
+select public.log_site_event(null, 'x');
+select pg_temp.must((select count(*) from public.client_errors) = (select n from t_count),
+  '3b: a null kind adds no row and raises nothing');
+
 -- ── 4. blank message adds nothing ──
 delete from t_count;
 insert into t_count select count(*) from public.client_errors;
@@ -82,48 +92,48 @@ select pg_temp.must((select count(*) from public.client_errors) = (select n from
   '4: a blank message adds no row');
 
 -- ── 5. status outside 0..599 is dropped, the row is kept ──
-select public.log_site_event('request', 'status-700', null, null, null, null, 700, null);
+select public.log_site_event('request', 'hwtest-site-events: status-700', null, null, null, null, 700, null);
 select pg_temp.must(
-  (select count(*) = 1 and bool_and(status is null) from public.client_errors where message = 'status-700'),
+  (select count(*) = 1 and bool_and(status is null) from public.client_errors where message = 'hwtest-site-events: status-700'),
   '5: status 700 is stored as null');
 
 -- (extra) 0 is a valid status: it means a network failure
-select public.log_site_event('request', 'status-0', null, null, null, null, 0, null);
+select public.log_site_event('request', 'hwtest-site-events: status-0', null, null, null, null, 0, null);
 select pg_temp.must(
-  (select count(*) = 1 and bool_and(status = 0) from public.client_errors where message = 'status-0'),
+  (select count(*) = 1 and bool_and(status = 0) from public.client_errors where message = 'hwtest-site-events: status-0'),
   '5b: status 0 is stored');
 
 -- ── 6. truncation ──
-select public.log_site_event('request', repeat('a', 2000), null, null, null, repeat('b', 300), 500, repeat('c', 100));
+select public.log_site_event('request', 'hwtest-site-events: ' || repeat('a', 2000), null, null, null, repeat('b', 300), 500, repeat('c', 100));
 select pg_temp.must(
   (select count(*) = 1 and bool_and(length(message) = 1000 and length(action) = 120 and length(code) = 40)
-   from public.client_errors where message like 'aaaaaaaaaa%' and action like 'bbbbbbbbbb%'),
+   from public.client_errors where message like 'hwtest-site-events: aaaaaaaaaa%' and action like 'bbbbbbbbbb%'),
   '6: message, action and code are truncated to 1000, 120 and 40');
 
 -- ── 7. the old log_client_error also strips the query and fragment ──
 select pg_temp.be_anon();
-select public.log_client_error('window', 'old bundle', null, 'https://horrorwriter.org/?utm_source=x', null);
+select public.log_client_error('window', 'hwtest-site-events: old bundle', null, 'https://horrorwriter.org/?utm_source=x', null);
 select pg_temp.be(null);
 select pg_temp.must(
-  (select count(*) = 1 and bool_and(url = 'https://horrorwriter.org/') from public.client_errors where message = 'old bundle'),
+  (select count(*) = 1 and bool_and(url = 'https://horrorwriter.org/') from public.client_errors where message = 'hwtest-site-events: old bundle'),
   '7: log_client_error stores the url without its query string');
 
 -- ── 8. retention is 90 days ──
 insert into public.client_errors (kind, message, created_at) values
-  ('window', 'age-60', now() - interval '60 days'),
-  ('window', 'age-91', now() - interval '91 days');
-select public.log_client_error('window', 'prune', null, null, null);
-select pg_temp.must(exists (select 1 from public.client_errors where message = 'age-60'),
+  ('window', 'hwtest-site-events: age-60', now() - interval '60 days'),
+  ('window', 'hwtest-site-events: age-91', now() - interval '91 days');
+select public.log_client_error('window', 'hwtest-site-events: prune', null, null, null);
+select pg_temp.must(exists (select 1 from public.client_errors where message = 'hwtest-site-events: age-60'),
   '8: a 60-day-old row is kept');
-select pg_temp.must(not exists (select 1 from public.client_errors where message = 'age-91'),
+select pg_temp.must(not exists (select 1 from public.client_errors where message = 'hwtest-site-events: age-91'),
   '8: a 91-day-old row is pruned');
 
 -- ── 9. a signed-in caller who is not an account gets user_id null ──
 select pg_temp.be('00000000-0000-4000-8000-0000000c7fff');
-select public.log_site_event('request', 'ghost');
+select public.log_site_event('request', 'hwtest-site-events: ghost');
 select pg_temp.be(null);
 select pg_temp.must(
-  (select count(*) = 1 and bool_and(user_id is null) from public.client_errors where message = 'ghost'),
+  (select count(*) = 1 and bool_and(user_id is null) from public.client_errors where message = 'hwtest-site-events: ghost'),
   '9: an unknown sub is stored with user_id null');
 
 -- ── 10. deleting the account removes its rows ──

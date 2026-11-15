@@ -42,7 +42,7 @@ language plpgsql security definer
 set search_path = ''
 as $$
 begin
-  if p_kind not in ('island', 'window', 'promise') or coalesce(btrim(p_message), '') = '' then
+  if p_kind is null or p_kind not in ('island', 'window', 'promise') or coalesce(btrim(p_message), '') = '' then
     return;
   end if;
   if (select count(*) from public.client_errors
@@ -69,7 +69,7 @@ language plpgsql security definer
 set search_path = ''
 as $$
 begin
-  if p_kind not in ('island', 'window', 'promise', 'request', 'shown')
+  if p_kind is null or p_kind not in ('island', 'window', 'promise', 'request', 'shown')
      or coalesce(btrim(p_message), '') = '' then
     return;
   end if;
