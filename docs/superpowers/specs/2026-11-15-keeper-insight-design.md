@@ -16,6 +16,12 @@ What that dig found, and what this design must make visible without a dig:
 
 So: things happen to members that nothing writes down, and what is written down can only be read in the SQL editor.
 
+## The rule for what may be kept (Jeff, 2026-11-15)
+
+Information that is created on this site, stays on this site, and is used only to make the site better and fix what is broken counts as the bare minimum. Nothing goes to brokers, advertisers or outside trackers. Where a choice is between more insight into a problem and less, this work chooses more.
+
+That rule is wider than the sentence on `/rules` today, which lists three things (email, display settings, public contributions) "required to authenticate you". So the page is rewritten to state the rule itself. Collecting under a rule the page does not state would break the standing "only truth" rule for the site's claims.
+
 ## Goals
 
 1. Failures a member hits are logged, whether the page crashed or showed a polite message.
@@ -39,7 +45,7 @@ Any of these makes the work a failure even if it runs:
 - Showing or newly using IP addresses or location. Supabase Auth already stores a session IP; nothing here reads it. **(Jeff)**
 - A third-party script, cookie or analytics service. **(Jeff, standing: open-licence, self-hosted, no outside services)**
 - Sending anything about a visitor who never joins. Arrival details wait in their own browser and are sent only once they have an account. **(call)**
-- Logging what a member typed: no request bodies, no query-string values, no form contents. Ever. Error messages can quote a typed value back (`invalid input syntax for type uuid: "…"`), so anything inside quotation marks in a stored message is blanked before it is saved. **(call)**
+- Logging what a member wrote: no request bodies, no query-string values, no form contents. Error messages are kept whole, even when one quotes a value back (`invalid input syntax for type uuid: "…"`), because the quoted value is often the clue to the bug **(Jeff's rule, applied by the author)**. They are short, truncated, Keeper-only, and deleted after 90 days.
 - The logger breaking the thing it watches. It must never throw, never delay a request, never change a response.
 
 ## Constraints
@@ -85,7 +91,7 @@ New nullable columns **(call)**: `action text`, `status integer`, `code text`. T
 
 - `action` is a short name built from the request's method and path only: `rpc:create_thread_with_post`, `books:update`, `auth:otp`, `fn:open-ticket`. Never the query string, never the body.
 - `status` is the HTTP status. `code` is the error code from the response body when there is one (`23505`, `PGRST203`).
-- `message` is the error message from the response body, truncated as today, with anything inside quotation marks blanked (see Anti-goals). The blanking happens in the database function, so no bundle can skip it.
+- `message` is the error message from the response body, whole, truncated as today.
 - `url` (the page the member was on) is stored **without its query string or hash** from now on **(call)**. The `utm_source` evidence that prompted this work came from that field by accident; arrival source gets a proper home in PR 3, and page addresses can carry things that should not be kept.
 
 **How.** A wrapped `fetch` given to `createClient(url, key, { global: { fetch } })`.
@@ -100,7 +106,7 @@ New nullable columns **(call)**: `action text`, `status integer`, `code text`. T
 
 Validation messages ("message must be at least 25 characters") will land here too. That is wanted: it shows where members struggle. The Site Errors tab can filter the kind out.
 
-**Writing it.** A new function, `log_site_event`, with the wider parameter list **(call)**. `log_client_error` keeps its name and its five text parameters for old bundles, so there is no overload and no gap; its body is replaced (`create or replace`, same signature) so that it too keeps 90 days, drops the query string and hash from the page address, and blanks quoted values. Otherwise one crash from an old bundle would prune the log back to 30 days. Same guards as today in both: fields truncated, `auth.uid()` recorded when signed in, a 300-rows-per-hour cap. Granted to `anon` and `authenticated`, like the old one.
+**Writing it.** A new function, `log_site_event`, with the wider parameter list **(call)**. `log_client_error` keeps its name and its five text parameters for old bundles, so there is no overload and no gap; its body is replaced (`create or replace`, same signature) so that it too keeps 90 days, and drops the query string and hash from the page address. Otherwise one crash from an old bundle would prune the log back to 30 days. Same guards as today in both: fields truncated, `auth.uid()` recorded when signed in, a 300-rows-per-hour cap. Granted to `anon` and `authenticated`, like the old one.
 
 **Limits on volume.** Per page load, the reporter sends at most 5 crashes (as today) plus at most 10 `request`/`shown` entries, never the same one twice **(call)**.
 
@@ -188,7 +194,7 @@ Same definitions as the Dossier, from one Keeper-only function. "Came back" here
 
 Draft for the "Privacy of the Void" paragraph on `/rules`. Jeff edits and approves the words in each PR. PR 1 ships the first three sentences and the last; PR 3 adds the fourth.
 
-> We keep what the site needs to work: your email address, your settings, and what you post. Signing in records your device type and network address, which the sign-in service uses to keep your account secure. When something fails in your browser, the site records what failed, the page, and your browser type so it can be fixed; these records are deleted after 90 days. When you join, we note how you found us: the site that linked you here, if any, and your own answer if you choose to give one. We use no advertising trackers, no outside analytics, and no cookies beyond the one that keeps you signed in, and we do not record what you read. Your email is never sold, traded, or shared, unless required by legal subpoena.
+> We keep only what this site needs to run and to get better. That means your email address, your settings, and what you post. Signing in records your device type and network address, which the sign-in service uses to keep your account secure. When something fails in your browser, the site records what failed, the page, and your browser type so it can be fixed; these records are deleted after 90 days. When you join, we note how you found us: the site that linked you here, if any, and your own answer if you choose to give one. All of it is created here, stays here, and is used only to fix and improve this site. We use no advertising trackers, no outside analytics, and no cookies beyond the one that keeps you signed in, and we do not record what you read. Your email is never sold, traded, or shared, unless required by legal subpoena.
 
 Noticed while reading it, not part of this work: the sign-up form uses Cloudflare Turnstile, an outside service the section does not mention.
 
@@ -210,5 +216,5 @@ Noticed while reading it, not part of this work: the sign-up form uses Cloudflar
 ## Parked, to move to the vault's parked.md on approval
 
 - Server-side failure logging (edge functions, Worker page failures).
-- Approach B, a running log of member actions.
+- Approach B, a running log of member actions. Jeff's rule would allow a version limited to where members give up (opened Publish, never finished); it is still parked because nothing yet shows it is needed.
 - Turnstile is not mentioned in the privacy section.
