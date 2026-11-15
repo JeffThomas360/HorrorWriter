@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { toast } from 'sonner'
+import { toast } from '../../lib/notify'
 import { fetchOpenTasks, resolveTask, snoozeTask, addManualTask } from '../../lib/keeperTaskApi'
 import {
   visibleTasks, sortTasks, countsByType, typeInfo, describeTask, actionsFor, isSnoozed, TASK_TYPES,

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { toast } from 'sonner'
+import { toast } from '../../lib/notify'
 import { supabase } from '../../supabaseClient'
 import { useAuth } from '../AuthContext'
 import { modCan, isPermanentBan } from '../../lib/moderation'

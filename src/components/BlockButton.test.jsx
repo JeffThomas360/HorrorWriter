@@ -9,7 +9,7 @@ vi.mock('../lib/blocking', () => ({
   unblockUser: (...a) => unblockUser(...a),
   isBlocked: (...a) => isBlocked(...a),
 }))
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+vi.mock('../lib/notify', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 const BlockButton = (await import('./BlockButton')).default
 

@@ -3,7 +3,7 @@ import { test, expect, describe, vi, beforeEach, afterEach } from 'vitest'
 
 const submitAppeal = vi.fn()
 vi.mock('../lib/modActions', () => ({ submitAppeal: (...a) => submitAppeal(...a) }))
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+vi.mock('../lib/notify', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 const AppealButton = (await import('./AppealButton')).default
 

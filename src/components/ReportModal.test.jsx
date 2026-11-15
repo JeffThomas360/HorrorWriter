@@ -2,7 +2,7 @@ import { render, screen, cleanup } from '@testing-library/react'
 import { test, expect, vi, afterEach } from 'vitest'
 
 vi.mock('../lib/modActions', () => ({ submitReport: vi.fn() }))
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+vi.mock('../lib/notify', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 vi.mock('./AuthContext', () => ({ useAuth: () => ({ profile: { id: 'u1' } }) }))
 
 const ReportModal = (await import('./ReportModal')).default

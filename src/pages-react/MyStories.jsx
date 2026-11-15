@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../components/AuthContext'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { toast } from 'sonner'
+import { toast } from '../lib/notify'
 import { withProviders } from '../components/Providers'
 import RequireAuth from '../components/RequireAuth'
 import StoryRemoveControl from '../components/StoryRemoveControl'

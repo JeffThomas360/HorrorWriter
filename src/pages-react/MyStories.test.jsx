@@ -11,7 +11,7 @@ vi.mock('../components/AuthContext', () => ({
   useAuth: () => ({ user: { id: 'u1' }, session: { user: { id: 'u1' } } }),
 }))
 vi.mock('../components/RequireAuth', () => ({ default: ({ children }) => children }))
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+vi.mock('../lib/notify', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 let books = []
 let series = []

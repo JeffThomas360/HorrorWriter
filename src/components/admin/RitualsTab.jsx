@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { toast } from 'sonner'
+import { toast } from '../../lib/notify'
 import {
   fetchRitualQueue, addPrompt, editPrompt, approvePrompt,
   unschedulePrompt, rejectPrompt,

@@ -1,6 +1,6 @@
 import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react'
 import { test, expect, vi, beforeEach, afterEach } from 'vitest'
-import { toast } from 'sonner'
+import { toast } from '../../lib/notify'
 
 // Only the network edge is faked: the case file and lib/modActions run for real.
 const h = vi.hoisted(() => {
@@ -24,7 +24,7 @@ vi.mock('../../supabaseClient', () => ({
   },
 }))
 vi.mock('../AuthContext', () => ({ useAuth: () => ({ user: { id: 'viewer' }, profile: h.viewer }) }))
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+vi.mock('../../lib/notify', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 const UserModProfile = (await import('./UserModProfile')).default
 

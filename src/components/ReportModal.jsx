@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { submitReport } from '../lib/modActions'
-import { toast } from 'sonner'
+import { toast } from '../lib/notify'
 import { useAuth } from './AuthContext'
 
 export default function ReportModal({ isOpen, onClose, targetType, targetId }) {

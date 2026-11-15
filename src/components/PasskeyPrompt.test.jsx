@@ -11,7 +11,7 @@ const registerPasskey = vi.fn()
 vi.mock('../lib/passkey', () => ({ registerPasskey: (...a) => registerPasskey(...a) }))
 
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
-vi.mock('sonner', () => ({ toast }))
+vi.mock('../lib/notify', () => ({ toast }))
 
 const PasskeyPrompt = (await import('./PasskeyPrompt')).default
 

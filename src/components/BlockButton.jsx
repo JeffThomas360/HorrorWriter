@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { toast } from 'sonner'
+import { toast } from '../lib/notify'
 import { blockUser, unblockUser, isBlocked } from '../lib/blocking'
 
 export default function BlockButton({ targetUserId, targetHandle }) {

@@ -9,7 +9,7 @@ import SealedWritingPrompt from '../components/SealedWritingPrompt'
 import KeptRitualEntries from '../components/KeptRitualEntries'
 import KeptStories from '../components/KeptStories'
 import DownloadMyWriting from '../components/DownloadMyWriting'
-import { toast } from 'sonner'
+import { toast } from '../lib/notify'
 import { withProviders } from '../components/Providers'
 import RequireAuth from '../components/RequireAuth'
 

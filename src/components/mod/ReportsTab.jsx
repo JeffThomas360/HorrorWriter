@@ -3,7 +3,7 @@ import { supabase } from '../../supabaseClient'
 import { resolveReport, contentHref } from '../../lib/modActions'
 import UserModProfile from './UserModProfile'
 import ConfirmDialog from './ConfirmDialog'
-import { toast } from 'sonner'
+import { toast } from '../../lib/notify'
 
 const MOD_MACROS = ['Spam', 'House Rules Violation', 'Plagiarism', 'False Flag']
 const TARGET_TYPES = ['story', 'critique', 'thread', 'post', 'user']
