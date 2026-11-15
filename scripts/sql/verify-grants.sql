@@ -93,6 +93,9 @@ with allow(name, role, why) as (values
   -- 300 rows/hour; visitors who crash are often signed out, so anon too.
   ('log_client_error',         'anon',          'error capture, write-only, rate-capped'),
   ('log_client_error',         'authenticated', 'error capture, write-only, rate-capped'),
+  -- Site event log (20261116000000). Same guards as log_client_error, wider fields.
+  ('log_site_event',           'anon',          'error capture, write-only, rate-capped'),
+  ('log_site_event',           'authenticated', 'error capture, write-only, rate-capped'),
   -- Sanction columns private (20261020020000). Mod reads gated by mod_can inside.
   ('mod_get_profile',          'authenticated', 'mod RPC, mod_can(handle_report, all)'),
   ('mod_list_users',           'authenticated', 'warden/keeper RPC, mod_can(ban, all)'),
