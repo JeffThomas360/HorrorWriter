@@ -63,6 +63,7 @@ test.describe('Admin panel', () => {
       await expect(tablist.getByRole('tab', { name: 'Users' })).toBeVisible()
       await expect(tablist.getByRole('tab', { name: 'Site' })).toBeVisible()
       await expect(tablist.getByRole('tab', { name: 'Audit' })).toBeVisible()
+      await expect(tablist.getByRole('tab', { name: 'Site Errors' })).toBeVisible()
     })
 
     test('tab selection is reflected in the URL and survives reload', async ({ page }) => {
