@@ -1,14 +1,19 @@
 import { supabase } from '../supabaseClient'
 
-// Per page load: at most this many reports, and never the same message twice.
-const MAX_PER_PAGE = 5
+// Per page load, two budgets: crashes, and requests plus shown messages.
+// Each kind of event is de-duplicated in its own key space.
+const CRASH_KINDS = new Set(['island', 'window', 'promise'])
+const MAX_CRASHES = 5
+const MAX_EVENTS = 10
 const seen = new Set()
-let sent = 0
+let sentCrashes = 0
+let sentEvents = 0
 
 /** Test hook: forget what this page has already reported. */
 export function _resetErrorReporter() {
   seen.clear()
-  sent = 0
+  sentCrashes = 0
+  sentEvents = 0
 }
 
 function normalize(err) {
@@ -21,23 +26,53 @@ function normalize(err) {
   }
 }
 
+function dedupeKey(kind, message, action, status, code) {
+  if (kind === 'request') return `request:${action ?? ''}|${status ?? ''}|${code ?? ''}`
+  if (kind === 'shown') return `shown:${message}`
+  return `crash:${message}`
+}
+
 /**
- * Send one client error to public.client_errors via log_client_error().
- * Never throws: an error reporter that crashes is worse than none.
+ * Send one event to public.site_events via log_site_event().
+ * kind: island | window | promise (crashes), request (a failed request),
+ * shown (an error message the member saw).
+ * Never throws and never rejects: an error reporter that crashes is worse than none.
  */
-export async function reportClientError(kind, err, extraStack = null) {
+export async function reportSiteEvent(event) {
   try {
-    if (!supabase) return
-    const { message, stack } = normalize(err)
-    if (!message || seen.has(message) || sent >= MAX_PER_PAGE) return
-    seen.add(message)
-    sent += 1
-    await supabase.rpc('log_client_error', {
+    if (!supabase || !event) return
+    const { kind, message, stack = null, action = null, status = null, code = null } = event
+    if (!kind || !message) return
+    const crash = CRASH_KINDS.has(kind)
+    const key = dedupeKey(kind, message, action, status, code)
+    if (seen.has(key)) return
+    if (crash ? sentCrashes >= MAX_CRASHES : sentEvents >= MAX_EVENTS) return
+    seen.add(key)
+    if (crash) sentCrashes += 1
+    else sentEvents += 1
+    await supabase.rpc('log_site_event', {
       p_kind: kind,
       p_message: message,
-      p_stack: [stack, extraStack].filter(Boolean).join('\n--\n') || null,
-      p_url: typeof window !== 'undefined' ? window.location.href : null,
+      p_stack: stack || null,
+      p_url: typeof window !== 'undefined' ? window.location.origin + window.location.pathname : null,
       p_user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+      p_action: action ?? null,
+      p_status: status ?? null,
+      p_code: code ?? null,
+    })
+  } catch {
+    // swallow
+  }
+}
+
+/** Report a crash. Normalises whatever was thrown, then delegates. Never throws. */
+export async function reportClientError(kind, err, extraStack = null) {
+  try {
+    const { message, stack } = normalize(err)
+    await reportSiteEvent({
+      kind,
+      message,
+      stack: [stack, extraStack].filter(Boolean).join('\n--\n') || null,
     })
   } catch {
     // swallow
