@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../supabaseClient'
 import ConfirmDialog from './ConfirmDialog'
-import { toast } from 'sonner'
+import { toast } from '../../lib/notify'
 
 const KIND_LABEL = {
   phrase: 'Blocked Phrase (Regex)',

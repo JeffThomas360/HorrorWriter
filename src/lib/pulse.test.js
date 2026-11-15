@@ -140,4 +140,14 @@ describe('computePulse', () => {
       { message: 'B', count: 1, last: ago(3) },
     ])
   })
+
+  it('messages shown are left out of the site error count', () => {
+    const p = computePulse({ errors: [
+      { created_at: ago(1), kind: 'window', message: 'Crash' },
+      { created_at: ago(2), kind: 'request', message: 'Failed request' },
+      { created_at: ago(3), kind: 'shown', message: 'Password too short' },
+    ] }, NOW)
+    expect(p.siteErrors.this).toBe(2)
+    expect(p.topErrors.map((e) => e.message)).not.toContain('Password too short')
+  })
 })

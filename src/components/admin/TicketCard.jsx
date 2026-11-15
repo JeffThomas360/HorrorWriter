@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { toast } from 'sonner'
+import { toast } from '../../lib/notify'
 import { fetchTicket, keeperReplyTicket, keeperCloseTicket } from '../../lib/tickets'
 import { resolveTask } from '../../lib/keeperTaskApi'
 import { typeInfo, describeTask } from '../../lib/keeperTasks'

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { toast } from 'sonner'
+import { toast } from '../../lib/notify'
 import { useAuth } from '../AuthContext'
 import { modCan } from '../../lib/moderation'
 import { setContentModStatus } from '../../lib/modActions'

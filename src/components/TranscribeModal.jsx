@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { toast } from 'sonner'
+import { toast } from '../lib/notify'
 import { supabase } from '../supabaseClient'
 
 const TRANSCRIBE_URL = import.meta.env.VITE_TRANSCRIBE_URL

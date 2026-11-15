@@ -2,7 +2,7 @@ import { render, screen, fireEvent, cleanup, within, waitFor } from '@testing-li
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { test, expect, vi, beforeEach, afterEach } from 'vitest'
 
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+vi.mock('../../lib/notify', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 let rows = []
 const api = {

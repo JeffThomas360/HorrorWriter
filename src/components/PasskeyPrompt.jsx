@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { toast } from 'sonner'
+import { toast } from '../lib/notify'
 import { useAuth } from './AuthContext'
 import { withProviders } from './Providers'
 import { registerPasskey } from '../lib/passkey'

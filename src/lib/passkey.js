@@ -1,5 +1,5 @@
 import { startRegistration, startAuthentication } from '@simplewebauthn/browser'
-import { supabase } from '../supabaseClient'
+import { supabase, loggedFetch } from '../supabaseClient'
 
 const FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_URL
   ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`
@@ -9,7 +9,7 @@ async function callFunction(name, body = {}, token = null) {
   if (!FUNCTIONS_URL) throw new Error('Supabase not configured')
   const headers = { 'Content-Type': 'application/json' }
   if (token) headers['Authorization'] = `Bearer ${token}`
-  const res = await fetch(`${FUNCTIONS_URL}/${name}`, {
+  const res = await loggedFetch(`${FUNCTIONS_URL}/${name}`, {
     method: 'POST',
     headers,
     body: JSON.stringify(body),

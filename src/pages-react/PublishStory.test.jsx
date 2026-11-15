@@ -16,7 +16,7 @@ vi.mock('../lib/series', () => ({
   addBookToSeries: vi.fn(),
   applySeriesChoice: vi.fn(),
 }))
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+vi.mock('../lib/notify', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 const single = vi.fn().mockResolvedValue({
   data: { id: 'b1', title: 'Original title', lede: '', cover: 'blood', content: 'Body', version: 1, series_books: [] },
