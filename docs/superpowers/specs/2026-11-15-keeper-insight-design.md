@@ -28,7 +28,8 @@ That rule is wider than the sentence on `/rules` today, which lists three things
 2. Jeff can read those failures in Admin, grouped by cause, without SQL.
 3. For any one member, Jeff can see what happened after they joined: how they arrived, what they wrote, what they got back, whether they returned, what went wrong.
 4. From now on the site knows how each new member found it.
-5. The privacy section on `/rules` stays true.
+5. Jeff can see where people give up: which step of joining, publishing, entering a Ritual, critiquing or posting they started and did not finish. **(Jeff, added 2026-11-15: "Don't park it, add it now.")**
+6. The privacy section on `/rules` stays true.
 
 ## Non-goals
 
@@ -44,7 +45,7 @@ Any of these makes the work a failure even if it runs:
 - Recording which pages or stories a member reads. **(Jeff)**
 - Showing or newly using IP addresses or location. Supabase Auth already stores a session IP; nothing here reads it. **(Jeff)**
 - A third-party script, cookie or analytics service. **(Jeff, standing: open-licence, self-hosted, no outside services)**
-- Sending anything about a visitor who never joins. Arrival details wait in their own browser and are sent only once they have an account. **(call)**
+- Sending anything that identifies a visitor who never joins. Arrival details wait in their own browser and are sent only once they have an account. The one thing a signed-out visitor adds to is a plain count of Join steps (piece 4), with no id, address or device attached. **(call)**
 - Logging what a member wrote: no request bodies, no query-string values, no form contents. Error messages are kept whole, even when one quotes a value back (`invalid input syntax for type uuid: "…"`), because the quoted value is often the clue to the bug **(Jeff's rule, applied by the author)**. They are short, truncated, Keeper-only, and deleted after 90 days.
 - The logger breaking the thing it watches. It must never throw, never delay a request, never change a response.
 
@@ -64,7 +65,7 @@ Three were considered for how the Dossier gets its facts.
 
 **A. Work it out on demand (chosen, Jeff).** One Keeper-only function gathers a member's facts from existing tables when the tab opens, the way `mod_user_submissions` feeds the Submissions tab. The only new storage is one small private table for arrival details. Cheap, nothing to keep running, works for existing members on day one. Limit: "where they stopped" can only show actions that leave a row. It cannot say someone opened Publish and gave up.
 
-**B. A running log of member actions.** The site writes a line when a member opens Publish, starts typing, abandons a form. Gives a true timeline. Rejected for now: it is the tracking the privacy section rules out, it only covers the future, and it is more to keep working. Revisit only if A shows members stalling somewhere it cannot see.
+**B. A running log of member actions.** The site writes a line when a member opens Publish, starts typing, abandons a form. Gives a true timeline, but only for the future, and it is more to keep working. First set aside, then **added by Jeff in a narrow form**: not a log of everything, only the start and middle steps of a short fixed list of flows, so the Dossier can say where someone gave up. That is piece 4. A still supplies everything else.
 
 **C. Fold it into the Administrative and Submissions tabs.** Rejected: Jeff asked for a tab of its own and Administrative is already long.
 
@@ -76,9 +77,9 @@ Two were considered for catching handled failures.
 
 ## The design
 
-Three pieces, in this order. Each is useful alone.
+Four pieces, in this order. Each is useful alone.
 
-Pieces 1 and 3 change the database, and a migration only reaches production when it merges, so a preview cannot exercise code that needs it. Each of those two pieces is therefore two pull requests **(call)**: first the migration alone (additive, nothing uses it yet, rehearsed before merge), then the site code, checked on its preview against the live database. Five pull requests in all: 1a, 1b, 2, 3a, 3b. Privacy wording travels with the site code (1b and 3b), because that is when the behaviour starts.
+Pieces 1 and 3 change the database, and a migration only reaches production when it merges, so a preview cannot exercise code that needs it. Each of those two pieces is therefore two pull requests **(call)**: first the migration alone (additive, nothing uses it yet, rehearsed before merge), then the site code, checked on its preview against the live database. Piece 4's two small tables ride in migration 3a, so there is one rehearsal and one merge for both **(call)**. Six pull requests in all: 1a, 1b, 2, 3a, 3b, 4. Privacy wording travels with the site code (1b, 3b and 4), because that is when the behaviour starts.
 
 ### PR 1: Capture
 
@@ -177,7 +178,7 @@ One Keeper-only function, `mod_user_dossier(p_id)`, returns everything as one JS
 - **Wrote / Gave:** counts by kind, from the same index.
 - **Got back:** responses from other people: a critique on their story, a reply to their Ritual entry, a reply in a thread they started. Shows the count, and how long their first piece waited for its first response, or "still waiting, N days".
 - **Came back:** the number of distinct days they were seen, and whether any of those days falls after their first response. "Seen" is approximate and the tab says so: it is the union of session start and refresh dates, their last sign-in, and the dates of anything they posted. Signing out removes a session, so quiet visits can go uncounted.
-- **Stopped at:** the most recent thing that left a row: their latest submission, or a Ritual draft with no entry for that prompt ("started a Ritual draft, never posted it").
+- **Stopped at:** the most recent thing that left a row: their latest submission, or a Ritual draft with no entry for that prompt ("started a Ritual draft, never posted it"). Piece 4 sharpens this line with unfinished flows ("opened Publish on Nov 9, started writing, never published").
 - **Trouble:** their rows from the error log, newest first, capped at 20, each with what failed, page, device and time; and their ticket count with a link to the work queue. A link opens Site Errors filtered to this member.
 
 **The roll-up.** One line above the list on Admin → Users **(call on placement)**:
@@ -190,17 +191,55 @@ Same definitions as the Dossier, from one Keeper-only function. "Came back" here
 
 **Privacy wording.** Extended for arrival source and the optional question.
 
+### PR 4: Where people give up
+
+**What is recorded.** Steps, by name only, in a short fixed list of flows **(call on the list; Jeff can add or cut)**:
+
+| Flow | Steps logged | Finished when |
+|------|--------------|---------------|
+| Join | opened Join · passed the age check · chose a sign-in method | an account exists |
+| Publish a story | opened Publish · started writing · pressed Publish | the story exists |
+| Ritual entry | opened the writing box · started writing · pressed Post | the entry exists |
+| Critique | started writing a critique · pressed Post | the critique exists |
+| Thread or reply | opened the form · started writing · pressed Post | the post exists |
+| Ticket | opened Open Ticket · pressed Send | the ticket exists |
+
+- "Started writing" is the first keystroke in the main text box. Never the text, never its length.
+- The finish is not logged. It is read from the real row (the story, the entry), which cannot be wrong **(call)**.
+- "Pressed Post" with no finished row is the sharpest signal: they tried and it did not go through. The error log from piece 1 says why.
+
+**Members.** A private table `member_steps`: member id (cascades on account deletion), flow, step, day. One row per member, flow, step and day, so a member who opens Publish ten times in a day is one row. Written by `log_member_step(p_flow, p_step)`, signed-in members only, which refuses any name not on the list. Kept 90 days, like the error log.
+
+**Signed-out visitors: Join only, counts only.** Most giving up probably happens before there is an account. A second private table, `step_tallies`, holds a number per day, flow and step and nothing else: no id, no address, no device. `tally_step(...)` adds one, capped per hour like the error log, and the browser remembers it has counted a step today so a reload does not count twice. This is the one exception to "nothing about a visitor who never joins", and it is a count, not a record of a person **(call; Jeff's rule covers it, but it is his to refuse)**.
+
+**In the site code.** One small helper, called at the listed points in about six components. Like the error reporter it never throws, never waits, and is off in test mode (`isPlaywrightTest()`).
+
+**Where Jeff sees it.**
+
+- Each Dossier's **Stopped at** line names the unfinished flow and the last step reached.
+- Admin → Users, under the roll-up line, a small table for the last 30 days **(call on placement)**:
+
+```
+WHERE PEOPLE GIVE UP · last 30 days
+Join              opened 40 · age check 31 · chose method 22 · joined 11
+Publish a story   opened 6 · started writing 5 · pressed Publish 3 · published 3
+Ritual entry      opened 4 · started writing 1 · pressed Post 0 · posted 0
+```
+(Illustrative numbers.) Join counts visits; the others count distinct members.
+
+**Privacy wording.** One more sentence, in the draft below.
+
 ## Privacy wording
 
-Draft for the "Privacy of the Void" paragraph on `/rules`. Jeff edits and approves the words in each PR. PR 1 ships the first three sentences and the last; PR 3 adds the fourth.
+Draft for the "Privacy of the Void" paragraph on `/rules`. Jeff edits and approves the words in each PR. PR 1b ships it without the two sentences about joining and about starting and finishing things; 3b adds the first of those, 4 the second.
 
-> We keep only what this site needs to run and to get better. That means your email address, your settings, and what you post. Signing in records your device type and network address, which the sign-in service uses to keep your account secure. When something fails in your browser, the site records what failed, the page, and your browser type so it can be fixed; these records are deleted after 90 days. When you join, we note how you found us: the site that linked you here, if any, and your own answer if you choose to give one. All of it is created here, stays here, and is used only to fix and improve this site. We use no advertising trackers, no outside analytics, and no cookies beyond the one that keeps you signed in, and we do not record what you read. Your email is never sold, traded, or shared, unless required by legal subpoena.
+> We keep only what this site needs to run and to get better. That means your email address, your settings, and what you post. Signing in records your device type and network address, which the sign-in service uses to keep your account secure. When something fails in your browser, the site records what failed, the page, and your browser type so it can be fixed; these records are deleted after 90 days. When you join, we note how you found us: the site that linked you here, if any, and your own answer if you choose to give one. We note when you start and finish things like joining or publishing a story, never what you wrote, so we can see where the site gets in people's way. All of it is created here, stays here, and is used only to fix and improve this site. We use no advertising trackers, no outside analytics, and no cookies beyond the one that keeps you signed in, and we do not record what you read. Your email is never sold, traded, or shared, unless required by legal subpoena.
 
 Noticed while reading it, not part of this work: the sign-up form uses Cloudflare Turnstile, an outside service the section does not mention.
 
 ## Checking it
 
-- Unit tests (vitest, required by CI) for: the action name built from a request, the ignore list, the reporter's caps and de-duplication, the `toast` import rule, error grouping, user-agent to plain words, arrival capture (first touch, exclusions, expiry), and the Dossier's formatting helpers.
+- Unit tests (vitest, required by CI) for: the action name built from a request, the ignore list, the reporter's caps and de-duplication, the `toast` import rule, error grouping, user-agent to plain words, arrival capture (first touch, exclusions, expiry), the step helper (fixed list, once a day, silent on failure), and the Dossier's formatting helpers.
 - SQL tests for each migration, rehearsed with `scripts/sql/rehearse.ps1` and rolled back, before merge. `scripts/sql/verify-grants.sql` returns zero rows after.
 - On the preview of each site-code PR (1b, 2, 3b), against the live database: force a failed save and see it in the log; open Site Errors; open a Dossier for a member with history. A throwaway account joined through a tagged link (`/?utm_source=test`) must show that tag in its Dossier, then be deleted.
 - E2E mocks its requests. The reporter must not turn a mocked failure into an unmocked logging call that fails a test; how is left to the builder.
@@ -216,5 +255,5 @@ Noticed while reading it, not part of this work: the sign-up form uses Cloudflar
 ## Parked, to move to the vault's parked.md on approval
 
 - Server-side failure logging (edge functions, Worker page failures).
-- Approach B, a running log of member actions. Jeff's rule would allow a version limited to where members give up (opened Publish, never finished); it is still parked because nothing yet shows it is needed.
+- A full timeline of everything a member does (the wide form of approach B). Piece 4 is the narrow form.
 - Turnstile is not mentioned in the privacy section.
