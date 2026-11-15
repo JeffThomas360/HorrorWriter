@@ -172,7 +172,9 @@ export async function fetchPulse(now = Date.now()) {
     // Keeper-only by RLS (mod_can('configure', 'all')), like this whole panel.
     rows(supabase.from('tickets').select('id, created_at, updated_at').eq('status', 'waiting')),
     rows(supabase.from('client_errors').select('created_at, message, kind')
-      .gte('created_at', twoWeeksAgo).order('created_at', { ascending: false }).limit(1000)),
+      .gte('created_at', twoWeeksAgo)
+      .or('kind.is.null,kind.neq.shown') // shown rows would eat the limit; null kinds still count
+      .order('created_at', { ascending: false }).limit(1000)),
   ])
 
   // Anyone who posted recently but also posted before the two-week window

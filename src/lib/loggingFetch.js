@@ -4,6 +4,26 @@ import { requestAction, shouldIgnore } from './requestAction'
 // The caller always gets exactly what baseFetch returned or threw. Reporting
 // is fire-and-forget and cannot raise an exception or a rejected promise.
 
+// True while the page is being left (or sits in the back/forward cache): fetches that
+// die then are navigation, not failures. Registered once; registering never throws.
+let leaving = false
+try {
+  if (typeof window !== 'undefined') {
+    window.addEventListener('pagehide', () => { leaving = true })
+    window.addEventListener('pageshow', () => { leaving = false })
+  }
+} catch {
+  // no listeners, no suppression
+}
+
+function isNormalTraffic() {
+  try {
+    return leaving || (typeof navigator !== 'undefined' && navigator.onLine === false)
+  } catch {
+    return false
+  }
+}
+
 const callBase = (...args) => globalThis.fetch(...args)
 
 function describe(input, init) {
@@ -59,7 +79,7 @@ export function makeLoggingFetch(report, baseFetch = callBase) {
     } catch (err) {
       try {
         const event = { action, status: 0, code: null }
-        if (!shouldIgnore({ ...event, errorName: err?.name })) {
+        if (!isNormalTraffic() && !shouldIgnore({ ...event, errorName: err?.name })) {
           safeReport(report, { kind: 'request', ...event, message: String(err?.message ?? err) })
         }
       } catch {

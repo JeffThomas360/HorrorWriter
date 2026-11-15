@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { isPlaywrightTest } from './testMode'
 
 // Per page load, two budgets: crashes, and requests plus shown messages.
 // Each kind of event is de-duplicated in its own key space.
@@ -33,13 +34,14 @@ function dedupeKey(kind, message, action, status, code) {
 }
 
 /**
- * Send one event to public.site_events via log_site_event().
+ * Send one event to public.client_errors via log_site_event().
  * kind: island | window | promise (crashes), request (a failed request),
  * shown (an error message the member saw).
  * Never throws and never rejects: an error reporter that crashes is worse than none.
  */
 export async function reportSiteEvent(event) {
   try {
+    if (isPlaywrightTest()) return
     if (!supabase || !event) return
     const { kind, message, stack = null, action = null, status = null, code = null } = event
     if (!kind || !message) return

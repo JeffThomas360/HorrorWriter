@@ -41,6 +41,8 @@ const IGNORE_RULES = [
     test: (e) => e.errorName === 'AbortError' },
   { reason: 'expired session refresh; the member just signs in again',
     test: (e) => e.action === 'auth:token:refresh_token' && e.status === 400 },
+  { reason: 'the session was already gone (for example after an account is deleted); supabase-js ignores these too',
+    test: (e) => e.action === 'auth:logout' && [401, 403, 404].includes(e.status) },
 ]
 
 export function shouldIgnore(event) {

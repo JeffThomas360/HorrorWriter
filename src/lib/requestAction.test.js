@@ -36,6 +36,10 @@ test.each([
   [{ action: 'books:select', status: 406, code: 'PGRST116' }, true], // .single() found no row
   [{ action: 'books:select', status: 0, errorName: 'AbortError' }, true], // member navigated away
   [{ action: 'auth:token:refresh_token', status: 400 }, true], // expired session refresh
+  [{ action: 'auth:logout', status: 401 }, true], // session already gone
+  [{ action: 'auth:logout', status: 403 }, true],
+  [{ action: 'auth:logout', status: 404 }, true],
+  [{ action: 'auth:logout', status: 500 }, false],
   [{ action: 'auth:token:pkce', status: 400 }, false],
   [{ action: 'auth:token:refresh_token', status: 500 }, false],
   [{ action: 'rpc:log_site_event', status: 0 }, true],

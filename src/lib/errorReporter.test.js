@@ -3,10 +3,14 @@ import { test, expect, vi, beforeEach } from 'vitest'
 const rpc = vi.fn(async () => ({ error: null }))
 vi.mock('../supabaseClient', () => ({ supabase: { rpc: (...a) => rpc(...a) } }))
 
+const playwright = vi.hoisted(() => ({ on: false }))
+vi.mock('./testMode', () => ({ isPlaywrightTest: () => playwright.on }))
+
 const { reportClientError, reportSiteEvent, installErrorReporter, _resetErrorReporter, _resetInstalled } =
   await import('./errorReporter')
 
 beforeEach(() => {
+  playwright.on = false
   rpc.mockClear()
   _resetErrorReporter()
   _resetInstalled()
@@ -103,4 +107,12 @@ test('window listeners report errors and rejections, but skip noise', async () =
     ['window', 'real'],
     ['promise', 'rejected'],
   ])
+})
+
+test('nothing is logged under Playwright: crashes, requests and shown messages', async () => {
+  playwright.on = true
+  await reportClientError('window', new Error('crash'))
+  await reportSiteEvent({ kind: 'request', message: 'm', action: 'books:update', status: 500 })
+  await reportSiteEvent({ kind: 'shown', message: 'toast' })
+  expect(rpc).not.toHaveBeenCalled()
 })
