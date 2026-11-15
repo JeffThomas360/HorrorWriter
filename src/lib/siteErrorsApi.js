@@ -1,7 +1,11 @@
 import { supabase } from '../supabaseClient'
 
-/** Most recent rows read per window. The tab says so when this is reached. */
-export const SITE_ERRORS_LIMIT = 2000
+/**
+ * Most recent rows read per window. PostgREST returns at most 1000 rows per
+ * request here (supabase/config.toml `max_rows`, and the hosted default), so a
+ * larger limit would silently come back as 1000. The tab says when there are more.
+ */
+export const SITE_ERRORS_LIMIT = 1000
 
 const COLUMNS = 'id, created_at, kind, message, stack, url, user_agent, user_id, action, status, code'
 
@@ -17,9 +21,9 @@ export async function fetchSiteErrors(hours, now = Date.now()) {
   if (!supabase) throw new Error('Supabase not configured')
   const since = new Date(now - hours * 3600 * 1000).toISOString()
 
-  const { data, error } = await supabase
+  const { data, error, count } = await supabase
     .from('client_errors')
-    .select(COLUMNS)
+    .select(COLUMNS, { count: 'exact' })
     .gte('created_at', since)
     .order('created_at', { ascending: false })
     .limit(SITE_ERRORS_LIMIT)
@@ -36,5 +40,8 @@ export async function fetchSiteErrors(hours, now = Date.now()) {
     }
   }
 
-  return { rows, handles, capped: rows.length >= SITE_ERRORS_LIMIT }
+  // `count` is every row in the window, whatever the server chose to return.
+  const total = typeof count === 'number' ? count : rows.length
+  const capped = typeof count === 'number' ? count > rows.length : rows.length >= SITE_ERRORS_LIMIT
+  return { rows, handles, capped, total }
 }

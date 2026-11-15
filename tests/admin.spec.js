@@ -61,7 +61,7 @@ test.describe('Admin panel', () => {
       const tablist = page.getByRole('tablist', { name: 'Admin sections' })
       await expect(tablist.getByRole('tab', { name: 'Overview' })).toBeVisible()
       await expect(tablist.getByRole('tab', { name: 'Users' })).toBeVisible()
-      await expect(tablist.getByRole('tab', { name: 'Site' })).toBeVisible()
+      await expect(tablist.getByRole('tab', { name: 'Site', exact: true })).toBeVisible()
       await expect(tablist.getByRole('tab', { name: 'Audit' })).toBeVisible()
       await expect(tablist.getByRole('tab', { name: 'Site Errors' })).toBeVisible()
     })
@@ -77,10 +77,10 @@ test.describe('Admin panel', () => {
 
     test('back button returns to the previous tab', async ({ page }) => {
       await page.goto('/admin')
-      await page.getByRole('tab', { name: 'Site' }).click()
+      await page.getByRole('tab', { name: 'Site', exact: true }).click()
       await page.getByRole('tab', { name: 'Audit' }).click()
       await page.goBack()
-      await expect(page.getByRole('tab', { name: 'Site' })).toHaveAttribute('aria-selected', 'true')
+      await expect(page.getByRole('tab', { name: 'Site', exact: true })).toHaveAttribute('aria-selected', 'true')
     })
 
     test('user directory lists accounts and filters them', async ({ page }) => {

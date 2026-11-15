@@ -61,15 +61,23 @@ export function pagePath(url) {
 
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi
 
-/** Blank the parts that differ between two reports of the same bug. */
+/**
+ * Blank the parts that differ between two reports of the same bug: ids and
+ * counts. A number straight after "#" is kept: "React error #310" and "#418"
+ * are different bugs, not the same one twice.
+ */
 export function normalizeMessage(message) {
   if (typeof message !== 'string' || !message.trim()) return 'Unknown error'
-  return message.replace(UUID, '<id>').replace(/\d+/g, '<n>')
+  return message.replace(UUID, '<id>').replace(/(#)?\d+/g, (match, hash) => (hash ? match : '<n>'))
 }
 
 function problemKey(row, kind) {
-  if (kind === 'request') return `request|${row.action ?? ''}|${row.status ?? ''}|${row.code ?? ''}`
-  return `${kind}|${normalizeMessage(row.message)}`
+  if (kind !== 'request') return `${kind}|${normalizeMessage(row.message)}`
+  const base = `request|${row.action ?? ''}|${row.status ?? ''}|${row.code ?? ''}`
+  // A reason we can name (duplicate entry, network failure) is one problem however
+  // the server words it. Without one, the message is the only thing telling two
+  // different failures of the same request apart.
+  return reason(row.status, row.code)?.known ? base : `${base}|${normalizeMessage(row.message)}`
 }
 
 const words = (s) => String(s).replace(/_/g, ' ')
@@ -101,27 +109,35 @@ const CODE_REASONS = {
   captcha_failed: 'captcha failed',
 }
 
+/**
+ * Why a request failed, in words. `known: false` means the code is one this map
+ * has no words for, so it is shown as itself. null means nothing to go on.
+ */
 function reason(status, code) {
+  const known = (text) => ({ text, known: true })
   if (code != null && code !== '') {
     const c = String(code)
-    if (CODE_REASONS[c]) return CODE_REASONS[c]
-    if (c.includes('rate_limit')) return 'rate limited'
-    return c
+    if (CODE_REASONS[c]) return known(CODE_REASONS[c])
+    if (c.includes('rate_limit')) return known('rate limited')
+    return { text: c, known: false }
   }
-  if (status === 0) return 'network failure'
-  if (status === 401) return 'not signed in'
-  if (status === 403) return 'not allowed'
-  if (status === 429) return 'rate limited'
-  if (status >= 500 && status <= 599) return 'server error'
+  if (status === 0) return known('network failure')
+  if (status === 401) return known('not signed in')
+  if (status === 403) return known('not allowed')
+  if (status === 429) return known('rate limited')
+  if (status >= 500 && status <= 599) return known('server error')
   return null
 }
 
 function titleFor(kind, row) {
-  if (kind === 'request') {
-    const why = reason(row.status, row.code)
-    return why ? `${verbPhrase(row.action)} (${why})` : verbPhrase(row.action)
-  }
   const message = String(row.message || 'Unknown error').slice(0, 120)
+  if (kind === 'request') {
+    const verb = verbPhrase(row.action)
+    const why = reason(row.status, row.code)
+    if (why?.known) return `${verb} (${why.text})`
+    // Anything unknown shows the raw message, so the Keeper is not left guessing.
+    return why ? `${verb} (${why.text}): ${message}` : `${verb}: ${message}`
+  }
   return kind === 'shown' ? `Message shown: ${message}` : `Page crashed: ${message}`
 }
 

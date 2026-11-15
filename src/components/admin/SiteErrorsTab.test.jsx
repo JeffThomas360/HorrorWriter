@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { test, expect, vi, afterEach } from 'vitest'
 
 const h = vi.hoisted(() => ({ fetchSiteErrors: vi.fn() }))
-vi.mock('../../lib/siteErrorsApi', () => ({ fetchSiteErrors: h.fetchSiteErrors, SITE_ERRORS_LIMIT: 2000 }))
+vi.mock('../../lib/siteErrorsApi', () => ({ fetchSiteErrors: h.fetchSiteErrors, SITE_ERRORS_LIMIT: 1000 }))
 vi.mock('../mod/UserModProfile', () => ({
   default: ({ userId, onClose }) => (
     <div><p>case file {userId}</p><button onClick={onClose}>close</button></div>
@@ -201,17 +201,42 @@ test('filters that leave nothing say so and stay usable', async () => {
   expect(titles()).toEqual([SERIES])
 })
 
-test('a capped fetch says how many entries are shown', async () => {
-  h.fetchSiteErrors.mockResolvedValue({ rows: [row()], handles: { u1: 'writer' }, capped: true })
+test('a capped fetch says how many entries are shown, right under the summary', async () => {
+  h.fetchSiteErrors.mockResolvedValue({ rows: [row(), row()], handles: { u1: 'writer' }, capped: true, total: 2500 })
   renderIt()
-  expect(await screen.findByText('Showing the most recent 2000 entries in this window; older ones are not counted.')).toBeInTheDocument()
+  const notice = await screen.findByText('Showing the most recent 2 of 2500 entries in this window; older ones are not counted.')
+  const summary = screen.getByText(/1 problem ·/)
+  expect(summary.nextElementSibling).toBe(notice)
+})
+
+test('the cap notice stays when filters leave nothing', async () => {
+  h.fetchSiteErrors.mockResolvedValue({ rows: [row()], handles: { u1: 'writer' }, capped: true, total: 2500 })
+  renderIt()
+  await screen.findByText(/1 problem ·/)
+  fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'crash' } })
+  expect(screen.getByText('Nothing matches those filters.')).toBeInTheDocument()
+  expect(screen.getByText(/most recent 1 of 2500/)).toBeInTheDocument()
+})
+
+test('a member filter that no longer applies after a window change falls back to All members', async () => {
+  h.fetchSiteErrors.mockResolvedValueOnce(standard())
+  h.fetchSiteErrors.mockResolvedValueOnce({ rows: [row()], handles: { u1: 'writer' }, capped: false, total: 1 })
+  renderIt()
+  await screen.findByText(/3 problems/)
+  fireEvent.change(screen.getByLabelText('Member'), { target: { value: 'u2' } })
+  expect(titles()).toEqual([SHOWN])
+  fireEvent.change(screen.getByLabelText('Time window'), { target: { value: '24h' } })
+  await waitFor(() => expect(h.fetchSiteErrors).toHaveBeenCalledTimes(2))
+  await waitFor(() => expect(screen.getByLabelText('Member')).toHaveValue('all'))
+  expect(titles()).toEqual([SERIES])
+  expect(screen.queryByText('Nothing matches those filters.')).toBeNull()
 })
 
 test('an uncapped fetch does not mention a cap', async () => {
   h.fetchSiteErrors.mockResolvedValue({ rows: [row()], handles: { u1: 'writer' }, capped: false })
   renderIt()
   await screen.findByText(/1 problem/)
-  expect(screen.queryByText(/most recent 2000/)).toBeNull()
+  expect(screen.queryByText(/most recent/)).toBeNull()
 })
 
 test('a failed fetch shows the error', async () => {

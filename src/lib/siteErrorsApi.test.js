@@ -8,10 +8,10 @@ const state = vi.hoisted(() => ({ client: null, calls: [], results: {} }))
 function makeClient() {
   return {
     from(table) {
-      const call = { table, select: null, gte: null, order: null, limit: null, in: null }
+      const call = { table, select: null, selectOptions: null, gte: null, order: null, limit: null, in: null }
       state.calls.push(call)
       const builder = {
-        select(cols) { call.select = cols; return builder },
+        select(cols, options) { call.select = cols; call.selectOptions = options ?? null; return builder },
         gte(col, value) { call.gte = [col, value]; return builder },
         order(col, opts) { call.order = [col, opts]; return builder },
         limit(n) { call.limit = n; return builder },
@@ -40,8 +40,10 @@ beforeEach(() => {
   state.results = {}
 })
 
-test('the cap is 2000', () => {
-  expect(SITE_ERRORS_LIMIT).toBe(2000)
+// PostgREST returns at most 1000 rows per request here (supabase/config.toml max_rows,
+// and the hosted default), so asking for more would silently get 1000.
+test('the cap is the server row limit, 1000', () => {
+  expect(SITE_ERRORS_LIMIT).toBe(1000)
 })
 
 test('asks for the window, newest first, capped', async () => {
@@ -50,7 +52,8 @@ test('asks for the window, newest first, capped', async () => {
   expect(q.select).toBe('id, created_at, kind, message, stack, url, user_agent, user_id, action, status, code')
   expect(q.gte).toEqual(['created_at', '2026-11-14T00:00:00.000Z'])
   expect(q.order).toEqual(['created_at', { ascending: false }])
-  expect(q.limit).toBe(2000)
+  expect(q.limit).toBe(1000)
+  expect(q.selectOptions).toEqual({ count: 'exact' })
 })
 
 test('looks up handles only for the members in the rows', async () => {
@@ -79,12 +82,22 @@ test('a member with no readable profile is simply absent from handles', async ()
   expect(out.handles).toEqual({ u1: 'writer' })
 })
 
-test('capped is true only when the limit came back full', async () => {
+test('capped comes from the exact count, not from how many rows came back', async () => {
   const many = (n) => Array.from({ length: n }, (_, i) => row(i, null))
-  state.results.client_errors = { data: many(2000), error: null }
-  expect((await fetchSiteErrors(24, NOW)).capped).toBe(true)
-  state.results.client_errors = { data: many(1999), error: null }
-  expect((await fetchSiteErrors(24, NOW)).capped).toBe(false)
+  state.results.client_errors = { data: many(1000), error: null, count: 2500 }
+  expect(await fetchSiteErrors(24, NOW)).toMatchObject({ capped: true, total: 2500 })
+  state.results.client_errors = { data: many(1000), error: null, count: 1000 }
+  expect(await fetchSiteErrors(24, NOW)).toMatchObject({ capped: false, total: 1000 })
+  state.results.client_errors = { data: many(3), error: null, count: 3 }
+  expect(await fetchSiteErrors(24, NOW)).toMatchObject({ capped: false, total: 3 })
+})
+
+test('with no count from the server, a full page is treated as capped', async () => {
+  const many = (n) => Array.from({ length: n }, (_, i) => row(i, null))
+  state.results.client_errors = { data: many(1000), error: null }
+  expect(await fetchSiteErrors(24, NOW)).toMatchObject({ capped: true, total: 1000 })
+  state.results.client_errors = { data: many(999), error: null }
+  expect(await fetchSiteErrors(24, NOW)).toMatchObject({ capped: false, total: 999 })
 })
 
 test('a failed log read throws its message', async () => {

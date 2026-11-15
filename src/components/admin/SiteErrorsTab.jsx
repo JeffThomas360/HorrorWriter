@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { fetchSiteErrors, SITE_ERRORS_LIMIT } from '../../lib/siteErrorsApi'
+import { fetchSiteErrors } from '../../lib/siteErrorsApi'
 import { WINDOWS, KINDS, groupProblems, summarize, describeDevice, pagePath } from '../../lib/siteErrors'
 import UserModProfile from '../mod/UserModProfile'
 
@@ -140,12 +140,22 @@ export default function SiteErrorsTab() {
       .sort((a, b) => a.label.localeCompare(b.label))
   }, [rows, handles])
 
+  // A member picked in one window may have nothing in the next. Their option is
+  // gone then, so fall back to everyone rather than filter by a name not on screen.
+  const activeMember = members.some((m) => m.id === memberId) ? memberId : 'all'
+
   const problems = useMemo(() => groupProblems(rows, {
     kind: kind === 'all' ? undefined : kind,
-    userId: memberId === 'all' ? undefined : memberId,
-  }), [rows, kind, memberId])
+    userId: activeMember === 'all' ? undefined : activeMember,
+  }), [rows, kind, activeMember])
 
   const totals = useMemo(() => summarize(problems), [problems])
+
+  const capNotice = data?.capped ? (
+    <p className="text-xs text-[var(--color-ash)] font-mono">
+      Showing the most recent {rows.length} of {data.total} entries in this window; older ones are not counted.
+    </p>
+  ) : null
 
   if (caseFileFor) {
     const back = () => setCaseFileFor(null)
@@ -173,7 +183,7 @@ export default function SiteErrorsTab() {
           <option value="all">All kinds</option>
           {KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
         </select>
-        <select aria-label="Member" value={memberId} onChange={(e) => setMemberId(e.target.value)} className={SELECT}>
+        <select aria-label="Member" value={activeMember} onChange={(e) => setMemberId(e.target.value)} className={SELECT}>
           <option value="all">All members</option>
           {members.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
         </select>
@@ -186,12 +196,16 @@ export default function SiteErrorsTab() {
       ) : rows.length === 0 ? (
         <p className="text-sm text-[var(--color-ash)] italic font-serif py-6 text-center">Nothing went wrong in this window.</p>
       ) : problems.length === 0 ? (
-        <p className="text-sm text-[var(--color-ash)] italic font-serif py-6 text-center">Nothing matches those filters.</p>
+        <>
+          <p className="text-sm text-[var(--color-ash)] italic font-serif py-6 text-center">Nothing matches those filters.</p>
+          {capNotice}
+        </>
       ) : (
         <>
           <p className="font-mono text-xs text-[var(--color-bone)]">
             {plural(totals.problems, 'problem', 'problems')} · {plural(totals.members, 'member', 'members')} affected · {plural(totals.occurrences, 'occurrence', 'occurrences')}
           </p>
+          {capNotice}
           <ul className="flex flex-col gap-2">
             {problems.map((p) => {
               const open = openKey === p.key
@@ -220,11 +234,6 @@ export default function SiteErrorsTab() {
         </>
       )}
 
-      {data?.capped && (
-        <p className="text-xs text-[var(--color-ash)] font-mono">
-          Showing the most recent {SITE_ERRORS_LIMIT} entries in this window; older ones are not counted.
-        </p>
-      )}
     </div>
   )
 }

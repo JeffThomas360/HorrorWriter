@@ -42,7 +42,7 @@ test.each([
 test('normalizeMessage blanks ids and numbers so one bug is one group', () => {
   expect(normalizeMessage('Story 54a95155-7542-40d0-b3ca-15ef32de60b1 not found')).toBe('Story <id> not found')
   expect(normalizeMessage('Too many requests, retry in 37 seconds')).toBe('Too many requests, retry in <n> seconds')
-  expect(normalizeMessage('Minified React error #418')).toBe('Minified React error #<n>')
+  expect(normalizeMessage('Minified React error #418')).toBe('Minified React error #418')
   expect(normalizeMessage(null)).toBe('Unknown error')
 })
 
@@ -85,6 +85,36 @@ test('crashes with the same message group together whatever caught them', () => 
   expect(problems[0].count).toBe(2)
 })
 
+test('different numbered error codes are different crashes', () => {
+  const problems = groupProblems([
+    row({ id: 1, kind: 'window', action: null, status: null, code: null, message: 'Minified React error #310' }),
+    row({ id: 2, kind: 'window', action: null, status: null, code: null, message: 'Minified React error #418' }),
+  ])
+  expect(problems).toHaveLength(2)
+})
+
+test('a request with no known reason is grouped by its message too', () => {
+  const problems = groupProblems([
+    row({ id: 1, action: 'rpc:share_ritual_draft', status: 400, code: 'P0001', message: 'Title is required' }),
+    row({ id: 2, action: 'rpc:share_ritual_draft', status: 400, code: 'P0001', message: 'Entry is too short' }),
+    row({ id: 3, action: 'rpc:share_ritual_draft', status: 400, code: 'P0001', message: 'Entry is too short' }),
+  ])
+  expect(problems.map((p) => [p.title, p.count]).sort()).toEqual([
+    ["Couldn't run share ritual draft (P0001): Entry is too short", 2],
+    ["Couldn't run share ritual draft (P0001): Title is required", 1],
+  ])
+})
+
+test('a request with a known reason is one problem whatever the message says', () => {
+  const problems = groupProblems([
+    row({ id: 1, message: 'duplicate key value violates unique constraint "a"' }),
+    row({ id: 2, message: 'duplicate key value violates unique constraint "b"' }),
+    row({ id: 3, action: 'books:select', status: 0, code: null, message: 'Failed to fetch' }),
+    row({ id: 4, action: 'books:select', status: 0, code: null, message: 'Load failed' }),
+  ])
+  expect(problems.map((p) => p.count).sort()).toEqual([2, 2])
+})
+
 test('filters by kind and by member', () => {
   const rows = [
     row({ id: 1, user_id: 'u1' }),
@@ -110,10 +140,10 @@ test.each([
   [{ kind: 'request', action: 'user_follows:delete', status: 0, code: null }, "Couldn't remove from user follows (network failure)"],
   [{ kind: 'request', action: 'rpc:create_thread_with_post', status: 300, code: 'PGRST203' }, "Couldn't run create thread with post (site bug: ambiguous function)"],
   [{ kind: 'request', action: 'auth:otp', status: 422, code: 'otp_disabled' }, 'Sign-in problem: otp (no account for that address)'],
-  [{ kind: 'request', action: 'auth:token:pkce', status: 400, code: null }, 'Sign-in problem: token pkce'],
+  [{ kind: 'request', action: 'auth:token:pkce', status: 400, code: null }, 'Sign-in problem: token pkce: x'],
   [{ kind: 'request', action: 'fn:open-ticket', status: 429, code: null }, 'Function failed: open-ticket (rate limited)'],
   [{ kind: 'request', action: null, status: 502, code: null }, 'Request failed (server error)'],
-  [{ kind: 'request', action: 'books:update', status: 400, code: 'HW013' }, "Couldn't save books (HW013)"],
+  [{ kind: 'request', action: 'books:update', status: 400, code: 'HW013' }, "Couldn't save books (HW013): x"],
 ])('title for %o', (over, expected) => {
   expect(groupProblems([row({ ...over, message: 'x' })])[0].title).toBe(expected)
 })
