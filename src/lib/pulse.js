@@ -121,6 +121,7 @@ export function computePulse(raw, now) {
   const siteErrors = tally()
   const byMessage = {}
   for (const e of errors) {
+    if (e.kind === 'shown') continue
     const w = weekOf(e.created_at, now)
     if (!w) continue
     siteErrors[w]++
@@ -170,7 +171,7 @@ export async function fetchPulse(now = Date.now()) {
       .gte('created_at', twoWeeksAgo)),
     // Keeper-only by RLS (mod_can('configure', 'all')), like this whole panel.
     rows(supabase.from('tickets').select('id, created_at, updated_at').eq('status', 'waiting')),
-    rows(supabase.from('client_errors').select('created_at, message')
+    rows(supabase.from('client_errors').select('created_at, message, kind')
       .gte('created_at', twoWeeksAgo).order('created_at', { ascending: false }).limit(1000)),
   ])
 
