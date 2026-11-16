@@ -82,6 +82,21 @@ function problemKey(row, kind) {
 
 const words = (s) => String(s).replace(/_/g, ' ')
 
+/**
+ * Shorten to at most `max` characters, ending at a whole word and marked with
+ * an ellipsis. One unbroken run longer than that is cut where it stands.
+ */
+function clip(text, max) {
+  const t = String(text)
+  if (t.length <= max) return t
+  let head = t.slice(0, max)
+  if (t[max] !== ' ') {
+    const lastSpace = head.lastIndexOf(' ')
+    if (lastSpace > max / 2) head = head.slice(0, lastSpace)
+  }
+  return `${head.trimEnd()}…`
+}
+
 function verbPhrase(action) {
   if (!action) return 'Request failed'
   const [head, ...rest] = String(action).split(':')
@@ -130,7 +145,7 @@ function reason(status, code) {
 }
 
 function titleFor(kind, row) {
-  const message = String(row.message || 'Unknown error').slice(0, 120)
+  const message = clip(row.message || 'Unknown error', 120)
   if (kind === 'request') {
     const verb = verbPhrase(row.action)
     const why = reason(row.status, row.code)
@@ -183,7 +198,7 @@ export function groupProblems(rows, filters = {}) {
         key: g.key,
         kind: g.kind,
         title: titleFor(g.kind, newest),
-        message: String(newest.message || 'Unknown error').slice(0, 300),
+        message: clip(newest.message || 'Unknown error', 300),
         action: newest.action ?? null,
         status: newest.status ?? null,
         code: newest.code ?? null,

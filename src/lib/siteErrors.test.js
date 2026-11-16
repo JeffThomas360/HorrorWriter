@@ -164,3 +164,35 @@ test('summarize counts problems, distinct members and occurrences', () => {
   expect(summarize(problems)).toEqual({ problems: 2, members: 2, occurrences: 4 })
   expect(summarize([])).toEqual({ problems: 0, members: 0, occurrences: 0 })
 })
+
+const REACT_418 = 'Minified React error #418; visit https://react.dev/errors/418?args[]=text&args[]= for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
+const crashTitle = (message) => groupProblems([row({ kind: 'window', action: null, status: null, code: null, message })])[0].title
+
+test('a long title is cut at the end of a word and marked with an ellipsis', () => {
+  const title = crashTitle(REACT_418)
+  expect(title.endsWith('…')).toBe(true)
+  const kept = title.slice('Page crashed: '.length, -1)
+  expect(kept.length).toBeLessThanOrEqual(120)
+  expect(REACT_418.startsWith(kept)).toBe(true)
+  // The character after what was kept is a space: no word was cut in half.
+  expect(REACT_418[kept.length]).toBe(' ')
+  expect(title).toBe('Page crashed: Minified React error #418; visit https://react.dev/errors/418?args[]=text&args[]= for the full message or use the…')
+})
+
+test('a short title is left alone, with no ellipsis', () => {
+  expect(crashTitle('boom')).toBe('Page crashed: boom')
+  expect(crashTitle('x'.repeat(120))).toBe(`Page crashed: ${'x'.repeat(120)}`)
+})
+
+test('one very long word is cut hard rather than dropped', () => {
+  expect(crashTitle('x'.repeat(200))).toBe(`Page crashed: ${'x'.repeat(120)}…`)
+})
+
+test('the message shown in the detail is cut the same way at 300 characters', () => {
+  const long = Array.from({ length: 80 }, (_, i) => `word${i}`).join(' ')
+  const [p] = groupProblems([row({ kind: 'shown', action: null, status: null, code: null, message: long })])
+  expect(p.message.endsWith('…')).toBe(true)
+  const kept = p.message.slice(0, -1)
+  expect(kept.length).toBeLessThanOrEqual(300)
+  expect(long[kept.length]).toBe(' ')
+})
