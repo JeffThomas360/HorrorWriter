@@ -8,11 +8,14 @@ import { authorLabel } from '../../lib/storyHelpers'
 import ConfirmDialog from './ConfirmDialog'
 import CaseFileTabs from './CaseFileTabs'
 import UserSubmissions from './UserSubmissions'
+import UserDossier from './UserDossier'
 
 const CASE_FILE_TABS = [
   { id: 'admin', label: 'Administrative' },
   { id: 'submissions', label: 'Submissions' },
 ]
+// What happened after they joined. Keeper only: the database refuses anyone else.
+const DOSSIER_TAB = { id: 'dossier', label: 'Dossier' }
 
 const GHOST_BTN = 'border border-[var(--color-line-hi)] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-bone)] transition-colors hover:border-[var(--color-bone)] cursor-pointer disabled:opacity-50'
 
@@ -35,15 +38,17 @@ function sanctionDuration(a) {
  * current sanction status with quick sanction actions, reports filed against them,
  * reports they've filed themselves (for spotting bad-faith reporters), the audit
  * trail of actions taken against them (Warden+ only), and free-form mod notes. The
- * Submissions tab lists what they've put on the site.
+ * Submissions tab lists what they've put on the site. A Keeper also gets a Dossier
+ * tab; `initialTab="dossier"` opens straight onto it.
  *
  * Used as a slide-in drawer from Reports/Sanctions ("View User Context") and
  * can be dropped in anywhere a userId is known.
  */
-export default function UserModProfile({ userId, onClose }) {
+export default function UserModProfile({ userId, onClose, initialTab = 'admin' }) {
   const { user, profile: viewerProfile } = useAuth()
   const canReadAudit = modCan(viewerProfile, 'read_audit', 'all')
   const canSanction = modCan(viewerProfile, 'ban', 'all')
+  const isKeeper = viewerProfile?.mod_role === 'keeper'
 
   const [profile, setProfile] = useState(null)
   const [caseFile, setCaseFile] = useState(null)
@@ -51,7 +56,7 @@ export default function UserModProfile({ userId, onClose }) {
   const [newNote, setNewNote] = useState('')
   const [pendingSanction, setPendingSanction] = useState(null) // a SANCTION_OPTIONS entry, or { key: 'revoke', label }
   const [busy, setBusy] = useState(false)
-  const [tab, setTab] = useState('admin')
+  const [tab, setTab] = useState(initialTab)
 
   const load = async () => {
     if (!userId) return
@@ -85,6 +90,10 @@ export default function UserModProfile({ userId, onClose }) {
       setNewNote('')
     }
   }
+
+  const tabs = isKeeper ? [...CASE_FILE_TABS, DOSSIER_TAB] : CASE_FILE_TABS
+  // A tab this viewer has no right to (or a name that is no tab) falls back to the first.
+  const activeTab = tabs.some((t) => t.id === tab) ? tab : 'admin'
 
   const isSanctioned = profile?.banned_until && new Date(profile.banned_until) > new Date()
   const isPermanent = isPermanentBan(profile?.banned_until)
@@ -156,11 +165,13 @@ export default function UserModProfile({ userId, onClose }) {
         {onClose && <button onClick={onClose} className={GHOST_BTN} aria-label="Close case file">✕</button>}
       </div>
 
-      <CaseFileTabs label="Case file sections" idPrefix="case-file" tabs={CASE_FILE_TABS} active={tab} onChange={setTab} />
+      <CaseFileTabs label="Case file sections" idPrefix="case-file" tabs={tabs} active={activeTab} onChange={setTab} />
 
-      <div role="tabpanel" id="case-file-panel" aria-labelledby={`case-file-tab-${tab}`}>
-        {tab === 'submissions' ? (
+      <div role="tabpanel" id="case-file-panel" aria-labelledby={`case-file-tab-${activeTab}`}>
+        {activeTab === 'submissions' ? (
           <UserSubmissions userId={userId} bannedUntil={profile.banned_until} />
+        ) : activeTab === 'dossier' ? (
+          <UserDossier userId={userId} handle={profile.handle} />
         ) : (
           <div className="flex flex-col gap-6">
             <div className="grid grid-cols-2 gap-3 text-sm">
