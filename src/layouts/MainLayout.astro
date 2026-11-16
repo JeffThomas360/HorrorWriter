@@ -140,6 +140,11 @@ const ogImageURL = ogImage ? new URL(ogImage, Astro.site) : new URL('/og.png', A
   import { installErrorReporter } from '../lib/errorReporter';
   installErrorReporter();
 
+  // Note how this visitor arrived (link tag, referring site, landing page) in their
+  // own browser. Sent only if they later join; see lib/arrival.js and ArrivalPrompt.
+  import { noteArrival } from '../lib/arrival';
+  noteArrival();
+
   // Sign in modal. This inline module script runs (deferred) before the React
   // islands hydrate, so its listener reliably catches `open-signin` even when
   // the SignInModalWrapper island hasn't attached its own listener yet. Record
