@@ -59,3 +59,18 @@ test('says stories are already in a series only when that is true', async () => 
   fireEvent.click(await screen.findByRole('button', { name: /new series/i }))
   expect(screen.getByText(/all of your stories are already in a series/i)).toBeInTheDocument()
 })
+
+test('links story and series titles to their reader pages and shows 1-based Vol badge', async () => {
+  books = [{ id: 'b1', title: 'Them', created_at: '2026-09-01', comments_count: 2, seriesId: 's1', seriesTitle: 'Cycle' }]
+  series = [{ id: 's1', title: 'Cycle', books: [{ id: 'b1', title: 'Them', sort_order: 0 }] }]
+  render(<MyStories />)
+
+  const seriesLink = await screen.findByRole('link', { name: 'Cycle' })
+  expect(seriesLink).toHaveAttribute('href', '/library/series/s1/')
+
+  const storyLinks = screen.getAllByRole('link', { name: 'Them' })
+  expect(storyLinks.length).toBeGreaterThanOrEqual(2)
+  storyLinks.forEach((l) => expect(l).toHaveAttribute('href', '/library/read/b1/'))
+
+  expect(screen.getByText('Vol 1')).toBeInTheDocument()
+})

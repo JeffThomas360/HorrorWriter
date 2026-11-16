@@ -3,6 +3,7 @@ import { supabase } from '../supabaseClient'
 import { useAuth } from '../components/AuthContext'
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import ReportModal from '../components/ReportModal'
+import AppealButton from '../components/AppealButton'
 import CommunityGuidelines from '../components/CommunityGuidelines'
 import InlineModControls from '../components/mod/InlineModControls'
 import MarkdownEditor from '../components/MarkdownEditor'
@@ -17,6 +18,7 @@ import LoadError from '../components/LoadError'
 import { isMissingRow } from '../lib/loadFailure'
 import KindleReader, { useKindlePrefs } from '../components/KindleReader'
 import { authorLabel, isTombstone, TOMBSTONE_TEXT } from '../lib/storyHelpers'
+import { categorySidebarLabel } from '../lib/forumCategories'
 
 const PAGE_SIZE = 15
 
@@ -47,6 +49,10 @@ function ThreadView({ id, initialThread, initialPosts }) {
   const [commentError, setCommentError] = useState(null)
   const [collapsed, setCollapsed] = useState(() => new Set())
   const [editingEntryId, setEditingEntryId] = useState(null)
+  const [editingPostId, setEditingPostId] = useState(null)
+  const [editingPostText, setEditingPostText] = useState('')
+  const [editingThreadTitle, setEditingThreadTitle] = useState(false)
+  const [threadTitleDraft, setThreadTitleDraft] = useState('')
   const toggleCollapsed = (pid) => setCollapsed((s) => { const n = new Set(s); n.has(pid) ? n.delete(pid) : n.add(pid); return n })
   const [activeReadersCount, setActiveReadersCount] = useState(1)
   const [reportTarget, setReportTarget] = useState(null)
@@ -196,6 +202,69 @@ function ThreadView({ id, initialThread, initialPosts }) {
     }
   })
 
+  const updatePostMutation = useMutation({
+    mutationFn: async ({ postId, content }) => {
+      const { error } = await supabase
+        .from('posts')
+        .update({ content: content.trim(), edited_at: new Date().toISOString() })
+        .eq('id', postId)
+        .eq('author_id', session.user.id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      setEditingPostId(null)
+      setEditingPostText('')
+      queryClient.invalidateQueries({ queryKey: ['posts', id] })
+    },
+  })
+
+  const deletePostMutation = useMutation({
+    mutationFn: async (postId) => {
+      const { error } = await supabase
+        .from('posts')
+        .delete()
+        .eq('id', postId)
+        .eq('author_id', session.user.id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['posts', id] })
+      queryClient.invalidateQueries({ queryKey: ['thread', id] })
+      queryClient.invalidateQueries({ queryKey: ['threads'] })
+    },
+  })
+
+  const updateThreadMutation = useMutation({
+    mutationFn: async (newTitle) => {
+      const { error } = await supabase
+        .from('threads')
+        .update({ title: newTitle.trim(), updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .eq('author_id', session.user.id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      setEditingThreadTitle(false)
+      queryClient.invalidateQueries({ queryKey: ['thread', id] })
+      queryClient.invalidateQueries({ queryKey: ['threads'] })
+    },
+  })
+
+  const deleteThreadMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from('threads')
+        .delete()
+        .eq('id', id)
+        .eq('author_id', session.user.id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['threads'] })
+      window.location.replace('/forum/')
+    },
+  })
+
   const handleReply = (e) => {
     e.preventDefault()
     setReplyError(null)
@@ -258,7 +327,13 @@ function ThreadView({ id, initialThread, initialPosts }) {
           >
             [{isCollapsed ? '+' : '–'}]
           </button>
-          <span className="font-bold text-[var(--color-upside)]">{authorLabel(p.profiles)}</span>
+          {p.profiles?.handle ? (
+            <a href={`/u/${p.profiles.handle}/`} className="font-bold text-[var(--color-upside)] hover:underline">
+              {authorLabel(p.profiles)}
+            </a>
+          ) : (
+            <span className="font-bold text-[var(--color-upside)]">{authorLabel(p.profiles)}</span>
+          )}
           <span className="text-[var(--color-text-secondary)]">{timeAgo(p.created_at)}</span>
           {isCollapsed && n > 0 && (
             <span className="text-[var(--color-text-secondary)] italic">({n} {n === 1 ? 'reply' : 'replies'})</span>
@@ -266,13 +341,65 @@ function ThreadView({ id, initialThread, initialPosts }) {
         </div>
         {!isCollapsed && (
           <>
-            <div className="prose prose-invert max-w-none text-[15px] leading-relaxed text-[var(--color-text-primary)] mt-1 [&_p]:my-1">
-              <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{p.content}</ReactMarkdown>
-            </div>
+            {editingPostId === p.id ? (
+              <div className="mt-2 flex flex-col gap-2">
+                <textarea
+                  value={editingPostText}
+                  onChange={(e) => setEditingPostText(e.target.value)}
+                  rows={3}
+                  aria-label="Edit comment"
+                  className="w-full bg-[var(--color-void)] text-[var(--color-bone)] border border-[var(--color-line)] p-2 text-sm font-serif focus:border-[var(--color-blood)] outline-none"
+                />
+                <div className="flex items-center gap-2 font-mono text-xs">
+                  <button
+                    type="button"
+                    disabled={!editingPostText.trim() || updatePostMutation.isPending}
+                    onClick={() => updatePostMutation.mutate({ postId: p.id, content: editingPostText })}
+                    className="bg-[var(--color-blood)] text-white uppercase px-3 py-1 hover:bg-red-700 cursor-pointer disabled:opacity-50"
+                  >
+                    {updatePostMutation.isPending ? 'Saving…' : 'Save'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setEditingPostId(null); setEditingPostText('') }}
+                    className="border border-[var(--color-line)] hover:border-white uppercase px-3 py-1 text-[var(--color-ash)] cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="prose prose-invert max-w-none text-[15px] leading-relaxed text-[var(--color-text-primary)] mt-1 [&_p]:my-1">
+                <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{p.content}</ReactMarkdown>
+              </div>
+            )}
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-[11px] font-bold lowercase text-[var(--color-text-secondary)]">
               <a href={`#post-${p.id}`} className="hover:underline">permalink</a>
               {replyTo && (
                 <button type="button" onClick={() => openReply(replyTo)} className="hover:underline cursor-pointer">reply</button>
+              )}
+              {userId && p.author_id === userId && editingPostId !== p.id && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => { setEditingPostId(p.id); setEditingPostText(p.content || '') }}
+                    className="hover:underline cursor-pointer"
+                  >
+                    edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm('Delete this comment forever?')) {
+                        deletePostMutation.mutate(p.id)
+                      }
+                    }}
+                    disabled={deletePostMutation.isPending}
+                    className="hover:underline text-[var(--color-ember)] cursor-pointer"
+                  >
+                    delete
+                  </button>
+                </>
               )}
               <button type="button" onClick={() => setReportTarget({ type: 'post', id: p.id })} className="hover:underline cursor-pointer">report</button>
               <span className="md:opacity-0 md:group-hover:opacity-100 focus-within:opacity-100 transition-opacity normal-case font-normal">
@@ -338,7 +465,13 @@ function ThreadView({ id, initialThread, initialPosts }) {
           {initials(p.profiles?.handle || 'unknown')}
         </div>
         <div className="flex flex-col">
-          <span className="font-mono text-xs font-bold text-[var(--color-text-primary)]">{authorLabel(p.profiles)}</span>
+          {p.profiles?.handle ? (
+            <a href={`/u/${p.profiles.handle}/`} className="font-mono text-xs font-bold text-[var(--color-text-primary)] hover:text-[var(--color-ember)] hover:underline">
+              {authorLabel(p.profiles)}
+            </a>
+          ) : (
+            <span className="font-mono text-xs font-bold text-[var(--color-text-primary)]">{authorLabel(p.profiles)}</span>
+          )}
           <span className="font-mono text-xs text-[var(--color-text-secondary)]">{label ? `${label} · ` : ''}{timeAgo(p.created_at)}</span>
         </div>
       </div>
@@ -409,26 +542,80 @@ function ThreadView({ id, initialThread, initialPosts }) {
         href={thread?.category_id === 'rituals' ? '/forum/?cat=rituals' : '/forum/'}
         className="inline-block font-mono text-xs uppercase tracking-[0.2em] text-[var(--color-text-secondary)] mb-4 hover:text-[var(--color-accent-crimson)] hover:underline transition-colors"
       >
-        ← Back to {thread?.categories?.name?.split('·')[0].trim() || (thread?.category_id === 'rituals' ? 'Midnight Rituals' : 'The Crypt')}
+        ← Back to {categorySidebarLabel({ id: thread?.category_id, name: thread?.categories?.name }) || 'The Crypt'}
       </a>
 
       <div className="border-b border-[var(--color-line)] pb-6 mb-8 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-        <div>
-          <h1 className="title text-2xl md:text-3xl font-serif font-black text-[var(--color-text-primary)] leading-tight mb-2">
-            {isTombstone(thread) ? TOMBSTONE_TEXT : thread?.title}
-          </h1>
+        <div className="flex-1 min-w-0">
+          {editingThreadTitle ? (
+            <div className="flex flex-col gap-2 mb-2">
+              <input
+                value={threadTitleDraft}
+                onChange={(e) => setThreadTitleDraft(e.target.value)}
+                aria-label="Edit thread title"
+                className="w-full bg-[var(--color-void)] text-[var(--color-bone)] border border-[var(--color-line)] px-3 py-2 text-base font-serif focus:border-[var(--color-blood)] outline-none"
+              />
+              <div className="flex items-center gap-2 font-mono text-xs">
+                <button
+                  type="button"
+                  disabled={!threadTitleDraft.trim() || updateThreadMutation.isPending}
+                  onClick={() => updateThreadMutation.mutate(threadTitleDraft)}
+                  className="bg-[var(--color-blood)] text-white uppercase px-3 py-1 hover:bg-red-700 cursor-pointer disabled:opacity-50"
+                >
+                  {updateThreadMutation.isPending ? 'Saving…' : 'Save Title'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingThreadTitle(false)}
+                  className="border border-[var(--color-line)] hover:border-white uppercase px-3 py-1 text-[var(--color-ash)] cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <h1 className="title text-2xl md:text-3xl font-serif font-black text-[var(--color-text-primary)] leading-tight mb-2">
+              {isTombstone(thread) ? TOMBSTONE_TEXT : thread?.title}
+            </h1>
+          )}
           <span className="inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
             <span className="w-1 h-1 rounded-full bg-red-800 animate-pulse"></span>
             {activeReadersCount} {activeReadersCount === 1 ? 'writer reading' : 'writers reading'}
           </span>
         </div>
-        <div className="flex items-center gap-3 text-xs font-mono">
+        <div className="flex items-center gap-3 text-xs font-mono flex-wrap">
+          {!isRitual && userId && thread?.author_id === userId && !editingThreadTitle && (
+            <>
+              <button
+                type="button"
+                onClick={() => { setEditingThreadTitle(true); setThreadTitleDraft(thread?.title || '') }}
+                className="text-[var(--color-text-secondary)] hover:text-[var(--color-bone)] border border-[var(--color-line)] px-2 py-0.5 hover:border-white cursor-pointer"
+              >
+                Edit Title
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm('Delete this entire thread and its replies forever?')) {
+                    deleteThreadMutation.mutate()
+                  }
+                }}
+                disabled={deleteThreadMutation.isPending}
+                className="text-[var(--color-text-secondary)] hover:text-[var(--color-ember)] border border-[var(--color-line)] px-2 py-0.5 hover:border-[var(--color-ember)] cursor-pointer"
+              >
+                Delete Thread
+              </button>
+            </>
+          )}
           <button 
             onClick={() => setReportTarget({ type: 'thread', id: thread?.id })} 
             className="text-[var(--color-text-secondary)] hover:text-[var(--color-accent-crimson)] border border-[var(--color-line)] px-2 py-0.5 hover:border-red-950 cursor-pointer"
           >
             Report
           </button>
+          {userId && thread?.author_id === userId && thread?.mod_status && thread.mod_status !== 'live' && (
+            <AppealButton modActionId={thread.id} targetType="thread" />
+          )}
           {thread && <InlineModControls targetType="thread" targetId={thread.id} currentStatus={thread.mod_status} authorId={thread.author_id} />}
         </div>
       </div>
@@ -544,13 +731,47 @@ function ThreadView({ id, initialThread, initialPosts }) {
                     {initials(handle)}
                   </div>
                   <div className="flex flex-col">
-                    <span className="font-mono text-xs font-bold text-[var(--color-text-primary)]">{authorLabel(p.profiles)}</span>
+                    {p.profiles?.handle ? (
+                      <a
+                        href={`/u/${p.profiles.handle}/`}
+                        className="font-mono text-xs font-bold text-[var(--color-text-primary)] hover:text-[var(--color-ember)] hover:underline"
+                      >
+                        {authorLabel(p.profiles)}
+                      </a>
+                    ) : (
+                      <span className="font-mono text-xs font-bold text-[var(--color-text-primary)]">{authorLabel(p.profiles)}</span>
+                    )}
                     <span className="font-mono text-xs text-[var(--color-text-secondary)]">
                       {postLabel ? `${postLabel} · ` : ''}{timeAgo(p.created_at)}
                     </span>
                   </div>
                 </div>
-                <div className="flex gap-3 items-center text-xs font-mono">
+                <div className="flex gap-3 items-center text-xs font-mono flex-wrap">
+                  {userId && p.author_id === userId && editingPostId !== p.id && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => { setEditingPostId(p.id); setEditingPostText(p.content || '') }}
+                        className="text-[var(--color-text-secondary)] hover:text-[var(--color-bone)] cursor-pointer"
+                      >
+                        Edit
+                      </button>
+                      {index > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm('Delete this reply forever?')) {
+                              deletePostMutation.mutate(p.id)
+                            }
+                          }}
+                          disabled={deletePostMutation.isPending}
+                          className="text-[var(--color-text-secondary)] hover:text-[var(--color-ember)] cursor-pointer"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </>
+                  )}
                   <button 
                     onClick={() => setReportTarget({ type: 'post', id: p.id })} 
                     className="text-[var(--color-text-secondary)] hover:text-[var(--color-accent-crimson)] cursor-pointer"
@@ -560,9 +781,38 @@ function ThreadView({ id, initialThread, initialPosts }) {
                   <InlineModControls targetType="post" targetId={p.id} currentStatus={p.mod_status} authorId={p.author_id} />
                 </div>
               </div>
-              <div className="prose prose-invert font-serif text-lg leading-relaxed text-[var(--color-text-primary)]">
-                <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{p.content}</ReactMarkdown>
-              </div>
+              {editingPostId === p.id ? (
+                <div className="flex flex-col gap-3">
+                  <textarea
+                    value={editingPostText}
+                    onChange={(e) => setEditingPostText(e.target.value)}
+                    rows={5}
+                    aria-label="Edit post"
+                    className="w-full bg-[var(--color-void)] text-[var(--color-bone)] border border-[var(--color-line)] p-3 text-sm font-serif focus:border-[var(--color-blood)] outline-none"
+                  />
+                  <div className="flex items-center gap-2 font-mono text-xs">
+                    <button
+                      type="button"
+                      disabled={!editingPostText.trim() || updatePostMutation.isPending}
+                      onClick={() => updatePostMutation.mutate({ postId: p.id, content: editingPostText })}
+                      className="bg-[var(--color-blood)] text-white uppercase px-3 py-1.5 hover:bg-red-700 cursor-pointer disabled:opacity-50"
+                    >
+                      {updatePostMutation.isPending ? 'Saving…' : 'Save Post'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setEditingPostId(null); setEditingPostText('') }}
+                      className="border border-[var(--color-line)] hover:border-white uppercase px-3 py-1.5 text-[var(--color-ash)] cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="prose prose-invert font-serif text-lg leading-relaxed text-[var(--color-text-primary)]">
+                  <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{p.content}</ReactMarkdown>
+                </div>
+              )}
             </article>
           )
         })}
@@ -583,7 +833,10 @@ function ThreadView({ id, initialThread, initialPosts }) {
       {isRitual ? (
         <div className="vintage-card text-center py-8 mt-12">
           <p className="font-serif italic text-sm text-[var(--color-text-secondary)] mb-4">Entries are written against the prompt in the Midnight Ritual.</p>
-          <a href="/" className="font-mono text-xs uppercase border border-[var(--color-line)] hover:border-white px-4 py-2 transition-colors">
+          <a
+            href={thread?.prompt_id ? `/?prompt=${encodeURIComponent(thread.prompt_id)}#midnight-ritual` : '/#midnight-ritual'}
+            className="font-mono text-xs uppercase border border-[var(--color-line)] hover:border-white px-4 py-2 transition-colors"
+          >
             Write an entry →
           </a>
         </div>

@@ -5,11 +5,23 @@ export async function getNotifications(userId, limit = 20) {
   if (!supabase) throw new Error('Supabase not configured')
   const { data, error } = await supabase
     .from('notifications')
-    .select('id, kind, title, body, read_at, created_at')
+    .select('id, kind, title, body, href, read_at, created_at')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(limit)
-  if (error) throw new Error(error.message)
+  if (error) {
+    if (error.code === '42703' || /href/i.test(error.message || '')) {
+      const fallback = await supabase
+        .from('notifications')
+        .select('id, kind, title, body, read_at, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(limit)
+      if (fallback.error) throw new Error(fallback.error.message)
+      return fallback.data ?? []
+    }
+    throw new Error(error.message)
+  }
   return data ?? []
 }
 

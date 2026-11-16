@@ -25,10 +25,10 @@ export default function SeriesSidebar({ seriesContext, isOpen, onClose, isMobile
       <aside
         style={{
           position: 'fixed',
-          top: 0,
+          top: '7.25rem',
           right: 0,
           width: '280px',
-          height: '100vh',
+          height: 'calc(100vh - 7.25rem)',
           background: 'var(--color-surface)',
           borderLeft: '1px solid var(--color-line)',
           padding: '1.5rem',
@@ -36,7 +36,7 @@ export default function SeriesSidebar({ seriesContext, isOpen, onClose, isMobile
           color: 'var(--color-bone)',
           fontFamily: 'Merriweather, Georgia, serif',
           fontSize: '14px',
-          zIndex: 998
+          zIndex: 35
         }}
       >
         <h3 style={{ margin: '0 0 0.25rem 0', fontSize: '16px', fontWeight: 'bold' }}>

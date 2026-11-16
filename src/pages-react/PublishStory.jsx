@@ -10,12 +10,13 @@ import StoryCardPreview from '../components/StoryCardPreview'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { fetchAuthorSeriesOptions, applySeriesChoice } from '../lib/series'
 import { validateStoryContent, countWords } from '../lib/storyValidation'
+import { readMinutes } from '../lib/tapeWear'
 import { saveDraft, getDraft, clearDraft } from '../lib/draftAutosave'
 import TranscribeButton from '../components/TranscribeButton'
 import { withProviders } from '../components/Providers'
 import RequireAuth from '../components/RequireAuth'
 
-const CRITIQUE_TAGS = [
+export const CRITIQUE_TAGS = [
   { id: 'hook', label: 'First 250 Words / Hook' },
   { id: 'atmosphere', label: 'Atmosphere & Dread' },
   { id: 'pacing', label: 'Pacing & Plot Twist' },
@@ -30,8 +31,14 @@ function PublishStory({ bookId }) {
   const [title, setTitle] = useState('')
   const [lede, setLede] = useState('')
   const [cover, setCover] = useState('blood')
-  const [critiqueFocus, setCritiqueFocus] = useState('atmosphere')
-  const [content, setContent] = useState('')
+  const [critiqueFocus, setCritiqueFocus] = useState('')
+  const [content, setContent] = useState(() => {
+    if (!bookId && typeof window !== 'undefined') {
+      const seed = new URLSearchParams(window.location.search).get('seed')
+      if (seed && seed.trim()) return `> "${seed.trim()}"\n\n`
+    }
+    return ''
+  })
   const [error, setError] = useState(null)
   const [seriesId, setSeriesId] = useState('')
   const [activeTab, setActiveTab] = useState('write') // 'write' | 'preview'
@@ -72,19 +79,45 @@ function PublishStory({ bookId }) {
         if (!data) throw new Error('Story not found.')
 
         if (isMounted) {
-          setTitle(data.title || '')
-          setLede(data.lede || '')
-          setCover(data.cover || 'blood')
-          setContent(data.content || '')
-          setCurrentVersion(data.version || 1)
           const link = Array.isArray(data.series_books) && data.series_books.length > 0 ? data.series_books[0] : null
-          if (link) setSeriesId(link.series_id || '')
+          const loadedTitle = data.title || ''
+          const loadedLede = data.lede || ''
+          const loadedCover = data.cover || 'blood'
+          const loadedContent = data.content || ''
+          const loadedSeriesId = link?.series_id || ''
+          const loadedCritiqueFocus = data.critique_focus || ''
+          setTitle(loadedTitle)
+          setLede(loadedLede)
+          setCover(loadedCover)
+          setContent(loadedContent)
+          setCritiqueFocus(loadedCritiqueFocus)
+          setCurrentVersion(data.version || 1)
+          if (link) setSeriesId(loadedSeriesId)
           setExisting({
+            title: loadedTitle,
+            lede: loadedLede,
+            cover: loadedCover,
+            content: loadedContent,
+            critiqueFocus: loadedCritiqueFocus,
             createdAt: data.created_at,
             critiqueCount: data.comments_count || 0,
             seriesId: link?.series_id || null,
             sortOrder: link?.sort_order ?? 0,
           })
+          // If an earlier visit left a local draft identical to the saved story, clear it
+          // so the author isn't prompted to restore an unchanged snapshot.
+          const saved = getDraft(`edit_${bookId}`)
+          if (
+            saved &&
+            (saved.title || '') === loadedTitle &&
+            (saved.lede || '') === loadedLede &&
+            (saved.cover || 'blood') === loadedCover &&
+            (saved.content || '') === loadedContent &&
+            (saved.seriesId || '') === loadedSeriesId
+          ) {
+            clearDraft(`edit_${bookId}`)
+            setPendingDraft(null)
+          }
         }
       } catch (err) {
         if (isMounted) setError(err.message || 'Failed to load story for editing.')
@@ -109,13 +142,25 @@ function PublishStory({ bookId }) {
   useEffect(() => {
     if (authLoading || fetchingBook) return
     if (!title && !lede && !content) return
+    // In edit mode, wait until existing story is loaded and only autosave when
+    // the form state actually differs from the saved story.
+    if (bookId) {
+      if (!existing) return
+      const unchanged =
+        title === existing.title &&
+        lede === existing.lede &&
+        cover === existing.cover &&
+        content === existing.content &&
+        (seriesId || '') === (existing.seriesId || '')
+      if (unchanged) return
+    }
 
     const timer = setTimeout(() => {
       saveDraft(draftKey, { title, lede, cover, content, seriesId })
     }, 1500)
 
     return () => clearTimeout(timer)
-  }, [title, lede, cover, content, seriesId, draftKey, authLoading, fetchingBook])
+  }, [title, lede, cover, content, seriesId, draftKey, authLoading, fetchingBook, bookId, existing])
 
   const handleRestoreDraft = () => {
     if (!pendingDraft) return
@@ -134,19 +179,21 @@ function PublishStory({ bookId }) {
   }
 
   const mutation = useMutation({
-    mutationFn: async ({ title, lede, cover, content }) => {
+    mutationFn: async ({ title, lede, cover, content, critiqueFocus: focus }) => {
       if (bookId) {
         // Edit Mode: UPDATE story with version increment
+        const updatePayload = {
+          title: title.trim(),
+          lede: lede.trim(),
+          cover,
+          content: content.trim(),
+          version: currentVersion + 1,
+          updated_at: new Date().toISOString(),
+          ...(focus || existing?.critiqueFocus ? { critique_focus: focus || null } : {}),
+        }
         const { data, error: updateErr } = await supabase
           .from('books')
-          .update({
-            title: title.trim(),
-            lede: lede.trim(),
-            cover,
-            content: content.trim(),
-            version: currentVersion + 1,
-            updated_at: new Date().toISOString(),
-          })
+          .update(updatePayload)
           .eq('id', bookId)
           .eq('author_id', session.user.id)
           .select('id')
@@ -156,16 +203,18 @@ function PublishStory({ bookId }) {
         return data
       } else {
         // Publish Mode: INSERT story
+        const insertPayload = {
+          title: title.trim(),
+          lede: lede.trim(),
+          cover,
+          content: content.trim(),
+          author_id: session.user.id,
+          version: 1,
+          ...(focus ? { critique_focus: focus } : {}),
+        }
         const { data, error: bookError } = await supabase
           .from('books')
-          .insert({
-            title: title.trim(),
-            lede: lede.trim(),
-            cover,
-            content: content.trim(),
-            author_id: session.user.id,
-            version: 1,
-          })
+          .insert(insertPayload)
           .select('id')
           .single()
 
@@ -221,12 +270,12 @@ function PublishStory({ bookId }) {
       return
     }
 
-    mutation.mutate({ title, lede, cover, content })
+    mutation.mutate({ title, lede, cover, content, critiqueFocus })
   }
 
   const isSubmitting = mutation.isPending
   const wc = countWords(content)
-  const readMins = wc > 0 ? Math.ceil(wc / 200) : null
+  const readMins = readMinutes(content)
   // The card's Vol sticker: the story's saved place if it stays in its series,
   // otherwise the next place in the chosen series (positions are 0-based).
   const chosenSeries = seriesOptions.find((s) => s.id === seriesId)
@@ -328,7 +377,7 @@ function PublishStory({ bookId }) {
                   <button
                     key={tag.id}
                     type="button"
-                    onClick={() => setCritiqueFocus(tag.id)}
+                    onClick={() => setCritiqueFocus((prev) => (prev === tag.id ? '' : tag.id))}
                     className={`font-mono text-xs px-2.5 py-1 border transition-colors cursor-pointer ${
                       critiqueFocus === tag.id
                         ? 'bg-[var(--color-blood)] text-white border-[var(--color-blood)]'
@@ -391,7 +440,10 @@ function PublishStory({ bookId }) {
               <button 
                 type="button" 
                 className="border border-[var(--color-line)] hover:border-white text-[var(--color-bone)] font-mono text-xs uppercase px-4 py-3 transition-colors cursor-pointer"
-                onClick={() => window.location.replace(bookId ? `/library/read/${bookId}/` : '/library/')} 
+                onClick={() => {
+                  if (bookId) clearDraft(draftKey)
+                  window.location.replace(bookId ? `/library/read/${bookId}/` : '/library/')
+                }} 
                 disabled={isSubmitting}
               >
                 Cancel

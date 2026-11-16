@@ -114,9 +114,11 @@ export default function VhsSleeveCard({ story, preview = false }) {
 
           <div className="relative bg-[#0B0C0F] text-[var(--color-bone)] border-t border-dashed border-[var(--color-line-hi)] px-2.5 pt-2 pb-1.5 flex flex-col gap-1.5 font-mono">
             <div className="flex gap-1 items-stretch text-center">
-              <div className="flex-1 border border-[var(--color-line-hi)] py-0.5 flex flex-col">
-                <span className="text-[13px] font-medium">{critiqueCount}</span>
-                <span className="text-[7px] tracking-[0.14em] text-[var(--color-ash)]">{critiqueCount === 1 ? 'CRITIQUE' : 'CRITIQUES'}</span>
+              <div className={`flex-1 border py-0.5 flex flex-col ${critiqueCount === 0 && !archive ? 'border-[var(--color-upside)]/60 text-[var(--color-upside)]' : 'border-[var(--color-line-hi)]'}`}>
+                <span className="text-[13px] font-medium">{critiqueCount === 0 && !archive ? '1ST' : critiqueCount}</span>
+                <span className={`text-[7px] tracking-[0.14em] ${critiqueCount === 0 && !archive ? 'text-[var(--color-upside)]' : 'text-[var(--color-ash)]'}`}>
+                  {critiqueCount === 0 && !archive ? 'READER NEEDED' : critiqueCount === 1 ? 'CRITIQUE' : 'CRITIQUES'}
+                </span>
               </div>
               {minutes != null && (
                 <div className="flex-1 border border-[var(--color-line-hi)] py-0.5 flex flex-col">

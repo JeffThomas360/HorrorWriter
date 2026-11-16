@@ -3,7 +3,7 @@ import { toast } from '../../lib/notify'
 import { supabase } from '../../supabaseClient'
 import { useAuth } from '../AuthContext'
 import { modCan, isPermanentBan } from '../../lib/moderation'
-import { fetchUserCaseFile, contentHref, applyUserSanction, revokeUserSanction } from '../../lib/modActions'
+import { fetchUserCaseFile, contentHref, applyUserSanction, revokeUserSanction, assignRole, revokeRole } from '../../lib/modActions'
 import { authorLabel } from '../../lib/storyHelpers'
 import ConfirmDialog from './ConfirmDialog'
 import CaseFileTabs from './CaseFileTabs'
@@ -25,6 +25,9 @@ const SANCTION_OPTIONS = [
   { key: '30d', label: '30 Days', days: 30 },
   { key: 'perm', label: 'Permanent Ban', days: null },
 ]
+
+const ROLE_OPTIONS = ['sentinel', 'moderator', 'warden']
+const SCOPE_OPTIONS = ['all', 'forum', 'library']
 
 /** How long a logged sanction was for, from the metadata mod_apply_sanction wrote. */
 function sanctionDuration(a) {
@@ -57,6 +60,8 @@ export default function UserModProfile({ userId, onClose, initialTab = 'admin' }
   const [pendingSanction, setPendingSanction] = useState(null) // a SANCTION_OPTIONS entry, or { key: 'revoke', label }
   const [busy, setBusy] = useState(false)
   const [tab, setTab] = useState(initialTab)
+  const [roleDraft, setRoleDraft] = useState('')
+  const [scopeDraft, setScopeDraft] = useState('all')
 
   const load = async () => {
     if (!userId) return
@@ -65,7 +70,11 @@ export default function UserModProfile({ userId, onClose, initialTab = 'admin' }
       supabase.rpc('mod_get_profile', { p_id: userId }).single(),
       fetchUserCaseFile(userId, { includeAudit: canReadAudit }),
     ])
-    if (profRes.data) setProfile(profRes.data)
+    if (profRes.data) {
+      setProfile(profRes.data)
+      setRoleDraft(profRes.data.mod_role ?? '')
+      setScopeDraft(profRes.data.mod_scope ?? 'all')
+    }
     setCaseFile(cf)
     setLoading(false)
   }
@@ -202,6 +211,55 @@ export default function UserModProfile({ userId, onClose, initialTab = 'admin' }
               </div>
             ) : (
               <p className="text-xs text-[var(--color-ash)]">Suspending or banning requires Warden access.</p>
+            )}
+
+            {isKeeper && user?.id !== userId && profile?.mod_role !== 'keeper' && (
+              <section>
+                <h4 className="font-mono text-xs uppercase tracking-wider text-[var(--color-ash)] border-b border-[var(--color-line)] pb-2 mb-2">
+                  Moderator role
+                </h4>
+                <div className="flex flex-wrap items-center gap-2">
+                  <select
+                    aria-label={`Role for ${profile.handle}`}
+                    value={roleDraft}
+                    onChange={(e) => setRoleDraft(e.target.value)}
+                    className="bg-[var(--color-void)] text-[var(--color-bone)] border border-[var(--color-line)] px-3 py-1.5 text-xs font-mono focus:border-[var(--color-ember)] outline-none"
+                  >
+                    <option value="">— none —</option>
+                    {ROLE_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                  {(roleDraft === 'sentinel' || roleDraft === 'moderator') && (
+                    <select
+                      aria-label={`Scope for ${profile.handle}`}
+                      value={scopeDraft}
+                      onChange={(e) => setScopeDraft(e.target.value)}
+                      className="bg-[var(--color-void)] text-[var(--color-bone)] border border-[var(--color-line)] px-3 py-1.5 text-xs font-mono focus:border-[var(--color-ember)] outline-none"
+                    >
+                      {SCOPE_OPTIONS.map((sc) => <option key={sc} value={sc}>{sc}</option>)}
+                    </select>
+                  )}
+                  <button
+                    type="button"
+                    className={GHOST_BTN}
+                    disabled={busy}
+                    onClick={async () => {
+                      setBusy(true)
+                      try {
+                        if (roleDraft === '') await revokeRole(userId)
+                        else await assignRole(userId, roleDraft, scopeDraft)
+                        toast.success(roleDraft === '' ? 'Role revoked' : `Assigned ${roleDraft}`)
+                        await load()
+                      } catch (err) {
+                        toast.error(err.message)
+                      } finally {
+                        setBusy(false)
+                      }
+                    }}
+                  >
+                    Save Role
+                  </button>
+                </div>
+              </section>
             )}
 
             <section>

@@ -26,7 +26,10 @@ export async function fetchSeriesWithBooks(seriesId) {
       books:book_id (
         id,
         title,
+        lede,
         series_teaser,
+        content,
+        comments_count,
         created_at,
         author_id
       )

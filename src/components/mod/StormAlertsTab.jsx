@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { toast } from '../../lib/notify'
 import { supabase } from '../../supabaseClient'
-import { resolveStorm } from '../../lib/modActions'
+import { resolveStorm, contentHref } from '../../lib/modActions'
 
 export default function StormAlertsTab() {
+  const queryClient = useQueryClient()
   const [alerts, setAlerts] = useState([])
   const [loading, setLoading] = useState(true)
   const [notes, setNotes] = useState({})
@@ -37,6 +39,8 @@ export default function StormAlertsTab() {
       await resolveStorm(stormId, confirmed, note)
       toast.success(confirmed ? 'Storm confirmed & signals excluded' : 'Storm alert dismissed')
       setAlerts((prev) => prev.filter((a) => a.id !== stormId))
+      queryClient.invalidateQueries({ queryKey: ['mod', 'overview-counts'] })
+      queryClient.invalidateQueries({ queryKey: ['mod', 'recent-actions'] })
     } catch (err) {
       toast.error(err.message || 'Action failed')
     } finally {
@@ -65,8 +69,16 @@ export default function StormAlertsTab() {
               <span className="font-mono text-xs uppercase px-2 py-0.5 border border-[var(--color-blood)] text-[var(--color-blood)]">
                 ⚠️ Storm Candidate
               </span>
-              <h4 className="font-['Fraunces'] font-bold text-sm text-[var(--color-bone)] mt-2">
-                Target: {alert.target_type} ({alert.target_id})
+              <h4 className="font-['Fraunces'] font-bold text-sm text-[var(--color-bone)] mt-2 flex flex-wrap items-center gap-2">
+                <span>Target: {alert.target_type} ({alert.target_id})</span>
+                {contentHref(alert.target_type, alert.target_id) && (
+                  <a
+                    href={contentHref(alert.target_type, alert.target_id)}
+                    className="font-mono text-xs underline text-[var(--color-upside)] hover:text-[var(--color-ember)]"
+                  >
+                    View Target →
+                  </a>
+                )}
               </h4>
               <p className="font-mono text-xs text-[var(--color-ash)] mt-1">
                 {alert.report_count} reports + {alert.reply_count} replies in 15-min window starting {new Date(alert.window_start).toLocaleTimeString()}

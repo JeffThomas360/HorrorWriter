@@ -10,6 +10,15 @@ const ACTION_LABEL = {
   dismiss_report: 'dismissed a report on',
   appeal_resolved: 'resolved an appeal on',
   pile_on_flag: 'flagged a pile-on pattern on',
+  ban: 'permanently banned',
+  suspend: 'suspended',
+  revoke_sanction: 'revoked sanction on',
+  assign_role: 'assigned a role to',
+  revoke_role: 'revoked role from',
+  edit_badge: 'updated role badge',
+  resolve_storm: 'resolved a storm alert on',
+  ticket_replied: 'replied to a ticket',
+  ticket_closed: 'closed a ticket',
 }
 
 function StatTile({ label, value, tone = 'default', onJump }) {
@@ -88,7 +97,11 @@ export default function OverviewTab({ profile, onNavigate }) {
                   <span className="text-[var(--color-bone)]">
                     <span className="text-[var(--color-upside)]">@{a.profiles?.handle || 'system'}</span>{' '}
                     {ACTION_LABEL[a.action] || a.action.replace(/_/g, ' ')}{' '}
-                    {a.target_type ? <span className="font-mono text-xs text-[var(--color-ash)]">{a.target_type}</span> : null}
+                    {a.target_user?.handle ? (
+                      <span className="font-mono text-xs text-[var(--color-bone)]">@{a.target_user.handle}</span>
+                    ) : a.target_type ? (
+                      <span className="font-mono text-xs text-[var(--color-ash)]">{a.target_type}</span>
+                    ) : null}
                     {href && (
                       <a href={href} className="underline ml-1 hover:text-[var(--color-blood)]">view</a>
                     )}

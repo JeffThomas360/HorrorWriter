@@ -222,3 +222,16 @@ test('initialTab="dossier" is ignored for a warden, who gets Administrative', as
   expect(dossierCalls()).toHaveLength(0)
   expect(screen.getByRole('button', { name: '7 Days' })).toBeInTheDocument()
 })
+
+test('a Keeper can assign a moderation role directly from the case file', async () => {
+  h.viewer = KEEPER
+  await openCaseFile()
+  fireEvent.change(screen.getByLabelText('Role for spooky'), { target: { value: 'moderator' } })
+  fireEvent.change(screen.getByLabelText('Scope for spooky'), { target: { value: 'forum' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Save Role' }))
+  await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Assigned moderator'))
+  expect(h.rpcs).toContainEqual({
+    name: 'set_mod_role',
+    args: { p_target: 'target', p_role: 'moderator', p_scope: 'forum' },
+  })
+})

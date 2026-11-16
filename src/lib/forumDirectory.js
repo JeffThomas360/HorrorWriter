@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { categorySidebarLabel } from './forumCategories'
 
 // How many threads the crawlable directory on /forum/ lists. The forum itself
 // is a client-rendered island, so this is what Google sees of it.
@@ -12,7 +13,7 @@ export function buildDirectory(categories, threads) {
   return (categories || [])
     .map((c) => ({
       id: c.id,
-      label: String(c.name || '').split('·')[0].trim(),
+      label: categorySidebarLabel(c),
       threads: (threads || []).filter((t) => t.category_id === c.id),
     }))
     .filter((c) => c.label && c.threads.length > 0)

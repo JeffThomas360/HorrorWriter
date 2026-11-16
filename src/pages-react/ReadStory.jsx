@@ -5,6 +5,7 @@ import { useAuth } from '../components/AuthContext'
 import ReportModal from '../components/ReportModal'
 import CommunityGuidelines from '../components/CommunityGuidelines'
 import BlockButton from '../components/BlockButton'
+import FollowButton from '../components/FollowButton'
 import AppealButton from '../components/AppealButton'
 import CritiqueSignalBadge from '../components/CritiqueSignalBadge'
 import { withProviders } from '../components/Providers'
@@ -20,9 +21,18 @@ import { isMissingRow } from '../lib/loadFailure'
 import { fetchStorySeriesContext } from '../lib/series'
 import SeriesContextBar from '../components/SeriesContextBar'
 import SeriesSidebar from '../components/SeriesSidebar'
+import { readMinutes } from '../lib/tapeWear'
 import { isStoryOwner, copyrightNotice, authorLabel, isTombstone, TOMBSTONE_TEXT, isArchive, storyAuthorLabel, storyKeyColumn } from '../lib/storyHelpers'
 
 const AV_COLORS = ['', 'av-1', 'av-2', 'av-3', 'av-4', 'av-5', 'av-6']
+
+const CRITIQUE_FOCUS_LABELS = {
+  hook: 'First 250 Words / Hook',
+  atmosphere: 'Atmosphere & Dread',
+  pacing: 'Pacing & Plot Twist',
+  proofreading: 'Proofreading & Polish',
+  readonly: 'Read Only / General Feedback',
+}
 
 function initials(handle) {
   if (!handle) return '??'
@@ -41,9 +51,8 @@ function timeAgo(dateString) {
 }
 
 function readingTime(text) {
-  if (!text) return null
-  const words = text.trim().split(/\s+/).length
-  const mins = Math.ceil(words / 200)
+  const mins = readMinutes(text)
+  if (mins == null) return null
   return mins === 1 ? '~1 min read' : `~${mins} min read`
 }
 
@@ -53,6 +62,8 @@ function ReadStory({ id, initialBook }) {
 
   const [commentContent, setCommentContent] = useState('')
   const [commentError, setCommentError] = useState(null)
+  const [editingCommentId, setEditingCommentId] = useState(null)
+  const [editingCommentText, setEditingCommentText] = useState('')
   const [reportTarget, setReportTarget] = useState(null)
   const [seriesContext, setSeriesContext] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -148,6 +159,38 @@ function ReadStory({ id, initialBook }) {
     }
   })
 
+  const updateCommentMutation = useMutation({
+    mutationFn: async ({ commentId, content }) => {
+      const { error } = await supabase
+        .from('book_comments')
+        .update({ content: content.trim(), updated_at: new Date().toISOString() })
+        .eq('id', commentId)
+        .eq('author_id', session.user.id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      setEditingCommentId(null)
+      setEditingCommentText('')
+      queryClient.invalidateQueries({ queryKey: ['book_comments', book?.id] })
+    },
+  })
+
+  const deleteCommentMutation = useMutation({
+    mutationFn: async (commentId) => {
+      const { error } = await supabase
+        .from('book_comments')
+        .delete()
+        .eq('id', commentId)
+        .eq('author_id', session.user.id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['book_comments', book?.id] })
+      queryClient.invalidateQueries({ queryKey: ['book', id] })
+      queryClient.invalidateQueries({ queryKey: ['books'] })
+    },
+  })
+
   const handleCommentSubmit = (e) => {
     e.preventDefault()
     setCommentError(null)
@@ -186,12 +229,20 @@ function ReadStory({ id, initialBook }) {
 
   const isSubmitting = commentMutation.isPending
   const rtLabel = readingTime(book?.content)
+  const prevSeriesPart = seriesContext && seriesContext.currentIndex > 0
+    ? seriesContext.allBooks[seriesContext.currentIndex - 1]
+    : null
+  const nextSeriesPart = seriesContext && seriesContext.currentIndex < seriesContext.allBooks.length - 1
+    ? seriesContext.allBooks[seriesContext.currentIndex + 1]
+    : null
 
   if (isKindleMode) {
     return (
       <KindleReader
         prefs={kindle}
         onExit={() => setIsKindleMode(false)}
+        onNext={nextSeriesPart ? () => { window.location.href = `/library/read/${nextSeriesPart.id}/` } : undefined}
+        nextLabel={nextSeriesPart ? `Next: Part ${seriesContext.currentIndex + 2} →` : undefined}
         hudTitle={isTombstone(book) ? TOMBSTONE_TEXT : book?.title}
         eyebrow={isTombstone(book) ? null : `A story by ${storyAuthorLabel(book)}`}
         title={isTombstone(book) ? TOMBSTONE_TEXT : book?.title}
@@ -248,8 +299,20 @@ function ReadStory({ id, initialBook }) {
 
           {/* Title & Author Info */}
           <div className="border-b border-[var(--color-line)] pb-8 mb-12 text-center">
-        <div className="flex justify-center items-center gap-4 text-xs font-mono text-[var(--color-text-secondary)] mb-4">
-          <span>A story by {storyAuthorLabel(book)}</span>
+        <div className="flex justify-center items-center gap-4 flex-wrap text-xs font-mono text-[var(--color-text-secondary)] mb-4">
+          <span>
+            A story by{' '}
+            {book?.profiles?.handle ? (
+              <a
+                href={`/u/${book.profiles.handle}/`}
+                className="text-[var(--color-text-primary)] hover:text-[var(--color-ember)] underline transition-colors"
+              >
+                {storyAuthorLabel(book)}
+              </a>
+            ) : (
+              storyAuthorLabel(book)
+            )}
+          </span>
           <button 
             onClick={() => setReportTarget({ type: 'story', id: book.id })} 
             className="text-xs uppercase border border-[var(--color-line)] hover:border-[var(--color-blood)] px-2 py-0.5 text-[var(--color-ash)] hover:text-[var(--color-blood)] cursor-pointer"
@@ -265,7 +328,10 @@ function ReadStory({ id, initialBook }) {
             </a>
           )}
           {book && session?.user?.id && book.author_id && !isOwner && (
-            <BlockButton targetUserId={book.author_id} targetHandle={book?.profiles?.handle} />
+            <>
+              <FollowButton targetProfileId={book.author_id} />
+              <BlockButton targetUserId={book.author_id} targetHandle={book?.profiles?.handle} />
+            </>
           )}
           {isOwner && book.mod_status !== 'live' && (
             <AppealButton modActionId={book.id} targetType="story" />
@@ -372,6 +438,31 @@ function ReadStory({ id, initialBook }) {
             <StoryMarkdown content={book?.content} />
           </article>
 
+          {/* Inline Series Part Navigation at the end of the story */}
+          {seriesContext && (prevSeriesPart || nextSeriesPart) && (
+            <nav
+              aria-label="Series part navigation"
+              className="max-w-2xl mx-auto mb-10 p-4 border border-[var(--color-line)] bg-[var(--color-surface)] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 font-mono text-xs"
+            >
+              {prevSeriesPart ? (
+                <a
+                  href={`/library/read/${prevSeriesPart.id}/`}
+                  className="border border-[var(--color-line)] hover:border-white px-3.5 py-2 text-[var(--color-bone)] transition-colors truncate"
+                >
+                  ← Part {seriesContext.currentIndex}: {prevSeriesPart.title}
+                </a>
+              ) : <span />}
+              {nextSeriesPart && (
+                <a
+                  href={`/library/read/${nextSeriesPart.id}/`}
+                  className="border border-[var(--color-upside)] text-[var(--color-upside)] hover:bg-[var(--color-upside)] hover:text-[var(--color-void)] px-4 py-2 font-bold uppercase tracking-wider transition-colors text-right truncate"
+                >
+                  Next in Series · Part {seriesContext.currentIndex + 2}: {nextSeriesPart.title} →
+                </a>
+              )}
+            </nav>
+          )}
+
           {/* Authors keep all rights (House Rules, rule 1); archive classics say public domain. */}
           <p className="max-w-2xl mx-auto mb-8 text-center font-mono text-xs text-[var(--color-text-secondary)]">
             {copyrightNotice(book)}{' '}
@@ -393,6 +484,20 @@ function ReadStory({ id, initialBook }) {
           Critiques &amp; Responses <span className="font-mono text-sm text-[var(--color-text-secondary)] font-normal ml-1">({comments.length})</span>
         </h3>
 
+        {book?.critique_focus && (
+          <div
+            data-testid="author-critique-focus"
+            className="mb-6 p-3.5 border border-[var(--color-upside)]/40 bg-[var(--color-upside)]/5 font-mono text-xs flex flex-wrap items-center justify-between gap-2"
+          >
+            <span className="uppercase tracking-wider text-[var(--color-upside)]">
+              ✦ Author’s Critique Focus:
+            </span>
+            <span className="text-[var(--color-bone)] font-bold">
+              {CRITIQUE_FOCUS_LABELS[book.critique_focus] || book.critique_focus}
+            </span>
+          </div>
+        )}
+
         {commentsLoading ? (
           <p className="font-mono text-xs uppercase text-[var(--color-text-secondary)] animate-pulse">Summoning critiques…</p>
         ) : comments.length === 0 ? (
@@ -412,12 +517,44 @@ function ReadStory({ id, initialBook }) {
                         {initials(handle)}
                       </div>
                       <div className="flex flex-col">
-                        <span className="font-mono text-xs font-bold text-[var(--color-text-primary)]">{authorLabel(c.profiles)}</span>
+                        {c.profiles?.handle ? (
+                          <a
+                            href={`/u/${c.profiles.handle}/`}
+                            className="font-mono text-xs font-bold text-[var(--color-text-primary)] hover:text-[var(--color-ember)] hover:underline"
+                          >
+                            {authorLabel(c.profiles)}
+                          </a>
+                        ) : (
+                          <span className="font-mono text-xs font-bold text-[var(--color-text-primary)]">{authorLabel(c.profiles)}</span>
+                        )}
                         <span className="font-mono text-xs text-[var(--color-text-secondary)]">{timeAgo(c.created_at)}</span>
                       </div>
                     </div>
-                    <div className="flex gap-3 items-center text-xs font-mono">
+                    <div className="flex gap-3 items-center text-xs font-mono flex-wrap">
                       <CritiqueSignalBadge currentBookVersion={book?.version || 1} commentBookVersion={c.book_version || 1} />
+                      {session?.user?.id && c.author_id === session.user.id && editingCommentId !== c.id && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => { setEditingCommentId(c.id); setEditingCommentText(c.content || '') }}
+                            className="text-[var(--color-text-secondary)] hover:text-[var(--color-bone)] cursor-pointer"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (window.confirm('Delete this critique forever?')) {
+                                deleteCommentMutation.mutate(c.id)
+                              }
+                            }}
+                            disabled={deleteCommentMutation.isPending}
+                            className="text-[var(--color-text-secondary)] hover:text-[var(--color-ember)] cursor-pointer"
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
                       <button 
                         onClick={() => setReportTarget({ type: 'critique', id: c.id })} 
                         className="text-[var(--color-text-secondary)] hover:text-[var(--color-accent-crimson)] cursor-pointer"
@@ -427,9 +564,38 @@ function ReadStory({ id, initialBook }) {
                       <InlineModControls targetType="critique" targetId={c.id} currentStatus={c.mod_status} authorId={c.author_id} />
                     </div>
                   </div>
-                  <div className="prose prose-invert font-serif text-sm leading-relaxed text-[var(--color-text-primary)]">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{c.content}</ReactMarkdown>
-                  </div>
+                  {editingCommentId === c.id ? (
+                    <div className="flex flex-col gap-3">
+                      <textarea
+                        value={editingCommentText}
+                        onChange={(e) => setEditingCommentText(e.target.value)}
+                        rows={4}
+                        aria-label="Edit critique"
+                        className="w-full bg-[var(--color-void)] text-[var(--color-bone)] border border-[var(--color-line)] p-3 text-sm font-serif focus:border-[var(--color-blood)] outline-none"
+                      />
+                      <div className="flex items-center gap-2 font-mono text-xs">
+                        <button
+                          type="button"
+                          disabled={!editingCommentText.trim() || updateCommentMutation.isPending}
+                          onClick={() => updateCommentMutation.mutate({ commentId: c.id, content: editingCommentText })}
+                          className="bg-[var(--color-blood)] text-white uppercase px-3 py-1.5 hover:bg-red-700 cursor-pointer disabled:opacity-50"
+                        >
+                          {updateCommentMutation.isPending ? 'Saving…' : 'Save Critique'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setEditingCommentId(null); setEditingCommentText('') }}
+                          className="border border-[var(--color-line)] hover:border-white uppercase px-3 py-1.5 text-[var(--color-ash)] cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="prose prose-invert font-serif text-sm leading-relaxed text-[var(--color-text-primary)]">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{c.content}</ReactMarkdown>
+                    </div>
+                  )}
                 </article>
               )
             })}

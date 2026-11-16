@@ -16,6 +16,12 @@ const SEVERITIES = [
   { id: 'critical', label: 'Critical' },
 ]
 
+const PREVIEW_SEVERITY_CLASS = {
+  info: 'border-[var(--color-line-hi)] text-[var(--color-bone)]',
+  warning: 'border-[var(--color-ember)] text-[var(--color-ember)]',
+  critical: 'border-[var(--color-blood)] text-[var(--color-blood)]',
+}
+
 function Toggle({ id, label, description, checked, onChange, danger }) {
   return (
     <div className="flex items-start justify-between gap-4 py-3 border-b border-[var(--color-line)] last:border-0">
@@ -166,6 +172,24 @@ export default function SiteTab() {
               Save banner text
             </button>
           </div>
+          {!s.announcement_active && (s.announcement_text || announcement.trim()) && (
+            <p role="note" className="font-mono text-xs text-[var(--color-ember)] mt-1">
+              ▸ Banner text is saved, but &ldquo;Show announcement&rdquo; is off — visitors won&rsquo;t see this until you turn the toggle on.
+            </p>
+          )}
+          {announcement.trim() && (
+            <div className="mt-2">
+              <span className="block font-mono text-[10px] uppercase tracking-widest text-[var(--color-ash)] mb-1">
+                Live banner preview
+              </span>
+              <div
+                data-testid="announcement-live-preview"
+                className={`border bg-[var(--color-surface)] px-6 py-2 text-center font-mono text-xs tracking-wider ${PREVIEW_SEVERITY_CLASS[s.announcement_severity] || PREVIEW_SEVERITY_CLASS.info}`}
+              >
+                {announcement}
+              </div>
+            </div>
+          )}
         </div>
       </section>
 

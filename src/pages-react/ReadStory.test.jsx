@@ -61,3 +61,18 @@ test('a story the database says does not exist is Not found', async () => {
   expect(await screen.findByText('Story not found in the archives.')).toBeInTheDocument()
   expect(screen.queryByRole('heading', { level: 1, name: 'The Cellar Door' })).toBeNull()
 })
+
+test('read time on the story page matches the Library card (~230 wpm)', () => {
+  const fiveMinBook = { ...book, content: 'word '.repeat(1150) }
+  bookResult = () => Promise.resolve({ data: fiveMinBook, error: null })
+  render(<ReadStory id={id} initialBook={fiveMinBook} />)
+  expect(screen.getByText('~5 min read')).toBeInTheDocument()
+})
+
+test('displays the author critique focus callout when critique_focus is set on the story', () => {
+  const focusBook = { ...book, critique_focus: 'pacing' }
+  bookResult = () => Promise.resolve({ data: focusBook, error: null })
+  render(<ReadStory id={id} initialBook={focusBook} />)
+  const banner = screen.getByTestId('author-critique-focus')
+  expect(banner).toHaveTextContent('Pacing & Plot Twist')
+})

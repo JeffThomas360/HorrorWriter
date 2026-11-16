@@ -110,7 +110,9 @@ export default function KindleReader({
     return () => el.removeEventListener('scroll', handleScroll)
   }, [title])
 
-  const totalMins = Math.max(1, Math.ceil(wordCount / 200))
+  // Unify with readMinutes() in src/lib/tapeWear.js (~230 words/min) so Focus Mode
+  // agrees with the Library card, the story header, and the Publish manuscript bar.
+  const totalMins = Math.max(1, Math.round(wordCount / 230))
   const remainingMins = Math.max(0, Math.ceil(totalMins * (1 - scrollPercent / 100)))
 
   return (

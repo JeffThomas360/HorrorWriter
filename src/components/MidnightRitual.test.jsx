@@ -79,7 +79,10 @@ test('shows the current prompt from the database and the next unlock on CH 13.0'
 test('shows a red entry count on a channel that has entries', async () => {
   current = PROMPT
   render(<MidnightRitual />)
-  expect(await screen.findByRole('button', { name: 'CH 13.0, 3 entries' })).toBeInTheDocument()
+  const chBtn = await screen.findByRole('button', { name: 'CH 13.0, 3 entries' })
+  expect(chBtn).toBeInTheDocument()
+  // Ensure space between frequency and badge so textContent does not concatenate "CH 13.03"
+  expect(chBtn.textContent).toBe('CH 13.0 3')
   expect(screen.getByRole('button', { name: 'CH 13.1' })).toBeInTheDocument()
 })
 
@@ -208,4 +211,5 @@ test('Publish for Critique waits for 100 words, and says how many are left', asy
   expect(screen.getByText(/97 more words to publish/i)).toBeInTheDocument()
   fireEvent.change(box, { target: { value: LONG } })
   expect(screen.getByRole('button', { name: /publish for critique/i })).toBeEnabled()
+  expect(screen.getByRole('button', { name: /dictate/i })).toBeInTheDocument()
 })

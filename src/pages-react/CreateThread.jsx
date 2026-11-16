@@ -9,9 +9,11 @@ import TranscribeButton from '../components/TranscribeButton'
 import { withProviders } from '../components/Providers'
 import RequireAuth from '../components/RequireAuth'
 import { threadPath } from '../lib/urls'
+import { getCategoryMeta, categoryOptionLabel } from '../lib/forumCategories'
+import { isMod } from '../lib/moderation'
 
 function CreateThread() {
-  const { session, isLoading: authLoading } = useAuth()
+  const { session, profile, isLoading: authLoading } = useAuth()
   const queryClient = useQueryClient()
 
   const [title, setTitle] = useState('')
@@ -22,7 +24,13 @@ function CreateThread() {
     }
     return ''
   })
-  const [content, setContent] = useState('')
+  const [content, setContent] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const seed = new URLSearchParams(window.location.search).get('seed')
+      if (seed && seed.trim()) return `> "${seed.trim()}"\n\n`
+    }
+    return ''
+  })
   const [error, setError] = useState(null)
 
   useEffect(() => {
@@ -42,12 +50,18 @@ function CreateThread() {
   })
 
   // Ritual entries are published from the Midnight Ritual box, never from here.
+  // Staff-only categories (e.g. Notice Board / coven) are shown only to moderators.
   const categories = useMemo(
     () => rawCategories
-      .filter(c => c.id !== 'rituals')
+      .filter(c => c.id !== 'rituals' && (!getCategoryMeta(c).staffOnly || isMod(profile)))
       .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)),
-    [rawCategories],
+    [rawCategories, profile],
   )
+
+  const selectedCategoryMeta = useMemo(() => {
+    const found = categories.find(c => c.id === categoryId)
+    return getCategoryMeta(found || categoryId)
+  }, [categories, categoryId])
 
   useEffect(() => {
     if (categories.length === 0) return
@@ -113,9 +127,19 @@ function CreateThread() {
             className="bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
           >
             {categories.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+              <option key={c.id} value={c.id}>{categoryOptionLabel(c)}</option>
             ))}
           </select>
+          {selectedCategoryMeta?.mission && (
+            <div className="mt-1 p-3 border border-[var(--color-line)] bg-[var(--color-surface)] text-xs font-serif text-[var(--color-text-secondary)] leading-relaxed" data-testid="create-thread-category-guide">
+              <p className="text-[var(--color-text-primary)]">{selectedCategoryMeta.mission}</p>
+              {selectedCategoryMeta.starterPrompt && (
+                <p className="font-mono text-[11px] text-[var(--color-text-secondary)] mt-1.5">
+                  ▸ {selectedCategoryMeta.starterPrompt}
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col gap-2">
@@ -135,7 +159,7 @@ function CreateThread() {
           <MarkdownEditor
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="What is on your mind?"
+            placeholder={selectedCategoryMeta?.starterPrompt || 'What is on your mind?'}
             rows={10}
             disabled={isSubmitting}
           />

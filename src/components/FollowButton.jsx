@@ -4,33 +4,38 @@ import { useAuth } from './AuthContext'
 
 export default function FollowButton({ targetProfileId }) {
   const { session } = useAuth()
+  const userId = session?.user?.id
   const [isFollowing, setIsFollowing] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!session || !targetProfileId) {
+    if (!userId || !targetProfileId) {
       setLoading(false)
       return
     }
 
     let cancelled = false
     const checkFollow = async () => {
-      const { data, error } = await supabase
-        .from('user_follows')
-        .select('*')
-        .eq('follower_id', session.user.id)
-        .eq('following_id', targetProfileId)
-        .single()
-      
-      if (!cancelled) {
-        setIsFollowing(!!data)
-        setLoading(false)
+      try {
+        const q = supabase
+          .from('user_follows')
+          .select('follower_id')
+          .eq('follower_id', userId)
+          .eq('following_id', targetProfileId)
+        // Use maybeSingle() when available so 0 rows does not trigger an HTTP 406 (PGRST116).
+        const { data } = typeof q.maybeSingle === 'function' ? await q.maybeSingle() : await q.single()
+        if (!cancelled) {
+          setIsFollowing(Boolean(data))
+          setLoading(false)
+        }
+      } catch {
+        if (!cancelled) setLoading(false)
       }
     }
-    
+
     checkFollow()
     return () => { cancelled = true }
-  }, [session, targetProfileId])
+  }, [userId, targetProfileId])
 
   const toggleFollow = async () => {
     if (!session) return
@@ -58,11 +63,15 @@ export default function FollowButton({ targetProfileId }) {
   if (!session || session.user.id === targetProfileId) return null
 
   return (
-    <button 
-      onClick={toggleFollow} 
+    <button
+      type="button"
+      onClick={toggleFollow}
       disabled={loading}
-      className={`btn ${isFollowing ? 'ghost' : 'blood'}`}
-      style={{ marginTop: '12px', fontSize: '13px', padding: '6px 12px' }}
+      className={`font-mono text-xs uppercase px-3 py-1 border transition-colors cursor-pointer disabled:opacity-50 ${
+        isFollowing
+          ? 'border-[var(--color-line-hi)] text-[var(--color-ash)] hover:border-[var(--color-bone)] hover:text-[var(--color-bone)]'
+          : 'border-[var(--color-blood)] bg-[var(--color-blood)] text-[var(--color-bone)] hover:bg-[var(--color-ember)] hover:border-[var(--color-ember)]'
+      }`}
     >
       {loading ? '...' : isFollowing ? 'Unfollow' : 'Follow'}
     </button>
