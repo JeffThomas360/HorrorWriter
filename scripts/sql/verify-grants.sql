@@ -96,6 +96,16 @@ with allow(name, role, why) as (values
   -- Site event log (20261116000000). Same guards as log_client_error, wider fields.
   ('log_site_event',           'anon',          'error capture, write-only, rate-capped'),
   ('log_site_event',           'authenticated', 'error capture, write-only, rate-capped'),
+  -- Member dossier, arrivals and steps (20261117000000).
+  ('record_arrival',           'authenticated', 'own row, once, account under 24 h, values cleaned'),
+  ('record_found_via',         'authenticated', 'own row, once, account under 7 days'),
+  ('arrival_prompt_due',       'authenticated', 'own state only, boolean'),
+  ('log_member_step',          'authenticated', 'own row, fixed step list, one per day'),
+  ('tally_step',               'anon',          'join steps only, count without identity, daily cap'),
+  ('tally_step',               'authenticated', 'join steps only, count without identity, daily cap'),
+  ('mod_user_dossier',         'authenticated', 'keeper RPC, mod_can(configure, all)'),
+  ('admin_member_funnel',      'authenticated', 'keeper RPC, mod_can(configure, all)'),
+  ('admin_step_funnel',        'authenticated', 'keeper RPC, mod_can(configure, all)'),
   -- Sanction columns private (20261020020000). Mod reads gated by mod_can inside.
   ('mod_get_profile',          'authenticated', 'mod RPC, mod_can(handle_report, all)'),
   ('mod_list_users',           'authenticated', 'warden/keeper RPC, mod_can(ban, all)'),
