@@ -50,6 +50,7 @@ returns uuid language sql immutable as $f$
             when 'new'    then '01' when 'week'   then '02' when 'old'  then '03'
             when 'keeper' then '04' when 'warden' then '05' when 'other' then '06'
             when 'new2'   then '07' when 'new3'   then '08' when 'new4' then '09'
+            when 'eve'    then '10'
           end)::uuid;
 $f$;
 
@@ -96,7 +97,11 @@ insert into auth.users (id, email, aud, role, instance_id, created_at) values
   (pg_temp.u('old'),    'dossier-old@example.test',    'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000', now() - interval '30 days'),
   (pg_temp.u('keeper'), 'dossier-keeper@example.test', 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000', now() - interval '30 days'),
   (pg_temp.u('warden'), 'dossier-warden@example.test', 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000', now() - interval '30 days'),
-  (pg_temp.u('other'),  'dossier-other@example.test',  'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000', now() - interval '30 days');
+  (pg_temp.u('other'),  'dossier-other@example.test',  'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000', now() - interval '30 days'),
+  -- `eve` joins ten minutes before midnight UTC and is still there twenty minutes later:
+  -- two calendar days, one sitting. She must not count as having come back.
+  (pg_temp.u('eve'),    'dossier-eve@example.test',    'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000',
+   (date_trunc('day', now() at time zone 'utc') at time zone 'utc') - interval '10 minutes');
 
 update public.profiles set mod_role = 'keeper', mod_scope = 'all' where id = pg_temp.u('keeper');
 update public.profiles set mod_role = 'warden', mod_scope = 'all' where id = pg_temp.u('warden');
@@ -222,6 +227,14 @@ select pg_temp.must(
    from public.member_arrivals where user_id = pg_temp.u('new4')),
   '14: an answer given first does not block the arrival');
 
+-- ── 14b. A long answer is cut to 200 characters ──
+select pg_temp.be(pg_temp.u('new3'));
+select public.record_found_via(repeat('x', 500));
+select pg_temp.be(null);
+select pg_temp.must(
+  (select length(found_via) = 200 and source_tag = repeat('a', 64) from public.member_arrivals where user_id = pg_temp.u('new3')),
+  '14b: the answer is cut to 200 characters and the arrival beside it is untouched');
+
 -- ── 15. A step is one row per member, flow, step and day ──
 select pg_temp.be(pg_temp.u('old'));
 select public.log_member_step('publish', 'opened');
@@ -346,6 +359,11 @@ insert into auth.sessions (id, user_id, created_at, updated_at, refreshed_at, us
   (gen_random_uuid(), pg_temp.u('old'), now() - interval '20 days', now() - interval '20 days',
    (now() at time zone 'utc') - interval '3 days',
    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36');
+-- eve's one sitting, crossing midnight UTC.
+insert into auth.sessions (id, user_id, created_at, updated_at, user_agent) values
+  (gen_random_uuid(), pg_temp.u('eve'),
+   (date_trunc('day', now() at time zone 'utc') at time zone 'utc') + interval '10 minutes',
+   (date_trunc('day', now() at time zone 'utc') at time zone 'utc') + interval '10 minutes', 'hwtest-dossier-agent');
 insert into auth.identities (provider_id, user_id, identity_data, provider) values
   ('hwtest-dossier-old', pg_temp.u('old'), '{}'::jsonb, 'google');
 
@@ -362,6 +380,7 @@ select pg_temp.be(pg_temp.u('keeper'));
 insert into t_kept select 'old',  public.mod_user_dossier(pg_temp.u('old'));
 insert into t_kept select 'week', public.mod_user_dossier(pg_temp.u('week'));
 insert into t_kept select 'nobody', coalesce(public.mod_user_dossier('00000000-0000-4000-8000-00000000dead'), 'null'::jsonb);
+insert into t_kept select 'eve', public.mod_user_dossier(pg_temp.u('eve'));
 insert into t_kept select 'funnel_after', public.admin_member_funnel();
 insert into t_kept select 'steps',   public.admin_step_funnel(30);
 insert into t_kept select 'steps_0', public.admin_step_funnel(0);
@@ -455,7 +474,9 @@ begin
   perform pg_temp.must((after->>'got_response')::int = (before->>'got_response')::int + 2,
     '34c: two more got a response; ' || before::text || ' -> ' || after::text);
   perform pg_temp.must((after->>'came_back')::int = (before->>'came_back')::int + 2,
-    '34d: two more came back; ' || before::text || ' -> ' || after::text);
+    '34d: two more came back (eve, seen on two calendar days in one sitting, is not one of them); ' || before::text || ' -> ' || after::text);
+  perform pg_temp.must(jsonb_array_length((select v from t_kept where k = 'eve')->'seen_days') = 2,
+    '34e: eve is seen on two calendar days, which is why a later day alone must not mean came back');
 
   -- ── 36. The step roll-up ──
   perform pg_temp.must(jsonb_typeof(steps) = 'array', '36a: the step roll-up is an array');
@@ -497,6 +518,12 @@ select pg_temp.must(not has_function_privilege('authenticated', 'public.known_st
 select pg_temp.must(not has_function_privilege('authenticated', 'public.step_is_known(text, text)', 'execute'), 'step_is_known must be private');
 select pg_temp.must(has_function_privilege('anon', 'public.tally_step(text, text)', 'execute'),                'anon must reach tally_step');
 select pg_temp.must(not has_function_privilege('anon', 'public.mod_user_dossier(uuid)', 'execute'),            'anon must not reach the dossier');
+select pg_temp.must(not has_table_privilege('anon', 'public.member_arrivals', 'select')
+                and not has_table_privilege('authenticated', 'public.member_arrivals', 'select, insert, update, delete'), 'member_arrivals must be closed to members and visitors');
+select pg_temp.must(not has_table_privilege('anon', 'public.member_steps', 'select')
+                and not has_table_privilege('authenticated', 'public.member_steps', 'select, insert, update, delete'),    'member_steps must be closed to members and visitors');
+select pg_temp.must(not has_table_privilege('anon', 'public.step_tallies', 'select, insert, update, delete')
+                and not has_table_privilege('authenticated', 'public.step_tallies', 'select, insert, update, delete'),    'step_tallies must be closed to members and visitors');
 
 select 'ALL PASS' as result;
 rollback;

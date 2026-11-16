@@ -17,6 +17,11 @@
 -- that already exist. It never reads auth.sessions.ip, an email address, or anything a
 -- member has read.
 
+-- The two foreign keys to auth.users briefly take a lock that sign-in writes wait on.
+-- If this cannot get it within five seconds, fail and be retried rather than queue
+-- every sign-in behind it (same guard as 20261028000000_keeper_alerts.sql).
+set local lock_timeout = '5s';
+
 -- ── 1. Tables ────────────────────────────────────────────────────────────────
 create table public.member_arrivals (
   user_id       uuid primary key references auth.users(id) on delete cascade,
@@ -227,7 +232,7 @@ language sql stable set search_path = '' as $$
     from public.book_comments c
     join public.books b on b.id = c.book_id
    where c.mod_status = 'live'
-     and b.author_id is not null and b.archive_author is null
+     and b.author_id is not null and b.archive_author is null and not b.removed_by_author
      and c.author_id is distinct from b.author_id
   union all
   select e.author_id, 'ritual', e.id, r.author_id, r.created_at
@@ -243,33 +248,35 @@ language sql stable set search_path = '' as $$
     from public.posts p
     join public.threads t on t.id = p.thread_id
    where p.mod_status = 'live'
-     and t.prompt_id is null and t.author_id is not null
+     and t.prompt_id is null and t.author_id is not null and not t.removed_by_author
      and p.author_id is distinct from t.author_id;
 $$;
 revoke all on function public.member_responses_index() from public, anon, authenticated;
 
--- The UTC days a member was seen: the day they joined, their last sign-in, each session's
--- start and refreshes, and anything they posted. Approximate: signing out removes a
--- session, so a quiet visit can go uncounted. auth.sessions.ip is never read.
+-- The UTC days a member was seen, with the latest moment on each: the day they joined,
+-- their last sign-in, each session's start and refreshes, and anything they posted.
+-- Approximate: signing out removes a session, so a quiet visit can go uncounted.
+-- auth.sessions.ip is never read.
 create function public.member_seen_index()
-returns table (user_id uuid, day date)
+returns table (user_id uuid, day date, last_at timestamptz)
 language sql stable set search_path = '' as $$
-  select distinct x.user_id, x.day
+  select x.user_id, (x.seen_at at time zone 'utc')::date, max(x.seen_at)
     from (
-      select u.id as user_id, (u.created_at at time zone 'utc')::date as day from auth.users u
+      select u.id as user_id, u.created_at as seen_at from auth.users u
       union all
-      select u.id, (u.last_sign_in_at at time zone 'utc')::date from auth.users u
+      select u.id, u.last_sign_in_at from auth.users u
       union all
-      select s.user_id, (s.created_at at time zone 'utc')::date from auth.sessions s
+      select s.user_id, s.created_at from auth.sessions s
       union all
-      select s.user_id, (s.updated_at at time zone 'utc')::date from auth.sessions s
+      select s.user_id, s.updated_at from auth.sessions s
       union all
       -- refreshed_at is a timestamp without a zone, already in UTC.
-      select s.user_id, s.refreshed_at::date from auth.sessions s
+      select s.user_id, s.refreshed_at at time zone 'utc' from auth.sessions s
       union all
-      select i.author_id, (i.created_at at time zone 'utc')::date from public.member_submissions_index() i
+      select i.author_id, i.created_at from public.member_submissions_index() i
     ) x
-   where x.user_id is not null and x.day is not null;
+   where x.user_id is not null and x.seen_at is not null
+   group by 1, 2;
 $$;
 revoke all on function public.member_seen_index() from public, anon, authenticated;
 
@@ -417,8 +424,10 @@ revoke all on function public.mod_user_dossier(uuid) from public, anon;
 grant execute on function public.mod_user_dossier(uuid) to authenticated;
 
 -- ── 7. The roll-up above the member list. Keeper only ────────────────────────
--- Same definitions as the Dossier. "Came back" = seen on a later UTC day than the day
--- they joined. Keepers are left out: the question is about members, not the person asking.
+-- Same definitions as the Dossier. "Came back" = seen at least twelve hours after they
+-- joined. A later calendar day is not enough: midnight UTC is early evening in the
+-- Americas, and one sitting that crosses it is not a return. Keepers are left out: the
+-- question is about members, not the person asking.
 create function public.admin_member_funnel()
 returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
@@ -436,7 +445,7 @@ begin
       select distinct x.user_id as id
         from public.member_seen_index() x
         join auth.users u on u.id = x.user_id
-       where x.day > (u.created_at at time zone 'utc')::date
+       where x.last_at >= u.created_at + interval '12 hours'
     )
     select jsonb_build_object(
              'members',      count(*),
@@ -457,9 +466,9 @@ create function public.admin_step_funnel(p_days integer default 30)
 returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
 declare
-  v_days  integer := least(greatest(coalesce(p_days, 30), 1), 90);
-  v_since timestamptz := now() - make_interval(days => v_days);
-  v_day   date := (now() at time zone 'utc')::date - v_days;
+  v_days integer := least(greatest(coalesce(p_days, 30), 1), 90);
+  -- Steps are stored by UTC day, so "finished" is counted by UTC day too: one window.
+  v_day  date := (now() at time zone 'utc')::date - v_days;
 begin
   if not public.mod_can('configure', 'all') then
     raise exception 'Only a keeper can read the step roll-up' using errcode = '42501';
@@ -480,26 +489,26 @@ begin
           from public.known_steps() k
         union all
         select 'join', 'finished', 4,
-               (select count(*) from public.profiles p where p.created_at > v_since)
+               (select count(*) from public.profiles p where (p.created_at at time zone 'utc')::date > v_day)
         union all
         select 'publish', 'finished', 14,
                (select count(distinct s.author_id) from public.member_submissions_index() s
-                 where s.kind = 'story' and s.created_at > v_since)
+                 where s.kind = 'story' and (s.created_at at time zone 'utc')::date > v_day)
         union all
         select 'ritual', 'finished', 24,
                (select count(distinct s.author_id) from public.member_submissions_index() s
-                 where s.kind = 'ritual' and s.created_at > v_since)
+                 where s.kind = 'ritual' and (s.created_at at time zone 'utc')::date > v_day)
         union all
         select 'critique', 'finished', 34,
                (select count(distinct s.author_id) from public.member_submissions_index() s
-                 where s.kind = 'critique' and s.created_at > v_since)
+                 where s.kind = 'critique' and (s.created_at at time zone 'utc')::date > v_day)
         union all
         select 'post', 'finished', 44,
                (select count(distinct s.author_id) from public.member_submissions_index() s
-                 where s.kind in ('thread', 'reply') and s.created_at > v_since)
+                 where s.kind in ('thread', 'reply') and (s.created_at at time zone 'utc')::date > v_day)
         union all
         select 'ticket', 'finished', 54,
-               (select count(distinct k.user_id) from public.tickets k where k.created_at > v_since)
+               (select count(distinct k.user_id) from public.tickets k where (k.created_at at time zone 'utc')::date > v_day)
       ) q
   );
 end $$;
