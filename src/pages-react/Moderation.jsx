@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from '../components/AuthContext'
 import { isMod, modCan } from '../lib/moderation'
 import OverviewTab from '../components/mod/OverviewTab'
@@ -12,10 +12,52 @@ import AppealsTab from '../components/mod/AppealsTab'
 import { withProviders } from '../components/Providers'
 import RequireAuth from '../components/RequireAuth'
 
+const TAB_PARAM = 'tab'
+
+function useUrlTab(validIds, fallback) {
+  const read = () => {
+    if (typeof window === 'undefined') return fallback
+    const t = new URLSearchParams(window.location.search).get(TAB_PARAM)
+    return validIds.includes(t) ? t : fallback
+  }
+
+  const [tab, setTabState] = useState(read)
+
+  useEffect(() => {
+    const onPop = () => setTabState(read())
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const setTab = useCallback((next) => {
+    setTabState(next)
+    if (typeof window !== 'undefined' && window.history?.pushState) {
+      const url = new URL(window.location.href)
+      url.searchParams.set(TAB_PARAM, next)
+      window.history.pushState({}, '', url)
+    }
+  }, [])
+
+  return [tab, setTab]
+}
+
 function Moderation() {
   const { profile, isLoading } = useAuth()
-  const [tab, setTab] = useState('overview')
   const tabRefs = useRef({})
+
+  const tabs = [
+    { id: 'overview', label: 'Overview' },
+    modCan(profile, 'handle_report', 'all') && { id: 'reports', label: 'Reports' },
+    modCan(profile, 'handle_report', 'all') && { id: 'appeals', label: 'Appeals' },
+    modCan(profile, 'handle_report', 'all') && { id: 'storms', label: 'Storms' },
+    modCan(profile, 'configure', 'all') && { id: 'filters', label: 'AutoMod' },
+    modCan(profile, 'assign_role', 'all') && { id: 'sanctions', label: 'Sanctions' },
+    modCan(profile, 'assign_role', 'all') && { id: 'registry', label: 'Registry' },
+    modCan(profile, 'configure', 'all') && { id: 'badges', label: 'Badges' },
+  ].filter(Boolean)
+
+  const [tab, setTab] = useUrlTab(tabs.map((t) => t.id), 'overview')
 
   if (isLoading) {
     return (
@@ -35,17 +77,6 @@ function Moderation() {
       </div>
     )
   }
-
-  const tabs = [
-    { id: 'overview', label: 'Overview' },
-    modCan(profile, 'handle_report', 'all') && { id: 'reports', label: 'Reports' },
-    modCan(profile, 'handle_report', 'all') && { id: 'appeals', label: 'Appeals' },
-    modCan(profile, 'handle_report', 'all') && { id: 'storms', label: 'Storms' },
-    modCan(profile, 'configure', 'all') && { id: 'filters', label: 'AutoMod' },
-    modCan(profile, 'assign_role', 'all') && { id: 'sanctions', label: 'Sanctions' },
-    modCan(profile, 'assign_role', 'all') && { id: 'registry', label: 'Registry' },
-    modCan(profile, 'configure', 'all') && { id: 'badges', label: 'Badges' },
-  ].filter(Boolean)
 
   const activeId = tabs.some((t) => t.id === tab) ? tab : tabs[0]?.id
 

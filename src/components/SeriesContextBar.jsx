@@ -10,13 +10,13 @@ export default function SeriesContextBar({ seriesContext, onToggleSidebar, isMob
     <div
       style={{
         position: 'fixed',
-        top: 0,
+        top: '4rem',
         left: 0,
         right: 0,
-        zIndex: 999,
+        zIndex: 40,
         background: 'var(--color-surface)',
         borderBottom: '1px solid var(--color-line)',
-        padding: '1rem',
+        padding: '0.75rem 1rem',
         display: 'flex',
         alignItems: 'center',
         gap: '1rem',

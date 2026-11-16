@@ -232,7 +232,7 @@ export async function fetchRecentModActions(limit = 12) {
   if (!supabase) throw new Error('Supabase not configured')
   const { data, error } = await supabase
     .from('mod_actions')
-    .select('id, action, target_type, target_id, target_user_id, reason, created_at, profiles!actor_id(handle)')
+    .select('id, action, target_type, target_id, target_user_id, reason, created_at, profiles!actor_id(handle), target_user:profiles!target_user_id(handle)')
     .order('created_at', { ascending: false })
     .limit(limit)
   if (error) throw new Error(error.message)

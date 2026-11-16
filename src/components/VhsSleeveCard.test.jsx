@@ -74,9 +74,12 @@ describe('VhsSleeveCard', () => {
   })
 
   // Honesty rule: no invented numbers. Without text there is no read time.
-  test('shows no read time when the story text is missing', () => {
+  // When a member story has 0 critiques, the telemetry box invites a first reader.
+  test('shows no read time when the story text is missing, and invites a first reader at 0 critiques', () => {
     render(<VhsSleeveCard story={{ id: 's3', title: 'Untold', created_at: daysAgo(1), comments_count: 0 }} />)
     expect(screen.queryByText('MIN READ')).toBeNull()
+    expect(screen.getByText('1ST')).toBeInTheDocument()
+    expect(screen.getByText('READER NEEDED')).toBeInTheDocument()
   })
 
   test('a classic links by slug, credits its author and wears the most', () => {

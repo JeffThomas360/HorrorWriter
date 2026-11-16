@@ -1,4 +1,4 @@
-import { render, cleanup, act } from '@testing-library/react'
+import { render, cleanup, act, fireEvent } from '@testing-library/react'
 import { test, expect, vi, afterEach } from 'vitest'
 
 // AuthContext replaces the session and profile objects on every auth event,
@@ -27,10 +27,27 @@ const fakeChannel = () => {
 }
 const channel = vi.fn(fakeChannel)
 const removeChannel = vi.fn()
-const query = { select: () => query, order: () => query, then: (r) => r({ data: [], error: null }) }
+let categoryRows = []
+const query = { select: () => query, order: () => query, then: (r) => r({ data: categoryRows, error: null }) }
 // Threads the list should show; empty unless a test fills it.
 let threadRows = []
-const threadQuery = { select: () => threadQuery, order: () => threadQuery, then: (r) => r({ data: threadRows, error: null }) }
+let entryCountRows = []
+const threadQuery = {
+  select: (cols) => {
+    if (typeof cols === 'string' && cols.includes('posts(count)')) {
+      const countChain = {
+        in: () => countChain,
+        is: () => countChain,
+        not: () => countChain,
+        then: (r) => r({ data: entryCountRows, error: null }),
+      }
+      return countChain
+    }
+    return threadQuery
+  },
+  order: () => threadQuery,
+  then: (r) => r({ data: threadRows, error: null }),
+}
 vi.mock('../supabaseClient', () => ({
   supabase: {
     channel: (...a) => channel(...a),
@@ -76,4 +93,64 @@ test('a thread with one reply says "reply", not "replies"', async () => {
   expect((await findByText('Hello there')).closest('a').textContent).toMatch(/1\s*reply$/i)
   expect(getByText('Second').closest('a').textContent).toMatch(/3\s*replies$/i)
   threadRows = []
+})
+
+test('hides the server-rendered #forum-ssr-directory once hydrated', () => {
+  const nav = document.createElement('nav')
+  nav.id = 'forum-ssr-directory'
+  document.body.appendChild(nav)
+
+  const { unmount } = render(<Forum />)
+  expect(nav.classList.contains('hidden')).toBe(true)
+
+  unmount()
+  expect(nav.classList.contains('hidden')).toBe(false)
+  nav.remove()
+})
+
+test('renders purposeful category labels, room banner, and real Ritual entry counts', async () => {
+  categoryRows = [
+    { id: 'rituals', name: 'Midnight Rituals Critique Room', sort_order: 0 },
+    { id: 'crypt', name: 'The Crypt · Critique', sort_order: 1 },
+    { id: 'coven', name: 'Notice Board · Announcements', sort_order: 5 },
+  ]
+  threadRows = [
+    {
+      id: 't-ritual',
+      title: 'Horror Writing Prompt: The wooden effigy',
+      category_id: 'rituals',
+      prompt_id: 'p-1',
+      replies_count: 12,
+      profiles: null,
+      updated_at: new Date().toISOString(),
+    },
+  ]
+  entryCountRows = [
+    { prompt_id: 'p-1', posts: [{ count: 7 }] },
+  ]
+
+  const { findByText, getByTestId, queryByText } = render(<Forum />)
+
+  // Sidebar shows 'First Lines & Snags' instead of 'The Crypt'
+  const workshopItem = await findByText('First Lines & Snags')
+  expect(workshopItem).toBeTruthy()
+
+  // Sidebar Rituals count reflects the 7 story entries, not 1 thread
+  const ritualsItem = await findByText('Midnight Rituals')
+  expect(ritualsItem.closest('li').textContent).toContain('7')
+
+  // Selecting 'First Lines & Snags' reveals its purpose banner and New Thread ?cat=crypt link
+  fireEvent.click(workshopItem.closest('li'))
+  expect(getByTestId('category-purpose-banner').textContent).toMatch(/opening 250 words/i)
+  expect(await findByText('New Thread')).toHaveAttribute('href', '/forum/new/?cat=crypt')
+
+  // Selecting 'Notice Board' (coven) as a regular member hides New Thread
+  const noticeItem = await findByText('Notice Board')
+  fireEvent.click(noticeItem.closest('li'))
+  expect(queryByText('New Thread')).toBeNull()
+  expect(await findByText(/Official dispatches from the Keeper appear here/i)).toBeTruthy()
+
+  categoryRows = []
+  threadRows = []
+  entryCountRows = []
 })

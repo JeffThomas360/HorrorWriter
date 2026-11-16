@@ -220,7 +220,11 @@ function MyStories() {
               <div key={s.id} className="vintage-card flex flex-col gap-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h4 className="font-serif font-bold text-lg text-[var(--color-text-primary)]">{s.title}</h4>
+                    <h4 className="font-serif font-bold text-lg text-[var(--color-text-primary)]">
+                      <a href={`/library/series/${s.id}/`} className="hover:text-[var(--color-ember)] hover:underline transition-colors">
+                        {s.title}
+                      </a>
+                    </h4>
                     {s.description && <p className="font-serif italic text-xs text-[var(--color-text-secondary)] mt-1">{s.description}</p>}
                   </div>
                   <button
@@ -239,7 +243,17 @@ function MyStories() {
                   <ul className="flex flex-col gap-2 border-t border-[var(--color-line)] pt-4">
                     {s.books.map(b => (
                       <li key={b.id} className="flex items-center justify-between gap-3 text-sm">
-                        <span className="text-[var(--color-text-primary)] font-serif">{b.title}</span>
+                        <span className="flex items-center gap-2 min-w-0">
+                          <span className="font-mono text-[10px] uppercase text-[var(--color-upside)] border border-[var(--color-upside)]/40 px-1.5 py-0.5 shrink-0">
+                            Vol {(Number(b.sort_order) || 0) + 1}
+                          </span>
+                          <a
+                            href={`/library/read/${b.id}/`}
+                            className="text-[var(--color-text-primary)] hover:text-[var(--color-ember)] hover:underline font-serif truncate"
+                          >
+                            {b.title}
+                          </a>
+                        </span>
                         <div className="flex items-center gap-3 shrink-0">
                           <label className="flex items-center gap-2 font-mono text-xs text-[var(--color-text-secondary)] uppercase">
                             Position
@@ -290,7 +304,14 @@ function MyStories() {
               <li key={b.id} className="vintage-card flex flex-col gap-4">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                  <p className="font-serif font-bold text-[var(--color-text-primary)]">{b.title}</p>
+                  <p className="font-serif font-bold text-[var(--color-text-primary)]">
+                    <a
+                      href={`/library/read/${b.id}/`}
+                      className="hover:text-[var(--color-ember)] hover:underline transition-colors"
+                    >
+                      {b.title}
+                    </a>
+                  </p>
                   <p className="font-mono text-xs text-[var(--color-text-secondary)] mt-1">
                     {postedAgo(b.created_at)} · {b.comments_count || 0} {b.comments_count === 1 ? 'critique' : 'critiques'}
                   </p>

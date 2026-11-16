@@ -5,8 +5,10 @@ import { useQuery } from '@tanstack/react-query'
 import { withProviders } from '../components/Providers'
 import LoadError from '../components/LoadError'
 import { authorLabel, isTombstone, TOMBSTONE_TEXT } from '../lib/storyHelpers'
-import { fetchActivePrompts } from '../lib/ritualDraft'
+import { fetchActivePrompts, fetchEntryCounts } from '../lib/ritualDraft'
 import { splitPresence } from '../lib/presence'
+import { getCategoryMeta, categorySidebarLabel } from '../lib/forumCategories'
+import { isMod } from '../lib/moderation'
 
 const AV_COLORS = ['', 'av-1', 'av-2', 'av-3', 'av-4', 'av-5', 'av-6']
 
@@ -91,6 +93,30 @@ function Forum() {
     queryFn: fetchThreads,
   })
 
+  const ritualPromptIds = useMemo(() => {
+    const ids = new Set()
+    activePrompts.forEach(p => { if (p?.id) ids.add(p.id) })
+    threads.forEach(t => { if (t?.category_id === 'rituals' && t?.prompt_id) ids.add(t.prompt_id) })
+    return Array.from(ids)
+  }, [activePrompts, threads])
+
+  const { data: entryCounts = {} } = useQuery({
+    queryKey: ['ritualEntryCounts', ritualPromptIds],
+    queryFn: () => fetchEntryCounts(ritualPromptIds),
+    enabled: ritualPromptIds.length > 0,
+  })
+
+  // Hide the server-rendered crawler directory once the live forum mounts,
+  // so human visitors don't see every thread listed twice on the page.
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    const ssrDir = document.getElementById('forum-ssr-directory')
+    if (ssrDir) ssrDir.classList.add('hidden')
+    return () => {
+      if (ssrDir) ssrDir.classList.remove('hidden')
+    }
+  }, [])
+
   // Keyed on the user id and handle, not the session/profile objects:
   // AuthContext replaces those on every token refresh, and rebuilding the
   // channel each time froze presence.
@@ -152,10 +178,35 @@ function Forum() {
 
   const catLabels = useMemo(() => {
     return allCategories.reduce((acc, c) => {
-      acc[c.id] = c.name.split('·')[0].trim()
+      acc[c.id] = getCategoryMeta(c).badgeLabel
       return acc
     }, {})
   }, [allCategories])
+
+  const hasEntryCounts = Object.keys(entryCounts).length > 0
+  const promptEntryCount = (promptId) => {
+    if (promptId && entryCounts[promptId] !== undefined) return entryCounts[promptId]
+    return threads.filter(t => t.category_id === 'rituals' && (promptId ? t.prompt_id === promptId : false)).length
+  }
+  const totalRitualCount = useMemo(() => {
+    if (hasEntryCounts) {
+      return Object.values(entryCounts).reduce((sum, n) => sum + (Number(n) || 0), 0)
+    }
+    return threads.filter(t => t.category_id === 'rituals').length
+  }, [hasEntryCounts, entryCounts, threads])
+
+  const activeCategoryObj = useMemo(
+    () => allCategories.find(c => c.id === activeCat) || (activeCat !== 'all' ? { id: activeCat } : null),
+    [allCategories, activeCat]
+  )
+  const activeCategoryMeta = useMemo(
+    () => (activeCategoryObj ? getCategoryMeta(activeCategoryObj) : null),
+    [activeCategoryObj]
+  )
+  const canPostInActiveCat = !activeCategoryMeta?.staffOnly || isMod(profile)
+  const newThreadHref = activeCat !== 'all' && activeCat !== 'rituals' && canPostInActiveCat
+    ? `/forum/new/?cat=${encodeURIComponent(activeCat)}`
+    : '/forum/new/'
 
   const promptSubcategories = useMemo(() => {
     return Array.from({ length: 5 }, (_, i) => {
@@ -244,7 +295,9 @@ function Forum() {
                 <span className="font-mono text-xs">{generalThreads.length}</span>
               </li>
               {allCategories.map(c => {
-                const count = threads.filter(t => t.category_id === c.id).length
+                const count = c.id === 'rituals'
+                  ? totalRitualCount
+                  : threads.filter(t => t.category_id === c.id).length
                 const isSelected = c.id === activeCat
                 return (
                   <li
@@ -257,7 +310,7 @@ function Forum() {
                   >
                     <span className="flex items-center gap-1.5">
                       {c.id === 'rituals' && <span className="text-[var(--color-upside)]">◈</span>}
-                      {c.name.split('·')[0].trim()}
+                      {categorySidebarLabel(c)}
                     </span>
                     <span className="font-mono text-xs">{count.toLocaleString()}</span>
                   </li>
@@ -320,10 +373,10 @@ function Forum() {
                       : 'border-[var(--color-line)] text-[var(--color-text-secondary)] hover:border-white'
                   }`}
                 >
-                  All Prompts ({threads.filter(t => t.category_id === 'rituals').length})
+                  All Prompts ({totalRitualCount})
                 </button>
                 {promptSubcategories.map((sub) => {
-                  const count = threads.filter(t => t.category_id === 'rituals' && (sub.promptId ? t.prompt_id === sub.promptId : false)).length
+                  const count = promptEntryCount(sub.promptId)
                   const isSelected = activePromptId === sub.id
                   return (
                     <button
@@ -346,7 +399,7 @@ function Forum() {
               {activePromptId !== 'all' ? (() => {
                 const cur = promptSubcategories.find(s => s.id === activePromptId)
                 if (!cur) return null
-                const count = threads.filter(t => t.category_id === 'rituals' && (cur.promptId ? t.prompt_id === cur.promptId : false)).length
+                const count = promptEntryCount(cur.promptId)
                 return (
                   <div className="vintage-card p-5 border-l-4 border-l-[var(--color-upside)] mb-6 bg-[var(--color-void)] shadow-[0_0_20px_rgba(25,165,184,0.1)]">
                     <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
@@ -362,7 +415,7 @@ function Forum() {
                     </blockquote>
                     <div className="flex flex-wrap items-center justify-between gap-4 pt-3 border-t border-[var(--color-line)] text-xs font-mono">
                       <span className="text-[var(--color-text-secondary)]">Member submissions for critique below</span>
-                      <a href="/#midnight-ritual" className="text-[var(--color-upside)] hover:underline flex items-center gap-1 font-bold">
+                      <a href={cur.promptId ? `/?prompt=${encodeURIComponent(cur.promptId)}#midnight-ritual` : `/#midnight-ritual`} className="text-[var(--color-upside)] hover:underline flex items-center gap-1 font-bold">
                         ⚡ Write for this prompt on front page →
                       </a>
                     </div>
@@ -381,6 +434,23 @@ function Forum() {
             </div>
           )}
 
+          {/* Purposeful Room Banner for Non-Ritual Categories */}
+          {activeCat !== 'all' && activeCat !== 'rituals' && activeCategoryMeta?.mission && (
+            <div className="vintage-card p-5 border-l-4 border-l-[var(--color-accent-crimson)] mb-6 bg-[var(--color-void)]" data-testid="category-purpose-banner">
+              <span className="font-mono text-xs uppercase tracking-widest text-[var(--color-ember)] font-bold block mb-1">
+                ▸ {activeCategoryMeta.fullTitle}
+              </span>
+              <p className="font-serif text-sm text-[var(--color-text-primary)] leading-relaxed">
+                {activeCategoryMeta.mission}
+              </p>
+              {activeCategoryMeta.starterPrompt && (
+                <p className="font-mono text-xs text-[var(--color-text-secondary)] mt-3 pt-3 border-t border-[var(--color-line)]">
+                  Prompt idea: {activeCategoryMeta.starterPrompt}
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <div className={`flex-1 min-w-0 ${threads.length === 0 ? 'hidden' : ''}`}>
               <input
@@ -391,8 +461,8 @@ function Forum() {
                 className="w-full bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-4 py-2 text-xs font-mono focus:outline-none focus:border-[var(--color-accent-crimson)]"
               />
             </div>
-            {session ? (
-              <a href="/forum/new/" className="shrink-0 text-center bg-[var(--color-accent-crimson)] text-white font-mono text-xs uppercase px-4 py-2 hover:bg-red-700 transition-colors">
+            {session && canPostInActiveCat ? (
+              <a href={newThreadHref} className="shrink-0 text-center bg-[var(--color-accent-crimson)] text-white font-mono text-xs uppercase px-4 py-2 hover:bg-red-700 transition-colors">
                 New Thread
               </a>
             ) : null}
@@ -400,11 +470,21 @@ function Forum() {
 
           {visible.length === 0 && (
             <div className="vintage-card text-center py-16">
-              <p className="font-serif italic text-xs text-[var(--color-text-secondary)] mb-6">Nothing here. The dark is quiet tonight.</p>
+              <p className="font-serif italic text-xs text-[var(--color-text-secondary)] mb-6">
+                {activeCat !== 'all' && activeCategoryMeta?.starterPrompt
+                  ? activeCategoryMeta.starterPrompt
+                  : 'Nothing here. The dark is quiet tonight.'}
+              </p>
               {session ? (
-                <a href={activeCat === 'rituals' ? '/#midnight-ritual' : '/forum/new/'} className="border border-[var(--color-line)] hover:border-white font-mono text-xs uppercase px-4 py-2 transition-colors">
-                  {activeCat === 'rituals' ? '⚡ Summon the first ritual entry' : 'Start the first thread'}
-                </a>
+                canPostInActiveCat ? (
+                  <a href={activeCat === 'rituals' ? '/#midnight-ritual' : newThreadHref} className="border border-[var(--color-line)] hover:border-white font-mono text-xs uppercase px-4 py-2 transition-colors">
+                    {activeCat === 'rituals' ? '⚡ Summon the first ritual entry' : 'Start the first thread'}
+                  </a>
+                ) : (
+                  <span className="font-mono text-xs text-[var(--color-text-secondary)] uppercase">
+                    Official dispatches from the Keeper appear here
+                  </span>
+                )
               ) : (
                 <span className="font-mono text-xs border border-[var(--color-line)] text-[var(--color-text-secondary)] px-3 py-1.5 uppercase">Sign in to post</span>
               )}
@@ -415,6 +495,13 @@ function Forum() {
             {visible.map((t) => {
               const handle = t.profiles?.handle || 'unknown'
               const isRitual = t.category_id === 'rituals'
+              const ritualEntries = isRitual && t.prompt_id && entryCounts[t.prompt_id] !== undefined
+                ? entryCounts[t.prompt_id]
+                : null
+              const rowCount = ritualEntries !== null ? ritualEntries : (t.replies_count || 0)
+              const rowUnit = ritualEntries !== null
+                ? (rowCount === 1 ? 'entry' : 'entries')
+                : (rowCount === 1 ? 'reply' : 'replies')
               return (
                 <a 
                   key={t.id}
@@ -435,13 +522,13 @@ function Forum() {
                       </h4>
                       <div className="font-mono text-xs text-[var(--color-text-secondary)]">
                         <span className="text-[var(--color-text-primary)] font-bold mr-1">{authorLabel(t.profiles)}</span>
-                        · {catLabels[t.category_id] || 'Thread'} · {timeAgo(t.updated_at)}
+                        · {catLabels[t.category_id] || getCategoryMeta(t.category_id).badgeLabel} · {timeAgo(t.updated_at)}
                       </div>
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <span className="block font-mono text-sm font-bold text-[var(--color-text-primary)]">{t.replies_count || 0}</span>
-                    <span className="block font-mono text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">{t.replies_count === 1 ? 'reply' : 'replies'}</span>
+                    <span className="block font-mono text-sm font-bold text-[var(--color-text-primary)]">{rowCount}</span>
+                    <span className="block font-mono text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">{rowUnit}</span>
                   </div>
                 </a>
               )

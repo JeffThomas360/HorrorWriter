@@ -20,7 +20,7 @@ try {
 <MainLayout title="The Crypt — Horror Writing Forum | Horror Writer" description="A horror writing forum and critique group: craft discussion, novel feedback, market calls and genre theory for serious horror writers.">
   <Forum client:load />
   {directory && directory.length > 0 && (
-    <nav aria-labelledby="all-threads" class="mt-16 max-w-3xl mx-auto">
+    <nav id="forum-ssr-directory" aria-labelledby="all-threads" class="mt-16 max-w-3xl mx-auto">
       <h2 id="all-threads" class="font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-text-secondary)] mb-6">▸ Browse every thread</h2>
       <div class="flex flex-col gap-8">
         {directory.map((c) => (

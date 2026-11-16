@@ -5,6 +5,7 @@ import { supabase } from '../supabaseClient'
 import { playTypewriterKey } from '../lib/soundscapes'
 import { formatSlot } from '../lib/ritualSchedule'
 import { screenContent } from '../lib/screenContent'
+import TranscribeButton from './TranscribeButton'
 import {
   WORD_LIMIT,
   MIN_WORDS,
@@ -87,9 +88,21 @@ function MidnightRitual() {
     fetchActivePrompts(5)
       .then((prompts) => {
         if (!alive) return
-        setActivePrompts(prompts || [])
-        if (prompts?.[0]?.id && activeChannelIndex === 0) {
-          const local = readLocalDraft(prompts[0].id)
+        const list = prompts || []
+        setActivePrompts(list)
+        const requestedPrompt = typeof window !== 'undefined' && window.location?.search
+          ? new URLSearchParams(window.location.search).get('prompt')
+          : null
+        const matchedIdx = requestedPrompt
+          ? list.findIndex((p) => p?.id === requestedPrompt)
+          : -1
+        if (matchedIdx >= 0) {
+          setActiveChannelIndex(matchedIdx)
+          setIsWriting(true)
+          const local = readLocalDraft(list[matchedIdx].id)
+          if (local) setText(local)
+        } else if (list[0]?.id && activeChannelIndex === 0) {
+          const local = readLocalDraft(list[0].id)
           if (local) setText(local)
         }
       })
@@ -304,9 +317,12 @@ function MidnightRitual() {
             >
               {ch.freq}
               {count > 0 && (
-                <span aria-hidden="true" className="ml-1 px-1 bg-[var(--color-void)] text-[var(--color-ember)] font-bold">
-                  {count}
-                </span>
+                <>
+                  {' '}
+                  <span aria-hidden="true" className="ml-1 px-1 bg-[var(--color-void)] text-[var(--color-ember)] font-bold">
+                    {count}
+                  </span>
+                </>
               )}
             </button>
             )
@@ -373,6 +389,12 @@ function MidnightRitual() {
               placeholder="Begin where the prompt ends…"
             />
           </Suspense>
+
+          <div>
+            <TranscribeButton
+              onTranscribed={(dictated) => handleChange(text ? `${text}\n\n${dictated}` : dictated)}
+            />
+          </div>
 
           {isPublishing ? (
             <div className="p-4 bg-[var(--color-surface)] border border-[var(--color-upside)] mt-2">

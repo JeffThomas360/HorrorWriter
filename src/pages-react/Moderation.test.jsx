@@ -1,4 +1,4 @@
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { test, expect, vi, afterEach } from 'vitest'
 
 let profile = { mod_role: 'keeper', mod_scope: 'all' }
@@ -15,7 +15,10 @@ for (const name of ['OverviewTab', 'RegistryTab', 'BadgesTab', 'ReportsTab', 'Fi
 
 const Moderation = (await import('./Moderation')).default
 
-afterEach(() => cleanup())
+afterEach(() => {
+  cleanup()
+  window.history.replaceState({}, '', '/moderation/')
+})
 
 test('a keeper sees the working tabs but no Support tab', () => {
   profile = { mod_role: 'keeper', mod_scope: 'all' }
@@ -23,6 +26,16 @@ test('a keeper sees the working tabs but no Support tab', () => {
   const names = screen.getAllByRole('tab').map((t) => t.textContent)
   expect(names).toEqual(['Overview', 'Reports', 'Appeals', 'Storms', 'AutoMod', 'Sanctions', 'Registry', 'Badges'])
   expect(screen.queryByRole('tab', { name: 'Support' })).toBeNull()
+})
+
+test('syncs active tab with the ?tab= URL parameter', () => {
+  window.history.replaceState({}, '', '/moderation/?tab=appeals')
+  profile = { mod_role: 'keeper', mod_scope: 'all' }
+  render(<Moderation />)
+  expect(screen.getByRole('tab', { name: 'Appeals' })).toHaveAttribute('aria-selected', 'true')
+
+  fireEvent.click(screen.getByRole('tab', { name: 'Reports' }))
+  expect(window.location.search).toContain('tab=reports')
 })
 
 test('a moderator sees only the report-handling tabs, still no Support', () => {

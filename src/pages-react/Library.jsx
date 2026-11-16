@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../components/AuthContext'
 import { useQuery } from '@tanstack/react-query'
@@ -7,32 +7,13 @@ import VhsSleeveCard from '../components/VhsSleeveCard'
 import LoadError from '../components/LoadError'
 import ForbiddenTape from '../components/ForbiddenTape'
 import { filterOneExamplePerGroup } from '../lib/storyHelpers'
-
-const COVER_SVG = (
-  <svg viewBox="0 0 260 320" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" className="w-full h-full text-white/20">
-    <line x1="0" y1="160" x2="260" y2="160" stroke="currentColor" strokeWidth="1" opacity=".35" />
-    <line x1="130" y1="0" x2="130" y2="320" stroke="currentColor" strokeWidth="1" opacity=".35" />
-    <circle cx="130" cy="160" r="64" fill="none" stroke="currentColor" strokeWidth="1" opacity=".28" />
-    <circle cx="130" cy="160" r="32" fill="none" stroke="currentColor" strokeWidth="1" opacity=".2" />
-  </svg>
-)
-
-function postedAgo(dateString) {
-  if (!dateString) return null
-  const d = new Date(dateString)
-  const now = new Date()
-  const diffDays = Math.floor((now - d) / 86400000)
-  if (diffDays === 0) return 'Today'
-  if (diffDays === 1) return 'Yesterday'
-  if (diffDays < 30) return `${diffDays}d ago`
-  const diffMonths = Math.floor(diffDays / 30)
-  if (diffMonths < 12) return `${diffMonths}mo ago`
-  return `${Math.floor(diffMonths / 12)}y ago`
-}
+import { readMinutes } from '../lib/tapeWear'
 
 function Library() {
   const { session } = useAuth()
   const [feedMode, setFeedMode] = useState('all')
+  const [shelfFilter, setShelfFilter] = useState('all') // 'all' | 'needs-critique' | 'quick' | 'series'
+  const [groupSeries, setGroupSeries] = useState(false)
 
   const { data: books = [], isLoading: loading, error: queryError, refetch } = useQuery({
     queryKey: ['books', feedMode, session?.user?.id],
@@ -81,6 +62,62 @@ function Library() {
 
   const error = queryError || null
 
+  // Count how many parts each series has on the shelf so series links can show total volumes.
+  const seriesPartCounts = useMemo(() => {
+    const counts = {}
+    for (const b of books) {
+      const sId = b?.series_books?.[0]?.series?.id
+      if (sId) counts[sId] = (counts[sId] || 0) + 1
+    }
+    return counts
+  }, [books])
+
+  const hasMultiPartSeries = useMemo(
+    () => Object.values(seriesPartCounts).some((n) => n > 1),
+    [seriesPartCounts]
+  )
+
+  const filteredBooks = useMemo(() => {
+    let list = books
+    if (shelfFilter === 'needs-critique') {
+      list = list.filter((b) => (b.comments_count || 0) === 0)
+    } else if (shelfFilter === 'quick') {
+      list = list.filter((b) => {
+        const m = readMinutes(b.content)
+        return m !== null && m <= 10
+      })
+    } else if (shelfFilter === 'series') {
+      list = list.filter((b) => Boolean(b?.series_books?.[0]?.series?.id))
+    }
+
+    if (groupSeries || shelfFilter === 'series') {
+      // When grouping series, keep only the first volume (lowest sort_order) per series
+      const seenSeries = new Set()
+      const sortedForSeries = [...list].sort((a, b) => {
+        const sa = a?.series_books?.[0]?.sort_order ?? 0
+        const sb = b?.series_books?.[0]?.sort_order ?? 0
+        return sa - sb
+      })
+      const leadIds = new Set()
+      for (const b of sortedForSeries) {
+        const sId = b?.series_books?.[0]?.series?.id
+        if (sId) {
+          if (!seenSeries.has(sId)) {
+            seenSeries.add(sId)
+            leadIds.add(b.id)
+          }
+        } else {
+          leadIds.add(b.id)
+        }
+      }
+      if (groupSeries) {
+        list = list.filter((b) => leadIds.has(b.id))
+      }
+    }
+
+    return list
+  }, [books, shelfFilter, groupSeries])
+
   return (
     <div className="mt-8">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8 border-b border-[var(--color-line)] pb-6">
@@ -103,22 +140,59 @@ function Library() {
         )}
       </div>
 
-      {session && (
-        <div className="flex gap-4 mb-8">
-          <button 
-            className={`font-mono text-xs uppercase px-4 py-2 border cursor-pointer ${feedMode === 'all' ? 'bg-[var(--color-text-primary)] text-[var(--color-bg-primary)] border-[var(--color-text-primary)]' : 'border-[var(--color-line)] text-[var(--color-text-primary)] hover:border-white'}`} 
-            onClick={() => setFeedMode('all')}
+      {/* Discovery & Shelf Filter Bar — visible to all visitors */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-8" role="toolbar" aria-label="Filter stories">
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className={`font-mono text-xs uppercase px-3.5 py-2 border cursor-pointer transition-colors ${feedMode === 'all' && shelfFilter === 'all' ? 'bg-[var(--color-text-primary)] text-[var(--color-bg-primary)] border-[var(--color-text-primary)] font-bold' : 'border-[var(--color-line)] text-[var(--color-text-primary)] hover:border-white'}`}
+            onClick={() => { setFeedMode('all'); setShelfFilter('all') }}
           >
             All Stories
           </button>
-          <button 
-            className={`font-mono text-xs uppercase px-4 py-2 border cursor-pointer ${feedMode === 'following' ? 'bg-[var(--color-text-primary)] text-[var(--color-bg-primary)] border-[var(--color-text-primary)]' : 'border-[var(--color-line)] text-[var(--color-text-primary)] hover:border-white'}`} 
-            onClick={() => setFeedMode('following')}
+          <button
+            type="button"
+            className={`font-mono text-xs uppercase px-3.5 py-2 border cursor-pointer transition-colors ${shelfFilter === 'needs-critique' ? 'bg-[var(--color-upside)] text-[var(--color-void)] border-[var(--color-upside)] font-bold' : 'border-[var(--color-line)] text-[var(--color-text-primary)] hover:border-white'}`}
+            onClick={() => setShelfFilter(shelfFilter === 'needs-critique' ? 'all' : 'needs-critique')}
           >
-            My Feed
+            Needs First Critique
           </button>
+          <button
+            type="button"
+            className={`font-mono text-xs uppercase px-3.5 py-2 border cursor-pointer transition-colors ${shelfFilter === 'quick' ? 'bg-[var(--color-text-primary)] text-[var(--color-bg-primary)] border-[var(--color-text-primary)] font-bold' : 'border-[var(--color-line)] text-[var(--color-text-primary)] hover:border-white'}`}
+            onClick={() => setShelfFilter(shelfFilter === 'quick' ? 'all' : 'quick')}
+          >
+            Quick Reads (≤ 10m)
+          </button>
+          <button
+            type="button"
+            className={`font-mono text-xs uppercase px-3.5 py-2 border cursor-pointer transition-colors ${shelfFilter === 'series' ? 'bg-[var(--color-text-primary)] text-[var(--color-bg-primary)] border-[var(--color-text-primary)] font-bold' : 'border-[var(--color-line)] text-[var(--color-text-primary)] hover:border-white'}`}
+            onClick={() => setShelfFilter(shelfFilter === 'series' ? 'all' : 'series')}
+          >
+            Series
+          </button>
+          {session && (
+            <button
+              type="button"
+              className={`font-mono text-xs uppercase px-3.5 py-2 border cursor-pointer transition-colors ${feedMode === 'following' ? 'bg-[var(--color-text-primary)] text-[var(--color-bg-primary)] border-[var(--color-text-primary)] font-bold' : 'border-[var(--color-line)] text-[var(--color-text-primary)] hover:border-white'}`}
+              onClick={() => setFeedMode(feedMode === 'following' ? 'all' : 'following')}
+            >
+              My Feed
+            </button>
+          )}
         </div>
-      )}
+
+        {hasMultiPartSeries && (
+          <button
+            type="button"
+            aria-pressed={groupSeries}
+            onClick={() => setGroupSeries((g) => !g)}
+            className={`font-mono text-[11px] uppercase px-3 py-1.5 border cursor-pointer transition-colors ${groupSeries ? 'border-[var(--color-upside)] text-[var(--color-upside)] bg-[var(--color-upside)]/10' : 'border-[var(--color-line)] text-[var(--color-text-secondary)] hover:border-white'}`}
+          >
+            {groupSeries ? '✓ Series Collapsed (1 per series)' : 'Collapse Series'}
+          </button>
+        )}
+      </div>
 
       {loading && (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 sm:gap-8">
@@ -162,14 +236,42 @@ function Library() {
         <div className="mb-16">
           <div className="flex items-center justify-between mb-6">
             <span className="font-mono text-xs uppercase tracking-widest text-[var(--color-text-secondary)]">Community Tapes</span>
-            <span className="font-mono text-xs text-[var(--color-text-secondary)]">{books.length} {books.length === 1 ? 'story' : 'stories'}</span>
+            <span className="font-mono text-xs text-[var(--color-text-secondary)]">{filteredBooks.length} {filteredBooks.length === 1 ? 'story' : 'stories'}</span>
           </div>
-          {/* Two-up on phones: one-up made every tape about a full screen tall. */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-            {books.map((b) => (
-              <VhsSleeveCard key={b.id} story={b} />
-            ))}
-          </div>
+          {filteredBooks.length === 0 ? (
+            <div className="vintage-card py-10 text-center">
+              <p className="font-serif italic text-sm text-[var(--color-text-secondary)] mb-4">No stories match this filter right now.</p>
+              <button
+                type="button"
+                onClick={() => { setShelfFilter('all'); setGroupSeries(false) }}
+                className="border border-[var(--color-line)] hover:border-white font-mono text-xs uppercase px-4 py-2 transition-colors cursor-pointer"
+              >
+                Show All Stories
+              </button>
+            </div>
+          ) : (
+            /* Two-up on phones: one-up made every tape about a full screen tall. */
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+              {filteredBooks.map((b) => {
+                const seriesObj = b?.series_books?.[0]?.series
+                const totalInSeries = seriesObj?.id ? (seriesPartCounts[seriesObj.id] || 1) : 0
+                return (
+                  <div key={b.id} className="flex flex-col gap-1.5">
+                    <VhsSleeveCard story={b} />
+                    {seriesObj?.id && (
+                      <a
+                        href={`/library/series/${seriesObj.id}/`}
+                        className="font-mono text-[10px] uppercase tracking-wider text-[var(--color-upside)] hover:underline truncate px-1"
+                        title={`View all parts in ${seriesObj.title}`}
+                      >
+                        ◈ {seriesObj.title}{totalInSeries > 1 ? ` (${totalInSeries} parts)` : ''} →
+                      </a>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 

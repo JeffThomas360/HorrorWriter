@@ -46,8 +46,10 @@ export default function RitualEntryActions({ entry, critiqueCount = 0, onChanged
     return () => onEditingChange?.(false)
   }, [mode])
 
+  const existingWords = countRitualWords(entry.content || '')
+  const minRequired = existingWords > 0 && existingWords < MIN_WORDS ? 1 : MIN_WORDS
   const words = countRitualWords(content)
-  const inRange = words >= MIN_WORDS && words <= WORD_LIMIT
+  const inRange = words >= minRequired && words <= WORD_LIMIT
   const canSave = !busy && title.trim().length > 0 && title.trim().length <= 200 && inRange
 
   const startEdit = () => {
@@ -110,7 +112,7 @@ export default function RitualEntryActions({ entry, critiqueCount = 0, onChanged
             Your response
           </label>
           <span className={`font-mono text-xs font-bold ${inRange ? 'text-[var(--color-upside)]' : 'text-[var(--color-ember)]'}`}>
-            {words} words · {MIN_WORDS} to {WORD_LIMIT}
+            {words} words · {minRequired} to {WORD_LIMIT}
           </span>
         </div>
         <Suspense fallback={<div className="min-h-[14rem] border border-[var(--color-line)] bg-[var(--color-void)]" aria-busy="true" />}>

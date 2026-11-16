@@ -47,3 +47,26 @@ test('a token refresh does not reload the story over unsaved edits', async () =>
   expect(from).toHaveBeenCalledTimes(1)
   await waitFor(() => expect(screen.getByDisplayValue('Edited title')).toBeInTheDocument())
 })
+
+test('opening an existing story without changes does not autosave a phantom draft', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  try {
+    render(<PublishStory bookId="b1" />)
+    const titleInput = await screen.findByDisplayValue('Original title')
+
+    // Advance past the 1500ms autosave debounce without touching any field.
+    await act(async () => {
+      vi.advanceTimersByTime(2000)
+    })
+    expect(localStorage.getItem('hw_draft_edit_b1')).toBeNull()
+
+    // Now make a real edit; after 1500ms the draft is saved.
+    fireEvent.change(titleInput, { target: { value: 'Changed title' } })
+    await act(async () => {
+      vi.advanceTimersByTime(2000)
+    })
+    expect(localStorage.getItem('hw_draft_edit_b1')).toContain('Changed title')
+  } finally {
+    vi.useRealTimers()
+  }
+})

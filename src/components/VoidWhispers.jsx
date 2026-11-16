@@ -173,7 +173,13 @@ export default function VoidWhispers() {
               </p>
             </div>
 
-            <div className="flex items-center justify-end pt-3 border-t border-[var(--color-line)]/50">
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-[var(--color-line)]/50">
+              <a
+                href={`/library/publish/?seed=${encodeURIComponent(item.text)}`}
+                className="font-mono text-xs uppercase text-[var(--color-text-secondary)] hover:text-[var(--color-ember)] transition-colors py-2 px-1 min-h-[44px] inline-flex items-center"
+              >
+                Write story from seed →
+              </a>
               <button
                 onClick={() => handleClaimSeed(item)}
                 className="font-mono text-xs uppercase text-[var(--color-upside)] hover:text-white transition-colors cursor-pointer py-2 px-1 min-h-[44px]"

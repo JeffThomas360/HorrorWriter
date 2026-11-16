@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../supabaseClient'
 import { resolveReport, contentHref } from '../../lib/modActions'
 import UserModProfile from './UserModProfile'
@@ -12,6 +13,7 @@ const GHOST = 'border border-[var(--color-line-hi)] px-2 py-1 text-xs text-[var(
 const FIELD = 'bg-[var(--color-void)] border border-[var(--color-line)] px-3 py-2 text-sm text-[var(--color-bone)] focus:border-[var(--color-ember)] outline-none'
 
 export default function ReportsTab() {
+  const queryClient = useQueryClient()
   const [reports, setReports] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -67,6 +69,8 @@ export default function ReportsTab() {
     try {
       await resolveReport(id, actionTaken, note)
       setReports((prev) => prev.filter((r) => r.id !== id))
+      queryClient.invalidateQueries({ queryKey: ['mod', 'overview-counts'] })
+      queryClient.invalidateQueries({ queryKey: ['mod', 'recent-actions'] })
       toast.success(`Report ${actionTaken}`)
     } catch (err) {
       toast.error(err.message)
@@ -141,8 +145,17 @@ export default function ReportsTab() {
                 <strong className="font-mono text-sm text-[var(--color-bone)]">{r.target_type.toUpperCase()} — {r.category}</strong>
                 <span className="font-mono text-xs text-[var(--color-ash)]">{new Date(r.created_at).toLocaleString()}</span>
               </div>
-              <p className="text-sm text-[var(--color-bone)] my-2">
-                <strong>Reporter:</strong> {r.profiles?.handle ? `@${r.profiles.handle}` : 'Unknown'}
+              <p className="text-sm text-[var(--color-bone)] my-2 flex items-center gap-2">
+                <span><strong>Reporter:</strong> {r.profiles?.handle ? `@${r.profiles.handle}` : 'Unknown'}</span>
+                {r.reporter_id && (
+                  <button
+                    type="button"
+                    className={GHOST}
+                    onClick={() => setActiveContextUserId(r.reporter_id)}
+                  >
+                    Reporter Case File
+                  </button>
+                )}
               </p>
               <p className="text-sm text-[var(--color-bone)] my-2">
                 <strong>Details:</strong> {r.details || 'None provided'}

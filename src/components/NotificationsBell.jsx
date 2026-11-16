@@ -81,24 +81,48 @@ function NotificationsBell() {
             <p className="px-3 py-6 text-center text-xs text-text-secondary font-mono">No notifications yet.</p>
           ) : (
             <ul>
-              {notifications.map((n) => (
-                <li
-                  key={n.id}
-                  className={`px-3 py-2.5 border-b border-[var(--color-line)] last:border-b-0 text-sm ${
-                    n.read_at ? 'opacity-60' : 'cursor-pointer hover:bg-black/20'
-                  }`}
-                  onClick={() => !n.read_at && markRead.mutate(n.id)}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="font-medium">{n.title}</p>
-                    {!n.read_at && (
-                      <span className="mt-1 w-1.5 h-1.5 rounded-full bg-[var(--color-accent-crimson)] shrink-0" />
-                    )}
-                  </div>
-                  {n.body && <p className="text-xs text-text-secondary mt-0.5">{n.body}</p>}
-                  <p className="text-xs text-text-secondary font-mono mt-1">{timeAgo(n.created_at)}</p>
-                </li>
-              ))}
+              {notifications.map((n) => {
+                const safeHref = typeof n.href === 'string' && n.href.startsWith('/') ? n.href : null;
+                return (
+                  <li
+                    key={n.id}
+                    className={`px-3 py-2.5 border-b border-[var(--color-line)] last:border-b-0 text-sm ${
+                      n.read_at ? 'opacity-60' : 'cursor-pointer hover:bg-black/20'
+                    }`}
+                    onClick={() => !n.read_at && markRead.mutate(n.id)}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      {safeHref ? (
+                        <a
+                          href={safeHref}
+                          onClick={() => !n.read_at && markRead.mutate(n.id)}
+                          className="font-medium hover:text-[var(--color-ember)] underline transition-colors"
+                        >
+                          {n.title}
+                        </a>
+                      ) : (
+                        <p className="font-medium">{n.title}</p>
+                      )}
+                      {!n.read_at && (
+                        <span className="mt-1 w-1.5 h-1.5 rounded-full bg-[var(--color-accent-crimson)] shrink-0" />
+                      )}
+                    </div>
+                    {n.body && <p className="text-xs text-text-secondary mt-0.5">{n.body}</p>}
+                    <div className="flex items-center justify-between gap-2 mt-1">
+                      <p className="text-xs text-text-secondary font-mono">{timeAgo(n.created_at)}</p>
+                      {safeHref && (
+                        <a
+                          href={safeHref}
+                          onClick={() => !n.read_at && markRead.mutate(n.id)}
+                          className="text-[11px] font-mono uppercase tracking-wider text-[var(--color-upside)] hover:text-[var(--color-ember)]"
+                        >
+                          Open →
+                        </a>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
