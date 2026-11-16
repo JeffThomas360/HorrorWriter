@@ -5,8 +5,8 @@ import { test, expect, vi, afterEach } from 'vitest'
 const h = vi.hoisted(() => ({ fetchSiteErrors: vi.fn() }))
 vi.mock('../../lib/siteErrorsApi', () => ({ fetchSiteErrors: h.fetchSiteErrors, SITE_ERRORS_LIMIT: 1000 }))
 vi.mock('../mod/UserModProfile', () => ({
-  default: ({ userId, onClose }) => (
-    <div><p>case file {userId}</p><button onClick={onClose}>close</button></div>
+  default: ({ userId, onClose, initialTab }) => (
+    <div><p>case file {userId}</p><p>opens on {initialTab}</p><button onClick={onClose}>close</button></div>
   ),
 }))
 
@@ -17,7 +17,7 @@ function renderIt() {
   render(<QueryClientProvider client={qc}><SiteErrorsTab /></QueryClientProvider>)
 }
 
-afterEach(() => { cleanup(); h.fetchSiteErrors.mockReset() })
+afterEach(() => { cleanup(); h.fetchSiteErrors.mockReset(); window.history.pushState({}, '', '/') })
 
 const ANDROID = 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/131.0 Mobile Safari/537.36'
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 Version/18.1 Mobile/15E148 Safari/604.1'
@@ -277,4 +277,41 @@ test('a message containing markup is shown as text', async () => {
   await screen.findByText(/1 problem/)
   expect(screen.getByTestId('problem-title')).toHaveTextContent('Message shown: <img src=x onerror=alert(1)>')
   expect(document.querySelector('img')).toBeNull()
+})
+
+// ── Links with the Dossier ───────────────────────────────
+test('the case file opens on the Dossier', async () => {
+  h.fetchSiteErrors.mockResolvedValue(standard())
+  renderIt()
+  await screen.findByText(/3 problems/)
+  fireEvent.click(problemButton(SERIES))
+  fireEvent.click(screen.getAllByRole('button', { name: 'Open case file for @writer' })[0])
+  expect(screen.getByText('opens on dossier')).toBeInTheDocument()
+})
+
+test('a member in the URL starts the filter on them and the window on 90 days', async () => {
+  window.history.pushState({}, '', '/admin/?tab=errors&member=u2')
+  h.fetchSiteErrors.mockResolvedValue(standard())
+  renderIt()
+  await screen.findByText(/1 problem ·/)
+  expect(h.fetchSiteErrors.mock.calls[0][0]).toBe(2160)
+  expect(screen.getByLabelText('Time window')).toHaveValue('90d')
+  expect(screen.getByLabelText('Member')).toHaveValue('u2')
+  expect(titles()).toEqual([SHOWN])
+})
+
+test('a member in the URL who has nothing in the log falls back to everyone', async () => {
+  window.history.pushState({}, '', '/admin/?tab=errors&member=nobody')
+  h.fetchSiteErrors.mockResolvedValue(standard())
+  renderIt()
+  await screen.findByText(/3 problems/)
+  expect(screen.getByLabelText('Member')).toHaveValue('all')
+})
+
+test('with no member in the URL the window starts on 7 days', async () => {
+  window.history.pushState({}, '', '/admin/?tab=errors')
+  h.fetchSiteErrors.mockResolvedValue(standard())
+  renderIt()
+  await screen.findByText(/3 problems/)
+  expect(h.fetchSiteErrors.mock.calls[0][0]).toBe(168)
 })

@@ -11,7 +11,18 @@ import UserModProfile from '../mod/UserModProfile'
  * The time window is fetched; kind and member narrow what is already loaded.
  * Everything from the log is rendered as text: messages and stacks come from
  * members' browsers and are never trusted as markup.
+ *
+ * A Dossier links here with `?member=<id>`: the tab then starts on that member,
+ * over the longest window, so their trouble is all on screen.
  */
+
+function memberFromUrl() {
+  try {
+    return new URLSearchParams(window.location.search).get('member') || 'all'
+  } catch {
+    return 'all'
+  }
+}
 
 const SELECT = 'card-surface min-h-[44px] px-3 py-2 text-xs font-mono uppercase border border-[var(--color-line-hi)] cursor-pointer'
 const LABEL = 'block font-mono text-[10px] uppercase tracking-wider text-[var(--color-ash)]'
@@ -115,9 +126,9 @@ function ProblemDetail({ problem, nameOf, onOpenMember }) {
 }
 
 export default function SiteErrorsTab() {
-  const [windowId, setWindowId] = useState('7d')
+  const [windowId, setWindowId] = useState(() => (memberFromUrl() === 'all' ? '7d' : '90d'))
   const [kind, setKind] = useState('all')
-  const [memberId, setMemberId] = useState('all')
+  const [memberId, setMemberId] = useState(memberFromUrl)
   const [openKey, setOpenKey] = useState(null)
   const [caseFileFor, setCaseFileFor] = useState(null)
 
@@ -168,7 +179,7 @@ export default function SiteErrorsTab() {
         >
           ← Back to Site Errors
         </button>
-        <UserModProfile userId={caseFileFor} onClose={back} />
+        <UserModProfile userId={caseFileFor} onClose={back} initialTab="dossier" />
       </div>
     )
   }

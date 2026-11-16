@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { fetchAllUsers } from '../../lib/siteSettings'
+import { fetchMemberFunnel } from '../../lib/dossierApi'
 import { isPermanentBan } from '../../lib/moderation'
 import { SUBMISSION_KINDS, flagText, totalSubmissions } from '../../lib/submissions'
 import UserModProfile from '../mod/UserModProfile'
@@ -62,6 +63,14 @@ export default function UsersTab() {
     queryFn: fetchAllUsers,
   })
 
+  // One line of roll-up above the list. It is a nicety: if it fails, the directory
+  // still shows and nothing is said.
+  const { data: funnel } = useQuery({
+    queryKey: ['admin', 'member-funnel'],
+    queryFn: fetchMemberFunnel,
+    retry: false,
+  })
+
   // The case file can change a member's status, so re-read the list on the way back.
   const closeCaseFile = () => {
     setSelected(null)
@@ -117,6 +126,11 @@ export default function UsersTab() {
 
   return (
     <div className="flex flex-col gap-4">
+      {funnel && (
+        <p className="font-mono text-xs text-[var(--color-bone)]">
+          {funnel.members} {funnel.members === 1 ? 'member' : 'members'} · {funnel.wrote} wrote · {funnel.got_response} got a response · {funnel.came_back} came back
+        </p>
+      )}
       <div className="flex flex-wrap items-center gap-3">
         <input
           type="search"
