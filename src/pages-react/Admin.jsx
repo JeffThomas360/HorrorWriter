@@ -10,6 +10,7 @@ import SiteTab from '../components/admin/SiteTab'
 import RitualsTab from '../components/admin/RitualsTab'
 import AuditTab from '../components/admin/AuditTab'
 import WorkQueueTab from '../components/admin/WorkQueueTab'
+import SiteErrorsTab from '../components/admin/SiteErrorsTab'
 
 /**
  * Site administration. Distinct from /moderation by design: the Terminal
@@ -66,6 +67,7 @@ function Admin() {
     { id: 'site',     label: 'Site',     show: isKeeper },
     { id: 'rituals',  label: 'Rituals',  show: isKeeper },
     { id: 'audit',    label: 'Audit',    show: canReadAudit },
+    { id: 'errors',   label: 'Site Errors', show: isKeeper },
   ].filter((t) => t.show)
 
   const [tab, setTab] = useUrlTab(tabs.map((t) => t.id), 'overview')
@@ -153,6 +155,7 @@ function Admin() {
           {activeId === 'site' && <SiteTab />}
           {activeId === 'rituals' && <RitualsTab />}
           {activeId === 'audit' && <AuditTab />}
+          {activeId === 'errors' && <SiteErrorsTab />}
         </IslandErrorBoundary>
       </div>
     </div>

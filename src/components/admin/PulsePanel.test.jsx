@@ -86,6 +86,7 @@ test('shows tickets waiting on the Keeper and this week\'s site errors', async (
   expect(screen.getByText('Site errors (13)')).toBeInTheDocument()
   expect(screen.getByText(/13× Minified React error #418/)).toBeInTheDocument()
   expect(screen.getByText('▼ 20 vs last week (33)')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Open Site Errors' })).toHaveAttribute('href', '/admin/?tab=errors')
 })
 
 test('no tickets and no errors read as good news', async () => {
@@ -93,4 +94,5 @@ test('no tickets and no errors read as good news', async () => {
   renderIt()
   expect(await screen.findByText('No one is waiting on you.')).toBeInTheDocument()
   expect(screen.getByText('Nothing reported this week.')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Open Site Errors' })).toHaveAttribute('href', '/admin/?tab=errors')
 })

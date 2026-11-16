@@ -92,6 +92,9 @@ export default function PulsePanel() {
                   ))}
                 </ul>
               )}
+              <p className="text-xs font-mono">
+                <a href="/admin/?tab=errors" className="underline">Open Site Errors</a>
+              </p>
             </Section>
           </div>
 
