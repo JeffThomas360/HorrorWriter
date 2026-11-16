@@ -1,9 +1,10 @@
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { test, expect, vi, afterEach } from 'vitest'
+import { test, expect, vi, beforeEach, afterEach } from 'vitest'
 
-const h = vi.hoisted(() => ({ fetchAllUsers: vi.fn() }))
+const h = vi.hoisted(() => ({ fetchAllUsers: vi.fn(), fetchMemberFunnel: vi.fn() }))
 vi.mock('../../lib/siteSettings', () => ({ fetchAllUsers: h.fetchAllUsers }))
+vi.mock('../../lib/dossierApi', () => ({ fetchMemberFunnel: (...a) => h.fetchMemberFunnel(...a) }))
 vi.mock('../mod/UserModProfile', () => ({ default: () => <p>case file</p> }))
 
 const UsersTab = (await import('./UsersTab')).default
@@ -15,6 +16,9 @@ function renderIt() {
 
 const user = (id, banned_until) => ({ id, handle: id, banned_until, created_at: '2026-01-01T00:00:00Z' })
 
+beforeEach(() => {
+  h.fetchMemberFunnel.mockReset().mockResolvedValue({ members: 11, wrote: 3, got_response: 1, came_back: 2 })
+})
 afterEach(() => { cleanup(); h.fetchAllUsers.mockReset() })
 
 const member = (id, submissions, created_at = '2026-01-01T00:00:00Z') => ({ id, handle: id, created_at, submissions })
@@ -97,4 +101,32 @@ test('coming back from a case file reloads the directory, so a new sanction show
   fireEvent.click(await screen.findByRole('button', { name: /open case file for target/i }))
   fireEvent.click(await screen.findByRole('button', { name: /back to directory/i }))
   await waitFor(() => expect(h.fetchAllUsers).toHaveBeenCalledTimes(2))
+})
+
+// ── The roll-up above the directory ──────────────────────
+test('shows the roll-up above the directory', async () => {
+  h.fetchAllUsers.mockResolvedValue([member('writer', {})])
+  renderIt()
+  const line = await screen.findByText('11 members · 3 wrote · 1 got a response · 2 came back')
+  const search = screen.getByRole('searchbox', { name: 'Search the user directory' })
+  // Above, in document order.
+  expect(line.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(h.fetchMemberFunnel).toHaveBeenCalledTimes(1)
+})
+
+test('one member reads "1 member"', async () => {
+  h.fetchMemberFunnel.mockResolvedValue({ members: 1, wrote: 1, got_response: 0, came_back: 0 })
+  h.fetchAllUsers.mockResolvedValue([member('writer', {})])
+  renderIt()
+  expect(await screen.findByText('1 member · 1 wrote · 0 got a response · 0 came back')).toBeInTheDocument()
+})
+
+test('a failed roll-up leaves the directory showing, with no error', async () => {
+  h.fetchMemberFunnel.mockRejectedValue(new Error('denied'))
+  h.fetchAllUsers.mockResolvedValue([member('writer', {})])
+  renderIt()
+  await screen.findByText('@writer')
+  await waitFor(() => expect(h.fetchMemberFunnel).toHaveBeenCalled())
+  expect(screen.queryByText(/wrote ·/)).toBeNull()
+  expect(screen.queryByText(/denied/)).toBeNull()
 })

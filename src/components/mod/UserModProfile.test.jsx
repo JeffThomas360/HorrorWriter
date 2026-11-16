@@ -184,3 +184,41 @@ test('the action list shows the duration and who acted', async () => {
   expect(screen.getByText(/permanent/)).toBeInTheDocument()
   expect(screen.getByText(/@warden_wendy/)).toBeInTheDocument()
 })
+
+// ── The Dossier tab: Keeper only ─────────────────────────
+const KEEPER = { mod_role: 'keeper', mod_scope: 'all' }
+const dossierCalls = () => h.rpcs.filter((r) => r.name === 'mod_user_dossier')
+
+test('a Keeper sees a Dossier tab, and nothing loads until it is chosen', async () => {
+  h.viewer = KEEPER
+  await openCaseFile()
+  expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Administrative', 'Submissions', 'Dossier'])
+  expect(dossierCalls()).toHaveLength(0)
+  fireEvent.click(screen.getByRole('tab', { name: 'Dossier' }))
+  await waitFor(() => expect(dossierCalls()).toHaveLength(1))
+  expect(dossierCalls()[0].args).toEqual({ p_user: 'target' })
+  expect(screen.getByRole('tab', { name: 'Dossier' })).toHaveAttribute('aria-selected', 'true')
+  // The sanction buttons belong to Administrative, not here.
+  expect(screen.queryByRole('button', { name: '7 Days' })).toBeNull()
+})
+
+test('a warden does not see the Dossier tab', async () => {
+  await openCaseFile()
+  expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Administrative', 'Submissions'])
+})
+
+test('initialTab="dossier" opens on the Dossier for a Keeper', async () => {
+  h.viewer = KEEPER
+  render(<UserModProfile userId="target" initialTab="dossier" />)
+  await screen.findByText('@spooky')
+  expect(screen.getByRole('tab', { name: 'Dossier' })).toHaveAttribute('aria-selected', 'true')
+  await waitFor(() => expect(dossierCalls()).toHaveLength(1))
+})
+
+test('initialTab="dossier" is ignored for a warden, who gets Administrative', async () => {
+  render(<UserModProfile userId="target" initialTab="dossier" />)
+  await screen.findByText('@spooky')
+  expect(screen.getByRole('tab', { name: 'Administrative' })).toHaveAttribute('aria-selected', 'true')
+  expect(dossierCalls()).toHaveLength(0)
+  expect(screen.getByRole('button', { name: '7 Days' })).toBeInTheDocument()
+})
