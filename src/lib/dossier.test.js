@@ -236,3 +236,9 @@ test('missing parts are treated as empty rather than crashing', () => {
     expect(`${l.text} ${l.sub ?? ''}`).not.toMatch(/NaN|undefined|null|Invalid Date/)
   }
 })
+
+test('a first-response date that is not a date does not crash the Came back line', () => {
+  const d = base({ responses: { count: 1, first_at: 'not a date' } })
+  expect(() => dossierLines(d, NOW)).not.toThrow()
+  expect(line(d, 'Came back').text).toBe('seen on 1 day')
+})

@@ -9,17 +9,22 @@ import { isPlaywrightTest } from './testMode'
 
 const off = () => !supabase || isPlaywrightTest()
 
-/** Send the arrival noted in this browser. Never throws: there is no one to tell. */
+/**
+ * Send the arrival noted in this browser. Never throws: there is no one to tell.
+ * Resolves true only when the server took the call, so the caller knows whether
+ * to keep the record for another try.
+ */
 export async function recordArrival(record) {
   try {
-    if (off() || !record) return
-    await supabase.rpc('record_arrival', {
+    if (off() || !record) return false
+    const { error } = await supabase.rpc('record_arrival', {
       p_source_tag: record.tag ?? null,
       p_referrer_host: record.referrerHost ?? null,
       p_landing_path: record.landingPath ?? null,
     })
+    return !error
   } catch {
-    // swallow
+    return false
   }
 }
 

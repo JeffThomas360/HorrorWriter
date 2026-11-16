@@ -8,7 +8,7 @@ const h = vi.hoisted(() => ({
   recordArrival: vi.fn(),
   fetchArrivalPromptDue: vi.fn(),
   recordFoundVia: vi.fn(),
-  clearArrival: vi.fn(),
+  settleArrival: vi.fn(),
 }))
 
 vi.mock('./AuthContext', () => ({ useAuth: () => h.auth }))
@@ -20,7 +20,7 @@ vi.mock('../lib/arrivalApi', () => ({
 }))
 vi.mock('../lib/arrival', () => ({
   readArrival: () => h.stored,
-  clearArrival: (...a) => h.clearArrival(...a),
+  settleArrival: (...a) => h.settleArrival(...a),
 }))
 vi.mock('../lib/passkeyPrompt', () => ({ passkeyPromptFor: () => h.passkeyOwner }))
 
@@ -39,10 +39,10 @@ beforeEach(() => {
   h.auth = { user: null, profile: null, isLoading: false }
   h.stored = null
   h.passkeyOwner = null
-  h.recordArrival.mockReset().mockResolvedValue(undefined)
+  h.recordArrival.mockReset().mockResolvedValue(true)
   h.fetchArrivalPromptDue.mockReset().mockResolvedValue(false)
   h.recordFoundVia.mockReset().mockResolvedValue(undefined)
-  h.clearArrival.mockReset()
+  h.settleArrival.mockReset()
   window.history.pushState({}, '', '/')
 })
 
@@ -56,7 +56,7 @@ test('renders nothing signed out, and nothing is sent or asked', async () => {
   expect(h.recordArrival).not.toHaveBeenCalled()
   expect(h.fetchArrivalPromptDue).not.toHaveBeenCalled()
   // Signed out is not a reason to forget how they arrived: they may join yet.
-  expect(h.clearArrival).not.toHaveBeenCalled()
+  expect(h.settleArrival).not.toHaveBeenCalled()
 })
 
 test('renders nothing while the sign-in is still being read', async () => {
@@ -80,33 +80,43 @@ test('stays out of the way on the sign-in callback page', async () => {
   expect(h.recordArrival).not.toHaveBeenCalled()
 })
 
-test("a new member's stored arrival is sent once and then cleared", async () => {
+test("a new member's stored arrival is sent once and then settled", async () => {
   h.auth = signedIn(HOUR)
   h.stored = ARRIVAL
   const { rerender } = render(<ArrivalPrompt />)
-  await waitFor(() => expect(h.clearArrival).toHaveBeenCalledTimes(1))
+  await waitFor(() => expect(h.settleArrival).toHaveBeenCalledTimes(1))
   expect(h.recordArrival).toHaveBeenCalledTimes(1)
   expect(h.recordArrival).toHaveBeenCalledWith(ARRIVAL)
-  expect(h.recordArrival.mock.invocationCallOrder[0]).toBeLessThan(h.clearArrival.mock.invocationCallOrder[0])
+  expect(h.recordArrival.mock.invocationCallOrder[0]).toBeLessThan(h.settleArrival.mock.invocationCallOrder[0])
   rerender(<ArrivalPrompt />)
   await settle()
   expect(h.recordArrival).toHaveBeenCalledTimes(1)
 })
 
-test("an older account's stored arrival is cleared without being sent", async () => {
+test('a send the server did not take leaves the record for another try', async () => {
+  h.auth = signedIn(HOUR)
+  h.stored = ARRIVAL
+  h.recordArrival.mockResolvedValue(false)
+  render(<ArrivalPrompt />)
+  await waitFor(() => expect(h.recordArrival).toHaveBeenCalledTimes(1))
+  await settle()
+  expect(h.settleArrival).not.toHaveBeenCalled()
+})
+
+test("an older account's stored arrival is settled without being sent", async () => {
   h.auth = signedIn(3 * DAY)
   h.stored = ARRIVAL
   render(<ArrivalPrompt />)
-  await waitFor(() => expect(h.clearArrival).toHaveBeenCalledTimes(1))
+  await waitFor(() => expect(h.settleArrival).toHaveBeenCalledTimes(1))
   expect(h.recordArrival).not.toHaveBeenCalled()
 })
 
-test('with no stored arrival nothing is sent or cleared', async () => {
+test('with no stored arrival nothing is sent or settled', async () => {
   h.auth = signedIn(HOUR)
   render(<ArrivalPrompt />)
   await settle()
   expect(h.recordArrival).not.toHaveBeenCalled()
-  expect(h.clearArrival).not.toHaveBeenCalled()
+  expect(h.settleArrival).not.toHaveBeenCalled()
 })
 
 test('a member of three days who is due is shown the card', async () => {

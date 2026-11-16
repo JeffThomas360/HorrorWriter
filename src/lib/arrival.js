@@ -9,6 +9,11 @@ import { isPlaywrightTest } from './testMode'
  * once, by ArrivalPrompt, after the visitor has an account. A visitor who
  * never joins is never reported.
  *
+ * Once it has been dealt with (sent, or found to belong to an account too old
+ * to send it), the record is replaced by a marker, `{ done: true }`. Without
+ * the marker the very next page would be noted as a fresh "arrival": an
+ * internal page with no tag and no referrer, sent in place of the real one.
+ *
  * Kept deliberately small: a host name, never the page on that host; a path,
  * never its query string. The database cleans the same values again.
  */
@@ -58,25 +63,49 @@ function isRecord(value, now) {
     && value.at <= now && now - value.at < THIRTY_DAYS
 }
 
-/** The stored record, or null. Anything stale or malformed is cleared on the way. */
-export function readArrival(win = window, now = Date.now()) {
+const isDone = (value) => !!value && typeof value === 'object' && value.done === true
+
+/**
+ * What storage holds: { state: 'none' | 'done' | 'record', record? }.
+ * Anything stale or malformed is cleared on the way and reads as 'none'.
+ */
+function readStored(win, now) {
   try {
     const raw = win.localStorage.getItem(ARRIVAL_KEY)
-    if (raw === null) return null
+    if (raw === null) return { state: 'none' }
     let value = null
     try {
       value = JSON.parse(raw)
     } catch {
       value = null
     }
+    if (isDone(value)) return { state: 'done' }
     if (isRecord(value, now)) {
-      return { tag: value.tag, referrerHost: value.referrerHost, landingPath: value.landingPath, at: value.at }
+      return {
+        state: 'record',
+        record: { tag: value.tag, referrerHost: value.referrerHost, landingPath: value.landingPath, at: value.at },
+      }
     }
     win.localStorage.removeItem(ARRIVAL_KEY)
-    return null
+    return { state: 'none' }
   } catch {
-    // Storage blocked or missing: there is simply no record.
-    return null
+    // Storage blocked or missing: there is simply nothing there.
+    return { state: 'none' }
+  }
+}
+
+/** The arrival waiting to be sent, or null (none noted, or already dealt with). */
+export function readArrival(win = window, now = Date.now()) {
+  const stored = readStored(win, now)
+  return stored.state === 'record' ? stored.record : null
+}
+
+/** Mark the arrival as dealt with, so no later page is noted in its place. */
+export function settleArrival(win = window, now = Date.now()) {
+  try {
+    win.localStorage.setItem(ARRIVAL_KEY, JSON.stringify({ done: true, at: now }))
+  } catch {
+    // nothing to mark
   }
 }
 
@@ -95,7 +124,7 @@ export function noteArrival(win = window, now = Date.now()) {
     const pathname = win.location.pathname
     // The sign-in callback is a stop on the way in, not where anyone arrived.
     if (String(pathname).startsWith('/auth/')) return
-    if (readArrival(win, now)) return
+    if (readStored(win, now).state !== 'none') return
     const record = {
       tag: cleanTag(new URLSearchParams(win.location.search).get('utm_source')),
       referrerHost: cleanReferrer(win.document?.referrer, win.location.hostname),

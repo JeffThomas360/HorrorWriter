@@ -97,8 +97,10 @@ function cameBackWords(d) {
   const seen = `seen on ${plural(days.length, 'day', 'days')}`
   const firstResponse = d.responses?.first_at
   if (!firstResponse) return seen
+  const when = new Date(firstResponse)
+  if (Number.isNaN(when.getTime())) return seen
   // Both sides are UTC days written YYYY-MM-DD, so plain string order is date order.
-  const responseDay = new Date(firstResponse).toISOString().slice(0, 10)
+  const responseDay = when.toISOString().slice(0, 10)
   const since = days.some((day) => day > responseDay)
   return `${seen} · ${since ? 'and since the first response' : 'not since the first response'}`
 }

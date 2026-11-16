@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from './AuthContext'
 import { withProviders } from './Providers'
-import { readArrival, clearArrival } from '../lib/arrival'
+import { readArrival, settleArrival } from '../lib/arrival'
 import { recordArrival, fetchArrivalPromptDue, recordFoundVia } from '../lib/arrivalApi'
 import { passkeyPromptFor } from '../lib/passkeyPrompt'
 
@@ -9,8 +9,10 @@ import { passkeyPromptFor } from '../lib/passkeyPrompt'
  * Two small jobs for a member who has just joined, on whatever page they land on.
  *
  * 1. Send how they arrived. lib/arrival.js noted it in this browser on their first
- *    page; within a day of joining it is sent, once, and then forgotten here. An
- *    older account's note is just forgotten.
+ *    page; within a day of joining it is sent, and once the server has taken it the
+ *    note is marked done, so no later page is sent in its place. A send that fails
+ *    is left to try again on the next page. An older account's note is marked done
+ *    unsent.
  * 2. Ask "What brought you here?", once, in their first week. Optional, with a Skip.
  *    The server remembers they were asked, so no other device asks again.
  *
@@ -52,8 +54,8 @@ function ArrivalPrompt() {
       sentFor.current = userId
       const stored = readArrival()
       if (stored) {
-        if (age < DAY) recordArrival(stored).finally(() => clearArrival())
-        else clearArrival()
+        if (age < DAY) recordArrival(stored).then((taken) => { if (taken) settleArrival() })
+        else settleArrival()
       }
     }
 

@@ -26,12 +26,13 @@ test('recordArrival sends nulls for what was not noted', async () => {
   expect(rpc).toHaveBeenCalledWith('record_arrival', { p_source_tag: null, p_referrer_host: null, p_landing_path: '/' })
 })
 
-test('recordArrival never throws, whatever the server says', async () => {
+test('recordArrival says whether the server took it, and never throws', async () => {
+  expect(await recordArrival({ tag: null, referrerHost: null, landingPath: '/' })).toBe(true)
   rpc.mockResolvedValueOnce({ data: null, error: { message: 'denied' } })
-  await expect(recordArrival({ tag: null, referrerHost: null, landingPath: '/' })).resolves.toBeUndefined()
+  expect(await recordArrival({ tag: null, referrerHost: null, landingPath: '/' })).toBe(false)
   rpc.mockRejectedValueOnce(new Error('network down'))
-  await expect(recordArrival({ tag: null, referrerHost: null, landingPath: '/' })).resolves.toBeUndefined()
-  await expect(recordArrival(null)).resolves.toBeUndefined()
+  expect(await recordArrival({ tag: null, referrerHost: null, landingPath: '/' })).toBe(false)
+  expect(await recordArrival(null)).toBe(false)
 })
 
 test('fetchArrivalPromptDue asks the server and returns its answer', async () => {
@@ -60,7 +61,7 @@ test('recordFoundVia sends the text and throws the message when it fails', async
 
 test('with no Supabase client nothing is called', async () => {
   state.client = null
-  await expect(recordArrival({ tag: null, referrerHost: null, landingPath: '/' })).resolves.toBeUndefined()
+  expect(await recordArrival({ tag: null, referrerHost: null, landingPath: '/' })).toBe(false)
   expect(await fetchArrivalPromptDue()).toBe(false)
   await expect(recordFoundVia('x')).resolves.toBeUndefined()
   expect(rpc).not.toHaveBeenCalled()

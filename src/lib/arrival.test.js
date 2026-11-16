@@ -3,7 +3,7 @@ import { test, expect, vi, beforeEach } from 'vitest'
 const mode = vi.hoisted(() => ({ playwright: false }))
 vi.mock('./testMode', () => ({ isPlaywrightTest: () => mode.playwright }))
 
-const { ARRIVAL_KEY, noteArrival, readArrival, clearArrival } = await import('./arrival')
+const { ARRIVAL_KEY, noteArrival, readArrival, clearArrival, settleArrival } = await import('./arrival')
 
 const NOW = Date.UTC(2026, 10, 16, 12)
 const DAY = 24 * 60 * 60 * 1000
@@ -151,4 +151,32 @@ test('nothing is noted in Playwright test mode', () => {
   mode.playwright = true
   noteArrival(fakeWin({ search: '?utm_source=bing' }), NOW)
   expect(window.localStorage.getItem(ARRIVAL_KEY)).toBeNull()
+})
+
+// ── Once it has been dealt with, it is never noted again ──
+test('a settled arrival reads as none, and a later page does not note a new one', () => {
+  noteArrival(fakeWin({ pathname: '/library/', search: '?utm_source=chatgpt.com' }), NOW)
+  settleArrival(fakeWin(), NOW + 1000)
+  expect(readArrival(fakeWin(), NOW + 2000)).toBeNull()
+  // The next page load: an internal page, no tag. It must not become "how they arrived".
+  noteArrival(fakeWin({ pathname: '/publish/' }), NOW + 3000)
+  expect(readArrival(fakeWin(), NOW + 4000)).toBeNull()
+  expect(stored()).toEqual({ done: true, at: NOW + 1000 })
+})
+
+test('reading a settled arrival does not clear the marker', () => {
+  settleArrival(fakeWin(), NOW)
+  readArrival(fakeWin(), NOW + 1000)
+  expect(stored()).toEqual({ done: true, at: NOW })
+})
+
+test('the marker outlives the 30 days an unsent record is kept', () => {
+  settleArrival(fakeWin(), NOW)
+  noteArrival(fakeWin({ search: '?utm_source=bing' }), NOW + 90 * DAY)
+  expect(stored()).toEqual({ done: true, at: NOW })
+})
+
+test('settling with blocked storage does not crash', () => {
+  const blocked = { getItem() { throw new Error('denied') }, setItem() { throw new Error('denied') }, removeItem() { throw new Error('denied') } }
+  expect(() => settleArrival(fakeWin({ storage: blocked }), NOW)).not.toThrow()
 })
