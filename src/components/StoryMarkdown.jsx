@@ -2,6 +2,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
 import rehypeRaw from 'rehype-raw'
+import remarkProseParagraphs from '../lib/remarkProseParagraphs'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 
 // Story bodies are author-supplied and read by everyone, so raw HTML is parsed
@@ -16,7 +17,7 @@ export const storyRehypePlugins = [rehypeRaw, [rehypeSanitize, storySchema]]
 
 export default function StoryMarkdown({ content }) {
   return (
-    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={storyRehypePlugins}>
+    <ReactMarkdown remarkPlugins={[remarkGfm, remarkProseParagraphs, remarkBreaks]} rehypePlugins={storyRehypePlugins}>
       {content || ''}
     </ReactMarkdown>
   )
