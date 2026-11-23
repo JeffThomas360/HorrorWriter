@@ -21,7 +21,7 @@
 - Evidence is counts only. Never the keystrokes, never the pasted text. Every number is clamped in the database.
 - The record is sent by the writer's own browser and can be faked. The caveat text (see Task 4) is shown wherever staff read it.
 - When a submission is deleted its tag and evidence rows are deleted. When the author's account is deleted, all three tables cascade.
-- Migration file: `supabase/migrations/20261125000000_ai_suspicion.sql` (take the next free number if that one is used). Ends with `NOTIFY pgrst, 'reload schema';`. Additive.
+- Migration file: `supabase/migrations/20261127000000_ai_suspicion.sql` (take the next free number if that one is used). Ends with `NOTIFY pgrst, 'reload schema';`. Additive.
 - Each client-callable RPC: `revoke all … from public, anon; grant execute … to authenticated;` and a row in the `scripts/sql/verify-grants.sql` allowlist. `record_machine_score` is `service_role` only.
 - Hooks before early returns in islands. Small red is `--color-ember`.
 - The privacy sentence on `/rules` ships in this PR and is a draft for Jeff to reword.
@@ -39,7 +39,7 @@
 ### Task 1: Migration and its SQL test
 
 **Files:**
-- Create: `supabase/migrations/20261125000000_ai_suspicion.sql`
+- Create: `supabase/migrations/20261127000000_ai_suspicion.sql`
 - Create: `scripts/sql/test-ai-suspicion.sql`
 - Modify: `scripts/sql/verify-grants.sql` (allowlist rows)
 
@@ -79,7 +79,7 @@ RPCs:
 - [ ] **Step 4: Rehearse.** Jeff runs in the app terminal and answers the production prompt:
 
 ```powershell
-& .\scripts\sql\rehearse.ps1 -Test scripts\sql\test-ai-suspicion.sql -Migration supabase\migrations\20261125000000_ai_suspicion.sql
+& .\scripts\sql\rehearse.ps1 -Test scripts\sql\test-ai-suspicion.sql -Migration supabase\migrations\20261127000000_ai_suspicion.sql
 ```
 
 Expected: final row `ALL PASS`. Then confirm the rollback with a read-only query: the three tables and the test accounts are absent.

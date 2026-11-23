@@ -19,7 +19,7 @@
 - A missing or invalid `machine_written` answer is ignored. It never throws.
 - Threshold: `0.85`. Asked only when the kind is `story`.
 - New category value: `ai_written`. Label everywhere: `Written by AI`.
-- Migration file: `supabase/migrations/20261124000000_ai_written_reports.sql`, ending with `NOTIFY pgrst, 'reload schema';`.
+- Migration file: `supabase/migrations/20261126000000_ai_written_reports.sql`, ending with `NOTIFY pgrst, 'reload schema';`.
 - `file_automated_report` is `REVOKE`d from `PUBLIC, anon, authenticated` and granted to `service_role` only. `scripts/sql/verify-grants.sql` must return zero rows.
 - Small or interactive red is `--color-ember`. No `#991B1B`.
 - The tick box renders server-side with the form. It is not hidden until JS.
@@ -39,7 +39,7 @@
 ### Task 1: Migration and its SQL test
 
 **Files:**
-- Create: `supabase/migrations/20261124000000_ai_written_reports.sql`
+- Create: `supabase/migrations/20261126000000_ai_written_reports.sql`
 - Create: `scripts/sql/test-ai-written-reports.sql`
 
 **Interfaces:**
@@ -65,7 +65,7 @@
 - [ ] **Step 3: Rehearse.** Jeff runs, in the app terminal, and answers the CLI's production prompt:
 
 ```powershell
-& .\scripts\sql\rehearse.ps1 -Test scripts\sql\test-ai-written-reports.sql -Migration supabase\migrations\20261124000000_ai_written_reports.sql
+& .\scripts\sql\rehearse.ps1 -Test scripts\sql\test-ai-written-reports.sql -Migration supabase\migrations\20261126000000_ai_written_reports.sql
 ```
 
 Expected: final row `ALL PASS`. Then `npx supabase db query --remote -f scripts/sql/verify-grants.sql` is checked after merge (the function only exists inside the rehearsal's rolled-back transaction).

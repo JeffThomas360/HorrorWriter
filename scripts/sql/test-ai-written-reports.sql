@@ -1,7 +1,7 @@
--- Behaviour test for 20261124000000_ai_written_reports.sql. Rolls back; nothing is kept.
+-- Behaviour test for 20261126000000_ai_written_reports.sql. Rolls back; nothing is kept.
 -- Success = final row 'ALL PASS'. Any failure raises 'FAIL: ...'.
 --
---   & .\scripts\sql\rehearse.ps1 -Test scripts\sql\test-ai-written-reports.sql -Migration supabase\migrations\20261124000000_ai_written_reports.sql
+--   & .\scripts\sql\rehearse.ps1 -Test scripts\sql\test-ai-written-reports.sql -Migration supabase\migrations\20261126000000_ai_written_reports.sql
 --
 -- Uses throwaway accounts (...ca0xx) and one story (...da001).
 begin;
@@ -158,11 +158,11 @@ select pg_temp.be(null);
 -- Set-up: a story with five or more distinct member reports in the last hour, which a
 -- moderator has put back to live. The next automatic note must leave it there.
 --
--- The reports are inserted as the admin role with the automated-action flag on, not
--- as the members themselves. As a member, the fifth report is refused today:
--- handle_new_report() tries to screen the story without that flag and
--- prevent_mod_status_reset() raises. That is an older fault, found while writing this
--- test and not this migration's to fix; this section only needs the reports to exist.
+-- The reports are inserted as the admin role with the automated-action flag on, so
+-- the set-up does not depend on who may report or on how the pile-up check screens
+-- (20261125000000 fixed that check; before it, a member's fifth report was refused).
+-- Since that fix the check really does screen, so without the trigger's WHEN clause
+-- the note below would screen this story a second time.
 do $$
 declare n text;
 begin
