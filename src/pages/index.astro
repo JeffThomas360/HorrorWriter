@@ -11,7 +11,7 @@ import VoidWhispers from '../components/VoidWhispers.jsx';
 import { supabase } from '../supabaseClient';
 import { buildWebSiteSchema, buildFAQSchema } from '../lib/seo';
 import { isPlaywrightTest } from '../lib/testMode';
-import { fetchWaiting } from '../lib/firstReader';
+import { storyTiles } from '../lib/homeShelf';
 
 const faqs = [
   {
@@ -80,31 +80,31 @@ const WHY = [
 ];
 
 let tiles = FALLBACK_TILES;
-// 'waiting' when the tiles are work nobody has answered yet; 'latest' otherwise.
+// 'stories' when the tiles are the newest member stories; 'latest' (threads) otherwise.
 let tileMode = 'latest';
-
-const waitedFor = (days) => (days <= 0 ? 'posted today' : days === 1 ? 'waiting 1 day' : `waiting ${days} days`);
 
 try {
   if (supabase && !isPlaywrightTest()) {
-    // Lead with people waiting to be read: a quiet night then reads as an
-    // invitation, not an empty room.
-    const waiting = await fetchWaiting();
-    if (waiting.length > 0) {
-      tileMode = 'waiting';
-      tiles = waiting.slice(0, 3).map((w) => ({
-        tag: `▸ ${w.kind.toUpperCase()} · ${waitedFor(w.days).toUpperCase()}`,
-        title: w.title,
-        body: w.handle
-          ? `By @${w.handle}. No one has replied yet. Be the first to read it.`
-          : 'No one has replied yet. Be the first to read it.',
-        meta: 'Read and reply →',
-        href: w.href,
-      }));
+    // Lead with the newest stories: they are the proof that people write here.
+    // (Until 2026-11 this block listed work still waiting for a reply, with a
+    // day counter. To a writer deciding whether to post, that read as "posts
+    // here go unanswered". The waiting list lives on at /first-reader/.)
+    const { data } = await supabase
+      .from('books')
+      .select('id, title, lede, content, created_at, profiles(handle)')
+      .eq('mod_status', 'live')
+      .eq('removed_by_author', false)
+      .is('archive_author', null)
+      .order('created_at', { ascending: false })
+      .limit(3);
+
+    if (data && data.length > 0) {
+      tileMode = 'stories';
+      tiles = storyTiles(data);
     }
   }
 } catch (e) {
-  console.error('Error fetching first-reader tiles:', e);
+  console.error('Error fetching newest stories:', e);
 }
 
 try {
@@ -188,7 +188,7 @@ const isFallback = tiles === FALLBACK_TILES;
         Join free and start writing
       </button>
       <a id="cta-enter" href="/forum/" class="hidden border border-[var(--color-upside)] text-[var(--color-upside)] font-mono text-xs uppercase px-6 py-3.5 tracking-wider shadow-[0_0_20px_rgba(25,165,184,0.25)] hover:bg-[var(--color-upside)] hover:text-[var(--color-void)] transition-colors">
-        Go to the Crypt
+        Go to the Crypt forum
       </a>
       <a href="/library/" class="font-mono text-xs uppercase tracking-wider text-[var(--color-text-secondary)] hover:text-[var(--color-ember)] transition-colors">
         Read stories in the Library →
@@ -211,10 +211,10 @@ const isFallback = tiles === FALLBACK_TILES;
               Every long-running forum you love was empty once. The threads you start tonight are the ones new members find in a year — with your name on them.
             </p>
           </>
-        ) : tileMode === 'waiting' ? (
+        ) : tileMode === 'stories' ? (
           <>
-            <span class="block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-text-secondary)] mb-2">No replies yet · longest wait first</span>
-            <h2 class="text-2xl md:text-3xl font-serif font-black">Needs a <em class="italic text-[var(--color-ember)] font-serif">first reader</em></h2>
+            <span class="block font-mono text-xs uppercase tracking-[0.25em] text-[var(--color-text-secondary)] mb-2">The Library · newest stories</span>
+            <h2 class="text-2xl md:text-3xl font-serif font-black">New in <em class="italic text-[var(--color-ember)] font-serif">the Library</em></h2>
           </>
         ) : (
           <>
@@ -223,8 +223,8 @@ const isFallback = tiles === FALLBACK_TILES;
           </>
         )}
       </div>
-      {tileMode === 'waiting' ? (
-        <a href="/first-reader/" class="inline-block shrink-0 font-mono text-xs py-2 hover:text-[var(--color-ember)] transition-colors border-b border-[var(--color-line)] pb-1">See everything waiting →</a>
+      {tileMode === 'stories' ? (
+        <a href="/library/" class="inline-block shrink-0 font-mono text-xs py-2 hover:text-[var(--color-ember)] transition-colors border-b border-[var(--color-line)] pb-1">See every story →</a>
       ) : (
         <a href="/forum/" class="inline-block shrink-0 font-mono text-xs py-2 hover:text-[var(--color-ember)] transition-colors border-b border-[var(--color-line)] pb-1">See all threads →</a>
       )}
@@ -256,6 +256,12 @@ const isFallback = tiles === FALLBACK_TILES;
         ))}
       </div>
     </div>
+    {tileMode === 'stories' && (
+      <p class="font-serif text-sm text-[var(--color-text-secondary)] mt-6">
+        Read one and tell the writer what you thought.
+        <a href="/first-reader/" class="underline underline-offset-4 hover:text-[var(--color-ember)] transition-colors">Be someone's first reader →</a>
+      </p>
+    )}
   </section>
 
   <!-- Whispers in the Void: Anonymous Dread Confessional & Story Seeds -->

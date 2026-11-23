@@ -3,7 +3,7 @@ import { useAuth } from './AuthContext'
 import { withProviders } from './Providers'
 import { supabase } from '../supabaseClient'
 import { playTypewriterKey } from '../lib/soundscapes'
-import { formatSlot } from '../lib/ritualSchedule'
+import { formatSlot, isThisWeeks } from '../lib/ritualSchedule'
 import { screenContent } from '../lib/screenContent'
 import TranscribeButton from './TranscribeButton'
 import {
@@ -62,14 +62,18 @@ function MidnightRitual() {
       const dbP = activePrompts?.[i]
       const freq = `CH 13.${i}`
       const isDbPrompt = Boolean(dbP?.id)
-      const weekLabel = i === 0 ? 'This week' : `Prompt ${i + 1} of 5`
+      // The newest prompt is only "this week's" for a week after its release.
+      const fresh = !isDbPrompt || isThisWeeks(dbP.goes_live_at)
+      const weekLabel = i === 0 ? (fresh ? 'This week' : 'Latest') : `Prompt ${i + 1} of 5`
       return {
         id: dbP?.id || `channel-${i}`,
         dbPromptId: dbP?.id || null,
         freq,
         name: weekLabel,
         prompt: dbP?.body || ROTATING_FALLBACK_PROMPTS[i],
-        category: i === 0 ? "This week's prompt" : `Still open · prompt ${i + 1}`,
+        category: i === 0 ? (fresh ? "This week's prompt" : 'Latest prompt') : `Still open · prompt ${i + 1}`,
+        // An older date on the newest prompt reads as an abandoned site.
+        showLiveSince: isDbPrompt && Boolean(dbP.goes_live_at) && (i > 0 || fresh),
         isDbPrompt,
         goes_live_at: dbP?.goes_live_at,
       }
@@ -308,7 +312,7 @@ function MidnightRitual() {
               type="button"
               onClick={() => handleTune(idx)}
               aria-label={count ? `${ch.freq}, ${count} ${count === 1 ? 'entry' : 'entries'}` : ch.freq}
-              title={idx === 0 ? "This week's prompt" : `Prompt from ${idx} ${idx === 1 ? 'week' : 'weeks'} ago, still open`}
+              title={idx === 0 ? ch.category : `Prompt from ${idx} ${idx === 1 ? 'week' : 'weeks'} ago, still open`}
               className={`font-mono text-xs px-3 py-2 min-h-[36px] border transition-all cursor-pointer ${
                 activeChannelIndex === idx
                   ? 'bg-[var(--color-upside)] text-[var(--color-void)] border-[var(--color-upside)] font-black shadow-[0_0_10px_rgba(25,165,184,0.3)]'
@@ -338,9 +342,11 @@ function MidnightRitual() {
               {activeChannel.category}
             </span>
             <span className="font-mono text-[11px] text-[var(--color-text-secondary)] uppercase">
-              {activeChannel.isDbPrompt && activeChannel.goes_live_at
+              {activeChannel.showLiveSince
                 ? `Live since ${formatSlot(activeChannel.goes_live_at)} · ${MIN_WORDS} to ${WORD_LIMIT} words to publish`
-                : `${activeChannel.freq} · ${MIN_WORDS} to ${WORD_LIMIT} words to publish`}
+                : activeChannel.isDbPrompt
+                  ? `${MIN_WORDS} to ${WORD_LIMIT} words to publish`
+                  : `${activeChannel.freq} · ${MIN_WORDS} to ${WORD_LIMIT} words to publish`}
             </span>
             {activeChannelIndex === 0 && nextUnlock && (
               <span className="font-mono text-[10px] text-[var(--color-text-secondary)]">
