@@ -106,6 +106,11 @@ with allow(name, role, why) as (values
   ('mod_user_dossier',         'authenticated', 'keeper RPC, mod_can(configure, all)'),
   ('admin_member_funnel',      'authenticated', 'keeper RPC, mod_can(configure, all)'),
   ('admin_step_funnel',        'authenticated', 'keeper RPC, mod_can(configure, all)'),
+  -- Response emails (20261123000000). The claim and the trigger are private.
+  ('get_email_pref',           'authenticated', 'own preference only, boolean'),
+  ('set_email_pref',           'authenticated', 'own preference only, user = auth.uid()'),
+  ('email_off',                'anon',          'emailed turn-off link, unguessable token, can only switch off'),
+  ('email_off',                'authenticated', 'emailed turn-off link, unguessable token, can only switch off'),
   -- Sanction columns private (20261020020000). Mod reads gated by mod_can inside.
   ('mod_get_profile',          'authenticated', 'mod RPC, mod_can(handle_report, all)'),
   ('mod_list_users',           'authenticated', 'warden/keeper RPC, mod_can(ban, all)'),
