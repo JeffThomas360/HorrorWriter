@@ -146,7 +146,10 @@ select pg_temp.must(pg_temp.claims((select v::uuid from t_kept where k = 'n2')) 
 
 -- ── 5. The member's switch turns it off and on ──
 select pg_temp.be(pg_temp.u('writer'));
-select pg_temp.must(public.set_email_pref(false) = false and public.get_email_pref() = false, '5: the member can turn emails off');
+-- Set and read in separate statements: get_email_pref() is STABLE, so inside the
+-- statement that writes it would still see the value from before the write.
+select pg_temp.must(public.set_email_pref(false) = false, '5: turning emails off returns the new choice');
+select pg_temp.must(public.get_email_pref() = false, '5: the member can turn emails off');
 select pg_temp.be(null);
 update public.member_email_prefs set last_emailed_at = now() - interval '2 hours' where user_id = pg_temp.u('writer');
 select pg_temp.critique('00000000-0000-4000-8000-0000000d9001');
@@ -154,7 +157,8 @@ insert into t_kept values ('n3', pg_temp.note(pg_temp.u('writer'))::text);
 select pg_temp.must(pg_temp.claims((select v::uuid from t_kept where k = 'n3')) = 0,
   '5: nothing is emailed while the switch is off');
 select pg_temp.be(pg_temp.u('writer'));
-select pg_temp.must(public.set_email_pref(true) = true and public.get_email_pref() = true, '5: the member can turn emails back on');
+select pg_temp.must(public.set_email_pref(true) = true, '5: turning emails on returns the new choice');
+select pg_temp.must(public.get_email_pref() = true, '5: the member can turn emails back on');
 select pg_temp.be(null);
 select pg_temp.must(pg_temp.claims((select v::uuid from t_kept where k = 'n3')) = 1,
   '5: with the switch back on the response is emailed');
