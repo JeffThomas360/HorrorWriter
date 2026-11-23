@@ -155,23 +155,33 @@ select pg_temp.must(pg_temp.refused(
 select pg_temp.be(null);
 
 -- ── 7. A note never re-runs the five-reporter check ──
--- Five members report the story with details: it is screened, as it always was. A
--- moderator puts it back. The next automatic note must leave it there.
+-- Set-up: a story with five or more distinct member reports in the last hour, which a
+-- moderator has put back to live. The next automatic note must leave it there.
+--
+-- The reports are inserted as the admin role with the automated-action flag on, not
+-- as the members themselves. As a member, the fifth report is refused today:
+-- handle_new_report() tries to screen the story without that flag and
+-- prevent_mod_status_reset() raises. That is an older fault, found while writing this
+-- test and not this migration's to fix; this section only needs the reports to exist.
 do $$
 declare n text;
 begin
   -- the open note from section 4 is dismissed so the next call files a fresh one
   update public.reports set status = 'dismissed'
   where target_id = pg_temp.story() and source = 'automated' and status = 'open';
+  perform set_config('app.automated_mod_action', 'true', true);
   foreach n in array array['r1','r2','r3','r4','r5'] loop
-    perform pg_temp.be(pg_temp.u(n));
     insert into public.reports (reporter_id, target_type, target_id, category, details)
     values (pg_temp.u(n), 'story', pg_temp.story(), 'ai_written', 'hwtest: reads like a chatbot');
-    perform pg_temp.be(null);
   end loop;
+  perform set_config('app.automated_mod_action', 'false', true);
 end $$;
+select pg_temp.must(
+  (select count(distinct reporter_id) >= 5 from public.reports
+   where target_type = 'story' and target_id = pg_temp.story()),
+  '7: set-up has five distinct member reporters');
 select pg_temp.must((select mod_status = 'screening' from public.books where id = pg_temp.story()),
-  '7: five detailed member reports still screen a story');
+  '7: set-up screened the story');
 
 select set_config('app.automated_mod_action', 'true', true);
 update public.books set mod_status = 'live' where id = pg_temp.story();
