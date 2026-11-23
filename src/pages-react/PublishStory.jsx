@@ -40,6 +40,9 @@ function PublishStory({ bookId }) {
     return ''
   })
   const [error, setError] = useState(null)
+  // House Rule 4. Asked afresh every time, edits included, and never saved with the
+  // draft: it is a promise about what is being sent now.
+  const [wroteIt, setWroteIt] = useState(false)
   const [seriesId, setSeriesId] = useState('')
   const [activeTab, setActiveTab] = useState('write') // 'write' | 'preview'
   const [currentVersion, setCurrentVersion] = useState(1)
@@ -270,6 +273,11 @@ function PublishStory({ bookId }) {
       return
     }
 
+    if (!wroteIt) {
+      setError('Tick the box to confirm you wrote this story yourself.')
+      return
+    }
+
     mutation.mutate({ title, lede, cover, content, critiqueFocus })
   }
 
@@ -429,9 +437,30 @@ function PublishStory({ bookId }) {
               </div>
             </div>
 
-            <div className="flex items-center gap-4 mt-4 border-t border-[var(--color-line)] pt-6">
-              <button 
-                type="submit" 
+            <div className="flex flex-wrap items-center gap-x-3 mt-4 border-t border-[var(--color-line)] pt-4">
+              <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm text-[var(--color-bone)]">
+                <input
+                  type="checkbox"
+                  required
+                  checked={wroteIt}
+                  onChange={(e) => setWroteIt(e.target.checked)}
+                  className="h-5 w-5 shrink-0 accent-[var(--color-ember)]"
+                />
+                I wrote this myself. No AI wrote it for me.
+              </label>
+              <a
+                href="/rules/#house-rules"
+                target="_blank"
+                rel="noopener"
+                className="font-mono text-xs uppercase tracking-wider text-[var(--color-ash)] underline underline-offset-2 hover:text-[var(--color-ember)]"
+              >
+                House Rule 4
+              </a>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <button
+                type="submit"
                 className="btn-vhs disabled:opacity-50 cursor-pointer"
                 disabled={isSubmitting}
               >

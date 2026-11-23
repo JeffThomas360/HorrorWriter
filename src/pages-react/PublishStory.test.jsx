@@ -70,3 +70,46 @@ test('opening an existing story without changes does not autosave a phantom draf
     vi.useRealTimers()
   }
 })
+
+// House Rule 4: stories are written by the member. The promise is made at publish.
+const fillStory = async () => {
+  fireEvent.change(await screen.findByPlaceholderText('The Music of Erich Zann'), { target: { value: 'The Lighthouse' } })
+  fireEvent.change(screen.getByPlaceholderText(/In the Rue d'Auseil/), { target: { value: 'A keeper alone.' } })
+  fireEvent.change(screen.getByPlaceholderText(/^True!—nervous—/), { target: { value: Array(60).fill('word').join(' ') } })
+}
+const promise = () => screen.getByRole('checkbox', { name: /I wrote this myself/i })
+
+test('asks the writer to promise the story is their own, on a new story and on an edit', async () => {
+  render(<PublishStory />)
+  await screen.findByPlaceholderText('The Music of Erich Zann')
+  expect(promise()).not.toBeChecked()
+  expect(screen.getByRole('link', { name: /House Rule 4/i })).toHaveAttribute('href', '/rules/#house-rules')
+  cleanup()
+
+  render(<PublishStory bookId="b1" />)
+  await screen.findByDisplayValue('Original title')
+  expect(promise()).not.toBeChecked()
+})
+
+test('will not publish until the box is ticked', async () => {
+  render(<PublishStory />)
+  await fillStory()
+  from.mockClear()
+
+  fireEvent.submit(document.querySelector('form'))
+
+  expect(await screen.findByText('Tick the box to confirm you wrote this story yourself.')).toBeInTheDocument()
+  expect(from).not.toHaveBeenCalledWith('books')
+})
+
+test('publishes once the box is ticked', async () => {
+  render(<PublishStory />)
+  await fillStory()
+  from.mockClear()
+
+  fireEvent.click(promise())
+  fireEvent.submit(document.querySelector('form'))
+
+  await waitFor(() => expect(from).toHaveBeenCalledWith('books'))
+  expect(screen.queryByText('Tick the box to confirm you wrote this story yourself.')).toBeNull()
+})
