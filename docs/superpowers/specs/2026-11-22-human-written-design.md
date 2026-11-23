@@ -114,11 +114,13 @@ write it directly; everything goes through mod RPCs.
 
 - `mod_set_ai_suspected(p_target_type, p_target_id, p_suspected, p_note)`: allowed
   for anyone who can screen that area (`mod_can('screen', area)`). Tagging inserts
-  the row; untagging deletes it. Both write a `mod_actions` row (`ai_tag`,
-  `ai_untag`) with the note, so the trail survives an untag.
+  the row; untagging deletes it. Both write a row to a staff-only history table,
+  `ai_suspicion_log`, with the note, so the trail survives an untag. (Corrected
+  while planning: the first draft said `mod_actions`, but the public transparency
+  log publishes every `mod_actions` row, which would have made the tag public.)
 - Works on stories, Ritual entries, critiques, threads and replies.
 - When the submission is deleted, its tag and evidence go with it. That is the
-  site's deletion policy; the `mod_actions` line remains as the audit log does today.
+  site's deletion policy. The history rows stay until the author's account is deleted.
 
 **Where staff see it.**
 
