@@ -5,6 +5,7 @@ import { registerPasskey, deletePasskey } from '../lib/passkey'
 import { supabase } from '../supabaseClient'
 import ProfileHead from '../components/ProfileHead'
 import DeleteAccount from '../components/DeleteAccount'
+import EmailPrefSwitch from '../components/EmailPrefSwitch'
 import SealedWritingPrompt from '../components/SealedWritingPrompt'
 import KeptRitualEntries from '../components/KeptRitualEntries'
 import KeptStories from '../components/KeptStories'
@@ -287,6 +288,8 @@ function Profile() {
           {status?.error && <span className="form-err font-mono text-xs text-[var(--color-ember)]">{status.error}</span>}
         </div>
       </form>
+
+      <EmailPrefSwitch />
 
       {/* ── Passkeys ── */}
       <div className="mt-16 border-t border-[var(--color-line)] pt-12">

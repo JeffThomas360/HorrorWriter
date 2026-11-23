@@ -461,3 +461,6 @@ verify_jwt = false
 
 [functions.send-storm-alert]
 verify_jwt = false
+
+[functions.send-member-email]
+verify_jwt = false
