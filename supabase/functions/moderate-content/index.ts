@@ -2,7 +2,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { judge } from '../_shared/typesafe.ts'
-import { SCREEN_QUESTIONS, buildState, parseAnswers, decide } from '../_shared/screening.ts'
+import { questionsFor, buildState, parseAnswers, decide, parseMachineWritten, machineWrittenNote } from '../_shared/screening.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -71,19 +71,22 @@ serve(async (req) => {
       return new Response(JSON.stringify({ flagged: false, reason: 'empty content' }), { headers: corsHeaders })
     }
 
-    // ── One TypeSafe call: four yes/no judgments, each with its own threshold ──
+    // ── One TypeSafe call: four safety judgments, each with its own threshold ──
     // See _shared/screening.ts. Fails closed: if we can't get a judgment, a person looks.
+    // A story is also asked whether it reads as raw chatbot output. That answer is
+    // handled apart from the four: it can only file a quiet note for staff.
     const screen = (reason: string) =>
       supabaseAdmin.rpc('apply_automated_mod_status', {
         p_target_type: targetType, p_target_id: targetId, p_status: 'screening', p_reason: reason,
       })
 
     let decision
+    let raw: unknown
     try {
-      const raw = await judge({
+      raw = await judge({
         apiKey: Deno.env.get('TYPESAFE_API_KEY') ?? '',
         state: buildState(targetType, content),
-        questions: SCREEN_QUESTIONS,
+        questions: questionsFor(targetType),
       })
       decision = decide(parseAnswers(raw))
     } catch (err: any) {
@@ -91,6 +94,23 @@ serve(async (req) => {
       const { error } = await screen('Automated screening unavailable; held for human review')
       if (error) throw error
       return new Response(JSON.stringify({ flagged: true, confirmed: null }), { headers: corsHeaders })
+    }
+
+    // The story stays exactly as it is: no mod_status change, no word to the writer.
+    // Nothing here may fail the request or change its answer, so every way this
+    // can go wrong (the RPC not deployed yet, the database refusing) is only logged.
+    if (targetType === 'story') {
+      const note = machineWrittenNote(parseMachineWritten(raw))
+      if (note) {
+        try {
+          const { error } = await supabaseAdmin.rpc('file_automated_report', {
+            p_target_type: 'story', p_target_id: targetId, p_category: 'ai_written', p_details: note,
+          })
+          if (error) console.error('[moderate-content] could not file ai_written note', error)
+        } catch (err) {
+          console.error('[moderate-content] could not file ai_written note', err)
+        }
+      }
     }
 
     if (decision.action === 'pass') {
