@@ -1,38 +1,50 @@
-# Human-written stories: a promise, and a quiet stopgap
+# Human-written stories: a promise, a quiet stopgap, a staff tag
 
-2026-11-22. Short design (a small change).
+2026-11-22. Revised the same day after Jeff's review: added the staff tag and the
+evidence record. It has grown from a small change to two PRs.
 
 ## Why
 
 Jeff wants HorrorWriter to hold amateur, organic writing: stories a person wrote
 themselves. Today the site never says so. Nothing on `/rules`, nothing at publish,
-no way for a member to report a machine-written story.
+no way for a member to report a machine-written story, and nowhere for staff to
+record what they concluded.
 
 Catching AI prose is cat and mouse, and Jeff accepts that. The site asks for a
-promise and lets people enforce it. On top, one cheap automatic check points Jeff at
-the most obvious slop.
+promise and lets people enforce it. One cheap automatic check points staff at the
+most obvious slop. Staff record their own judgment as a private tag, with whatever
+evidence the site can honestly gather next to it.
 
 ## Goals
 
 - The site says plainly that stories must be written by the member.
 - A writer makes that promise each time they publish.
 - A member can report a story as AI-written.
-- Obvious raw chatbot output gets put in front of Jeff without anyone having to report it.
+- Obvious raw chatbot output gets put in front of staff without a report.
+- Staff can tag any submission "Suspected AI". The tag is recorded, with who and
+  when, and staff can list everything that carries it.
+- Each story carries a staff-only evidence record to judge by.
 
 ## Not doing
 
 - Blocking AI crawlers, or visitors who arrive from a chatbot.
-- Watching typing, blocking paste, or any outside "AI detector" service.
+- Blocking paste, or any outside "AI detector" service.
+- A public mark. The tag is staff-only: readers never see it, the writer is not told.
 - A new sanction. Removal and appeal use the tools that exist.
+- Any automatic consequence. The tag and the evidence change nothing by themselves.
 
 ## Would make it a failure
 
-- An honest writer is accused, hidden, or notified by the machine. The automatic
-  check never hides a story and never tells the writer anything.
+- An honest writer is accused, hidden, or notified by the machine.
 - Clumsy, clichéd or unpolished writing gets flagged. Amateur quality is the point
   of the site, not a sign of AI.
+- The evidence is read as proof. None of it is. A writer who drafts in Word and
+  pastes the story in looks the same as a chatbot paste.
+- The site gathers something its privacy section doesn't admit to.
 
 ## Approaches
+
+For the automatic check:
 
 1. **A fifth question on the existing TypeSafe call (picked).** Every story is
    already screened with one call at publish. One more yes/no costs no extra call.
@@ -41,9 +53,10 @@ the most obvious slop.
    like "As an AI". Too narrow on its own.
 3. **A dedicated detector service.** Costs money and accuses real writers. Dropped.
 
-Jeff picked 1, with the quiet flag.
+For the tag: staff-only (picked by Jeff) over a public mark, because "most likely"
+is not certain and a public mark on a wrongly tagged amateur is the failure above.
 
-## The design
+## PR 1: the promise and the stopgap
 
 **The rule.** A new House Rule 4 on `/rules`, "Written by you." Draft wording for
 Jeff to rewrite in his own voice: *Every story here was written by the member who
@@ -53,12 +66,11 @@ not, and will be removed.*
 **The promise.** `PublishStory.jsx` gets a required tick box above the submit
 button, on new stories and on edits: "I wrote this myself. No AI wrote it for me."
 It links to the rule. It renders server-side like the rest of the form. The tick is
-not stored: no story can be published without it, so the rule and the publish date
-are the record. (Claude's call.)
+not stored: no story can be published without it. (Claude's call.)
 
 **The report reason.** `reports.category` gains `ai_written`. `ReportModal.jsx`
-shows it as "Written by AI" when the target is a story. The mod queue needs a label
-for it.
+shows it as "Written by AI" when the target is a story. The Reports tab needs a
+label for it.
 
 **The stopgap.** `_shared/screening.ts` gains a fifth question, `machine_written`,
 asked only when `kind` is `story`:
@@ -88,23 +100,89 @@ and notifies the author. Instead:
 - If a safety question also trips, the story is screened as today and the note is
   still filed.
 
-**Migration.** One numbered migration: widen the `reports.category` check, create
-`file_automated_report` (revoked from public, anon, authenticated; granted to
-`service_role`), `NOTIFY pgrst`. Additive, so no backup run is needed, but it is
-rehearsed in `begin; … rollback;` like every migration.
+**Migration.** Widen the `reports.category` check, create `file_automated_report`
+(revoked from public, anon, authenticated; granted to `service_role`),
+`NOTIFY pgrst`. Additive.
+
+## PR 2: the staff tag and the evidence
+
+**The tag.** A new table, `ai_suspicions`: one row per tagged submission
+(`target_type`, `target_id`, `author_id`, `tagged_by`, `tagged_at`, `note`), unique
+on the target. One table rather than a column on four, so "everything tagged" and
+"everything tagged from this member" are one query each. No client can read or
+write it directly; everything goes through mod RPCs.
+
+- `mod_set_ai_suspected(p_target_type, p_target_id, p_suspected, p_note)`: allowed
+  for anyone who can screen that area (`mod_can('screen', area)`). Tagging inserts
+  the row; untagging deletes it. Both write a `mod_actions` row (`ai_tag`,
+  `ai_untag`) with the note, so the trail survives an untag.
+- Works on stories, Ritual entries, critiques, threads and replies.
+- When the submission is deleted, its tag and evidence go with it. That is the
+  site's deletion policy; the `mod_actions` line remains as the audit log does today.
+
+**Where staff see it.**
+
+- `InlineModControls.jsx`, the `[MOD]` strip on every submission, gains a
+  "Suspected AI" tick. Ticking opens the existing confirm dialog with a note field
+  ("What makes you think so?"). The strip shows the tag's state, so a second mod
+  sees it is already tagged.
+- `UserSubmissions.jsx` (the case file) marks tagged rows and adds a count to the
+  summary line, e.g. "2 suspected AI". This is where a pattern shows.
+- A site-wide list of everything tagged, newest first, with the member, the note,
+  and who tagged it. (Claude's call: a filter in the Reports tab, unless the
+  builder finds a better home.)
+
+**The evidence record.** A new staff-only table, `submission_evidence`, one row per
+story per publish or edit. Stories only in this PR. It holds two things:
+
+1. *The machine's opinion.* The `machine_written` score, saved for every story,
+   not only the ones over the threshold. Written by `moderate-content`.
+2. *How the text reached the editor.* Counted in the story editor and sent at
+   publish: characters typed, characters pasted, number of pastes, the largest
+   single paste, characters dictated, minutes the editor was in use, and how many
+   sittings the draft was saved across. Counts only. Never the keystrokes, never
+   the pasted text. Written by the author's own browser through an RPC that only
+   accepts their own story and clamps every number.
+
+Staff read it beside the tag: in the tick's dialog and on the tagged list, e.g.
+"Machine score 0.91 · 4,200 chars, 98% pasted in 1 paste · editor open 2 min".
+A mod's own note and members' reports sit with it, since reports already attach to
+the story.
+
+What the record is worth, said once on the screen where staff read it: the browser
+reports these numbers, so a determined cheat can fake them, and an honest writer
+who pastes from Word looks pasted. It is context for a human judgment.
+
+**Privacy line (Jeff's call, needed before this ships).** `/rules` says what the
+site keeps, and this adds to it. Draft: *When you publish a story, we note how the
+text reached the editor: how much was typed, pasted or dictated, and roughly how
+long it took. We never record the keystrokes or the pasted text. Staff use it only
+when a story is suspected of being machine-written.* If Jeff would rather not
+collect this, drop item 2; the score, the tag, notes and reports still stand.
+
+**Migration.** Create both tables with RLS on and no policies, the mod RPCs
+(`GRANT EXECUTE … TO authenticated`, permission checked inside), the author's
+evidence RPC, cleanup on delete, `NOTIFY pgrst`. Additive. After it,
+`scripts/sql/verify-grants.sql` must return zero rows.
 
 ## Left to the builder
 
-- Where the mod queue lists reports, and how an automated report with no reporter
-  reads there today.
+- How the Reports tab reads an automated report with no reporter today.
 - Whether Midnight Ritual entries are screened as `story`. If they are, they get the
-  question too; if not, they stay out of this change.
+  question and the score; if not, they stay out.
+- How `reports` rows are cleaned up when their target is deleted, and doing the same
+  for the two new tables.
+- Counting dictated text: how Dictate inserts into `MarkdownEditor`.
+- Keeping the editor counts across a saved draft (`draftAutosave`), so a story
+  written over three evenings isn't reported as one two-minute sitting.
 - Tests: `screening` per-kind question sets and the quiet result, `ReportModal`
-  option by target type, the publish tick box, a SQL test for the RPC and the
-  duplicate guard.
+  option by target type, the publish tick box, the mod tick, the case-file marker,
+  SQL tests for each RPC including who may call it.
 
 ## Shipping
 
-Merge applies the migration and deploys the site. Then by hand:
+Each PR's merge applies its migration and deploys the site; each migration is
+rehearsed in `begin; … rollback;` first. After each merge, by hand:
 `npx supabase functions deploy moderate-content --use-api`. Until that runs, the
-rule, the promise and the report reason work and the stopgap is simply off.
+rule, the promise, the report reason and the tag work, and the automatic check and
+the machine score are simply off.
