@@ -33,7 +33,10 @@ function cleanTag(raw) {
   return /^[a-z0-9._-]+$/.test(tag) ? tag : null
 }
 
-function cleanReferrer(referrer, ownHost) {
+const bareHost = (host) => String(host ?? '').toLowerCase().replace(/^www\./, '')
+
+/** The referrer's host name, lower-cased, or null when there is none worth reading. */
+function referrerHostOf(referrer) {
   if (!referrer) return null
   let url
   try {
@@ -43,8 +46,18 @@ function cleanReferrer(referrer, ownHost) {
   }
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return null
   const host = url.hostname.toLowerCase().slice(0, MAX_HOST)
-  if (!/^[a-z0-9.-]+$/.test(host)) return null
-  if (host === String(ownHost ?? '').toLowerCase()) return null
+  return /^[a-z0-9.-]+$/.test(host) ? host : null
+}
+
+/** True when this page was reached from another page of this same site. */
+function cameFromThisSite(referrer, ownHost) {
+  const host = referrerHostOf(referrer)
+  return !!host && bareHost(host) === bareHost(ownHost)
+}
+
+function cleanReferrer(referrer) {
+  const host = referrerHostOf(referrer)
+  if (!host) return null
   if (SIGN_IN_HOSTS.some((re) => re.test(host))) return null
   return host
 }
@@ -125,9 +138,13 @@ export function noteArrival(win = window, now = Date.now()) {
     // The sign-in callback is a stop on the way in, not where anyone arrived.
     if (String(pathname).startsWith('/auth/')) return
     if (readStored(win, now).state !== 'none') return
+    // A page reached from inside the site is not where anyone arrived. Without this,
+    // an email sign-in link opened in a browser that never saw the first visit would
+    // have the page after the callback stored as "landed on /profile/".
+    if (cameFromThisSite(win.document?.referrer, win.location.hostname)) return
     const record = {
       tag: cleanTag(new URLSearchParams(win.location.search).get('utm_source')),
-      referrerHost: cleanReferrer(win.document?.referrer, win.location.hostname),
+      referrerHost: cleanReferrer(win.document?.referrer),
       landingPath: cleanPath(pathname),
       at: now,
     }

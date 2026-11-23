@@ -37,7 +37,6 @@ test('first touch wins: a second visit does not overwrite it', () => {
 })
 
 test.each([
-  ['our own host', 'https://horrorwriter.org/library/'],
   ['Google sign-in', 'https://accounts.google.com/o/oauth2/auth'],
   ['Supabase sign-in', 'https://abc.supabase.co/auth/v1/callback'],
   ['no referrer', ''],
@@ -179,4 +178,27 @@ test('the marker outlives the 30 days an unsent record is kept', () => {
 test('settling with blocked storage does not crash', () => {
   const blocked = { getItem() { throw new Error('denied') }, setItem() { throw new Error('denied') }, removeItem() { throw new Error('denied') } }
   expect(() => settleArrival(fakeWin({ storage: blocked }), NOW)).not.toThrow()
+})
+
+// ── A page reached from inside the site is not an arrival ──
+test('a page reached from another page of this site is not noted', () => {
+  // The case that matters: an email sign-in link opened in a browser that never saw the
+  // first visit. The page after the callback would otherwise be stored as "landed on /profile/".
+  noteArrival(fakeWin({ pathname: '/profile/', referrer: 'https://horrorwriter.org/auth/callback/?via=email' }), NOW)
+  expect(window.localStorage.getItem(ARRIVAL_KEY)).toBeNull()
+})
+
+test('the host comparison ignores case and a www. prefix on either side', () => {
+  noteArrival(fakeWin({ hostname: 'horrorwriter.org', referrer: 'https://WWW.HorrorWriter.org/library/' }), NOW)
+  expect(window.localStorage.getItem(ARRIVAL_KEY)).toBeNull()
+  noteArrival(fakeWin({ hostname: 'www.horrorwriter.org', referrer: 'https://horrorwriter.org/' }), NOW)
+  expect(window.localStorage.getItem(ARRIVAL_KEY)).toBeNull()
+})
+
+test('a first page with no referrer, or one from elsewhere, is still noted', () => {
+  noteArrival(fakeWin({ pathname: '/', referrer: '' }), NOW)
+  expect(stored().landingPath).toBe('/')
+  window.localStorage.clear()
+  noteArrival(fakeWin({ pathname: '/', referrer: 'https://www.bing.com/search?q=horror' }), NOW)
+  expect(stored().referrerHost).toBe('www.bing.com')
 })
