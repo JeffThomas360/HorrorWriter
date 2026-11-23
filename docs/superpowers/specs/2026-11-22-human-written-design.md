@@ -153,13 +153,11 @@ What the record is worth, said once on the screen where staff read it: the brows
 reports these numbers, so a determined cheat can fake them, and an honest writer
 who pastes from Word looks pasted. It is context for a human judgment.
 
-**Privacy line (Jeff's call, needed before this ships).** `/rules` says what the
-site keeps, and this adds to it. Draft: *When you publish a story, we note how the
+**Privacy line.** Jeff approved recording this (2026-11-22). `/rules` says what the
+site keeps, so the line ships in the same PR. Draft for Jeff to reword: *When you publish a story, we note how the
 text reached the editor: how much was typed, pasted or dictated, and roughly how
 long it took. We never record the keystrokes or the pasted text. Staff use it only
-when a story is suspected of being machine-written.* If Jeff would rather not
-collect this, drop item 2; the score, the tag, notes and reports still stand.
-
+when a story is suspected of being machine-written.*
 **Migration.** Create both tables with RLS on and no policies, the mod RPCs
 (`GRANT EXECUTE … TO authenticated`, permission checked inside), the author's
 evidence RPC, cleanup on delete, `NOTIFY pgrst`. Additive. After it,
