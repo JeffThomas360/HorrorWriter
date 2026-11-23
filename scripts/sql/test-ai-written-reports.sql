@@ -43,6 +43,7 @@ create function pg_temp.u(p_name text)
 returns uuid language sql immutable as $f$
   select ('00000000-0000-4000-8000-0000000ca0' || case p_name
             when 'writer' then '01' when 'reader' then '02' when 'warden' then '03'
+            when 'r1' then '11' when 'r2' then '12' when 'r3' then '13' when 'r4' then '14' when 'r5' then '15'
           end)::uuid;
 $f$;
 
@@ -86,6 +87,10 @@ insert into auth.users (id, email, aud, role, instance_id, created_at, email_con
   (pg_temp.u('writer'), 'aiwritten-writer@example.test', 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000', now() - interval '30 days', now() - interval '30 days'),
   (pg_temp.u('reader'), 'aiwritten-reader@example.test', 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000', now() - interval '30 days', now() - interval '30 days'),
   (pg_temp.u('warden'), 'aiwritten-warden@example.test', 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000', now() - interval '30 days', now() - interval '30 days');
+insert into auth.users (id, email, aud, role, instance_id, created_at, email_confirmed_at)
+select pg_temp.u(n), 'aiwritten-' || n || '@example.test', 'authenticated', 'authenticated',
+       '00000000-0000-0000-0000-000000000000', now() - interval '30 days', now() - interval '30 days'
+from unnest(array['r1','r2','r3','r4','r5']) as n;
 update public.profiles set mod_role = 'warden', mod_scope = 'all' where id = pg_temp.u('warden');
 
 insert into public.books (id, title, lede, content, author_id) values
@@ -121,7 +126,8 @@ select public.resolve_report(
   'dismissed', 'hwtest: reads as the member''s own');
 select pg_temp.be(null);
 select pg_temp.must(pg_temp.open_notes() = 0, '4: the note is closed');
-select pg_temp.must(not exists (select 1 from public.notifications where kind = 'report_resolved' and user_id is null),
+select pg_temp.must(not exists (select 1 from public.notifications where kind = 'report_resolved'
+                                  and user_id in (pg_temp.u('writer'), pg_temp.u('warden'))),
   '4: closing it notifies nobody');
 select pg_temp.must(pg_temp.file() = true, '4: with none open, the next check files a new note');
 
@@ -147,6 +153,42 @@ select pg_temp.must(pg_temp.refused(
   $q$select public.file_automated_report('story', '00000000-0000-4000-8000-0000000da001', 'ai_written', 'x')$q$),
   '6: a visitor cannot call it');
 select pg_temp.be(null);
+
+-- ── 7. A note never re-runs the five-reporter check ──
+-- Five members report the story with details: it is screened, as it always was. A
+-- moderator puts it back. The next automatic note must leave it there.
+do $$
+declare n text;
+begin
+  -- the open note from section 4 is dismissed so the next call files a fresh one
+  update public.reports set status = 'dismissed'
+  where target_id = pg_temp.story() and source = 'automated' and status = 'open';
+  foreach n in array array['r1','r2','r3','r4','r5'] loop
+    perform pg_temp.be(pg_temp.u(n));
+    insert into public.reports (reporter_id, target_type, target_id, category, details)
+    values (pg_temp.u(n), 'story', pg_temp.story(), 'ai_written', 'hwtest: reads like a chatbot');
+    perform pg_temp.be(null);
+  end loop;
+end $$;
+select pg_temp.must((select mod_status = 'screening' from public.books where id = pg_temp.story()),
+  '7: five detailed member reports still screen a story');
+
+select set_config('app.automated_mod_action', 'true', true);
+update public.books set mod_status = 'live' where id = pg_temp.story();
+select set_config('app.automated_mod_action', 'false', true);
+
+create temp table t_before as
+  select (select count(*) from public.notifications where user_id = pg_temp.u('writer')) as notes,
+         (select count(*) from public.mod_actions where target_id = pg_temp.story()) as actions;
+select pg_temp.must(pg_temp.file() = true, '7: the automatic note is filed');
+select pg_temp.must((select mod_status = 'live' from public.books where id = pg_temp.story()),
+  '7: the note does not screen the story again');
+select pg_temp.must(
+  (select count(*) from public.notifications where user_id = pg_temp.u('writer')) = (select notes from t_before),
+  '7: the note does not notify the writer');
+select pg_temp.must(
+  (select count(*) from public.mod_actions where target_id = pg_temp.story()) = (select actions from t_before),
+  '7: the note writes nothing to the moderation log');
 
 select 'ALL PASS' as result;
 rollback;

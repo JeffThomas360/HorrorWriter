@@ -152,6 +152,7 @@ test.describe('Library Flows', () => {
       req.url().includes('/rest/v1/series_books') && req.method() === 'POST'
     );
 
+    await page.getByRole('checkbox', { name: /I wrote this myself/i }).check();
     await page.getByRole('button', { name: /Publish Story/i }).click();
     await seriesRequestPromise;
 

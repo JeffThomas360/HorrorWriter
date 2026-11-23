@@ -6,12 +6,10 @@
 -- story looks like raw chatbot output. That note is only a note: it never touches
 -- mod_status, never notifies the writer, and writes nothing to mod_actions.
 --
--- An automated report has no reporter. handle_new_report() counts DISTINCT
--- reporter_id, which ignores nulls, so a note adds nothing to the five-reporter
--- auto-screen. resolve_report() already skips the notification when there is no
--- reporter.
+-- An automated report has no reporter. resolve_report() already skips the
+-- notification when there is none.
 --
--- Additive: one widened check, one new function.
+-- Additive: one widened check, one new function, one trigger narrowed.
 
 -- ── 1. The new category ─────────────────────────────────
 -- The baseline declared this check inline, so its name was generated. Find it by what
@@ -36,7 +34,21 @@ alter table public.reports
   add constraint reports_category_check
   check (category in ('harassment', 'spam', 'urgent', 'other', 'ai_written'));
 
--- ── 2. Filing an automatic note ─────────────────────────
+-- ── 2. A note is not a member's report ──────────────────
+-- handle_new_report() re-counts the distinct reporters on a target every time a
+-- report is inserted, and screens the content at five. A note has no reporter, so
+-- it adds nothing to that count, but its insert would still re-run the check
+-- against the reports already there: a story five members reported, that a
+-- moderator then put back, would be screened again (and its writer notified) by
+-- the note alone. Only members' reports run the check.
+drop trigger on_report_inserted on public.reports;
+create trigger on_report_inserted
+  after insert on public.reports
+  for each row
+  when (new.source <> 'automated')
+  execute procedure public.handle_new_report();
+
+-- ── 3. Filing an automatic note ─────────────────────────
 -- Returns true when a note was filed, false when an open one of the same kind was
 -- already there (a story edited five times gets one note, not five).
 create function public.file_automated_report(
