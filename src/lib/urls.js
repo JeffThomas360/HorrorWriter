@@ -8,5 +8,7 @@ export const storyPath = (id) => `/library/read/${seg(id)}/`
 export const threadPath = (id) => `/forum/thread/${seg(id)}/`
 export const seriesPath = (id) => `/library/series/${seg(id)}/`
 export const profilePath = (handle) => `/u/${seg(handle)}/`
+/** The share-card image for a Midnight Ritual prompt. */
+export const promptCardPath = (id) => `/og/prompt/${seg(id)}.png`
 
 export const absoluteUrl = (path) => `${SITE}${path}`
