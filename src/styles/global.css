@@ -2,7 +2,7 @@
 @import "./fonts.css";
 
 @theme {
-  /* VHS palette — see docs/superpowers/specs/2026-08-12-vhs-aesthetic-design.md §2 */
+  /* VHS palette */
   --color-void:     #08090C;
   --color-surface:  #0F1116;
   --color-raised:   #161922;
