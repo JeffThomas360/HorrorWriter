@@ -8,6 +8,7 @@ import LoadError from '../components/LoadError'
 import ForbiddenTape from '../components/ForbiddenTape'
 import { filterOneExamplePerGroup } from '../lib/storyHelpers'
 import { readMinutes } from '../lib/tapeWear'
+import { seriesPath } from '../lib/urls'
 
 function Library() {
   const { session } = useAuth()
@@ -260,7 +261,7 @@ function Library() {
                     <VhsSleeveCard story={b} />
                     {seriesObj?.id && (
                       <a
-                        href={`/library/series/${seriesObj.id}/`}
+                        href={seriesPath(seriesObj.id)}
                         className="font-mono text-[10px] uppercase tracking-wider text-[var(--color-upside)] hover:underline truncate px-1"
                         title={`View all parts in ${seriesObj.title}`}
                       >

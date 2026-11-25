@@ -11,12 +11,6 @@ export const WORD_LIMIT = 2000
 /** Publishing needs a real piece; saving a draft doesn't. Mirrors ritual_publish_entry. */
 export const MIN_WORDS = 100
 
-/** \S+ tokens: the same rule as the ritual_drafts CHECK. */
-export function countWords(text) {
-  const m = (text || '').match(/\S+/g)
-  return m ? m.length : 0
-}
-
 /**
  * Words as the database counts them (ritual_word_count): the Markdown marks the
  * editor adds on their own (a scene break, the > of a quote) are not words.
