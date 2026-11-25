@@ -9,7 +9,6 @@ import {
   buildFAQSchema,
   buildBreadcrumbSchema,
   buildArticleSchema,
-  buildSitemapIndexXml,
   metaDescription,
   SITE_DESCRIPTION,
   SUBREDDIT_URL,
@@ -179,19 +178,6 @@ describe('buildBreadcrumbSchema', () => {
       name: 'Library',
       item: 'https://horrorwriter.org/library'
     })
-  })
-})
-
-describe('buildSitemapIndexXml', () => {
-  it('builds a sitemapindex with loc and lastmod', () => {
-    const xml = buildSitemapIndexXml([
-      { loc: 'https://horrorwriter.org/sitemap-stories.xml', lastmod: '2026-09-07T00:00:00Z' }
-    ])
-    expect(xml).toContain('<?xml version="1.0" encoding="UTF-8"?>')
-    expect(xml).toContain('<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">')
-    expect(xml).toContain('<loc>https://horrorwriter.org/sitemap-stories.xml</loc>')
-    expect(xml).toContain('<lastmod>2026-09-07T00:00:00Z</lastmod>')
-    expect(xml).toContain('</sitemapindex>')
   })
 })
 

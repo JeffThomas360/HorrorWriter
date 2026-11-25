@@ -59,15 +59,9 @@ test-results/
 .agents/
 skills-lock.json
 
-*storybook.log
-storybook-static
-
 # Design sync temporary files
 .design-sync/
 ds-bundle/
-
-# Storybook build output
-storybook-static/
 
 # Scratch dirs for superpowers skills (SDD progress ledgers, brainstorm sessions)
 .superpowers/

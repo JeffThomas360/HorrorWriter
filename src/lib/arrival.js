@@ -122,14 +122,6 @@ export function settleArrival(win = window, now = Date.now()) {
   }
 }
 
-export function clearArrival(win = window) {
-  try {
-    win.localStorage.removeItem(ARRIVAL_KEY)
-  } catch {
-    // nothing to clear
-  }
-}
-
 /** Note this visit, unless one is already noted. First touch wins. */
 export function noteArrival(win = window, now = Date.now()) {
   try {

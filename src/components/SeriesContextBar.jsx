@@ -1,3 +1,5 @@
+import { seriesPath } from '../lib/urls'
+
 export default function SeriesContextBar({ seriesContext, onToggleSidebar, isMobile }) {
   if (!seriesContext) return null
 
@@ -26,7 +28,7 @@ export default function SeriesContextBar({ seriesContext, onToggleSidebar, isMob
     >
       <div style={{ flex: 1, minWidth: 0 }}>
         <a
-          href={`/library/series/${series.id}/`}
+          href={seriesPath(series.id)}
           style={{
             color: 'var(--color-bone)',
             textDecoration: 'none',

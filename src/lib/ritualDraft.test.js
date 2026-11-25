@@ -10,7 +10,6 @@ vi.mock('../supabaseClient', () => ({
 
 const {
   WORD_LIMIT,
-  countWords,
   countRitualWords,
   MIN_WORDS,
   readLocalDraft,
@@ -31,13 +30,7 @@ beforeEach(() => {
   state.client = null
 })
 
-describe('countWords', () => {
-  it('counts \\S+ tokens, the same rule as the database CHECK', () => {
-    expect(countWords('')).toBe(0)
-    expect(countWords('   ')).toBe(0)
-    expect(countWords('one')).toBe(1)
-    expect(countWords('  the  walls\nbreathe\tat night ')).toBe(5)
-  })
+describe('limits', () => {
   it('caps at 500', () => {
     expect(WORD_LIMIT).toBe(2000)
   })

@@ -3,7 +3,7 @@ import { test, expect, vi, beforeEach } from 'vitest'
 const mode = vi.hoisted(() => ({ playwright: false }))
 vi.mock('./testMode', () => ({ isPlaywrightTest: () => mode.playwright }))
 
-const { ARRIVAL_KEY, noteArrival, readArrival, clearArrival, settleArrival } = await import('./arrival')
+const { ARRIVAL_KEY, noteArrival, readArrival, settleArrival } = await import('./arrival')
 
 const NOW = Date.UTC(2026, 10, 16, 12)
 const DAY = 24 * 60 * 60 * 1000
@@ -122,12 +122,6 @@ test.each([
   expect(window.localStorage.getItem(ARRIVAL_KEY)).toBeNull()
 })
 
-test('clearArrival removes the record', () => {
-  noteArrival(fakeWin(), NOW)
-  clearArrival(fakeWin())
-  expect(window.localStorage.getItem(ARRIVAL_KEY)).toBeNull()
-})
-
 test('blocked storage means no record and no crash', () => {
   const blocked = {
     getItem() { throw new Error('denied') },
@@ -137,7 +131,6 @@ test('blocked storage means no record and no crash', () => {
   const win = fakeWin({ storage: blocked })
   expect(() => noteArrival(win, NOW)).not.toThrow()
   expect(readArrival(win, NOW)).toBeNull()
-  expect(() => clearArrival(win)).not.toThrow()
 })
 
 test('a window with no storage at all is handled too', () => {

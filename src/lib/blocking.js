@@ -54,21 +54,3 @@ export async function isBlocked(blockedId) {
   if (error) throw new Error(error.message)
   return !!data
 }
-
-/**
- * List all users blocked by the current user.
- * @returns {Promise<Array<{blocked_id: string, profiles: object}>>}
- */
-export async function listBlockedUsers() {
-  if (!supabase) throw new Error('Supabase not configured')
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('You must be signed in to list blocked users.')
-
-  const { data, error } = await supabase
-    .from('user_blocks')
-    .select('blocked_id, profiles!user_blocks_blocked_id_fkey(id, handle, display_name, avatar_url)')
-    .eq('blocker_id', user.id)
-
-  if (error) throw new Error(error.message)
-  return data ?? []
-}

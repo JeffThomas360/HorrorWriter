@@ -5,6 +5,7 @@ import { toast } from '../lib/notify'
 import { withProviders } from '../components/Providers'
 import RequireAuth from '../components/RequireAuth'
 import StoryRemoveControl from '../components/StoryRemoveControl'
+import { seriesPath } from '../lib/urls'
 import {
   fetchMySeriesWithBooks,
   fetchMyBooks,
@@ -221,7 +222,7 @@ function MyStories() {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <h4 className="font-serif font-bold text-lg text-[var(--color-text-primary)]">
-                      <a href={`/library/series/${s.id}/`} className="hover:text-[var(--color-ember)] hover:underline transition-colors">
+                      <a href={seriesPath(s.id)} className="hover:text-[var(--color-ember)] hover:underline transition-colors">
                         {s.title}
                       </a>
                     </h4>
