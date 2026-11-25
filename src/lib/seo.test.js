@@ -11,8 +11,7 @@ import {
   buildArticleSchema,
   metaDescription,
   SITE_DESCRIPTION,
-  SUBREDDIT_URL,
-  SUBREDDIT_VISIT_URL
+  BLUESKY_URL
 } from './seo'
 
 describe('metaDescription', () => {
@@ -51,14 +50,10 @@ describe('buildWebSiteSchema', () => {
     expect(result['@graph'][1]).toMatchObject({ '@type': 'Organization', name: 'Horror Writer' })
   })
 
-  it('lists the subreddit as the Organization sameAs', () => {
-    const org = buildWebSiteSchema({})['@graph'][1]
-    expect(org.sameAs).toEqual(['https://www.reddit.com/r/HorrorWriterOrg/'])
-  })
-
-  it('sends visitors to the same subreddit on old.reddit', () => {
-    expect(SUBREDDIT_VISIT_URL).toBe('https://old.reddit.com/r/HorrorWriterOrg/')
-    expect(new URL(SUBREDDIT_VISIT_URL).pathname).toBe(new URL(SUBREDDIT_URL).pathname)
+  it('lists the Bluesky profile as the Organization sameAs', () => {
+    const org = buildWebSiteSchema({})['@graph'].find((n) => n['@type'] === 'Organization')
+    expect(org.sameAs).toEqual(['https://bsky.app/profile/horrorwriter.org'])
+    expect(BLUESKY_URL).toBe(org.sameAs[0])
   })
 })
 
