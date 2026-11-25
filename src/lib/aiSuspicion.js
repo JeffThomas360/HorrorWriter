@@ -44,7 +44,7 @@ export function fetchTaggedIds() {
   return taggedIds
 }
 
-/** { tag, machine, compose, history, reports } for one submission. */
+/** { tag, machine, compose, compose_first, compose_count, history, reports } for one submission. */
 export function fetchEvidence(targetType, targetId) {
   return call('mod_ai_evidence', { p_target_type: targetType, p_target_id: targetId })
 }
@@ -78,22 +78,36 @@ export function evidenceLine(evidence) {
     parts.push(`Machine score ${Number(score).toFixed(2)}`)
   }
 
-  const compose = evidence?.compose
+  // The earliest record kept is the one that says how the story was written. A later
+  // edit opens with the text already there, so read alone it would look hand-typed.
+  const compose = evidence?.compose_first ?? evidence?.compose
   if (compose) {
     const pasted = num(compose.pasted)
     const imported = num(compose.imported)
     const dictated = num(compose.dictated)
     const total = num(compose.typed) + pasted + imported + dictated
-    const share = (n) => `${Math.round((n / total) * 100)}%`
+    const percent = (n) => Math.round((n / total) * 100)
     const how = []
-    if (pasted > 0) how.push(`${share(pasted)} pasted in ${plural(num(compose.pastes), 'paste')}`)
-    if (imported > 0) how.push(`${share(imported)} imported`)
-    if (dictated > 0) how.push(`${share(dictated)} dictated`)
+    if (pasted > 0) {
+      how.push(`${percent(pasted) < 1 ? 'under 1%' : `${percent(pasted)}%`} pasted in ${plural(num(compose.pastes), 'paste')}`)
+    }
+    // The editor's toolbar arrives the way an import does; a few characters of
+    // formatting are not an import.
+    if (imported > 0 && percent(imported) >= 1) how.push(`${percent(imported)}% imported`)
+    if (dictated > 0 && percent(dictated) >= 1) how.push(`${percent(dictated)}% dictated`)
     if (how.length === 0) how.push('none pasted')
-    parts.push(`${num(compose.chars_final).toLocaleString('en-US')} chars, ${how.join(', ')}`)
+
+    const fmt = (n) => num(n).toLocaleString('en-US')
+    const opened = num(compose.chars_at_open)
+    parts.push(opened > 0
+      ? `edit of ${fmt(opened)} existing chars: ${fmt(total)} added, ${how.join(', ')}`
+      : `${fmt(compose.chars_final)} chars, ${how.join(', ')}`)
 
     const minutes = Math.round(num(compose.active_ms) / 60000)
     parts.push(`editor in use ${minutes < 1 ? 'under 1 min' : `${minutes} min`} over ${plural(num(compose.sittings), 'sitting')}`)
+
+    const later = num(evidence?.compose_count) - 1
+    if (later > 0) parts.push(plural(later, 'later edit'))
   }
 
   const reports = num(evidence?.reports)

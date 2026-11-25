@@ -48,6 +48,33 @@ describe('evidenceLine', () => {
     expect(line).toBe('1,000 chars, 25% pasted in 3 pastes, 25% dictated · editor in use under 1 min over 3 sittings · 2 member reports')
   })
 
+  it('describes the first publish, not the latest edit, and counts the edits since', () => {
+    const line = evidenceLine({
+      machine: null, reports: 0, compose_count: 2,
+      compose_first: compose(),
+      compose: compose({ typed: 1, pasted: 0, pastes: 0, chars_at_open: 4200, chars_final: 4201 }),
+    })
+    expect(line).toBe('4,200 chars, 98% pasted in 1 paste · editor in use 2 min over 1 sitting · 1 later edit')
+  })
+
+  it('says so when the only record is an edit of text that was already there', () => {
+    const edit = compose({ typed: 1, pasted: 0, pastes: 0, active_ms: 1000, chars_at_open: 5000, chars_final: 5001 })
+    const line = evidenceLine({ machine: null, reports: 0, compose_count: 1, compose_first: edit, compose: edit })
+    expect(line).toContain('edit of 5,000 existing chars: 1 added, none pasted')
+    expect(line).not.toContain('5,001 chars')
+  })
+
+  it('does not call a toolbar click an import', () => {
+    const line = evidenceLine({ machine: null, reports: 0, compose: compose({ typed: 2000, pasted: 0, pastes: 0, imported: 4, chars_final: 2004 }) })
+    expect(line).toContain('2,004 chars, none pasted')
+    expect(line).not.toContain('imported')
+  })
+
+  it('still names a small paste', () => {
+    const line = evidenceLine({ machine: null, reports: 0, compose: compose({ typed: 5000, pasted: 5, pastes: 1, chars_final: 5005 }) })
+    expect(line).toContain('5,005 chars, under 1% pasted in 1 paste')
+  })
+
   it('says a typed story was not pasted', () => {
     expect(evidenceLine({ machine: null, reports: 0, compose: compose({ typed: 900, pasted: 0, pastes: 0, chars_final: 900 }) }))
       .toContain('900 chars, none pasted')

@@ -87,6 +87,20 @@ test('a tagged submission offers to remove the tag, and shows who tagged it and 
   await waitFor(() => expect(tick()).toHaveAttribute('aria-pressed', 'false'))
 })
 
+test('a tag the strip did not know about is not overwritten: the dialog offers to remove it', async () => {
+  // The shared tag list failed or is stale, but the evidence says it is tagged.
+  h.fetchEvidence.mockResolvedValue({
+    ...evidence,
+    tag: { note: 'first moderator note', tagged_by_handle: 'warden', tagged_at: '2026-11-24T10:00:00Z' },
+  })
+  render(<AiSuspicionControl targetType="story" targetId="b1" />)
+  fireEvent.click(tick())
+
+  expect(await screen.findByRole('alertdialog', { name: 'Remove the suspected-AI tag?' })).toBeInTheDocument()
+  expect(screen.getByText(/Tagged by @warden: first moderator note/)).toBeInTheDocument()
+  expect(tick()).toHaveAttribute('aria-pressed', 'true')
+})
+
 test('a refused tag says why and leaves the tick as it was', async () => {
   h.setSuspected.mockRejectedValue(new Error('Permission denied'))
   render(<AiSuspicionControl targetType="post" targetId="p1" />)

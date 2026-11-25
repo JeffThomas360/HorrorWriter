@@ -166,9 +166,12 @@ revoke all on function public.mod_ai_suspected_list(uuid) from public, anon;
 grant execute on function public.mod_ai_suspected_list(uuid) to authenticated;
 
 -- ── 4. What staff read when they judge one submission ───
--- machine and compose are the latest of each, and exist only for stories. reports
--- counts members' "written by AI" reports; the screening function's own note is not a
--- member's report and is left out.
+-- machine and compose are the latest of each, and exist only for stories. An edit
+-- opens with the text already in the editor, so the latest compose record alone would
+-- make any edited story look hand-typed: compose_first is the earliest record kept
+-- (the first publish, until twenty edits push it out) and compose_count how many there
+-- are. reports counts members' "written by AI" reports; the screening function's own
+-- note is not a member's report and is left out.
 create function public.mod_ai_evidence(p_target_type text, p_target_id uuid)
 returns jsonb
 language plpgsql stable security definer set search_path = ''
@@ -197,6 +200,14 @@ begin
         from public.submission_evidence e
        where p_target_type = 'story' and e.story_id = p_target_id and e.source = 'compose'
        order by e.recorded_at desc limit 1),
+    'compose_first', (
+      select e.compose || jsonb_build_object('recorded_at', e.recorded_at)
+        from public.submission_evidence e
+       where p_target_type = 'story' and e.story_id = p_target_id and e.source = 'compose'
+       order by e.recorded_at asc limit 1),
+    'compose_count', (
+      select count(*) from public.submission_evidence e
+       where p_target_type = 'story' and e.story_id = p_target_id and e.source = 'compose'),
     'history', coalesce((
       select jsonb_agg(jsonb_build_object('action', l.action, 'note', l.note,
                                           'actor_handle', actor.handle, 'created_at', l.created_at)

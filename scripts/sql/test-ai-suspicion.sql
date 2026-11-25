@@ -319,10 +319,13 @@ values (pg_temp.u('member'), 'story', pg_temp.c('story'), 'ai_written', 'hwtest:
 insert into public.reports (reporter_id, target_type, target_id, category, details, source)
 values (null, 'story', pg_temp.c('story'), 'ai_written', 'Automated check: machine_written 0.91', 'automated');
 
+-- Kept in settings so they can be read back as the admin role.
 select pg_temp.be(pg_temp.u('warden'));
-create temp table t_evidence as select public.mod_ai_evidence('story', pg_temp.c('story')) as e;
-create temp table t_post_evidence as select public.mod_ai_evidence('post', pg_temp.c('post')) as e;
+select set_config('test.evidence', public.mod_ai_evidence('story', pg_temp.c('story'))::text, true);
+select set_config('test.post_evidence', public.mod_ai_evidence('post', pg_temp.c('post'))::text, true);
 select pg_temp.be(null);
+create temp table t_evidence as select current_setting('test.evidence')::jsonb as e;
+create temp table t_post_evidence as select current_setting('test.post_evidence')::jsonb as e;
 select pg_temp.must(
   (select e->'tag'->>'note' = 'hwtest: moderator, story'
       and e->'tag'->>'tagged_by_handle' is not null
@@ -338,6 +341,11 @@ select pg_temp.must(
    from t_evidence),
   '10: the latest compose record');
 select pg_temp.must(
+  (select (e->'compose_first'->>'typed')::int = 1006 and (e->>'compose_count')::int = 20
+      and e->'compose_first'->>'recorded_at' is not null
+   from t_evidence),
+  '10: the earliest compose record kept, and how many there are');
+select pg_temp.must(
   (select (select array_agg(h->>'action' order by ord) from jsonb_array_elements(e->'history') with ordinality as x(h, ord))
             = array['tag', 'untag', 'tag', 'tag']
       and e->'history'->0->>'note' = 'hwtest: moderator, story'
@@ -349,6 +357,7 @@ select pg_temp.must((select (e->>'reports')::int = 1 from t_evidence),
 select pg_temp.must(
   (select e->'tag'->>'note' = 'hwtest: warden, post'
       and e->'machine' = 'null'::jsonb and e->'compose' = 'null'::jsonb
+      and e->'compose_first' = 'null'::jsonb and (e->>'compose_count')::int = 0
       and (e->>'reports')::int = 0 and jsonb_array_length(e->'history') = 1
    from t_post_evidence),
   '10: a post has a tag and a history, and no machine or compose record');

@@ -28,7 +28,13 @@ export default function AiSuspicionControl({ targetType, targetId }) {
     let live = true
     setEvidence(undefined)
     fetchEvidence(targetType, targetId)
-      .then((data) => { if (live) setEvidence(data ?? null) })
+      .then((data) => {
+        if (!live) return
+        setEvidence(data ?? null)
+        // The shared tag list can be stale or have failed to load. The evidence is
+        // fresh: if it says tagged, never offer to tag over another moderator's note.
+        if (data) setTagged(Boolean(data.tag))
+      })
       .catch(() => { if (live) setEvidence(null) })
     return () => { live = false }
   }, [open, targetType, targetId])
