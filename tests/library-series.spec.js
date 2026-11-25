@@ -239,11 +239,15 @@ test.describe('In-Story Series Navigation', () => {
     test('sidebar starts closed and opens via "expand series"', async ({ page }) => {
       await page.goto(`/library/read/${PART_2.book_id}`);
 
-      await expect(page.getByText(PART_1.books.title)).toHaveCount(0);
+      // The sidebar's own entry ("1. Title"), not the "← Part 1: Title" link under the
+      // story, which carries the same title and is on the page whether or not the
+      // sidebar is open.
+      const sidebarEntry = page.getByRole('link', { name: `1. ${PART_1.books.title}` });
+      await expect(sidebarEntry).toHaveCount(0);
 
       await page.getByRole('button', { name: /expand series/i }).click();
 
-      await expect(page.getByText(PART_1.books.title)).toBeVisible();
+      await expect(sidebarEntry).toBeVisible();
       await expect(page.getByText('(You are here)')).toBeVisible();
     });
 

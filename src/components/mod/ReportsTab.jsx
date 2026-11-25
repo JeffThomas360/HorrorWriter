@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../supabaseClient'
 import { resolveReport, contentHref } from '../../lib/modActions'
+import { categoryLabel } from '../../lib/reportCategories'
 import UserModProfile from './UserModProfile'
 import ConfirmDialog from './ConfirmDialog'
 import { toast } from '../../lib/notify'
@@ -58,7 +59,7 @@ export default function ReportsTab() {
       if (urgentOnly && r.category !== 'urgent') return false
       if (query.trim()) {
         const q = query.trim().toLowerCase()
-        const haystack = `${r.category} ${r.details || ''} ${r.profiles?.handle || ''}`.toLowerCase()
+        const haystack = `${r.category} ${categoryLabel(r.category)} ${r.details || ''} ${r.profiles?.handle || ''}`.toLowerCase()
         if (!haystack.includes(q)) return false
       }
       return true
@@ -142,11 +143,11 @@ export default function ReportsTab() {
               className={`card-surface p-4 ${r.category === 'urgent' ? 'border-[var(--color-blood)] bg-[rgba(200,16,46,0.06)]' : ''}`}
             >
               <div className="flex justify-between mb-2">
-                <strong className="font-mono text-sm text-[var(--color-bone)]">{r.target_type.toUpperCase()} — {r.category}</strong>
+                <strong className="font-mono text-sm text-[var(--color-bone)]">{r.target_type.toUpperCase()} — {categoryLabel(r.category)}</strong>
                 <span className="font-mono text-xs text-[var(--color-ash)]">{new Date(r.created_at).toLocaleString()}</span>
               </div>
               <p className="text-sm text-[var(--color-bone)] my-2 flex items-center gap-2">
-                <span><strong>Reporter:</strong> {r.profiles?.handle ? `@${r.profiles.handle}` : 'Unknown'}</span>
+                <span><strong>Reporter:</strong> {r.source === 'automated' ? 'Automated check' : r.profiles?.handle ? `@${r.profiles.handle}` : 'Unknown'}</span>
                 {r.reporter_id && (
                   <button
                     type="button"

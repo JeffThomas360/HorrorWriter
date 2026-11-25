@@ -4,6 +4,7 @@ import { useAuth } from '../AuthContext'
 import { modCan } from '../../lib/moderation'
 import { setContentModStatus } from '../../lib/modActions'
 import ConfirmDialog from './ConfirmDialog'
+import AiSuspicionControl from './AiSuspicionControl'
 
 export default function InlineModControls({ targetType, targetId, currentStatus, authorId }) {
   const { profile } = useAuth()
@@ -74,6 +75,8 @@ export default function InlineModControls({ targetType, targetId, currentStatus,
           Screen
         </button>
       )}
+
+      {canScreen && <AiSuspicionControl targetType={targetType} targetId={targetId} />}
     </div>
   )
 }

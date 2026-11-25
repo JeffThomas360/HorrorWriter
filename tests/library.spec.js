@@ -52,6 +52,7 @@ test.describe('Library Flows', () => {
     await page.locator('textarea[placeholder^="True!—nervous—"]').fill(STORY);
 
     // Submit form
+    await page.getByRole('checkbox', { name: /I wrote this myself/i }).check();
     const publishBtn = page.getByRole('button', { name: /Publish Story/i });
     await expect(publishBtn).toBeEnabled();
     await publishBtn.click();
@@ -99,6 +100,7 @@ test.describe('Library Flows', () => {
     await page.locator('textarea[placeholder^="True!—nervous—"]').fill(STORY);
 
     // Submit
+    await page.getByRole('checkbox', { name: /I wrote this myself/i }).check();
     const publishBtn = page.getByRole('button', { name: /Publish Story/i });
     await expect(publishBtn).toBeEnabled();
     await publishBtn.click();
@@ -150,6 +152,7 @@ test.describe('Library Flows', () => {
       req.url().includes('/rest/v1/series_books') && req.method() === 'POST'
     );
 
+    await page.getByRole('checkbox', { name: /I wrote this myself/i }).check();
     await page.getByRole('button', { name: /Publish Story/i }).click();
     await seriesRequestPromise;
 

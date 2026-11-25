@@ -123,7 +123,13 @@ with allow(name, role, why) as (values
   ('public_profile_handles',   'anon',          'sitemap: non-shadowbanned handles, flag not exposed'),
   ('public_profile_handles',   'authenticated', 'sitemap: non-shadowbanned handles, flag not exposed'),
   -- Admin writing export (20261114000000). Every member's published writing; keepers only.
-  ('admin_export_writing',     'authenticated', 'keeper RPC, mod_can(configure, all)')
+  ('admin_export_writing',     'authenticated', 'keeper RPC, mod_can(configure, all)'),
+  -- Suspected-AI tag and evidence (20261127000000). Staff RPCs check mod_can(screen, area)
+  -- inside and never write mod_actions. record_machine_score is NOT here: service_role only.
+  ('mod_set_ai_suspected',     'authenticated', 'mod RPC, mod_can(screen, area), staff-only history'),
+  ('mod_ai_suspected_list',    'authenticated', 'mod RPC, rows only where mod_can(screen, area)'),
+  ('mod_ai_evidence',          'authenticated', 'mod RPC, mod_can(screen, area)'),
+  ('record_compose_signals',   'authenticated', 'own story only, ten clamped counts, newest 20 kept')
 ),
 grants as (
   select

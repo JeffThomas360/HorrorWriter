@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { toast } from '../lib/notify'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { supabase } from '../supabaseClient'
 import { screenContent } from '../lib/screenContent'
+import { createComposeTracker, recordComposeSignals } from '../lib/composeSignals'
 import { useAuth } from '../components/AuthContext'
 import MarkdownEditor from '../components/MarkdownEditor'
 import StoryCardPreview from '../components/StoryCardPreview'
@@ -40,6 +41,9 @@ function PublishStory({ bookId }) {
     return ''
   })
   const [error, setError] = useState(null)
+  // House Rule 4. Asked afresh every time, edits included, and never saved with the
+  // draft: it is a promise about what is being sent now.
+  const [wroteIt, setWroteIt] = useState(false)
   const [seriesId, setSeriesId] = useState('')
   const [activeTab, setActiveTab] = useState('write') // 'write' | 'preview'
   const [currentVersion, setCurrentVersion] = useState(1)
@@ -48,6 +52,11 @@ function PublishStory({ bookId }) {
   const [existing, setExisting] = useState(null)
 
   const [pendingDraft, setPendingDraft] = useState(null)
+
+  // Counts how the manuscript's text arrives (typed, pasted, dictated, imported).
+  // Counts only, never the text. Kept with the draft and sent once at publish.
+  const trackerRef = useRef(null)
+  if (!trackerRef.current) trackerRef.current = createComposeTracker()
 
   const draftKey = bookId ? `edit_${bookId}` : 'new_story'
 
@@ -90,6 +99,7 @@ function PublishStory({ bookId }) {
           setLede(loadedLede)
           setCover(loadedCover)
           setContent(loadedContent)
+          trackerRef.current.open(loadedContent.length)
           setCritiqueFocus(loadedCritiqueFocus)
           setCurrentVersion(data.version || 1)
           if (link) setSeriesId(loadedSeriesId)
@@ -130,6 +140,12 @@ function PublishStory({ bookId }) {
     return () => { isMounted = false }
   }, [bookId, userId])
 
+  // A new story opens with whatever the form starts with (nothing, or a seed line).
+  useEffect(() => {
+    if (!bookId) trackerRef.current.open(content.length)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookId])
+
   // Check for unsaved draft in localStorage
   useEffect(() => {
     const saved = getDraft(draftKey)
@@ -156,7 +172,7 @@ function PublishStory({ bookId }) {
     }
 
     const timer = setTimeout(() => {
-      saveDraft(draftKey, { title, lede, cover, content, seriesId })
+      saveDraft(draftKey, { title, lede, cover, content, seriesId, compose: trackerRef.current.snapshot(content.length) })
     }, 1500)
 
     return () => clearTimeout(timer)
@@ -169,6 +185,10 @@ function PublishStory({ bookId }) {
     if (pendingDraft.cover) setCover(pendingDraft.cover)
     if (pendingDraft.content) setContent(pendingDraft.content)
     if (pendingDraft.seriesId) setSeriesId(pendingDraft.seriesId)
+    // Carry the draft's counts on as a new sitting. A draft saved before counts
+    // were kept has none, so it opens at the length it is restored with.
+    trackerRef.current = createComposeTracker(pendingDraft.compose)
+    trackerRef.current.open((pendingDraft.content || content).length)
     setPendingDraft(null)
     toast.success('Draft restored from local memory.')
   }
@@ -222,12 +242,13 @@ function PublishStory({ bookId }) {
         return data
       }
     },
-    onSuccess: async (data) => {
+    onSuccess: async (data, variables) => {
       clearDraft(draftKey)
       queryClient.invalidateQueries({ queryKey: ['books'] })
       queryClient.invalidateQueries({ queryKey: ['book', bookId] })
 
       await screenContent(supabase, 'story', data?.id)
+      await recordComposeSignals(supabase, data?.id, variables.compose)
 
       // Editing a story already in its series must not add it again (that
       // fails on the primary key); a changed choice leaves the old series first.
@@ -270,7 +291,12 @@ function PublishStory({ bookId }) {
       return
     }
 
-    mutation.mutate({ title, lede, cover, content, critiqueFocus })
+    if (!wroteIt) {
+      setError('Tick the box to confirm you wrote this story yourself.')
+      return
+    }
+
+    mutation.mutate({ title, lede, cover, content, critiqueFocus, compose: trackerRef.current.snapshot(content.length) })
   }
 
   const isSubmitting = mutation.isPending
@@ -418,20 +444,47 @@ function PublishStory({ bookId }) {
 
               <MarkdownEditor
                 value={content}
-                onChange={(e) => setContent(e.target.value)}
+                onChange={(e) => {
+                  trackerRef.current.change(e, content.length, e.target.value.length)
+                  setContent(e.target.value)
+                }}
                 placeholder="True!—nervous—very, very dreadfully nervous I had been and am; but why will you say that I am mad?"
               />
 
               <div className="mt-2">
                 <TranscribeButton
-                  onTranscribed={(text) => setContent(prev => prev ? `${prev}\n\n${text}` : text)}
+                  onTranscribed={(text) => {
+                    trackerRef.current.dictated(text.length)
+                    setContent(prev => prev ? `${prev}\n\n${text}` : text)
+                  }}
                 />
               </div>
             </div>
 
-            <div className="flex items-center gap-4 mt-4 border-t border-[var(--color-line)] pt-6">
-              <button 
-                type="submit" 
+            <div className="flex flex-wrap items-center gap-x-3 mt-4 border-t border-[var(--color-line)] pt-4">
+              <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm text-[var(--color-bone)]">
+                <input
+                  type="checkbox"
+                  required
+                  checked={wroteIt}
+                  onChange={(e) => setWroteIt(e.target.checked)}
+                  className="h-5 w-5 shrink-0 accent-[var(--color-ember)]"
+                />
+                I wrote this myself. No AI wrote it for me.
+              </label>
+              <a
+                href="/rules/#house-rules"
+                target="_blank"
+                rel="noopener"
+                className="font-mono text-xs uppercase tracking-wider text-[var(--color-ash)] underline underline-offset-2 hover:text-[var(--color-ember)]"
+              >
+                House Rule 4
+              </a>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <button
+                type="submit"
                 className="btn-vhs disabled:opacity-50 cursor-pointer"
                 disabled={isSubmitting}
               >

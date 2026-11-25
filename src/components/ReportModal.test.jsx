@@ -20,7 +20,16 @@ test('offers the content-report reasons for a story', () => {
     'Spam / Bots',
     'Urgent / Real-world Harm',
     'Other Violation',
+    'Written by AI',
   ])
+})
+
+test('offers "Written by AI" only on stories', () => {
+  for (const targetType of ['post', 'critique', 'thread', 'user']) {
+    render(<ReportModal isOpen onClose={() => {}} targetType={targetType} targetId="x1" />)
+    expect(optionLabels()).not.toContain('Written by AI')
+    cleanup()
+  }
 })
 
 test('has no site-support mode any more: bugs and contact go through tickets', () => {

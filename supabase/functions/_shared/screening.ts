@@ -59,6 +59,41 @@ export const THRESHOLDS: Record<QuestionId, number> = {
   real_threat: 0.5,
 }
 
+// ── Written by a person? (stories only) ──────────────────────────────
+// House Rule 4: stories are written by the member. This is a stopgap for the laziest
+// case, a chatbot's reply pasted in whole. It is deliberately NOT one of the safety
+// questions above: it never hides anything and never fails closed. A yes only files a
+// quiet note for staff (see moderate-content), and an answer we can't read is ignored.
+const MACHINE_WRITTEN_QUESTION = {
+  type: 'noul',
+  instructions: 'The `content` is raw, unedited output from an AI chatbot, posted as a story.',
+  criteria: {
+    true: 'Assistant chatter left in the text ("Certainly! Here is a horror story", "I hope you enjoy"), an echoed prompt, or chat-style headings and bullet scaffolding around the prose',
+    false: 'Anything else. Clumsy, clichéd, purple or unpolished writing is NOT evidence, and neither is polished writing.',
+  },
+} as const
+
+// A placeholder to tune on real stories. High on purpose: a false note costs a
+// moderator a minute, but a pattern of them would teach staff to distrust amateurs.
+export const MACHINE_WRITTEN_THRESHOLD = 0.85
+
+/** The questions to ask about one piece of content: safety for everything, authorship for stories. */
+export function questionsFor(kind: string): Record<string, unknown> {
+  return kind === 'story' ? { ...SCREEN_QUESTIONS, machine_written: MACHINE_WRITTEN_QUESTION } : SCREEN_QUESTIONS
+}
+
+/** The machine_written probability, or null when it is missing or unreadable. Never throws. */
+export function parseMachineWritten(raw: unknown): number | null {
+  const p = (raw as { answers?: Record<string, { noul?: unknown }> } | null)?.answers?.machine_written?.noul
+  return typeof p === 'number' && Number.isFinite(p) && p >= 0 && p <= 1 ? p : null
+}
+
+/** The note to file for staff, or null when the story is under the bar. Numbers only, no model prose. */
+export function machineWrittenNote(p: number | null): string | null {
+  if (p === null || p < MACHINE_WRITTEN_THRESHOLD) return null
+  return `Automated check: machine_written ${p.toFixed(2)}`
+}
+
 export function buildState(kind: string, content: string) {
   return { site: SITE_CONTEXT, kind, content }
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { submitReport } from '../lib/modActions'
+import { categoriesFor } from '../lib/reportCategories'
 import { toast } from '../lib/notify'
 import { useAuth } from './AuthContext'
 
@@ -98,10 +99,9 @@ export default function ReportModal({ isOpen, onClose, targetType, targetId }) {
                 className="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border border-[var(--color-line)] px-3 py-2 text-sm focus:border-[var(--color-accent-crimson)] focus:outline-none"
               >
                 <option value="" disabled>Select a reason...</option>
-                <option value="harassment">Harassment / Hate Speech</option>
-                <option value="spam">Spam / Bots</option>
-                <option value="urgent">Urgent / Real-world Harm</option>
-                <option value="other">Other Violation</option>
+                {categoriesFor(targetType).map((c) => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
               </select>
             </div>
 

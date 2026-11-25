@@ -2,7 +2,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { judge } from '../_shared/typesafe.ts'
-import { SCREEN_QUESTIONS, buildState, parseAnswers, decide } from '../_shared/screening.ts'
+import { questionsFor, buildState, parseAnswers, decide, parseMachineWritten, machineWrittenNote } from '../_shared/screening.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -71,19 +71,22 @@ serve(async (req) => {
       return new Response(JSON.stringify({ flagged: false, reason: 'empty content' }), { headers: corsHeaders })
     }
 
-    // ── One TypeSafe call: four yes/no judgments, each with its own threshold ──
+    // ── One TypeSafe call: four safety judgments, each with its own threshold ──
     // See _shared/screening.ts. Fails closed: if we can't get a judgment, a person looks.
+    // A story is also asked whether it reads as raw chatbot output. That answer is
+    // handled apart from the four: it can only file a quiet note for staff.
     const screen = (reason: string) =>
       supabaseAdmin.rpc('apply_automated_mod_status', {
         p_target_type: targetType, p_target_id: targetId, p_status: 'screening', p_reason: reason,
       })
 
     let decision
+    let raw: unknown
     try {
-      const raw = await judge({
+      raw = await judge({
         apiKey: Deno.env.get('TYPESAFE_API_KEY') ?? '',
         state: buildState(targetType, content),
-        questions: SCREEN_QUESTIONS,
+        questions: questionsFor(targetType),
       })
       decision = decide(parseAnswers(raw))
     } catch (err: any) {
@@ -93,12 +96,45 @@ serve(async (req) => {
       return new Response(JSON.stringify({ flagged: true, confirmed: null }), { headers: corsHeaders })
     }
 
+    // Apply the safety decision first, so nothing below can delay a screen.
+    const { error: screenError } = decision.action === 'pass'
+      ? { error: null }
+      : await screen(decision.reason)
+
+    // Stories only: what the machine thought, kept for staff. The score is saved for
+    // every story; the quiet note is filed only over the threshold. Neither changes
+    // the story: no mod_status change, no word to the writer. Nothing here may fail
+    // the request or change its answer, so every way this can go wrong (an RPC not
+    // deployed yet, the database refusing) is only logged.
+    if (targetType === 'story') {
+      const score = parseMachineWritten(raw)
+      if (score !== null) {
+        try {
+          const { error } = await supabaseAdmin.rpc('record_machine_score', {
+            p_story_id: targetId, p_score: score,
+          })
+          if (error) console.error('[moderate-content] could not save machine score', error)
+        } catch (err) {
+          console.error('[moderate-content] could not save machine score', err)
+        }
+      }
+      const note = machineWrittenNote(score)
+      if (note) {
+        try {
+          const { error } = await supabaseAdmin.rpc('file_automated_report', {
+            p_target_type: 'story', p_target_id: targetId, p_category: 'ai_written', p_details: note,
+          })
+          if (error) console.error('[moderate-content] could not file ai_written note', error)
+        } catch (err) {
+          console.error('[moderate-content] could not file ai_written note', err)
+        }
+      }
+    }
+
+    if (screenError) throw screenError
     if (decision.action === 'pass') {
       return new Response(JSON.stringify({ flagged: false }), { headers: corsHeaders })
     }
-
-    const { error: screenError } = await screen(decision.reason)
-    if (screenError) throw screenError
     return new Response(
       JSON.stringify({ flagged: true, confirmed: true, worstTierCandidate: decision.worstTier }),
       { headers: corsHeaders }

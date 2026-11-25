@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { SCREEN_QUESTIONS, buildState, parseAnswers, decide, THRESHOLDS } from './screening'
+import {
+  SCREEN_QUESTIONS, buildState, parseAnswers, decide, THRESHOLDS,
+  MACHINE_WRITTEN_THRESHOLD, questionsFor, parseMachineWritten, machineWrittenNote,
+} from './screening'
 
 const answers = (over: Record<string, number> = {}) => ({
   sexual_minors: 0.01,
@@ -80,5 +83,33 @@ describe('decide', () => {
   it('never writes model-authored prose into the reason', () => {
     const d = decide(answers({ hate_speech: 0.98 }))
     if (d.action === 'screen') expect(d.reason).toMatch(/^Automated screening: hate_speech 0\.98$/)
+  })
+})
+
+describe('machine_written', () => {
+  it('is asked for stories only', () => {
+    expect(Object.keys(questionsFor('story')).sort()).toEqual(['harassment', 'hate_speech', 'machine_written', 'real_threat', 'sexual_minors'])
+    for (const kind of ['post', 'thread', 'critique']) expect(Object.keys(questionsFor(kind))).not.toContain('machine_written')
+  })
+  it('tells the judge amateur quality is not evidence', () => {
+    const q = questionsFor('story').machine_written as { type: string; criteria: { false: string } }
+    expect(q.type).toBe('noul')
+    expect(q.criteria.false).toMatch(/clumsy|clich|unpolished/i)
+  })
+  it('reads the probability, and reads anything odd as null without throwing', () => {
+    expect(parseMachineWritten({ answers: { machine_written: { noul: 0.91 } } })).toBe(0.91)
+    for (const raw of [null, {}, { answers: {} }, { answers: { machine_written: { noul: 'high' } } }, { answers: { machine_written: { noul: 1.5 } } }, { answers: { machine_written: { noul: NaN } } }]) {
+      expect(parseMachineWritten(raw)).toBeNull()
+    }
+  })
+  it('notes only at or over the threshold, in numbers only', () => {
+    expect(machineWrittenNote(null)).toBeNull()
+    expect(machineWrittenNote(MACHINE_WRITTEN_THRESHOLD - 0.01)).toBeNull()
+    expect(machineWrittenNote(MACHINE_WRITTEN_THRESHOLD)).toBe('Automated check: machine_written 0.85')
+    expect(machineWrittenNote(0.912)).toBe('Automated check: machine_written 0.91')
+  })
+  it('leaves the four safety answers parsing as before when the fifth is present', () => {
+    const raw = { answers: { sexual_minors: { noul: 0.01 }, harassment: { noul: 0.01 }, hate_speech: { noul: 0.01 }, real_threat: { noul: 0.01 }, machine_written: { noul: 0.99 } } }
+    expect(decide(parseAnswers(raw))).toEqual({ action: 'pass' })
   })
 })

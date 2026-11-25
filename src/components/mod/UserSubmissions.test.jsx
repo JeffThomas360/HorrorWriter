@@ -2,12 +2,15 @@ import { render, screen, cleanup, fireEvent, within } from '@testing-library/rea
 import { test, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // Only the network edge is faked: the component and lib/submissions run for real.
-const h = vi.hoisted(() => ({ rows: [], error: null, calls: [] }))
+const h = vi.hoisted(() => ({ rows: [], error: null, calls: [], suspected: [], suspectedError: null }))
 
 vi.mock('../../supabaseClient', () => ({
   supabase: {
     rpc: (name, args) => {
       h.calls.push({ name, args })
+      if (name === 'mod_ai_suspected_list') {
+        return Promise.resolve({ data: h.suspectedError ? null : h.suspected, error: h.suspectedError })
+      }
       return Promise.resolve({ data: h.error ? null : h.rows, error: h.error })
     },
   },
@@ -44,6 +47,8 @@ beforeEach(() => {
   h.rows = [STORY, HIDDEN_STORY, RITUAL, REPLY, CRITIQUE, RITUAL_CRITIQUE]
   h.error = null
   h.calls = []
+  h.suspected = []
+  h.suspectedError = null
 })
 afterEach(() => cleanup())
 
@@ -56,7 +61,9 @@ const headings = () => within(screen.getByRole('table')).getAllByRole('columnhea
 
 test('asks the server for this member\'s submissions', async () => {
   await open()
-  expect(h.calls).toEqual([{ name: 'mod_user_submissions', args: { p_user: 'target' } }])
+  expect(h.calls).toContainEqual({ name: 'mod_user_submissions', args: { p_user: 'target' } })
+  expect(h.calls).toContainEqual({ name: 'mod_ai_suspected_list', args: { p_author: 'target' } })
+  expect(h.calls).toHaveLength(2)
 })
 
 test('every sub-tab shows its count, including an empty one', async () => {
@@ -216,4 +223,31 @@ test('arrow keys move between sub-tabs', async () => {
   await open()
   fireEvent.keyDown(screen.getByRole('tab', { name: 'Stories 2' }), { key: 'ArrowRight' })
   expect(screen.getByRole('tab', { name: 'Rituals 1' })).toHaveAttribute('aria-selected', 'true')
+})
+
+// Suspected AI: the staff tag, shown where a pattern across one member's work would show.
+test('a tagged row is marked beside its status, and the summary counts it', async () => {
+  h.suspected = [{ target_type: 'story', target_id: 's1' }]
+  await open()
+  const table = within(screen.getByRole('table'))
+  const row = table.getByRole('link', { name: 'The House on Marrow Lane' }).closest('tr')
+  expect(await within(row).findByText('Suspected AI')).toHaveClass('text-[var(--color-ember)]')
+  expect(within(table.getByRole('link', { name: 'Tunnel Static' }).closest('tr')).queryByText('Suspected AI')).toBeNull()
+  expect(screen.getByTestId('submissions-summary')).toHaveTextContent('1 suspected AI')
+  expect(within(screen.getByTestId('submissions-stacked')).getAllByText('Suspected AI')).toHaveLength(1)
+})
+
+test('nothing tagged, no marker and no count', async () => {
+  await open()
+  expect(screen.queryByText('Suspected AI')).toBeNull()
+  expect(screen.getByTestId('submissions-summary')).not.toHaveTextContent('suspected AI')
+})
+
+test('the submissions still show when the tags cannot be read', async () => {
+  h.suspectedError = { message: 'nope' }
+  const quiet = vi.spyOn(console, 'error').mockImplementation(() => {})
+  await open()
+  expect(screen.getAllByRole('link', { name: 'The House on Marrow Lane' }).length).toBeGreaterThan(0)
+  expect(screen.queryByText('Suspected AI')).toBeNull()
+  quiet.mockRestore()
 })

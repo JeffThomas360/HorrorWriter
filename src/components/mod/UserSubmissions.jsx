@@ -8,6 +8,7 @@ import {
   submissionHref,
   formatEdits,
 } from '../../lib/submissions'
+import { fetchSuspected } from '../../lib/aiSuspicion'
 import CaseFileTabs from './CaseFileTabs'
 
 const CRITIQUES = { key: 'critiques', label: 'Critiques', one: 'critique', many: 'critiques' }
@@ -42,6 +43,12 @@ function StatusText({ status }) {
   return <span className={live ? 'text-[var(--color-ash)]' : 'text-[var(--color-ember)]'}>{STATUS[status] ?? status}</span>
 }
 
+/** The staff tag, beside the status of a row that carries it. */
+function SuspectedMark({ row, suspected }) {
+  if (!suspected.has(row.id)) return null
+  return <>{' · '}<span className="text-[var(--color-ember)]">Suspected AI</span></>
+}
+
 /** The title or excerpt, linked to the submission, with what it belongs to underneath. */
 function RowHeading({ row }) {
   const href = submissionHref(row)
@@ -62,7 +69,7 @@ function metricClass(column, value) {
   return value ? 'text-[var(--color-bone)]' : 'text-[var(--color-ash)]'
 }
 
-function SubmissionsTable({ kind, rows }) {
+function SubmissionsTable({ kind, rows, suspected }) {
   const { first, columns } = LAYOUT[kind]
   const th = 'font-mono text-[10px] uppercase tracking-widest text-[var(--color-ash)] py-2 pr-4 font-normal'
   return (
@@ -88,7 +95,7 @@ function SubmissionsTable({ kind, rows }) {
                 </td>
               )
             })}
-            <td className="py-2 font-mono text-xs whitespace-nowrap"><StatusText status={row.mod_status} /></td>
+            <td className="py-2 font-mono text-xs whitespace-nowrap"><StatusText status={row.mod_status} /><SuspectedMark row={row} suspected={suspected} /></td>
           </tr>
         ))}
       </tbody>
@@ -97,7 +104,7 @@ function SubmissionsTable({ kind, rows }) {
 }
 
 /** The same details in a line of words, for panels too narrow for a table. */
-function SubmissionsStacked({ kind, rows }) {
+function SubmissionsStacked({ kind, rows, suspected }) {
   const { columns } = LAYOUT[kind]
   return (
     <ul data-testid="submissions-stacked">
@@ -112,7 +119,7 @@ function SubmissionsStacked({ kind, rows }) {
               const shown = String(c.format ? c.format(row) : value)
               return <span key={c.key} className={c.key === 'reports' ? 'text-[var(--color-ember)]' : undefined}> · {shown} {shown === '1' ? c.one : c.many}</span>
             })}
-            {' · '}<StatusText status={row.mod_status} />
+            {' · '}<StatusText status={row.mod_status} /><SuspectedMark row={row} suspected={suspected} />
           </span>
         </li>
       ))}
@@ -120,15 +127,17 @@ function SubmissionsStacked({ kind, rows }) {
   )
 }
 
-function SummaryLine({ rows }) {
+function SummaryLine({ rows, suspected }) {
   if (rows.length === 0) {
     return <p data-testid="submissions-summary" className="text-sm italic font-serif text-[var(--color-ash)]">Nothing on the site from this member right now.</p>
   }
   const s = summarize(rows)
+  const tagged = rows.filter((r) => suspected.has(r.id)).length
   const flags = [
     s.hidden > 0 && `${s.hidden} hidden`,
     s.screening > 0 && `${s.screening} in screening`,
     s.reports > 0 && plural(s.reports, 'report', 'reports'),
+    tagged > 0 && `${tagged} suspected AI`,
   ].filter(Boolean)
   return (
     <p data-testid="submissions-summary" className="font-mono text-xs leading-relaxed text-[var(--color-ash)]">
@@ -151,12 +160,20 @@ export default function UserSubmissions({ userId, bannedUntil }) {
   const [rows, setRows] = useState(null)
   const [error, setError] = useState(null)
   const [picked, setPicked] = useState(null)
+  // Ids of this member's submissions that staff have tagged as suspected AI.
+  const [suspected, setSuspected] = useState(() => new Set())
 
   useEffect(() => {
     let stale = false
     setRows(null)
     setError(null)
     setPicked(null)
+    setSuspected(new Set())
+    // Beside the submissions, not before them: without the tags the rows still render.
+    fetchSuspected({ author: userId }).then(
+      (tags) => { if (!stale) setSuspected(new Set(tags.map((t) => t.target_id))) },
+      (err) => console.error('Could not read the suspected-AI tags:', err),
+    )
     fetchUserSubmissions(userId).then(
       (data) => { if (!stale) setRows(data) },
       (err) => { if (!stale) setError(err.message) },
@@ -186,7 +203,7 @@ export default function UserSubmissions({ userId, bannedUntil }) {
         </div>
       )}
 
-      <SummaryLine rows={rows} />
+      <SummaryLine rows={rows} suspected={suspected} />
 
       <CaseFileTabs
         label="Submission types"
@@ -202,8 +219,8 @@ export default function UserSubmissions({ userId, bannedUntil }) {
           <p className="py-4 text-sm italic font-serif text-[var(--color-ash)]">No {activeKind.label.toLowerCase()} from this member.</p>
         ) : (
           <>
-            <div className="hidden @2xl:block"><SubmissionsTable kind={active} rows={activeRows} /></div>
-            <div className="@2xl:hidden"><SubmissionsStacked kind={active} rows={activeRows} /></div>
+            <div className="hidden @2xl:block"><SubmissionsTable kind={active} rows={activeRows} suspected={suspected} /></div>
+            <div className="@2xl:hidden"><SubmissionsStacked kind={active} rows={activeRows} suspected={suspected} /></div>
           </>
         )}
       </div>
