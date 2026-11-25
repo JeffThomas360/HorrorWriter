@@ -2,7 +2,6 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from './AuthContext'
 import { withProviders } from './Providers'
 import { supabase } from '../supabaseClient'
-import { playTypewriterKey } from '../lib/soundscapes'
 import { formatSlot } from '../lib/ritualSchedule'
 import { screenContent } from '../lib/screenContent'
 import TranscribeButton from './TranscribeButton'
@@ -141,7 +140,6 @@ function MidnightRitual() {
       writeLocalDraft(activeChannel.id, text)
     }
     setActiveChannelIndex(idx)
-    playTypewriterKey(true)
     const target = channels[idx]
     if (!target) return
     const local = readLocalDraft(target.id)
@@ -159,12 +157,10 @@ function MidnightRitual() {
         if (savedId) setDraftId(savedId)
         clearLocalDraft(activeChannel.id)
         setStatus({ kind: 'saved' })
-        playTypewriterKey(true)
         return savedId
       } else {
         writeLocalDraft(activeChannel.id, content)
         setStatus({ kind: 'saved', message: 'Saved on this device. Ready to publish to The Crypt!' })
-        playTypewriterKey(true)
         return null
       }
     } catch (err) {
@@ -196,7 +192,6 @@ function MidnightRitual() {
           if (id) setDraftId(id)
           clearLocalDraft(flagged)
           setStatus({ kind: 'saved' })
-          playTypewriterKey(true)
         })
         .catch((err) => setStatus({ kind: 'error', message: err.message }))
     }
@@ -265,7 +260,6 @@ function MidnightRitual() {
       const entryId = await fetchMyLatestEntryId(threadId, user.id)
       await screenContent(supabase, 'post', entryId)
       clearLocalDraft(activeChannel.id)
-      playTypewriterKey(true)
       setStatus({ kind: 'published' })
       window.location.assign(`/forum/thread/${threadId}/${entryId ? `#post-${entryId}` : ''}`)
     } catch (err) {

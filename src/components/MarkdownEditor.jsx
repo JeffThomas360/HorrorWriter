@@ -1,7 +1,6 @@
 import { useState, useRef, useMemo } from 'react'
 import StoryMarkdown from './StoryMarkdown'
 import { parseFileToMarkdown } from '../lib/fileParser'
-import { playTypewriterKey, setAmbientSound, getCurrentAmbientType } from '../lib/soundscapes'
 
 const TOOL_BTN =
   'relative flex h-8 w-8 items-center justify-center border border-transparent text-sm text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-line)] hover:text-[var(--color-text-primary)] disabled:pointer-events-none disabled:opacity-30'
@@ -46,8 +45,6 @@ export default function MarkdownEditor({
   const [viewMode, setViewMode] = useState('write') // 'write' | 'split' | 'preview'
   const [isUploading, setIsUploading] = useState(false)
   const [uploadError, setUploadError] = useState(null)
-  const [typewriterAudio, setTypewriterAudio] = useState(false)
-  const [ambientAudio, setAmbientAudio] = useState('off')
 
   const fileInputRef = useRef(null)
   const textareaRef = useRef(null)
@@ -59,28 +56,6 @@ export default function MarkdownEditor({
   }, [value])
 
   const milestone = getWordMilestone(wordCount)
-
-  const handleKeyDown = (e) => {
-    if (typewriterAudio && !disabled && viewMode !== 'preview') {
-      if (e.key !== 'Shift' && e.key !== 'Control' && e.key !== 'Alt' && e.key !== 'Meta') {
-        playTypewriterKey(e.key === 'Enter')
-      }
-    }
-  }
-
-  const toggleTypewriterAudio = () => {
-    const next = !typewriterAudio
-    setTypewriterAudio(next)
-    if (next) {
-      playTypewriterKey(false)
-    }
-  }
-
-  const handleAmbientChange = (e) => {
-    const mode = e.target.value
-    setAmbientAudio(mode)
-    setAmbientSound(mode)
-  }
 
   const insertText = (before, after = '') => {
     if (!textareaRef.current) return
@@ -207,36 +182,8 @@ export default function MarkdownEditor({
           </ToolButton>
         </div>
 
-        {/* Sensory Audio, Word Milestone & Mode Tabs */}
+        {/* Word Milestone & Mode Tabs */}
         <div className="flex items-center gap-3">
-          {/* Audio Controls */}
-          <div className="flex items-center gap-1.5 bg-[var(--color-void)] px-2 py-0.5 border border-[var(--color-line)] text-[11px] font-mono">
-            <button
-              type="button"
-              onClick={toggleTypewriterAudio}
-              title="Toggle tactile typewriter clicks while typing"
-              className={`flex items-center gap-1 transition-colors px-1 py-0.5 ${
-                typewriterAudio ? 'text-[var(--color-ember)] font-bold' : 'text-[var(--color-text-secondary)] hover:text-white'
-              }`}
-            >
-              <span>⌨️</span>
-              <span className="hidden sm:inline">{typewriterAudio ? 'Clicks: ON' : 'Clicks'}</span>
-            </button>
-
-            <span className="text-[var(--color-line)]">|</span>
-
-            <select
-              value={ambientAudio}
-              onChange={handleAmbientChange}
-              title="Select background sensory horror atmosphere"
-              className="bg-transparent text-[var(--color-text-secondary)] hover:text-white cursor-pointer focus:outline-none text-[11px] py-0.5"
-            >
-              <option value="off" className="bg-[var(--color-surface)] text-[var(--color-text-primary)]">Audio: Off</option>
-              <option value="tape" className="bg-[var(--color-surface)] text-[var(--color-text-primary)]">📻 Tape Hum</option>
-              <option value="rain" className="bg-[var(--color-surface)] text-[var(--color-text-primary)]">🌧️ Night Rain</option>
-            </select>
-          </div>
-
           {/* Word Count Milestone */}
           <div
             title={`Current word count: ${wordCount} words`}
@@ -299,7 +246,6 @@ export default function MarkdownEditor({
           ref={textareaRef}
           value={value}
           onChange={onChange}
-          onKeyDown={handleKeyDown}
           placeholder={placeholder}
           rows={rows}
           disabled={disabled}
@@ -329,7 +275,6 @@ export default function MarkdownEditor({
               ref={textareaRef}
               value={value}
               onChange={onChange}
-              onKeyDown={handleKeyDown}
               placeholder={placeholder}
               rows={rows}
               disabled={disabled}

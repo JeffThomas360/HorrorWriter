@@ -1,10 +1,5 @@
 import { render, screen, cleanup } from '@testing-library/react'
-import { test, expect, vi, afterEach } from 'vitest'
-
-vi.mock('../lib/soundscapes', () => ({
-  playWhisperEcho: () => {},
-  playTypewriterKey: () => {},
-}))
+import { test, expect, afterEach } from 'vitest'
 
 const VoidWhispers = (await import('./VoidWhispers')).default
 

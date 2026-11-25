@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { playWhisperEcho, playTypewriterKey } from '../lib/soundscapes'
 
 // Authored writing prompts, not user submissions. Labelled SEED in the UI, the same way
 // the public-domain classics are labelled ARCHIVE SAMPLE.
@@ -62,7 +61,6 @@ export default function VoidWhispers() {
     if (!inputVal.trim()) return
 
     setDissolving(true)
-    playWhisperEcho()
 
     setTimeout(() => {
       const newWhisper = {
@@ -88,7 +86,6 @@ export default function VoidWhispers() {
   }
 
   function handleClaimSeed(item) {
-    playTypewriterKey(false)
     navigator.clipboard?.writeText(item.text).then(() => {
       setClaimedId(item.id)
       setTimeout(() => setClaimedId(null), 2500)
@@ -112,7 +109,6 @@ export default function VoidWhispers() {
 
         <button
           onClick={() => {
-            playTypewriterKey(false)
             setIsWhispering(!isWhispering)
           }}
           className="font-mono text-xs uppercase px-4 py-2.5 border border-[var(--color-ember)] text-[var(--color-ember)] hover:bg-[var(--color-ember)] hover:text-white transition-colors cursor-pointer self-start sm:self-auto"

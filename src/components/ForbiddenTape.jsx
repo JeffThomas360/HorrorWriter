@@ -1,16 +1,7 @@
 import { useState } from 'react'
-import { playStaticGlitch, playDreadTone } from '../lib/soundscapes'
 
 export default function ForbiddenTape() {
   const [unlocked, setUnlocked] = useState(false)
-
-  function handlePlayTape() {
-    playStaticGlitch()
-    setTimeout(() => {
-      playDreadTone()
-    }, 150)
-    setUnlocked(true)
-  }
 
   return (
     <div className="border border-[var(--color-accent-crimson)] bg-[#120409] p-6 relative overflow-hidden my-8">
@@ -41,7 +32,7 @@ export default function ForbiddenTape() {
         <div>
           {!unlocked ? (
             <button
-              onClick={handlePlayTape}
+              onClick={() => setUnlocked(true)}
               className="group relative font-mono text-xs uppercase px-6 py-3.5 bg-red-950/80 border border-[var(--color-accent-crimson)] text-white hover:bg-red-900 transition-all cursor-pointer shadow-[0_0_15px_rgba(200,16,46,0.3)] hover:shadow-[0_0_25px_rgba(200,16,46,0.6)]"
             >
               <span className="flex items-center gap-2">

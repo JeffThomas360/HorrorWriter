@@ -6,7 +6,6 @@ vi.mock('./AuthContext', () => ({
   useAuth: () => auth,
   AuthProvider: ({ children }) => children,
 }))
-vi.mock('../lib/soundscapes', () => ({ playTypewriterKey: () => {} }))
 vi.mock('../lib/screenContent', () => ({ screenContent: vi.fn(async () => {}) }))
 vi.mock('../supabaseClient', () => ({ supabase: {} }))
 // The real editor is ProseMirror; these tests are about the box around it.

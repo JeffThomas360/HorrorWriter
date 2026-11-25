@@ -141,7 +141,6 @@ test.describe('Library Flows', () => {
     await setupMockAuth(page);
     await page.goto('/library/publish');
 
-    // By label: the form also has the editor's soundscape <select>.
     await page.getByLabel('Part of a series?').selectOption({ label: MOCK_SERIES[0].title });
 
     await page.getByPlaceholder('The Music of Erich Zann').fill('A Sequel');
