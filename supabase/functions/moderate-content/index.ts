@@ -96,11 +96,29 @@ serve(async (req) => {
       return new Response(JSON.stringify({ flagged: true, confirmed: null }), { headers: corsHeaders })
     }
 
-    // The story stays exactly as it is: no mod_status change, no word to the writer.
-    // Nothing here may fail the request or change its answer, so every way this
-    // can go wrong (the RPC not deployed yet, the database refusing) is only logged.
+    // Apply the safety decision first, so nothing below can delay a screen.
+    const { error: screenError } = decision.action === 'pass'
+      ? { error: null }
+      : await screen(decision.reason)
+
+    // Stories only: what the machine thought, kept for staff. The score is saved for
+    // every story; the quiet note is filed only over the threshold. Neither changes
+    // the story: no mod_status change, no word to the writer. Nothing here may fail
+    // the request or change its answer, so every way this can go wrong (an RPC not
+    // deployed yet, the database refusing) is only logged.
     if (targetType === 'story') {
-      const note = machineWrittenNote(parseMachineWritten(raw))
+      const score = parseMachineWritten(raw)
+      if (score !== null) {
+        try {
+          const { error } = await supabaseAdmin.rpc('record_machine_score', {
+            p_story_id: targetId, p_score: score,
+          })
+          if (error) console.error('[moderate-content] could not save machine score', error)
+        } catch (err) {
+          console.error('[moderate-content] could not save machine score', err)
+        }
+      }
+      const note = machineWrittenNote(score)
       if (note) {
         try {
           const { error } = await supabaseAdmin.rpc('file_automated_report', {
@@ -113,12 +131,10 @@ serve(async (req) => {
       }
     }
 
+    if (screenError) throw screenError
     if (decision.action === 'pass') {
       return new Response(JSON.stringify({ flagged: false }), { headers: corsHeaders })
     }
-
-    const { error: screenError } = await screen(decision.reason)
-    if (screenError) throw screenError
     return new Response(
       JSON.stringify({ flagged: true, confirmed: true, worstTierCandidate: decision.worstTier }),
       { headers: corsHeaders }
