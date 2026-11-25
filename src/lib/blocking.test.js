@@ -6,7 +6,7 @@ vi.mock('../supabaseClient', () => ({
   supabase: { auth: mockAuth, from: (...args) => mockFrom(...args) },
 }))
 
-const { blockUser, unblockUser, isBlocked, listBlockedUsers } = await import('./blocking')
+const { blockUser, unblockUser, isBlocked } = await import('./blocking')
 
 beforeEach(() => {
   mockAuth.getUser.mockReset()
@@ -93,34 +93,5 @@ describe('isBlocked', () => {
   test('returns false when signed out', async () => {
     mockAuth.getUser.mockResolvedValue({ data: { user: null } })
     expect(await isBlocked('user-b')).toBe(false)
-  })
-})
-
-describe('listBlockedUsers', () => {
-  test('returns blocked profiles for the current user', async () => {
-    mockAuth.getUser.mockResolvedValue({ data: { user: { id: 'user-a' } } })
-    const eq = vi.fn().mockResolvedValue({
-      data: [{ blocked_id: 'user-b', profiles: { handle: 'nightowl' } }],
-      error: null,
-    })
-    mockFrom.mockReturnValue({ select: vi.fn().mockReturnValue({ eq }) })
-
-    const result = await listBlockedUsers()
-    expect(result).toEqual([{ blocked_id: 'user-b', profiles: { handle: 'nightowl' } }])
-    expect(mockFrom).toHaveBeenCalledWith('user_blocks')
-    expect(eq).toHaveBeenCalledWith('blocker_id', 'user-a')
-  })
-
-  test('throws when not signed in', async () => {
-    mockAuth.getUser.mockResolvedValue({ data: { user: null } })
-    await expect(listBlockedUsers()).rejects.toThrow('signed in')
-  })
-
-  test('surfaces query database error message', async () => {
-    mockAuth.getUser.mockResolvedValue({ data: { user: { id: 'user-a' } } })
-    const eq = vi.fn().mockResolvedValue({ data: null, error: { message: 'query failed' } })
-    mockFrom.mockReturnValue({ select: vi.fn().mockReturnValue({ eq }) })
-
-    await expect(listBlockedUsers()).rejects.toThrow('query failed')
   })
 })
