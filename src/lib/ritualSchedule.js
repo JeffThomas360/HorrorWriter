@@ -25,6 +25,18 @@ export function formatSlot(iso) {
   return `${parts.weekday} ${parts.day} ${parts.month}, ${parts.hour}:${parts.minute} ET`
 }
 
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000
+
+/**
+ * True while a prompt was released less than a week ago. Only then may the
+ * site call it "this week's": when no new prompt has gone out, the newest one
+ * stays up, and a dated "this week" label would be untrue.
+ */
+export function isThisWeeks(iso, now = Date.now()) {
+  const released = new Date(iso).getTime()
+  return Number.isFinite(released) && now - released < WEEK_MS
+}
+
 /** Split keeper-visible rows into the live prompt, the upcoming schedule and the pending pile. */
 export function splitQueue(rows, now = new Date()) {
   const t = now.getTime()
