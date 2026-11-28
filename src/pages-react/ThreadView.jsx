@@ -19,6 +19,9 @@ import { isMissingRow } from '../lib/loadFailure'
 import KindleReader, { useKindlePrefs } from '../components/KindleReader'
 import { authorLabel, isTombstone, TOMBSTONE_TEXT } from '../lib/storyHelpers'
 import { categorySidebarLabel } from '../lib/forumCategories'
+import ShareBar from '../components/ShareBar'
+import { promptShareTitle } from '../lib/share'
+import { threadPath } from '../lib/urls'
 
 const PAGE_SIZE = 15
 
@@ -635,6 +638,7 @@ function ThreadView({ id, initialThread, initialPosts }) {
           <p className="font-serif italic text-sm text-[var(--color-text-primary)] leading-relaxed">
             &ldquo;{thread.ritual_prompts.body}&rdquo;
           </p>
+          <ShareBar path={threadPath(thread.id)} title={promptShareTitle(thread.ritual_prompts.body)} />
         </div>
       )}
 

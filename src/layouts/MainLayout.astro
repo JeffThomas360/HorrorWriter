@@ -11,6 +11,7 @@ import ArrivalPrompt from '../components/ArrivalPrompt.jsx';
 import NotificationsBell from '../components/NotificationsBell.jsx';
 import Footer from '../components/Footer.astro';
 import SignInModalWrapper from '../components/SignInModalWrapper.jsx';
+import { FEED_PATH, FEED_TITLE } from '../lib/feed';
 
 interface Props {
   title?: string;
@@ -43,6 +44,7 @@ const ogImageURL = ogImage ? new URL(ogImage, Astro.site) : new URL('/og.png', A
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="canonical" href={canonicalURL} />
+    <link rel="alternate" type="application/rss+xml" title={FEED_TITLE} href={FEED_PATH} />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="generator" content={Astro.generator} />
     <meta name="robots" content={robots} />

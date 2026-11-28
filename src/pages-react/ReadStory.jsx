@@ -22,7 +22,8 @@ import { fetchStorySeriesContext } from '../lib/series'
 import SeriesContextBar from '../components/SeriesContextBar'
 import SeriesSidebar from '../components/SeriesSidebar'
 import { readMinutes } from '../lib/tapeWear'
-import { isStoryOwner, copyrightNotice, authorLabel, isTombstone, TOMBSTONE_TEXT, isArchive, storyAuthorLabel, storyKeyColumn } from '../lib/storyHelpers'
+import { isStoryOwner, copyrightNotice, authorLabel, isTombstone, TOMBSTONE_TEXT, isArchive, storyAuthorLabel, storyKeyColumn, storyUrlKey } from '../lib/storyHelpers'
+import { storyPath } from '../lib/urls'
 
 const AV_COLORS = ['', 'av-1', 'av-2', 'av-3', 'av-4', 'av-5', 'av-6']
 
@@ -473,7 +474,7 @@ function ReadStory({ id, initialBook }) {
 
           {/* Share Bar */}
           <div className="max-w-2xl mx-auto border-t border-[var(--color-line)] pt-8">
-            <ShareBar />
+            <ShareBar path={storyPath(storyUrlKey(book))} title={`${book.title} by ${storyAuthorLabel(book)}`} />
           </div>
         </>
       )}
