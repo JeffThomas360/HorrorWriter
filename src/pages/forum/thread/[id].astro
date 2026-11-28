@@ -8,6 +8,7 @@ import ThreadView from '../../../pages-react/ThreadView.jsx';
 import { supabase } from '../../../supabaseClient';
 import { buildDiscussionForumPostingSchema, buildBreadcrumbSchema } from '../../../lib/seo';
 import { isPlaywrightTest } from '../../../lib/testMode';
+import { promptCardPath } from '../../../lib/urls';
 
 const { id } = Astro.params;
 
@@ -62,6 +63,8 @@ const title = isTombstone
 const description = isRitual
   ? `Horror flash fiction written to the Midnight Ritual prompt "${promptSnippet}", with critique, on Horror Writer.`
   : thread ? `A discussion started by ${authorHandle} in The Crypt, the horror writing forum on Horror Writer.` : 'Horror writing discussion in The Crypt on Horror Writer.';
+// A prompt thread is shared as a card showing the prompt itself.
+const ogImage = isRitual && !isTombstone ? promptCardPath(thread.ritual_prompts.id) : undefined;
 const siteUrl = Astro.site ? new URL(Astro.site).origin : 'https://horrorwriter.org';
 const pageUrl = new URL(Astro.url.pathname, siteUrl).toString();
 
@@ -81,7 +84,7 @@ const breadcrumbSchema = thread && !isTombstone ? buildBreadcrumbSchema([
 ]) : null;
 ---
 
-<MainLayout noindex={notFound || isTombstone} title={title} description={description}>
+<MainLayout noindex={notFound || isTombstone} title={title} description={description} ogImage={ogImage}>
   {breadcrumbSchema && <StructuredData data={breadcrumbSchema} />}
   {postingSchema && <StructuredData data={postingSchema} />}
   <ThreadView id={id} initialThread={thread && !isTombstone ? thread : undefined} initialPosts={initialPosts} client:load />

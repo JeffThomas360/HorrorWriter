@@ -5,7 +5,8 @@ import MainLayout from '../../layouts/MainLayout.astro';
 import StructuredData from '../../components/StructuredData.astro';
 import { fetchPromptArchive, OPEN_PROMPTS } from '../../lib/promptArchive';
 import { buildBreadcrumbSchema } from '../../lib/seo';
-import { threadPath } from '../../lib/urls';
+import { threadPath, promptCardPath, absoluteUrl } from '../../lib/urls';
+import { shareTargets, promptShareTitle } from '../../lib/share';
 import { isPlaywrightTest } from '../../lib/testMode';
 
 let archive = null;
@@ -24,11 +25,20 @@ const breadcrumbSchema = buildBreadcrumbSchema([
 // Fixed locale and zone so every visitor and crawler sees the same date.
 const fmt = (iso) => new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
 const entryLabel = (n) => `${n} ${n === 1 ? 'entry' : 'entries'}`;
+
+// Sharing this page shows the newest prompt as its card.
+const ogImage = archive?.[0] ? promptCardPath(archive[0].id) : undefined;
+// A prompt is shared by its critique thread; one with no thread yet, by this page.
+const shareLinks = (p) => shareTargets({
+  url: absoluteUrl(p.threadId ? threadPath(p.threadId) : '/prompts/'),
+  title: promptShareTitle(p.body),
+});
 ---
 
 <MainLayout
   title="Horror Writing Prompts — The Midnight Ritual Archive | Horror Writer"
   description="Every Midnight Ritual horror writing prompt: one new dark-fiction prompt each week, with the flash fiction writers wrote to it and the critique it drew."
+  ogImage={ogImage}
 >
   <StructuredData data={breadcrumbSchema} />
   <div class="mt-8 max-w-3xl mx-auto">
@@ -60,6 +70,10 @@ const entryLabel = (n) => `${n} ${n === 1 ? 'entry' : 'entries'}`;
                 {p.threadId && p.entries > 0
                   ? <a href={threadPath(p.threadId)} class="text-[var(--color-ember)] hover:underline">Read {entryLabel(p.entries)} →</a>
                   : <span class="text-[var(--color-text-secondary)]">No entries yet{p.open ? ' — be the first' : ''}</span>}
+                <span class="ml-4 text-[var(--color-text-secondary)]">Share:</span>
+                {shareLinks(p).map((t) => (
+                  <a href={t.href} target="_blank" rel="noopener noreferrer" class="ml-3 inline-block py-2 text-[var(--color-text-secondary)] hover:text-[var(--color-ember)] hover:underline">{t.label}</a>
+                ))}
               </div>
             </article>
           </li>
